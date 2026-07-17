@@ -266,22 +266,56 @@
   .fraud-panel .sec-sub{color:rgba(36,31,20,.65)}
   .fraud-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:start}
   @media(max-width:900px){.fraud-grid{grid-template-columns:1fr}}
-  .attack{border-top:1px solid var(--paper-line);padding:16px 0;display:grid;grid-template-columns:150px 1fr;gap:14px;font-size:13.8px}
-  @media(max-width:560px){.attack{grid-template-columns:1fr}}
-  .attack b{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--danger);text-transform:uppercase;font-weight:700}
-  .attack span{color:rgba(36,31,20,.72);line-height:1.6}
-  .attack span strong{color:var(--paper-ink)}
+  .attacks{display:flex;flex-direction:column;gap:12px}
+  .attack{
+    background:rgba(255,255,255,.65);border:1px solid var(--paper-line);border-radius:12px;
+    padding:16px 18px;
+  }
+  .attack-name{
+    display:flex;align-items:center;gap:10px;
+    font-size:15.5px;font-weight:800;font-stretch:110%;color:var(--paper-ink);
+  }
+  .attack-name::before{
+    content:"✗";flex-shrink:0;width:22px;height:22px;border-radius:6px;
+    display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:700;
+    background:rgba(224,86,59,.12);color:var(--danger);border:1px solid rgba(224,86,59,.3);
+  }
+  .attack-def{
+    display:flex;align-items:flex-start;gap:10px;margin-top:9px;
+    font-size:14px;color:rgba(36,31,20,.78);line-height:1.65;
+  }
+  .attack-def::before{
+    content:"✓";flex-shrink:0;width:22px;height:22px;border-radius:6px;margin-top:1px;
+    display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:700;
+    background:rgba(18,138,95,.1);color:var(--verify-deep);border:1px solid rgba(18,138,95,.28);
+  }
+  .attack-def strong{color:var(--paper-ink)}
   .ledger{
     background:#fff;border:1px solid var(--paper-line);border-radius:12px;padding:22px;
-    font-family:var(--mono);font-size:12.3px;
+    font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;
   }
-  .ledger-title{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:rgba(36,31,20,.5);font-weight:700;margin-bottom:14px;display:flex;justify-content:space-between}
-  .lrow{display:flex;justify-content:space-between;padding:9px 8px;border-top:1px dashed var(--paper-line);gap:8px}
-  .lrow .amt{color:var(--verify-deep);font-weight:600}
-  .lrow .bal{color:rgba(36,31,20,.55)}
-  .lrow.spoof{background:rgba(224,86,59,.09);border-radius:6px;border:1px solid rgba(224,86,59,.35)}
-  .lrow.spoof .amt{color:var(--danger)}
+  .ledger-title{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:rgba(36,31,20,.5);font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between}
+  .lhead,.lrow{
+    display:grid;grid-template-columns:1fr 82px 120px;gap:12px;align-items:baseline;
+    padding:10px 8px;
+  }
+  .lhead{
+    font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(36,31,20,.42);
+    font-weight:700;padding-bottom:6px;
+  }
+  .lhead span:nth-child(2),.lhead span:nth-child(3){text-align:right}
+  .lrow{border-top:1px dashed var(--paper-line)}
+  .lrow .ref{color:rgba(36,31,20,.8)}
+  .lrow .amt{color:var(--verify-deep);font-weight:600;text-align:right;white-space:nowrap}
+  .lrow .bal{color:rgba(36,31,20,.6);text-align:right;white-space:nowrap}
+  .lrow .bal b{color:var(--verify-deep);font-weight:700;margin-left:5px}
+  .lrow.spoof{background:rgba(224,86,59,.08);border-radius:8px;border:1px solid rgba(224,86,59,.35)}
+  .lrow.spoof .ref,.lrow.spoof .amt{color:var(--danger)}
   .lrow.spoof .bal{color:var(--danger);font-weight:700}
+  .lrow.spoof .bal b{color:var(--danger)}
+  @media(max-width:420px){
+    .lhead,.lrow{grid-template-columns:1fr 70px 104px;gap:8px;font-size:11.5px}
+  }
   .ledger-verdict{
     margin-top:14px;background:rgba(224,86,59,.1);border:1.5px dashed var(--danger);
     color:var(--danger);border-radius:8px;padding:11px 14px;font-weight:600;font-size:12px;letter-spacing:.04em;
@@ -618,25 +652,43 @@ risk 0.02 · &lt;10 s</div>
         have to forge an SMS into your own phone.
       </p>
       <div class="fraud-grid">
-        <div>
-          <div class="attack"><b>Code replay</b><span>Global Replay Index — single-use per merchant, forever, across all three doors. A code verified manually is <strong>dead to the API too</strong>.</span></div>
-          <div class="attack"><b>Stolen code</b><span>Suffix ↔ checkout identity, exact amount, tight window. Mismatch → challenge: <em>"confirm the last 3 digits of the paying number."</em></span></div>
-          <div class="attack"><b>Forged screenshot</b><span>Never sufficient. Vision forensics (ELA, font metrics, status-bar coherence) feed risk — <strong>truth is always the ledger</strong>.</span></div>
-          <div class="attack"><b>Spoofed SMS</b><span>Sender-ID allowlist + grammar validation + the <strong>balance-chain defence</strong> → quarantine + merchant alert.</span></div>
-          <div class="attack"><b>Pay-then-reverse</b><span>Reversal SMS parsed too → <code style="font-family:var(--mono);font-size:12px">payment.reversed</code>. KODA can't stop an operator reversal; it makes you <strong>first to know</strong>.</span></div>
+        <div class="attacks">
+          <div class="attack">
+            <div class="attack-name">Code replay</div>
+            <div class="attack-def">Global Replay Index — every code is <strong>single-use per merchant, forever</strong>, across all three doors. A code verified manually is dead to the API too.</div>
+          </div>
+          <div class="attack">
+            <div class="attack-name">Stolen code</div>
+            <div class="attack-def">Payer-number suffix must match the checkout identity, with exact amount and a tight time window. Mismatch → challenge: <em>"confirm the last 3 digits of the paying number."</em></div>
+          </div>
+          <div class="attack">
+            <div class="attack-name">Forged screenshot</div>
+            <div class="attack-def">A screenshot is never accepted as proof on its own. Vision forensics feed the risk score — <strong>the truth is always the merchant-side ledger</strong>.</div>
+          </div>
+          <div class="attack">
+            <div class="attack-name">Spoofed SMS</div>
+            <div class="attack-def">Sender-ID allowlist, grammar validation, and the <strong>balance-chain defence</strong> (shown right) → the fake message is quarantined and the merchant alerted.</div>
+          </div>
+          <div class="attack">
+            <div class="attack-name">Pay, then reverse</div>
+            <div class="attack-def">Reversal SMS are parsed too and fire <code style="font-family:var(--mono);font-size:12.5px">payment.reversed</code>. KODA can't stop an operator reversal — it makes you <strong>the first to know</strong>.</div>
+          </div>
         </div>
         <div>
           <div class="ledger">
             <div class="ledger-title"><span>Balance-chain audit</span><span>live</span></div>
-            <div class="lrow"><span>14:02 · OM…F4410</span><span class="amt">+15 000</span><span class="bal">bal 302 500 ✓</span></div>
-            <div class="lrow"><span>14:17 · OM…B7802</span><span class="amt">+15 000</span><span class="bal">bal 317 500 ✓</span></div>
-            <div class="lrow"><span>14:32 · OM…A88213</span><span class="amt">+25 000</span><span class="bal">bal 342 500 ✓</span></div>
-            <div class="lrow spoof"><span>14:41 · "OM"…X9931</span><span class="amt">+80 000</span><span class="bal">bal 350 000 ✗</span></div>
-            <div class="ledger-verdict">⚠ CHAIN BREAK — 342 500 + 80 000 ≠ 350 000 → QUARANTINED · merchant alerted</div>
+            <div class="lhead"><span>Incoming SMS</span><span>Amount</span><span>New balance</span></div>
+            <div class="lrow"><span class="ref">14:02 OM…F4410</span><span class="amt">+15 000</span><span class="bal">302 500<b>✓</b></span></div>
+            <div class="lrow"><span class="ref">14:17 OM…B7802</span><span class="amt">+15 000</span><span class="bal">317 500<b>✓</b></span></div>
+            <div class="lrow"><span class="ref">14:32 OM…A88213</span><span class="amt">+25 000</span><span class="bal">342 500<b>✓</b></span></div>
+            <div class="lrow spoof"><span class="ref">14:41 "OM"…X9931</span><span class="amt">+80 000</span><span class="bal">350 000<b>✗</b></span></div>
+            <div class="ledger-verdict">⚠ CHAIN BREAK — 342 500 + 80 000 ≠ 350 000<br>→ quarantined · merchant alerted</div>
           </div>
           <p class="fraud-tag">
-            Every genuine operator SMS carries the running balance. A spoof breaks the arithmetic.
-            <strong>The operator's own bookkeeping is the firewall</strong> — identical for bKash in Dhaka and Orange in Kinshasa.
+            Every genuine operator SMS carries the running balance, so each new balance must equal the
+            previous balance plus the amount. A spoofed SMS breaks that arithmetic.
+            <strong>The operator's own bookkeeping is the firewall</strong> — and it works identically for
+            bKash in Dhaka and Orange Money in Kinshasa.
           </p>
         </div>
       </div>
