@@ -1156,4 +1156,48 @@ The system must separate:
 * **Reconciled** — payment appears in the merchant's financial record.
 * **Settled** — only used where the underlying provider or licensed partner confirms settlement.
 
+## 16. Merchant dashboard
+
+The merchant sees one operational command centre.
+
+**Live payment queue**
+
+* awaiting confirmation;
+* verified;
+* partial match;
+* suspicious;
+* expired;
+* duplicated;
+* manual review;
+* reversal reported.
+
+**Transaction view**
+
+Each transaction displays:
+
+* order;
+* expected amount;
+* received amount;
+* payer information;
+* merchant destination;
+* transaction reference;
+* evidence source;
+* verification level;
+* risk score;
+* action history;
+* staff involvement;
+* reconciliation status.
+
+**Wallet control**
+
+* wallet balance entered or imported;
+* wallet capacity;
+* daily transaction volume;
+* payment network;
+* branch assignment;
+* device connection;
+* last synchronisation;
+* confirmation delay;
+* exception rate.
+
 
