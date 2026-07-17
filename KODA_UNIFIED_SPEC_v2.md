@@ -793,4 +793,80 @@ Examples:
 * confirm school-fee payment;
 * send a customer WhatsApp confirmation.
 
+### 6.7 Dispute Agent
+
+Handles:
+
+* customer claims that payment was made;
+* wrong amount;
+* payment to the wrong number;
+* duplicated payment;
+* delayed confirmation;
+* reversal;
+* refund;
+* customer-number mismatch;
+* transaction not found.
+
+It gathers evidence and routes only unresolved cases to a human operator.
+
+## 7. WhatsApp payment journey
+
+**Customer message**
+
+```
+I want two VIP tickets.
+```
+
+**KODA response**
+
+```
+Your total is 90,000 CDF.
+Pay to Orange Money: +243 XXX XXX XXX
+Payment reference: VIP-7421
+Complete payment within 15 minutes.
+Never send your PIN.
+```
+
+Buttons:
+
+* I have paid
+* Change network
+* Payment help
+* Cancel order
+
+**After "I have paid"**
+
+The bot asks:
+
+```
+Enter the transaction code shown in your payment confirmation.
+```
+
+The customer enters:
+
+```
+PP26071784729
+```
+
+**Verification response**
+
+*Pending*
+
+```
+We received your payment claim. We are checking it against the merchant's payment confirmation. Your order remains reserved for 10 minutes.
+```
+
+*Verified*
+
+```
+Payment verified: 90,000 CDF.
+Your two VIP tickets have been issued.
+```
+
+*Unable to verify*
+
+```
+We could not match this transaction. Check the transaction code, payment amount and receiving number. Your money has not been taken by KODA.
+```
+
 
