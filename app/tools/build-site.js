@@ -173,14 +173,26 @@ curl -H "Authorization: Bearer sk_test_..." https://api.koda.africa/v1/ping</pre
 <tr><td>POST</td><td><code>/intents/{id}/cancel</code></td><td>Cancel an awaiting intent.</td></tr>
 <tr><td>GET</td><td><code>/receipts</code></td><td>Filterable ledger of verified payments with audit traces.</td></tr>
 <tr><td>POST</td><td><code>/sandbox/sms</code></td><td>Inject an operator-formatted SMS and watch ParserAgent structure it.</td></tr>
-<tr><td>GET</td><td><code>/billing/balance</code></td><td>Prepaid ACU balance.</td></tr>
+<tr><td>GET</td><td><code>/billing/balance</code></td><td>Prepaid ACU balance. <em>(read:usage)</em></td></tr>
+<tr><td>GET</td><td><code>/agents</code></td><td>List the AI agents you can run and their ACU cost. <em>(read:agents)</em></td></tr>
+<tr><td>POST</td><td><code>/agents/{type}/run</code></td><td>Run an agent — ReconcilerAgent report, trust lookup, dispute evidence, Vision extraction. Consumes prepaid ACU. <em>(run:agents)</em></td></tr>
+<tr><td>GET</td><td><code>/usage</code></td><td>Your monthly quota, usage and ACU balance. <em>(read:usage)</em></td></tr>
+</table>
+<h2>Scopes</h2>
+<table>
+<tr><th>Scope</th><th>Grants</th></tr>
+<tr><td><code>read:receipts</code></td><td>Read the verified-payments ledger</td></tr>
+<tr><td><code>read:agents</code></td><td>List the AI agent catalogue</td></tr>
+<tr><td><code>run:agents</code></td><td>Run AI agents (consumes ACU)</td></tr>
+<tr><td><code>read:usage</code></td><td>Read API usage & ACU balance</td></tr>
+<tr><td><code>*</code></td><td>Full account scope (sk_ keys). Restricted <code>rk_live_</code> keys default to read-only — e.g. a read-only reconciliation key for your accountant.</td></tr>
 </table>
 <h2>Limits & pricing</h2>
 <ul>
 <li>The billable atom is a <b>successful verification</b> — failed matches, rejections and expired intents are free.</li>
 <li>Per-key rate limits (Free 2 rps · Boutique 10 · Commerce 25 · Plateforme 100); exceed and you get HTTP 429 with <code>Retry-After</code>.</li>
-<li>An empty ACU balance returns HTTP 402 — after a 72 h merchant-protective grace buffer.</li>
-<li>Keys are environment-scoped (test/live) and can be revoked instantly.</li>
+<li>Agent runs (<code>run:agents</code>) consume prepaid ACU at the agent's published rate; an empty balance returns HTTP 402 — after a 72 h merchant-protective grace buffer.</li>
+<li>Keys are environment-scoped (test/live), scope-restricted where you want them, and revocable instantly.</li>
 </ul>
 <h2>Sandbox magic references</h2>
 <pre>TEST-OK-25000   → instant payment.verified

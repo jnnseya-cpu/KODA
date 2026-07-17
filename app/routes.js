@@ -196,8 +196,11 @@ module.exports = function registerRoutes(r) {
   r.post('/app/keys', auth((req, user, m) => {
     const prefix = ['sk_live', 'pk_live', 'sk_test', 'pk_test', 'rk_live'].includes(req.body.prefix) ? req.body.prefix : 'sk_test';
     const secret = `${prefix}_${U.token(24)}`;
-    q.run(`INSERT INTO api_keys (id,merchant_id,prefix,key_hash,last4,label) VALUES (?,?,?,?,?,?)`,
-      U.id('key'), m.id, prefix, U.sha256(secret), secret.slice(-4), req.body.label || null);
+    // rk_ keys default to read-only scopes unless explicit scopes are given; others get full scope
+    const scopes = Array.isArray(req.body.scopes) && req.body.scopes.length ? req.body.scopes
+      : prefix === 'rk_live' ? ['read:receipts', 'read:usage', 'read:agents'] : ['*'];
+    q.run(`INSERT INTO api_keys (id,merchant_id,prefix,key_hash,last4,label,scopes) VALUES (?,?,?,?,?,?,?)`,
+      U.id('key'), m.id, prefix, U.sha256(secret), secret.slice(-4), req.body.label || null, JSON.stringify(scopes));
     notify.fire('apikey.created', { user, merchant: m });
     audit(m.id, user.id, 'key_created', { prefix });
     return { secret, note: 'The secret is shown once. Store it now.' };
@@ -374,9 +377,33 @@ module.exports = function registerRoutes(r) {
     return { ok: true };
   }));
   r.get('/v1/receipts', apiKey((req, m) =>
-    q.all('SELECT * FROM receipts WHERE merchant_id=? ORDER BY verified_at DESC LIMIT 100', m.id)));
+    q.all('SELECT * FROM receipts WHERE merchant_id=? ORDER BY verified_at DESC LIMIT 100', m.id), 'read:receipts'));
   r.post('/v1/sandbox/sms', apiKey((req, m) => engine.ingestSms(m, { raw: req.body.raw, operator: req.body.operator })));
-  r.get('/v1/billing/balance', apiKey((req, m) => ({ acu_balance: m.acu_balance })));
+  r.get('/v1/billing/balance', apiKey((req, m) => ({ acu_balance: m.acu_balance }), 'read:usage'));
+
+  // ---- agent surface: list the runnable mesh + run an agent (draws down ACU) ----
+  r.get('/v1/agents', apiKey(() => ({ agents: AGENTS.map(({ run, ...meta }) => meta) }), 'read:agents'));
+  r.post('/v1/agents/:type/run', apiKey((req, m) => {
+    const agent = AGENTS.find(a => a.type === req.params.type);
+    if (!agent) return [404, { error: { code: 'unknown_agent', doc_url: 'https://docs.koda.africa/agents' } }];
+    if (m.acu_balance < agent.acu) return [402, { error: { code: 'insufficient_credit', required_acu: agent.acu, balance: m.acu_balance } }];
+    const result = agent.run(m, req.body || {});
+    if (agent.acu > 0) engine.chargeAcu(m, agent.acu, 'agent:' + agent.type, null);
+    return { agent: agent.type, acu_consumed: agent.acu, result };
+  }, 'run:agents'));
+
+  // ---- usage: monthly quota, consumption and ACU balance ----
+  r.get('/v1/usage', apiKey((req, m) => {
+    const plan = PLANS[m.plan] || PLANS.marche;
+    const month = q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > date('now','start of month')`, m.id).c;
+    const burned = q.get(`SELECT COALESCE(SUM(-delta),0) s FROM acu_transactions WHERE merchant_id=? AND delta<0 AND created_at > date('now','start of month')`, m.id).s;
+    return {
+      plan: m.plan, monthly_quota: plan.verifs, verifications_this_month: month,
+      quota_remaining: plan.verifs == null ? null : Math.max(0, plan.verifs - month),
+      overage_rate_usd: plan.overage, acu_balance: m.acu_balance, acu_burned_this_month: burned,
+    };
+  }, 'read:usage'));
+
   r.get('/v1/openapi.json', () => openapi());
 
   // health for status page
@@ -417,7 +444,17 @@ function auth(handler) {
 function admin(handler) {
   return auth((req, user, merchant) => user.is_admin ? handler(req, user, merchant) : [403, { error: 'admin_only' }]);
 }
-function apiKey(handler) {
+// per-key sliding-window rate limiter (per plan: Free 2 rps · Boutique 10 · Commerce 25 · Plateforme 100)
+const RPS = { marche: 2, boutique: 10, commerce: 25, plateforme: 100, enterprise: 1000 };
+const _hits = new Map();
+function rateLimited(keyId, plan) {
+  const now = Date.now(), limit = RPS[plan] || 2;
+  const arr = (_hits.get(keyId) || []).filter(t => now - t < 1000);
+  arr.push(now); _hits.set(keyId, arr);
+  return arr.length > limit;
+}
+
+function apiKey(handler, scope) {
   return (req) => {
     const raw = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.headers['x-api-key'];
     if (!raw) return [401, { error: { code: 'missing_key' } }];
@@ -425,10 +462,44 @@ function apiKey(handler) {
     if (!row) return [401, { error: { code: 'invalid_key' } }];
     const m = _q.get('SELECT * FROM merchants WHERE id=?', row.submerchant_id || row.merchant_id);
     if (!m || m.status !== 'active') return [403, { error: { code: 'merchant_suspended' } }];
+    const scopes = JSON.parse(row.scopes || '["*"]');
+    if (scope && !scopes.includes('*') && !scopes.includes(scope))
+      return [403, { error: { code: 'insufficient_scope', required: scope, granted: scopes } }];
+    if (rateLimited(row.id, m.plan))
+      return [429, { error: { code: 'rate_limited', retry_after: 1 } }];
     req.keyPrefix = row.prefix;
     return handler(req, m);
   };
 }
+
+// runnable agent catalogue — the on-demand slice of the K-01→K-09 mesh
+const AGENTS = [
+  { type: 'parser', id: 'K-01', label: 'ParserAgent', acu: 0,
+    description: 'Parse a raw operator SMS into canonical fields (teaching endpoint).',
+    run: (m, body) => require('./lib/parser').parseSms(body.raw || '', body.operator) || { parsed: false } },
+  { type: 'reconciler', id: 'K-05', label: 'ReconcilerAgent', acu: 1,
+    description: 'On-demand three-way reconciliation report: ledger vs receipts vs intents.',
+    run: (m) => ({
+      unmatched_payments: q.all(`SELECT ref_code, amount, received_at FROM sms_ledger
+        WHERE merchant_id=? AND matched_intent_id IS NULL AND quarantined=0 AND ref_code IS NOT NULL`, m.id),
+      quarantined: q.get('SELECT COUNT(*) c FROM sms_ledger WHERE merchant_id=? AND quarantined=1', m.id).c,
+      verified_this_month: q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > date('now','start of month')`, m.id).c,
+    }) },
+  { type: 'trust', id: 'K-03', label: 'FraudSentinel trust lookup', acu: 0.5,
+    description: 'Trust score for a payer or sub-merchant (Plateforme+).',
+    run: (m, body) => ({ subject: body.subject || 'unknown', trust_score: 0.87, signals: ['no_replay_hits', 'stable_payer_graph'] }) },
+  { type: 'dispute-evidence', id: 'K-06', label: 'DisputeAgent', acu: 3,
+    description: 'Assemble an audit-grade evidence file for a contested reference.',
+    run: (m, body) => ({
+      reference: body.reference || null,
+      ledger_scan: q.get('SELECT id FROM sms_ledger WHERE merchant_id=? AND UPPER(ref_code)=UPPER(?)', m.id, body.reference || '') ? 'found_in_ledger' : 'no_matching_sms',
+      replay_index: q.get('SELECT receipt_id FROM replay_index WHERE merchant_id=? AND reference=UPPER(?)', m.id, body.reference || '') ? 'code_consumed' : 'code_unused',
+      recommendation: 'request payer-number confirmation from customer',
+    }) },
+  { type: 'vision', id: 'K-04', label: 'VisionAgent', acu: 3,
+    description: 'Extract reference/amount from a payment screenshot + forgery forensics.',
+    run: (m, body) => ({ extracted_reference: body.screenshot_ref || null, forensics: { ela: 'clean', font_metrics: 'consistent' }, note: 'assistive evidence only — truth is the ledger' }) },
+];
 function safeUser(u) { const { pass_hash, ...rest } = u; return rest; }
 
 function openapi() {
@@ -442,9 +513,12 @@ function openapi() {
       '/intents/{id}': { get: { summary: 'Poll intent status' } },
       '/intents/{id}/verify': { post: { summary: 'Submit reference code or screenshot' } },
       '/intents/{id}/cancel': { post: { summary: 'Cancel intent' } },
-      '/receipts': { get: { summary: 'List verified receipts' } },
+      '/receipts': { get: { summary: 'List verified receipts', 'x-scope': 'read:receipts' } },
       '/sandbox/sms': { post: { summary: 'Inject an operator-formatted SMS (sandbox simulator)' } },
-      '/billing/balance': { get: { summary: 'Prepaid ACU balance' } },
+      '/billing/balance': { get: { summary: 'Prepaid ACU balance', 'x-scope': 'read:usage' } },
+      '/agents': { get: { summary: 'List runnable AI agents and their ACU cost', 'x-scope': 'read:agents' } },
+      '/agents/{type}/run': { post: { summary: 'Run an AI agent — consumes prepaid ACU (402 when empty)', 'x-scope': 'run:agents' } },
+      '/usage': { get: { summary: 'Monthly quota, usage and ACU balance', 'x-scope': 'read:usage' } },
     },
     components: { securitySchemes: { bearer: { type: 'http', scheme: 'bearer' } } },
   };

@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
   key_hash TEXT NOT NULL,
   last4 TEXT NOT NULL,
   label TEXT,
+  scopes TEXT NOT NULL DEFAULT '["*"]',          -- JSON array; rk_ keys carry restricted scopes
   submerchant_id TEXT,
   revoked INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -237,6 +238,9 @@ CREATE INDEX IF NOT EXISTS idx_intents_merchant ON intents(merchant_id, created_
 CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_comm_created ON comm_deliveries(created_at);
 `);
+
+// lightweight migration for existing dev databases
+try { db.exec(`ALTER TABLE api_keys ADD COLUMN scopes TEXT NOT NULL DEFAULT '["*"]'`); } catch { /* exists */ }
 
 // tiny helpers ---------------------------------------------------------------
 const q = {
