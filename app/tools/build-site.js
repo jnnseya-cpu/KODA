@@ -12,9 +12,11 @@ fs.mkdirSync(OUT, { recursive: true });
 const FOOT_GROUPS = [
   ['Product', [['How it works', 'how-it-works'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
   ['Company', [['About', 'about'], ['Blog', 'blog'], ['Growth & Influencers', 'growth'], ['Contact', 'contact']]],
-  ['Developers', [['API documentation', 'developers'], ['OpenAPI contract', 'developers'], ['Open the app', 'app']]],
+  ['Developers', [['API documentation', 'developers'], ['OpenAPI contract', 'v1/openapi.json'], ['Open the app', 'app']]],
   ['Legal', [['Terms of Service', 'terms'], ['Privacy Policy', 'privacy'], ['All policies', 'policies']]],
 ];
+
+const DISCLAIMER = `KODA is a payment <em>verification</em> service — not a bank, wallet, payment processor, aggregator, escrow or money transmitter. KODA never holds, moves, or settles funds: payments travel directly from customer to merchant over each operator's own network. Verification is based on merchant-side operator confirmations and, while fraud-scored and replay-protected, does not guarantee against operator-side reversals or constitute proof of settlement. M-Pesa, Orange Money, MTN MoMo, Airtel Money, Africell Money, Wave, bKash, GCash, JazzCash, EVC Plus and all other operator names are trademarks of their respective owners; KODA is independent of, and not endorsed by, any mobile network operator. Pricing, coverage and features are subject to the published Terms of Service and may evolve by market.`;
 
 // ---- landing: reuse the prototype, wire CTAs into the app ----
 const landingSrc = path.join(__dirname, '..', '..', 'koda-landing.html');
@@ -41,6 +43,9 @@ function footerLinks() {
     <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;font-weight:600">${title}</div>
     ${links.map(([label, p]) => `<a href="/${p}" style="display:block;color:var(--text-dim,#9BA79B);font-size:13.5px;padding:4.5px 0;text-decoration:none">${label}</a>`).join('')}
   </div>`).join('')}
+</div>
+<div class="wrap" style="padding-top:0;padding-bottom:26px">
+  <p style="font-size:11.5px;line-height:1.75;color:rgba(155,167,155,.75);max-width:980px"><b style="color:#9BA79B">Disclaimer.</b> ${DISCLAIMER}</p>
 </div>`;
 }
 
@@ -100,6 +105,7 @@ footer a{color:var(--dim)}
     ${links.map(([label, p]) => `<a href="/${p}" style="display:block;color:var(--dim);font-size:13.5px;padding:4.5px 0">${label}</a>`).join('')}
   </div>`).join('')}
   </div>
+  <p style="max-width:880px;margin:0 auto 22px;font-size:11px;line-height:1.75;color:rgba(155,167,155,.75);font-family:var(--disp)"><b style="color:var(--dim)">Disclaimer.</b> ${DISCLAIMER}</p>
   <div style="max-width:880px;margin:0 auto;display:flex;gap:16px;flex-wrap:wrap">
     <span>© 2026 Groupe Nseya Digital / JNN Global Ltd.</span>
     <span style="margin-left:auto;color:var(--gold)">le code confirme le cash.</span>
@@ -337,7 +343,10 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
 <tr><td>Data Processing Addendum</td><td>Controller/processor roles, sub-processors, residency</td><td><a href="/contact">Request →</a></td></tr>
 <tr><td>Responsible Disclosure</td><td>Security reports: <code>security@koda.africa</code> — safe harbour for good-faith research</td><td><a href="/contact">Report →</a></td></tr>
 <tr><td>API Deprecation Policy</td><td>Versioned API, 12-month windows, no breaking changes inside a version</td><td><a href="/developers">Read →</a></td></tr>
-</table>`,
+<tr><td>Platform Disclaimer</td><td>Not a bank or money transmitter; no fund custody; verification ≠ settlement; operator trademarks</td><td>Footer of every page</td></tr>
+</table>
+<h2>Platform disclaimer</h2>
+<p style="font-size:14px;color:var(--dim)">${DISCLAIMER}</p>`,
   }),
 
   'status': page({
