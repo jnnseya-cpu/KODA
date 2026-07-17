@@ -1130,4 +1130,30 @@ KODA must never:
 * describe itself as a bank or payment institution unless licensed;
 * hide from merchants that verification is confirmation-based rather than operator-API-based.
 
+## 15. Recommended payment states
+
+```
+CREATED
+AWAITING_PAYMENT
+CUSTOMER_CLAIMED
+AWAITING_MERCHANT_SIGNAL
+PARTIAL_MATCH
+VERIFIED
+MANUAL_REVIEW
+REJECTED
+EXPIRED
+FULFILLED
+RECONCILED
+REVERSAL_REPORTED
+REFUNDED
+CLOSED
+```
+
+The system must separate:
+
+* **Claimed** — customer says they paid.
+* **Verified** — trusted merchant evidence matches.
+* **Reconciled** — payment appears in the merchant's financial record.
+* **Settled** — only used where the underlying provider or licensed partner confirms settlement.
+
 
