@@ -95,4 +95,39 @@ Full automation: intents, code submission, signed webhooks — order confirmed, 
 
 ---
 
+# PART III — HOW IT WORKS (canonical flow)
+
+**Actors:** Customer (any phone) · Merchant SIM phone (Sentinel) · KODA Cloud · Merchant surface (Console / WhatsApp / their system)
+
+```
+[1] A payment obligation exists
+      API mode: system creates an Intent (amount, operators, expiry)
+      Manual/Chat mode: no intent needed — the ledger itself is the reference
+
+[2] Customer pays the normal way they already know
+      USSD (*150#, #144#, *501#…) or operator app → merchant's number
+
+[3] Operator fires confirmation SMS to the MERCHANT's SIM
+      Sentinel captures, parses on-device, pushes a signed structured
+      record to KODA Cloud (~2–4 s after SMS arrival; offline → queued)
+
+[4] The reference code travels to KODA
+      API: customer types it in checkout/bot
+      Chat: customer drops it in WhatsApp
+      Manual: merchant pastes it / snaps the screenshot in Verify Console
+
+[5] MatchMaker verifies: code ↔ ledger ↔ (intent) amount ↔ time window
+      ↔ sender-suffix ↔ global replay index (typos auto-repaired, ≤2 edits)
+
+[6] FraudSentinel scores (~40 features). Low → confirm. Mid → challenge.
+      High → reject + flag.
+
+[7] The verdict lands where the merchant lives:
+      API → signed payment.verified webhook
+      Chat → ✅ message in the conversation
+      Manual → green confirmation card + one-tap customer receipt
+
+[8] Elapsed: customer-side ~30–60 s total; KODA's share < 10 s.
+```
+
 
