@@ -51,3 +51,35 @@ This is the v2.0 structural upgrade: **the same verification engine, exposed at 
 2. Install **KODA Sentinel** (6 MB) on the Android that receives payment SMS — scan a QR, done. (No Android? KODA Lite: forward confirmation SMS to KODA's WhatsApp ingestion number.)
 3. Self-verify ownership: merchant sends themselves a $0.10-equivalent payment and verifies it — their first KODA verification is verifying themselves.
 
+**Daily flow — "Verify Console":**
+
+```
+Customer:  "J'ai payé. Ref: OM.260717.1432.A88213"  (WhatsApp / in person / phone call)
+
+Merchant opens KODA (app or web, phone-first):
+┌────────────────────────────────────────────┐
+│  VERIFY A PAYMENT                          │
+│  [ paste or type the reference code ]      │
+│  [ 📷 or snap the customer's screenshot ]  │
+│                                            │
+│  → ✅ CONFIRMED · 25 000 FC · Orange Money │
+│     from J*** N. (+243 89•···4521) · 14:32 │
+│     risk 0.02 · code now locked (replay ✗) │
+│                                            │
+│  [ Mark order fulfilled ]  [ Send receipt ]│
+└────────────────────────────────────────────┘
+```
+
+The merchant does exactly what they did manually before — but the answer comes from the telco-anchored ledger with full fraud screening in ~3 seconds, instead of from scrolling and hoping. **Manual mode = human clicks "verify"; the machine does the verifying. Human validation, machine truth.**
+
+**What Manual mode merchants get (no code ever written):**
+- **Verify Console** — type/paste a code or snap a screenshot → instant verdict with the exact SMS match shown.
+- **Live Payments Feed** — every payment landing on their SIM appears structured in real time: who, how much, when, which operator, matched-to-order or **unmatched** ("you were paid 3× today with no order attached").
+- **Tap-to-send customer receipt** — branded WhatsApp/SMS receipt with KODA verification stamp; kills the "I paid, trust me" argument in both directions.
+- **Replay protection** — a code a merchant verified once can never be used on them again, even months later. This alone ends the most common street-level fraud.
+- **Daily digest** — end-of-day WhatsApp summary: total verified, per operator, unmatched payments, flagged attempts.
+- **Dispute assistant** — a failed verify opens a guided flow: DisputeAgent interviews the customer in-channel and hands the merchant an evidence file with a recommendation. Merchant decides; KODA documents.
+- **Team seats (Boutique+)** — cashiers verify; owner sees everything; per-seat audit trail of who validated what.
+
+**The graduation path (built-in growth engine):** Manual → sees "unmatched payments" value → turns on Chat Mode → volume grows → hires a dev or joins a platform → flips on the API. **Same account, same ledger, zero migration.** Manual mode is not a lesser product; it is the top of the funnel and, in most markets, the majority of revenue.
+
