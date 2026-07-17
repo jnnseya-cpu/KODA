@@ -653,4 +653,22 @@ This prevents one payment from being used for:
 
 Once a fingerprint is consumed, the system rejects future attempts unless an authorised refund or reassignment workflow is completed.
 
+## 6. Agentic OS architecture
+
+The AI agents do not "invent" payment confirmation. They process evidence, identify anomalies and orchestrate business actions.
+
+### 6.1 Payment Intent Agent
+
+Creates the payment request and selects:
+
+* merchant wallet;
+* network;
+* currency;
+* reference format;
+* expiry;
+* expected amount;
+* post-payment action.
+
+It can route customers to the most suitable available merchant wallet based on capacity, network and transaction limits.
+
 
