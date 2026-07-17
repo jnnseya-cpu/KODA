@@ -1,0 +1,177 @@
+// KODA — Communication Event Catalogue
+// One event engine; every catalogue event fans out across email · in-app · whatsapp · push · sms.
+// Adapted from the portfolio (VERYX) communication architecture to the KODA domain.
+// mandatory:true = compliance/security notice, bypasses user channel opt-outs.
+// severity: info | success | warning | critical
+'use strict';
+
+// [key, label, subject template, severity, channels, mandatory]
+const E = (key, label, subject, severity, channels, mandatory = false) =>
+  ({ key, label, subject, severity, channels, mandatory });
+
+const CATEGORIES = [
+  { id: 'identity', label: 'Identity & Account', events: [
+    E('account.registration.requested', 'Account requested', 'Welcome to KODA — confirm your account', 'info', ['email', 'inapp']),
+    E('account.registration.received', 'Registration received', 'We received your registration', 'info', ['email', 'inapp']),
+    E('account.email_verification_required', 'Email verification required', 'Verify your email address', 'warning', ['email', 'inapp']),
+    E('account.msisdn_verification_required', 'Mobile-money number verification', 'Verify your mobile money number — pay yourself $0.10', 'warning', ['email', 'inapp', 'whatsapp']),
+    E('account.verification.successful', 'Verification successful', 'Your KODA account is verified', 'success', ['email', 'inapp', 'whatsapp']),
+    E('account.verification.failed', 'Verification failed', 'Verification could not be completed', 'warning', ['email', 'inapp']),
+    E('account.verification.expired', 'Verification expired', 'Your verification link expired', 'warning', ['email', 'inapp']),
+    E('account.registration.abandoned', 'Registration abandoned', 'Finish setting up your KODA account', 'info', ['email', 'inapp']),
+    E('kyb.documents.requested', 'KYB documents requested', 'Documents needed to verify {{merchant}}', 'warning', ['email', 'inapp']),
+    E('kyb.documents.received', 'KYB documents received', 'We received your documents', 'info', ['email', 'inapp']),
+    E('kyb.documents.approved', 'KYB approved', 'Your business is verified', 'success', ['email', 'inapp', 'push']),
+    E('kyb.documents.rejected', 'KYB rejected', 'Your documents need attention', 'warning', ['email', 'inapp']),
+    E('merchant.activated', 'Merchant activated', '{{merchant}} is now live on KODA', 'success', ['email', 'inapp', 'push', 'whatsapp']),
+    E('invitation.sent', 'Team member invited', '{{actor}} invited you to {{merchant}} on KODA', 'info', ['email', 'inapp']),
+    E('invitation.reminder', 'Invitation reminder', 'Reminder: your invitation to {{merchant}}', 'info', ['email', 'inapp']),
+    E('invitation.accepted', 'Invitation accepted', '{{name}} accepted your invitation', 'success', ['inapp']),
+    E('invitation.declined', 'Invitation declined', '{{name}} declined the invitation', 'info', ['inapp']),
+    E('invitation.expired', 'Invitation expired', 'Your invitation has expired', 'info', ['email', 'inapp']),
+  ]},
+  { id: 'security', label: 'Login & Security', events: [
+    E('auth.login.success', 'Successful login', 'New sign-in to your KODA account', 'info', ['inapp']),
+    E('auth.login.failed', 'Failed login', 'Failed sign-in attempt', 'warning', ['inapp']),
+    E('auth.login.suspicious', 'Suspicious login', 'Unusual sign-in detected', 'critical', ['email', 'inapp', 'whatsapp', 'sms'], true),
+    E('auth.device.new', 'New device detected', 'New device signed in', 'warning', ['email', 'inapp'], true),
+    E('password.forgot', 'Forgot password', 'Reset your KODA password', 'info', ['email', 'inapp']),
+    E('password.reset.successful', 'Password reset successful', 'Your password was reset', 'success', ['email', 'inapp', 'sms'], true),
+    E('password.changed', 'Password changed', 'Your password was changed', 'success', ['email', 'inapp'], true),
+    E('mfa.otp_code', 'OTP code', 'Your KODA verification code', 'info', ['whatsapp', 'sms', 'email']),
+    E('mfa.enabled', 'MFA enabled', 'Two-factor authentication enabled', 'success', ['email', 'inapp'], true),
+    E('mfa.disabled', 'MFA disabled', 'Two-factor authentication disabled', 'warning', ['email', 'inapp', 'sms'], true),
+    E('security.alert', 'Security alert', 'Security alert on your account', 'critical', ['email', 'inapp', 'whatsapp', 'sms'], true),
+    E('account.locked', 'Account locked', 'Your account has been locked', 'critical', ['email', 'inapp', 'sms'], true),
+    E('account.unlocked', 'Account unlocked', 'Your account is unlocked', 'success', ['email', 'inapp']),
+    E('security.too_many_attempts', 'Too many attempts', 'Too many attempts', 'warning', ['inapp']),
+    E('session.revoked', 'Session revoked', 'A session was signed out', 'warning', ['email', 'inapp'], true),
+    E('apikey.created', 'API key created', 'A new API key was created', 'info', ['email', 'inapp'], true),
+    E('apikey.revoked', 'API key revoked', 'An API key was revoked', 'warning', ['email', 'inapp'], true),
+  ]},
+  { id: 'verification', label: 'Verification & Payments', events: [
+    E('payment.verified', 'Payment verified', 'Payment verified — {{amount}}', 'success', ['inapp', 'push', 'whatsapp']),
+    E('payment.verified.late', 'Payment verified late', 'Late SMS matched — {{amount}} verified', 'success', ['inapp', 'push', 'whatsapp']),
+    E('payment.pending_review', 'Payment challenged', 'A verification needs review — {{reference}}', 'warning', ['inapp', 'push', 'whatsapp']),
+    E('payment.rejected', 'Payment rejected', 'Verification rejected — {{reference}}', 'warning', ['inapp', 'push']),
+    E('payment.reversed', 'Payment reversed', 'Operator reversal detected — {{amount}}', 'critical', ['email', 'inapp', 'push', 'whatsapp'], true),
+    E('intent.expired', 'Intent expired', 'Payment intent expired unpaid', 'info', ['inapp']),
+    E('payment.unmatched', 'Unmatched payment', 'You were paid with no order attached — {{amount}}', 'warning', ['inapp', 'push', 'whatsapp']),
+    E('receipt.issued', 'Customer receipt issued', 'Receipt {{number}} sent to your customer', 'info', ['inapp']),
+    E('replay.blocked', 'Replay attempt blocked', 'A used code was submitted again', 'warning', ['inapp', 'push']),
+  ]},
+  { id: 'fraud', label: 'Fraud & Risk', events: [
+    E('fraud.high_risk_blocked', 'High-risk verification blocked', 'A high-risk verification was blocked', 'critical', ['email', 'inapp', 'push', 'whatsapp'], true),
+    E('fraud.chain_break', 'Balance-chain break', 'Suspicious SMS quarantined on your line', 'critical', ['email', 'inapp', 'push', 'whatsapp', 'sms'], true),
+    E('fraud.velocity_alert', 'Velocity alert', 'Unusual verification volume detected', 'warning', ['email', 'inapp', 'push']),
+    E('fraud.screenshot_forged', 'Forged screenshot detected', 'A forged screenshot was detected', 'warning', ['inapp', 'push']),
+    E('fraud.trust_score_drop', 'Trust score drop', 'A counterparty trust score dropped', 'warning', ['inapp']),
+    E('fraud.weekly_brief', 'Weekly fraud brief', 'Your weekly risk & fraud brief', 'info', ['email', 'inapp']),
+  ]},
+  { id: 'sentinel', label: 'Sentinel Devices', events: [
+    E('sentinel.enrolled', 'Device enrolled', 'Sentinel device enrolled: {{item}}', 'success', ['inapp', 'push']),
+    E('sentinel.offline', 'Device offline', 'Your Sentinel is offline — payments are not being captured', 'critical', ['email', 'inapp', 'push', 'whatsapp', 'sms'], true),
+    E('sentinel.online', 'Device back online', 'Sentinel back online — ledger back-filling', 'success', ['inapp', 'push']),
+    E('sentinel.attestation_failed', 'Attestation failed', 'Device integrity check failed', 'critical', ['email', 'inapp'], true),
+    E('sentinel.revoked', 'Device revoked', 'A device was revoked', 'warning', ['email', 'inapp'], true),
+    E('sentinel.battery_low', 'Device battery low', 'Sentinel battery below 15%', 'warning', ['inapp', 'push']),
+    E('parser.template_updated', 'Template pack updated', 'Operator template pack updated OTA', 'info', ['inapp']),
+    E('parser.drift_detected', 'Format drift detected', '{{operator}} changed its SMS format — pack regenerating', 'warning', ['inapp', 'push']),
+  ]},
+  { id: 'billing', label: 'Billing & ACU', events: [
+    E('billing.topup.created', 'Top-up created', 'Pay {{amount}} to credit your KODA wallet', 'info', ['inapp', 'whatsapp']),
+    E('billing.topup.verified', 'Top-up verified', 'Top-up verified — {{acu}} ACU credited', 'success', ['email', 'inapp', 'push', 'whatsapp']),
+    E('billing.low_balance', 'Low balance', 'ACU balance below your alert threshold', 'warning', ['email', 'inapp', 'push', 'whatsapp']),
+    E('billing.grace_started', 'Grace buffer active', 'Balance at zero — 72h grace buffer active', 'critical', ['email', 'inapp', 'push', 'whatsapp', 'sms'], true),
+    E('billing.grace_ending', 'Grace ending', 'Grace buffer ends in 12 hours — top up now', 'critical', ['email', 'inapp', 'push', 'whatsapp', 'sms'], true),
+    E('billing.suspended', 'New intents paused', 'New payment intents paused — balance exhausted', 'critical', ['email', 'inapp', 'sms'], true),
+    E('invoice.generated', 'Invoice generated', 'Invoice {{number}} is ready', 'info', ['email', 'inapp']),
+    E('invoice.overdue', 'Invoice overdue', 'Invoice {{number}} is overdue', 'warning', ['email', 'inapp', 'sms'], true),
+    E('invoice.paid', 'Invoice paid', 'Invoice {{number}} paid', 'success', ['email', 'inapp']),
+    E('plan.upgraded', 'Plan upgraded', 'Welcome to {{plan}}', 'success', ['email', 'inapp']),
+    E('plan.downgraded', 'Plan changed', 'Your plan changed to {{plan}}', 'info', ['email', 'inapp']),
+    E('plan.conversion_nudge', 'Plan suggestion', 'You verified {{count}} payments this month — {{plan}} would cost {{cost}}/day', 'info', ['email', 'inapp', 'whatsapp']),
+  ]},
+  { id: 'disputes', label: 'Disputes', events: [
+    E('dispute.opened', 'Dispute opened', 'Dispute opened on {{reference}}', 'warning', ['email', 'inapp', 'push', 'whatsapp']),
+    E('dispute.evidence_ready', 'Evidence file ready', 'DisputeAgent assembled the evidence for {{reference}}', 'info', ['inapp', 'push']),
+    E('dispute.customer_challenged', 'Customer challenged', 'We asked the customer to confirm the paying number', 'info', ['inapp']),
+    E('dispute.resolved.accepted', 'Dispute accepted', 'Dispute on {{reference}} resolved — accepted', 'success', ['email', 'inapp', 'whatsapp']),
+    E('dispute.resolved.rejected', 'Dispute rejected', 'Dispute on {{reference}} resolved — rejected', 'info', ['email', 'inapp']),
+    E('dispute.escalated', 'Dispute escalated', 'Dispute escalated to KODA review', 'warning', ['email', 'inapp'], true),
+    E('dispute.sla_breach', 'Dispute SLA breach', 'A dispute passed its response SLA', 'critical', ['email', 'inapp', 'sms'], true),
+  ]},
+  { id: 'reconciliation', label: 'Reconciliation', events: [
+    E('reconciliation.report', 'Daily report ready', 'Your daily reconciliation report is ready', 'info', ['email', 'inapp']),
+    E('reconciliation.unmatched_found', 'Unmatched money found', '{{count}} payments received with no order — recover them', 'warning', ['email', 'inapp', 'push', 'whatsapp']),
+    E('reconciliation.duplicate_found', 'Duplicates found', 'Possible duplicate payments flagged', 'warning', ['inapp']),
+    E('reconciliation.statement_processed', 'Statement processed', 'Your uploaded statement was reconciled', 'success', ['email', 'inapp']),
+    E('digest.daily', 'Daily digest', 'Today at {{merchant}}: {{count}} verified · {{amount}}', 'info', ['whatsapp', 'email', 'inapp']),
+    E('digest.weekly_brief', 'Weekly merchant brief', 'COSA-K weekly brief: your payment intelligence', 'info', ['email', 'inapp']),
+  ]},
+  { id: 'team', label: 'Team & Roles', events: [
+    E('user.created', 'User created', 'New user added', 'info', ['inapp']),
+    E('user.activated', 'User activated', 'Your account is active', 'success', ['email', 'inapp']),
+    E('user.suspended', 'User suspended', 'Your access has been suspended', 'warning', ['email', 'inapp'], true),
+    E('user.reactivated', 'User reactivated', 'Your access is restored', 'success', ['email', 'inapp']),
+    E('user.removed', 'User removed', 'Your access has been removed', 'warning', ['email', 'inapp'], true),
+    E('role.assigned', 'Role assigned', 'Your role was updated to {{role}}', 'info', ['email', 'inapp']),
+    E('cashier.override_alert', 'Cashier override alert', 'Unusual manual overrides by {{name}}', 'warning', ['email', 'inapp'], true),
+  ]},
+  { id: 'platform', label: 'Platform & Sub-merchants', events: [
+    E('submerchant.onboarded', 'Sub-merchant onboarded', '{{name}} joined under your platform', 'success', ['email', 'inapp', 'push']),
+    E('submerchant.kyb_required', 'Sub-merchant KYB needed', '{{name}} needs KYB documents', 'warning', ['email', 'inapp']),
+    E('submerchant.suspended', 'Sub-merchant suspended', '{{name}} was suspended', 'warning', ['email', 'inapp'], true),
+    E('submerchant.usage_report', 'Usage report', 'Monthly sub-merchant usage is ready for re-billing', 'info', ['email', 'inapp']),
+    E('platform.wholesale_tier_change', 'Wholesale tier change', 'Your committed volume moved you to {{tier}}', 'success', ['email', 'inapp']),
+    E('platform.trust_alert', 'Trust score alert', 'A sub-merchant trust score dropped below threshold', 'warning', ['email', 'inapp', 'push']),
+  ]},
+  { id: 'developer', label: 'Developer & Webhooks', events: [
+    E('webhook.endpoint_added', 'Webhook added', 'Webhook endpoint registered', 'info', ['email', 'inapp']),
+    E('webhook.failing', 'Webhook failing', 'Your webhook endpoint is failing — retries in progress', 'warning', ['email', 'inapp', 'push']),
+    E('webhook.dead_letter', 'Webhook dead-lettered', 'Deliveries moved to the dead-letter queue', 'critical', ['email', 'inapp'], true),
+    E('webhook.recovered', 'Webhook recovered', 'Your webhook endpoint recovered', 'success', ['inapp']),
+    E('sandbox.first_verification', 'First sandbox verification', 'First verified payment — {{minutes}} min from signup 🎉', 'success', ['email', 'inapp']),
+    E('api.rate_limited', 'Rate limited', 'Your key hit its rate limit', 'warning', ['inapp']),
+    E('api.deprecation_notice', 'Deprecation notice', 'An API you use is deprecated — 12-month window opened', 'warning', ['email', 'inapp']),
+  ]},
+  { id: 'agents', label: 'AI Agent Mesh', events: [
+    E('ai.insight_generated', 'Insight generated', 'New insight from {{agent}}', 'info', ['inapp', 'push']),
+    E('ai.recommendation_available', 'Recommendation ready', 'A recommendation is ready', 'info', ['inapp', 'push']),
+    E('ai.parser_regenerated', 'Parser regenerated', 'ParserAgent shipped a new template for {{operator}}', 'info', ['inapp']),
+    E('ai.risk_detected', 'AI risk alert', 'FraudSentinel flagged a pattern on your account', 'warning', ['email', 'inapp', 'push']),
+    E('ai.workflow_failed', 'Agent workflow failed', 'An agent workflow failed and was retried', 'warning', ['inapp']),
+    E('ai.human_intervention_required', 'Action needed', 'Action needed: {{item}}', 'critical', ['email', 'inapp', 'push'], true),
+  ]},
+  { id: 'support', label: 'Support & Success', events: [
+    E('support.ticket_created', 'Ticket created', 'Support ticket {{number}} created', 'info', ['email', 'inapp', 'whatsapp']),
+    E('support.ticket_updated', 'Ticket updated', 'Update on ticket {{number}}', 'info', ['email', 'inapp', 'whatsapp']),
+    E('support.ticket_resolved', 'Ticket resolved', 'Ticket {{number}} resolved', 'success', ['email', 'inapp', 'whatsapp']),
+    E('cs.onboarding_started', 'Onboarding started', 'Welcome — let’s get your first payment verified', 'info', ['email', 'inapp', 'whatsapp']),
+    E('cs.onboarding_completed', 'Onboarding completed', 'You’re all set up', 'success', ['email', 'inapp']),
+    E('cs.health_check', 'Health check-in', 'Let’s check in on {{merchant}}', 'info', ['email', 'inapp']),
+  ]},
+  { id: 'admin', label: 'Platform Administration', events: [
+    E('system.maintenance_scheduled', 'Scheduled maintenance', 'Scheduled maintenance on {{date}}', 'info', ['email', 'inapp']),
+    E('system.maintenance_emergency', 'Emergency maintenance', 'Emergency maintenance in progress', 'warning', ['email', 'inapp', 'sms'], true),
+    E('system.outage', 'System outage', 'Service disruption', 'critical', ['email', 'inapp', 'sms'], true),
+    E('system.service_restored', 'Service restored', 'Service restored', 'success', ['email', 'inapp']),
+    E('system.parse_health_degraded', 'Parse health degraded', '{{operator}} parse rate dropped below 97%', 'warning', ['email', 'inapp'], true),
+    E('audit.policy_violation', 'Policy violation', 'Policy violation detected', 'critical', ['email', 'inapp', 'sms'], true),
+    E('audit.investigation_opened', 'Investigation opened', 'Investigation opened', 'warning', ['email', 'inapp'], true),
+  ]},
+  { id: 'legal', label: 'Legal & Privacy', events: [
+    E('privacy.consent_request', 'Consent request', 'We need your consent', 'info', ['email', 'inapp'], true),
+    E('privacy.consent_updated', 'Consent updated', 'Your consent preferences were updated', 'info', ['email', 'inapp']),
+    E('privacy.data_export_ready', 'Data export ready', 'Your data export is ready', 'success', ['email', 'inapp']),
+    E('privacy.account_deletion_requested', 'Deletion requested', 'Account deletion requested', 'warning', ['email', 'inapp'], true),
+    E('privacy.account_deletion_completed', 'Deletion completed', 'Your account has been deleted', 'info', ['email'], true),
+    E('regulatory.update', 'Regulatory update', 'Regulatory update for {{country}}', 'info', ['email', 'inapp']),
+  ]},
+];
+
+const ALL = CATEGORIES.flatMap(c => c.events.map(e => ({ ...e, category: c.id, categoryLabel: c.label })));
+const BY_KEY = Object.fromEntries(ALL.map(e => [e.key, e]));
+const CHANNELS = ['email', 'inapp', 'whatsapp', 'push', 'sms'];
+
+module.exports = { CATEGORIES, ALL, BY_KEY, CHANNELS };

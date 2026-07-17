@@ -1,0 +1,68 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The SMS was always the API. — KODA</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#081813;--ink2:#0C231C;--gold:#E8A11F;--paper:#F5EFDF;--text:#E9E4D5;--dim:#9BA79B;--line:rgba(233,228,213,.12);
+--mono:'IBM Plex Mono',monospace;--disp:'Archivo','Helvetica Neue',system-ui,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--ink);color:var(--text);font-family:var(--disp);line-height:1.65;font-size:16px}
+a{color:var(--gold);text-decoration:none}
+.nav{display:flex;align-items:center;gap:22px;padding:16px 28px;border-bottom:1px solid var(--line);background:rgba(8,24,19,.9);position:sticky;top:0;backdrop-filter:blur(10px);flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:.12em;color:var(--text)}
+.logo i{width:24px;height:24px;border-radius:6px;background:var(--gold);display:grid;place-items:center;color:var(--ink);font-style:normal;font-family:var(--mono);font-weight:700;font-size:13px}
+.nav a.lnk{color:var(--dim);font-size:13px;font-weight:600}
+.nav a.lnk:hover{color:var(--text)}
+.nav .cta{margin-left:auto;border:1px solid var(--gold);border-radius:8px;padding:8px 16px;font-family:var(--mono);font-size:12.5px}
+.wrap{max-width:880px;margin:0 auto;padding:64px 24px}
+.kicker{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;font-weight:600}
+h1{font-size:clamp(32px,4.5vw,50px);font-weight:900;line-height:1.05;letter-spacing:-.01em;margin-bottom:16px}
+.lead{font-size:18px;color:var(--dim);margin-bottom:40px;max-width:640px}
+h2{font-size:24px;font-weight:800;margin:42px 0 12px}
+h3{font-size:17px;font-weight:800;margin:26px 0 8px}
+p{margin-bottom:14px;color:#C9C4B2;font-size:15.5px}
+ul,ol{margin:0 0 16px 22px;color:#C9C4B2;font-size:15.5px}li{margin-bottom:6px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:16px 0}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+td{padding:10px;border-bottom:1px solid var(--line);color:#C9C4B2;vertical-align:top}
+code,pre{font-family:var(--mono);font-size:13px}
+pre{background:var(--ink2);border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;line-height:1.7;color:#B9CFC1}
+.card{background:var(--ink2);border:1px solid var(--line);border-radius:12px;padding:22px;margin:14px 0}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;padding:3px 9px;border-radius:99px;background:rgba(232,161,31,.13);color:var(--gold);text-transform:uppercase;margin-left:6px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:700px){.grid{grid-template-columns:1fr}}
+footer{border-top:1px solid var(--line);padding:34px 28px;font-family:var(--mono);font-size:11.5px;color:var(--dim);display:flex;gap:16px;flex-wrap:wrap}
+footer a{color:var(--dim)}
+.ok{color:#23B884}.warn{color:var(--gold)}
+</style></head><body>
+<nav class="nav">
+  <a class="logo" href="/"><i>✓</i>KODA</a>
+  <a class="lnk" href="/about">About</a><a class="lnk" href="/how-it-works">How it works</a>
+  <a class="lnk" href="/industries">Industries</a><a class="lnk" href="/developers">Developers</a>
+  <a class="lnk" href="/growth">Growth</a><a class="lnk" href="/blog">Blog</a>
+  <a class="lnk" href="/status">Status</a><a class="lnk" href="/contact">Contact</a>
+  <a class="cta" href="/app#signup">Get started →</a>
+</nav>
+<div class="wrap">
+  <div class="kicker">About KODA</div>
+  <h1>The SMS was always the API.</h1>
+  <p class="lead">KODA turns the confirmation SMS every mobile money operator already sends merchants into structured payment truth — with no telco contract, anywhere on Earth.</p>
+  
+<p>Every conventional mobile-money "integration" negotiates B2B API access with each operator: 6–18 months per telco, per country, contracts, and frequent flat rejection for SMEs. Which is why most mobile-money commerce worldwide still ends with <em>"send me a screenshot."</em></p>
+<p>KODA doesn't integrate with operators. A 6&nbsp;MB app on the merchant's own phone (KODA Sentinel) reads what the operator already sends — reference, amount, sender, running balance — structures it, and turns it into verifiable truth delivered through three doors: a <b>Verify Console</b> for merchants who never write code, <b>WhatsApp</b> for sellers who live in the chat, and a <b>3-endpoint API</b> for platforms.</p>
+<h2>What we are / are not</h2>
+<div class="grid">
+<div class="card"><h3 class="ok">KODA is</h3><ul><li>Payment Verification-as-a-Service</li><li>A truth layer between "customer says paid" and "merchant knows paid"</li><li>Operator-agnostic and border-agnostic by construction</li></ul></div>
+<div class="card"><h3 class="warn">KODA is not</h3><ul><li>A wallet, aggregator, or payout rail</li><li>An escrow or settlement system</li><li>Dependent on any telco contract, anywhere</li></ul></div>
+</div>
+<p>KODA never touches, holds, routes, or settles funds — which keeps the verification layer outside EME/PSP licensing scope while BitriPay handles everything rail-side downstream.</p>
+<h2>The company</h2>
+<p>KODA is built by <b>Groupe Nseya Digital / JNN Global Ltd</b> within the BitriPay ecosystem, launched from Kinshasa with worldwide coverage waves — DRC → Africa core → South Asia → SE Asia & Pacific → MENA & Horn → LatAm.</p>
+</div>
+<footer>
+  <span>© 2026 Groupe Nseya Digital / JNN Global Ltd.</span>
+  <a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/policies">All policies</a>
+  <a href="/status">Platform status</a>
+  <span style="margin-left:auto;color:var(--gold)">le code confirme le cash.</span>
+</footer>
+</body></html>
