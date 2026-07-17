@@ -1272,4 +1272,62 @@ Rules engine
 
 This can keep most verifications outside expensive AI-model calls.
 
+## 19. Minimum viable product
+
+**Phase 1 — Operational MVP**
+
+Build:
+
+* payment-intent creation;
+* WhatsApp customer flow;
+* merchant confirmation forwarding;
+* manual merchant portal;
+* transaction reference matching;
+* duplicate prevention;
+* payment-status webhooks;
+* order-release rules;
+* audit logs;
+* basic merchant dashboard.
+
+**Phase 2 — Merchant Bridge**
+
+Add:
+
+* Android notification listener;
+* SMS template extraction;
+* offline queue;
+* registered-device signatures;
+* multi-wallet routing;
+* automatic verification.
+
+**Phase 3 — Intelligence and reconciliation**
+
+Add:
+
+* fraud scoring;
+* screenshot forensics;
+* statement upload;
+* automated reconciliation;
+* cashier anomaly detection;
+* reversal workflow;
+* enterprise reporting.
+
+## 20. The product positioning
+
+**One-line proposition**
+
+Verify African mobile-money payments and trigger business actions without waiting years for operator APIs.
+
+**Merchant proposition**
+
+Keep your existing mobile-money numbers. KODA turns merchant confirmation messages into controlled, automated payment verification.
+
+**Technical proposition**
+
+One integration for WhatsApp, websites and business systems—regardless of the mobile-money network used by the customer.
+
+**Trust proposition**
+
+No customer PIN. No wallet custody. No fake API promise. Every approval is tied to merchant-controlled evidence and a permanent audit trail.
+
 
