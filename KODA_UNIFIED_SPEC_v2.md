@@ -774,4 +774,23 @@ It produces:
 * possible reversals;
 * cashier exceptions.
 
+### 6.6 Action Orchestration Agent
+
+After verification, it triggers the merchant's system.
+
+Examples:
+
+* issue a QR ticket;
+* confirm a food order;
+* assign a delivery rider;
+* activate a subscription;
+* credit a wallet;
+* unlock course access;
+* reserve a hotel room;
+* generate a receipt;
+* update an invoice;
+* notify warehouse staff;
+* confirm school-fee payment;
+* send a customer WhatsApp confirmation.
+
 
