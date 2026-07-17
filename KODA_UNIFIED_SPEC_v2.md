@@ -1200,4 +1200,36 @@ Each transaction displays:
 * confirmation delay;
 * exception rate.
 
+## 17. Business model
+
+KODA should not charge the customer.
+
+**Merchant pricing options**
+
+**Verification fee**
+
+A fixed fee per successfully verified payment.
+
+Example:
+
+* CDF transaction: $0.03–$0.10 equivalent
+* USD transaction: $0.05–$0.20
+
+**Monthly subscription**
+
+* Starter: low-volume merchants
+* Growth: WhatsApp and website automation
+* Business: multiple numbers and staff
+* Enterprise: branches, wallets and advanced reconciliation
+
+**Hybrid pricing**
+
+* monthly platform fee;
+* included verification allowance;
+* fee for additional successful verifications;
+* premium fee for statement reconciliation;
+* enterprise fraud-monitoring fee.
+
+The merchant pays for verified business outcomes, not for every customer message or every AI interaction.
+
 
