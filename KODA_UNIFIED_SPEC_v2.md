@@ -178,4 +178,18 @@ Coverage = a **template pack**: a versioned parsing grammar per operator/country
 
 **Coverage waves (calibration targets — exact SMS grammar validated in-market, never assumed):**
 
+| Wave | Corridor | Operators (illustrative) |
+|---|---|---|
+| **W1 — Home** | DRC | M-Pesa (Vodacom), Orange Money, Airtel Money, Africell Money |
+| **W2 — Africa core** | KE, TZ, UG, GH, CI, SN, CM, NG, RW | M-Pesa, MTN MoMo, Airtel, Orange, Wave, Moov |
+| **W3 — South Asia** | BD, PK, NP | bKash, Nagad, Rocket · JazzCash, Easypaisa · eSewa, Khalti |
+| **W4 — SE Asia & Pacific** | PH, ID, MM, PG, FJ | GCash, Maya · DANA, OVO, GoPay · Wave Money · MiCash, M-PAiSA |
+| **W5 — MENA & Horn** | SO, EG, JO, YE | EVC Plus, Zaad, Sahal · Vodafone Cash · Orange Money |
+| **W6 — LatAm & Caribbean** | PY, SV, HT, HN | Tigo Money, MonCash, Billetera |
+| **W-open** | Anywhere | **Community Template Program**: any merchant can submit 5 sample confirmation SMS from an unsupported operator → ParserAgent drafts the pack → canary → live, typically within days. Coverage requests become coverage. |
+
+**Honest exclusions, stated in the docs:** app-only/push-notification wallets with no SMS leg, and bank-rail systems like UPI/PIX, are different mechanisms — roadmap adapters (notification-listener capture where OS-permitted), not v2 claims. KODA's promise is exact, which is why it's credible.
+
+**Currency layer:** multi-currency native (CDF, KES, GHS, XOF, NGN, BDT, PKR, PHP, USD…); amounts stored in minor units with operator-declared currency; FX display only — KODA never converts funds because KODA never holds funds.
+
 
