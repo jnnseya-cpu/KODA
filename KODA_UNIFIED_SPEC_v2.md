@@ -904,4 +904,118 @@ Koda.open({
 });
 ```
 
+**Option 3 — REST API**
+
+Create payment intent:
+
+```http
+POST /v1/payment-intents
+Authorization: Bearer sk_live_xxxxx
+Content-Type: application/json
+```
+
+```json
+{
+  "order_id": "ORD-78541",
+  "amount": 45000,
+  "currency": "CDF",
+  "country": "CD",
+  "customer_phone": "+243810000000",
+  "allowed_networks": [
+    "ORANGE_MONEY",
+    "MPESA",
+    "AIRTEL_MONEY",
+    "AFRIMONEY"
+  ],
+  "expires_in_minutes": 15,
+  "success_action": "CONFIRM_ORDER"
+}
+```
+
+Response:
+
+```json
+{
+  "payment_intent_id": "KVI-KIN-847291",
+  "status": "AWAITING_PAYMENT",
+  "payment_url": "https://pay.koda.africa/i/KVI-KIN-847291",
+  "reference": "KV-847291",
+  "expires_at": "2026-07-17T18:30:00Z"
+}
+```
+
+## 9. Merchant webhooks
+
+```http
+POST https://merchant.com/webhooks/koda
+```
+
+```json
+{
+  "event": "payment.verified",
+  "payment_intent_id": "KVI-KIN-847291",
+  "order_id": "ORD-78541",
+  "amount": 45000,
+  "currency": "CDF",
+  "network": "ORANGE_MONEY",
+  "verification_level": 2,
+  "risk_score": 8,
+  "verified_at": "2026-07-17T17:42:18Z"
+}
+```
+
+Other webhook events:
+
+```
+payment.claimed
+payment.pending
+payment.partially_matched
+payment.verified
+payment.rejected
+payment.expired
+payment.duplicate_detected
+payment.reconciled
+payment.reversal_reported
+payment.refund_requested
+payment.refunded
+payment.manual_review_required
+```
+
+Every webhook must be cryptographically signed.
+
+## 10. Automatic post-payment actions
+
+Merchants create rules without coding.
+
+**Rule example**
+
+```
+WHEN:
+Payment status = VERIFIED
+AND risk score < 30
+AND amount = expected amount
+AND transaction reference is unique
+
+THEN:
+Confirm order
+Issue QR ticket
+Send WhatsApp receipt
+Notify event organiser
+Record accounting entry
+```
+
+**High-risk rule**
+
+```
+WHEN:
+Payment amount > 500 USD
+OR risk score > 70
+OR verification source = manual only
+
+THEN:
+Hold fulfilment
+Request supervisor approval
+Do not issue transferable asset
+```
+
 
