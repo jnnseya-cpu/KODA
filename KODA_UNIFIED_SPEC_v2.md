@@ -717,4 +717,36 @@ Links the payment to the correct:
 
 Matching must remain deterministic where possible. AI is used for inconsistent text and ambiguous cases, not for overriding financial controls.
 
+### 6.4 Fraud Detection Agent
+
+Flags:
+
+* reused transaction references;
+* edited screenshots;
+* payer-number mismatch;
+* unusual payment timing;
+* repeated failed claims;
+* one payer funding many unrelated accounts;
+* one screenshot used across several orders;
+* merchant-device manipulation;
+* impossible timestamp sequences;
+* confirmation formats inconsistent with the network;
+* high-frequency manual overrides;
+* suspicious cashier behaviour.
+
+Output:
+
+```json
+{
+  "risk_score": 82,
+  "risk_level": "HIGH",
+  "reasons": [
+    "TRANSACTION_REFERENCE_PREVIOUSLY_USED",
+    "CUSTOMER_SCREENSHOT_METADATA_MISMATCH",
+    "NO_MERCHANT_SIDE_CONFIRMATION"
+  ],
+  "recommended_action": "BLOCK_AND_REVIEW"
+}
+```
+
 
