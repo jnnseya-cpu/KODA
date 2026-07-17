@@ -482,4 +482,19 @@ KODA returns:
 * verification link;
 * WhatsApp payment button.
 
+**Step 2 — Customer pays through the normal mobile-money channel**
+
+The customer uses:
+
+* USSD;
+* mobile-money app;
+* SIM toolkit;
+* agent;
+* merchant till;
+* QR payment;
+* phone-to-phone transfer.
+
+The payment remains entirely within the existing mobile-money network.
+KODA never asks the customer for a PIN or wallet password.
+
 
