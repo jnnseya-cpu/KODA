@@ -586,4 +586,45 @@ The merchant uploads:
 KODA reconciles pending orders against the statement.
 This is primarily a fallback and settlement-control mechanism, not an instant verification method.
 
+## 4. The verification engine
+
+KODA matches the customer's claim against the merchant-side confirmation.
+
+**Core matching fields**
+
+* merchant wallet or till number;
+* transaction reference;
+* amount;
+* currency;
+* payer number;
+* payer name;
+* receiving number;
+* transaction timestamp;
+* network;
+* payment-intent expiry;
+* order reference;
+* previous use of the transaction code.
+
+**Verification levels**
+
+**Level 0 — Unverified claim**
+The customer submitted a reference, but no merchant-side confirmation exists.
+*Action:* Hold the order.
+
+**Level 1 — Partial match**
+The amount and approximate time match, but the payer or reference is incomplete.
+*Action:* Request one additional verification field or send to merchant review.
+
+**Level 2 — Strong match**
+The reference, amount and merchant destination match.
+*Action:* Approve low-risk transactions.
+
+**Level 3 — Verified and reconciled**
+The transaction matches the merchant confirmation and later appears in the merchant statement.
+*Action:* Mark as settled and audit-complete.
+
+**Level 4 — Reversal or dispute detected**
+The merchant reports a reversal, refund or balance discrepancy.
+*Action:* Freeze the related entitlement and open a recovery case according to merchant policy.
+
 
