@@ -1018,4 +1018,19 @@ Request supervisor approval
 Do not issue transferable asset
 ```
 
+## 11. Merchant installation models
+
+**Micro-merchant**
+
+Suitable for a restaurant, salon or small shop.
+
+Needs:
+
+* WhatsApp Business;
+* one merchant mobile-money number;
+* KODA merchant account;
+* manual or forwarded confirmation messages.
+
+No developer is required.
+
 
