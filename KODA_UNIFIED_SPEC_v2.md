@@ -1348,4 +1348,20 @@ Automatic business fulfilment
 
 That makes it realistic, scalable and deployable even where mobile-money APIs are delayed, restricted or unavailable.
 
+---
+
+# ANNEX — v1.0 ENGINE SUMMARY (historical context, superseded by this v2.0 spec)
+
+KODA Verify Engine v1.0, full master spec, built on a mechanism that actually exists in the market rather than fantasy telco access.
+
+The core insight that makes it real: the merchant's confirmation SMS is the telco's ground-truth API — it just arrives unstructured. So instead of chasing telco integrations, a 6 MB Android app (KODA Sentinel) on the merchant's own SIM phone captures and parses those SMS on-device, and a 9-agent LangGraph mesh (MatchMaker, FraudSentinel, VisionAgent, ReconcilerAgent, etc.) matches the customer's reference code against that ledger and fires a webhook in under 10 seconds. No aggregator, no paybill, no licence exposure — KODA never touches funds, which keeps the verification layer outside EME scope while BitriPay handles anything rail-side downstream.
+
+Three deliberate sharp edges:
+
+1. **The balance-chain defence** — every genuine telco SMS carries the running balance; a spoofed SMS breaks the chain. That's the anti-fraud mechanism competitors won't have thought of, and it's checkable with zero external dependency.
+2. **The honest limitations section** — Google Play SMS-policy risk, telco format drift, no payment initiation in v1. Stating these in the docs is what makes it read as engineering, not AI fantasy — and each one has a mitigation, not a hand-wave.
+3. **Phase 4 is the real business** — every verified payment builds the cleanest SME cash-flow ledger in these markets, which becomes the underwriting substrate for merchant lending across the portfolio.
+
+It's wired for day-one volume through Tunakula, Scan & Go, StudYear and TicketRoyality, priced on the ACU model with the 3× multiplier law, DRC's four operators as the P0 calibration ground.
+
 
