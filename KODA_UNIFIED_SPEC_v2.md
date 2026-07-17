@@ -417,4 +417,69 @@ Today, merchants manually:
 This is slow, easy to manipulate and impossible to scale.
 KODA converts that manual confirmation process into a controlled verification engine.
 
+## 2. The non-negotiable truth
+
+A customer-supplied confirmation code alone must never be treated as definitive proof of payment.
+
+A fraudster can:
+
+* reuse an old code;
+* invent a reference;
+* edit a screenshot;
+* send another customer's transaction;
+* pay the wrong merchant;
+* reverse the payment later;
+* submit the same payment for several orders.
+
+Therefore, KODA requires at least one merchant-controlled confirmation source.
+
+**Trusted verification sources**
+
+The platform can verify payments from:
+
+1. Merchant payment-confirmation SMS.
+2. Merchant phone notification.
+3. Merchant WhatsApp payment-confirmation inbox.
+4. Merchant email alerts.
+5. Merchant web portal entry.
+6. Agent-assisted USSD confirmation.
+7. End-of-day mobile-money statement upload.
+8. Approved payment-terminal receipt.
+9. Manual confirmation by an authorised cashier.
+
+No direct operator API is required for the core workflow.
+
+## 3. The operating model
+
+**Step 1 — Create a payment intent**
+
+The merchant system creates an expected payment before the customer pays.
+
+Example:
+
+```json
+{
+  "payment_intent_id": "KVI-KIN-847291",
+  "merchant_id": "MER-1048",
+  "order_id": "ORD-78541",
+  "amount": 45000,
+  "currency": "CDF",
+  "payment_network": "ORANGE_MONEY",
+  "merchant_number": "+243XXXXXXXXX",
+  "customer_number": "+243XXXXXXXXX",
+  "expires_at": "2026-07-17T18:30:00Z",
+  "action_after_payment": "ISSUE_TICKET"
+}
+```
+
+KODA returns:
+
+* payment reference;
+* merchant number;
+* exact amount;
+* expiry time;
+* customer instructions;
+* verification link;
+* WhatsApp payment button.
+
 
