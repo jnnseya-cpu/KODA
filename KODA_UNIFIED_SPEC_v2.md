@@ -869,4 +869,39 @@ Your two VIP tickets have been issued.
 We could not match this transaction. Check the transaction code, payment amount and receiving number. Your money has not been taken by KODA.
 ```
 
+## 8. Website plug-and-play integration
+
+**Option 1 — Hosted payment-verification page**
+
+The merchant adds one button:
+
+```html
+<a href="https://pay.koda.africa/i/KVI-KIN-847291">
+  Pay with Mobile Money
+</a>
+```
+
+No complex payment API is required.
+
+**Option 2 — JavaScript widget**
+
+```html
+<script
+  src="https://cdn.koda.africa/widget.js"
+  data-merchant-id="MER-1048">
+</script>
+```
+
+```javascript
+Koda.open({
+  orderId: "ORD-78541",
+  amount: 45000,
+  currency: "CDF",
+  customerPhone: "+243810000000",
+  onVerified: function (payment) {
+    window.location.href = "/payment-success";
+  }
+});
+```
+
 
