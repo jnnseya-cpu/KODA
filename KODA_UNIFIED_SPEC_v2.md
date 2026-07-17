@@ -203,4 +203,30 @@ Coverage = a **template pack**: a versioned parsing grammar per operator/country
 | Offline reality | Store-and-forward; late SMS matched retroactively → `payment.verified.late`, never lost |
 | Parsing drift | Template packs OTA; ParserAgent regenerates from drift; public per-operator parse-health page |
 
+---
+
+# PART V — THE AGENT MESH & THE API
+
+## 6. Nine-agent registry (LangGraph, NSEYA X-EXECUTE convention)
+
+| ID | Agent | Mission | Autonomy |
+|---|---|---|---|
+| K-01 | **ParserAgent** | Structure SMS; detect operator format drift; regenerate + canary + OTA-ship template packs worldwide | Auto-deploy on canary pass; human sign-off on field-map changes |
+| K-02 | **MatchMaker** | Code↔ledger↔intent↔amount↔window↔suffix matching; fuzzy typo repair (edit distance ≤2) | Full auto within threshold |
+| K-03 | **FraudSentinel** | ~40-feature risk score per match; Global Replay Index; velocity + device + payer-graph signals; per-corridor retraining | Auto-block high; challenge mid |
+| K-04 | **VisionAgent** | Extract ref/amount from screenshots (Manual mode's camera button and Chat uploads); forgery forensics (ELA, font metrics, status-bar coherence). Assistive, never sole proof | Extraction auto |
+| K-05 | **ReconcilerAgent** | Three-way reconciliation; surfaces unmatched payments ("money you forgot") in the Live Feed and daily digest | Reports auto; corrections merchant-approved |
+| K-06 | **DisputeAgent** | Guided resolution on failed verifies; in-channel customer interview; evidence file + recommendation | Recommends; merchant decides |
+| K-07 | **LinguaAgent** | All customer/merchant dialogue: FR, EN, Lingala, Swahili, Wolof, Twi at launch; Bengali, Urdu, Tagalog, Somali, Arabic, Spanish per wave | Full auto |
+| K-08 | **OpsPilot** | Fleet heartbeats, parse rates per operator, webhook health, offline-merchant alerts; auto-remediates known classes | Auto-alert/remediate |
+| K-09 | **COSA-K** | Chief-of-staff orchestration, policy, escalation, weekly merchant intelligence brief | Supervisory |
+
+**Agent law:** every autonomous confirmation writes its full decision trace (inputs, scores, template + model versions) to the append-only store. *A verification you cannot audit is a verification you cannot defend.*
+
+## 7. API reference (the developer door — deliberately tiny)
+
+**Base** `https://api.koda.africa/v1` · **Sandbox** `https://sandbox.koda.africa/v1` · Bearer auth · TLS 1.3 · `Idempotency-Key` on all writes (24 h window)
+
+**Keys:** `sk_live_` (server) · `pk_live_` (widget: create+verify only) · `sk_test_`/`pk_test_` (free, unlimited) · `sk_live_sub_` (platform-scoped) · `rk_live_` (restricted scopes). Rotation, revocation, IP allowlists per key.
+
 
