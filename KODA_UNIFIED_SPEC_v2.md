@@ -83,3 +83,16 @@ The merchant does exactly what they did manually before — but the answer comes
 
 **The graduation path (built-in growth engine):** Manual → sees "unmatched payments" value → turns on Chat Mode → volume grows → hires a dev or joins a platform → flips on the API. **Same account, same ledger, zero migration.** Manual mode is not a lesser product; it is the top of the funnel and, in most markets, the majority of revenue.
 
+## DOOR 2 — WHATSAPP CHAT MODE (conversational, still no code)
+
+For merchants who live in WhatsApp: add KODA's number to the customer chat (or forward the customer's message). LinguaAgent handles the dialogue — collects the code or screenshot, verifies, posts "✅ Paiement confirmé — 25 000 FC reçus" into the chat, logs it to the merchant's ledger. Verification becomes a participant in the conversation where the sale is already happening. Zero code, zero console, zero behaviour change for the customer.
+
+## DOOR 3 — API MODE (automated, the developer product)
+
+Full automation: intents, code submission, signed webhooks — order confirmed, ticket issued, course unlocked, driver dispatched, with no human in the loop. Complete reference in Part V. Platforms onboard entire merchant bases under one master key via the sub-merchant API.
+
+**One truth across all doors:** a payment verified manually and a payment verified by webhook produce the *same* receipt object, the same replay lock, the same audit trace, the same reconciliation entry. Mode is presentation; verification is one.
+
+---
+
+
