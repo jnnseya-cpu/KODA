@@ -130,4 +130,40 @@ Full automation: intents, code submission, signed webhooks — order confirmed, 
 [8] Elapsed: customer-side ~30–60 s total; KODA's share < 10 s.
 ```
 
+*The magic sentence:* **"Your customer pays exactly the way they paid yesterday. The only thing that changes is that you finally know — instantly, provably, in your language."**
+
+---
+
+# PART IV — ARCHITECTURE & GLOBAL COVERAGE
+
+## 3. System architecture
+
+```
+┌────────────────────────────── EDGE ──────────────────────────────┐
+│ KODA SENTINEL (Android, Kotlin, ~6 MB)                            │
+│ • SMS BroadcastReceiver scoped to operator sender-IDs only        │
+│ • On-device parser: per-operator/country template pack, OTA        │
+│ • Encrypted local ledger (SQLCipher) — offline-first, back-fills  │
+│ • Play Integrity attestation + hardware-backed device keypair     │
+│ • Dual-SIM aware · <1% daily battery on an $80 Android            │
+│ • KODA Lite fallback: merchant forwards SMS to WhatsApp ingestion │
+└───────────────────────────────┬──────────────────────────────────┘
+                                │ signed SMS records (mTLS)
+┌───────────────────────────────▼──────────────────────────────────┐
+│ KODA CLOUD (GCP · NestJS · PostgreSQL · Kafka · Redis)            │
+│ Ingestion → Kafka `sms.raw` → LangGraph AGENT MESH (§6)           │
+│ CQRS append-only event store → every decision replayable          │
+│ Global Replay Index: every code ever seen, single-use, forever    │
+│ Webhook Dispatcher: HMAC-SHA256, 5× retry, DLQ                    │
+│ ACU metering · multi-region residency (per-market, §16)           │
+└───────────────────────────────┬──────────────────────────────────┘
+                                │
+┌───────────────────────────────▼──────────────────────────────────┐
+│ THREE DOORS                                                       │
+│ ① Verify Console + Live Feed + Dashboard (Next.js 14, phone-1st)  │
+│ ② WhatsApp Chat Mode (Business Cloud API, LinguaAgent)            │
+│ ③ Public REST API + widget + SDKs (Part V)                        │
+└──────────────────────────────────────────────────────────────────┘
+```
+
 
