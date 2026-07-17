@@ -8,6 +8,14 @@ const path = require('node:path');
 const OUT = path.join(__dirname, '..', 'public', 'site');
 fs.mkdirSync(OUT, { recursive: true });
 
+// the 12 site pages, grouped for the footer (used by landing + every content page)
+const FOOT_GROUPS = [
+  ['Product', [['How it works', 'how-it-works'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
+  ['Company', [['About', 'about'], ['Blog', 'blog'], ['Growth & Influencers', 'growth'], ['Contact', 'contact']]],
+  ['Developers', [['API documentation', 'developers'], ['OpenAPI contract', 'developers'], ['Open the app', 'app']]],
+  ['Legal', [['Terms of Service', 'terms'], ['Privacy Policy', 'privacy'], ['All policies', 'policies']]],
+];
+
 // ---- landing: reuse the prototype, wire CTAs into the app ----
 const landingSrc = path.join(__dirname, '..', '..', 'koda-landing.html');
 if (fs.existsSync(landingSrc)) {
@@ -23,14 +31,17 @@ if (fs.existsSync(landingSrc)) {
     .replace(/<a class="pbtn" href="#">Talk platforms<\/a>/, '<a class="pbtn" href="/app#signup?plan=plateforme">Talk platforms</a>')
     .replace(/<a class="pbtn" href="#">Contact sales<\/a>/, '<a class="pbtn" href="/contact">Contact sales</a>')
     .replace(/<a class="nav-cta" href="#pricing">Start free →<\/a>/, '<a class="nav-cta" href="/app#signup">Start free →</a>')
-    .replace('</nav>', '</nav>' + siteBanner());
+    .replace('<div class="wrap foot">', footerLinks() + '<div class="wrap foot">');
   fs.writeFileSync(path.join(OUT, 'index.html'), landing);
 }
-function siteBanner() {
-  return `<div style="background:#0C231C;border-bottom:1px solid rgba(233,228,213,.1);font-family:'IBM Plex Mono',monospace;font-size:11.5px;padding:8px 24px;display:flex;gap:18px;flex-wrap:wrap;color:#9BA79B">
-  ${['about', 'how-it-works', 'industries', 'developers', 'growth', 'blog', 'status', 'contact'].map(p =>
-    `<a style="color:inherit;text-decoration:none" href="/${p}">${p.replace(/-/g, ' ')}</a>`).join('')}
-  <a style="color:#E8A11F;text-decoration:none;margin-left:auto" href="/app">→ open the app</a></div>`;
+
+function footerLinks() {
+  return `<div class="wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:26px;padding-top:52px;padding-bottom:38px;border-bottom:1px solid var(--line);margin-bottom:34px">
+  ${FOOT_GROUPS.map(([title, links]) => `<div>
+    <div style="font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;font-weight:600">${title}</div>
+    ${links.map(([label, p]) => `<a href="/${p}" style="display:block;color:var(--text-dim,#9BA79B);font-size:13.5px;padding:4.5px 0;text-decoration:none">${label}</a>`).join('')}
+  </div>`).join('')}
+</div>`;
 }
 
 // ---- shared layout for content pages ----
@@ -74,10 +85,6 @@ footer a{color:var(--dim)}
 </style></head><body>
 <nav class="nav">
   <a class="logo" href="/"><i>✓</i>KODA</a>
-  <a class="lnk" href="/about">About</a><a class="lnk" href="/how-it-works">How it works</a>
-  <a class="lnk" href="/industries">Industries</a><a class="lnk" href="/developers">Developers</a>
-  <a class="lnk" href="/growth">Growth</a><a class="lnk" href="/blog">Blog</a>
-  <a class="lnk" href="/status">Status</a><a class="lnk" href="/contact">Contact</a>
   <a class="cta" href="/app#signup">Get started →</a>
 </nav>
 <div class="wrap">
@@ -86,11 +93,17 @@ footer a{color:var(--dim)}
   <p class="lead">${lead}</p>
   ${body}
 </div>
-<footer>
-  <span>© 2026 Groupe Nseya Digital / JNN Global Ltd.</span>
-  <a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/policies">All policies</a>
-  <a href="/status">Platform status</a>
-  <span style="margin-left:auto;color:var(--gold)">le code confirme le cash.</span>
+<footer style="display:block;padding:0 28px 34px">
+  <div style="max-width:880px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:26px;padding:44px 0 32px;border-bottom:1px solid var(--line);margin-bottom:26px">
+  ${FOOT_GROUPS.map(([t, links]) => `<div>
+    <div style="font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;font-weight:600">${t}</div>
+    ${links.map(([label, p]) => `<a href="/${p}" style="display:block;color:var(--dim);font-size:13.5px;padding:4.5px 0">${label}</a>`).join('')}
+  </div>`).join('')}
+  </div>
+  <div style="max-width:880px;margin:0 auto;display:flex;gap:16px;flex-wrap:wrap">
+    <span>© 2026 Groupe Nseya Digital / JNN Global Ltd.</span>
+    <span style="margin-left:auto;color:var(--gold)">le code confirme le cash.</span>
+  </div>
 </footer>
 </body></html>`;
 }
