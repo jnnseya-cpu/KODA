@@ -273,4 +273,41 @@ Koda.pay({amount: 25000, currency: "CDF", orderId: "TNK-88213"})
 
 ---
 
+# PART VI — FRAUD ENGINE
+
+## 8. Built to be lied to
+
+Screenshot fraud exists because merchants verify against **customer-side** artifacts. KODA's truth is **merchant-side**, operator-issued, device-attested — a fraudster must forge an SMS into the merchant's own phone. Residual surface and answers:
+
+| Attack | Countermeasure |
+|---|---|
+| **Code replay** | Global Replay Index — single-use per merchant, forever, across all three doors (a code verified in Manual mode is dead to the API too). Second use → reject + flag |
+| **Stolen code** (real payment, wrong claimant) | Suffix ↔ checkout/WhatsApp identity, exact amount, tight window; mismatch → DisputeAgent challenge ("confirm the last 3 digits of the paying number") |
+| **Forged screenshot** | Never sufficient; Vision forensics feed risk; truth = ledger |
+| **Spoofed SMS into merchant phone** | Sender-ID allowlist + grammar validation + **balance-chain defence**: every genuine operator SMS carries `balance_after`; a spoof breaks the running arithmetic → quarantine + merchant alert. The operator's own bookkeeping is the firewall — and it works identically for bKash in Dhaka and Orange in Kinshasa |
+| **Compromised Sentinel** | Attestation, signed records, per-device anomaly baseline, instant revocation |
+| **Merchant self-fraud** (fake receipts to game a platform) | Balance-chain + cross-merchant collision detection + trust-score API exposed to platforms |
+| **Pay-then-reverse** | Reversal SMS parsed too → `payment.reversed` (v2.1). Honest limit: KODA can't prevent operator-side reversal; it makes the merchant first to know |
+
+Risk bands: `<0.15` auto-confirm · `0.15–0.6` challenge · `>0.6` reject. Models retrained per corridor — Kinshasa fraud ≠ Dhaka fraud, and the features know it.
+
+---
+
+# PART VII — MONETISATION (one ladder, three doors)
+
+## 9. The moral centre of the pricing
+
+**The billable atom is a successful verification** (`payment.verified` / `.late`) — identical whether a human clicked Verify in the Console or a webhook fired. Failed matches, rejections, expired intents: **free**. *We only earn when the merchant gets paid.* Metered in ACU (portfolio convention; 3× multiplier law on agent-heavy ops):
+
+| Operation | ACU |
+|---|---|
+| Verification — code path (any door) | 1 |
+| Verification — screenshot/Vision path | 3 |
+| Dispute evidence file | 3 |
+| Trust-score lookup | 0.5 |
+| Sub-merchant onboarding | 5 (one-time) |
+| Reconciliation | bundled / 1 on-demand |
+
+Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per market (a Kinshasa boutique thinks in FC, a Dhaka shop in BDT) — pinned monthly, absorbed FX.
+
 
