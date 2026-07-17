@@ -1062,4 +1062,72 @@ Needs:
 * maker-checker approvals;
 * financial reporting.
 
+## 12. Offline-first operations
+
+KODA must work in low-connectivity environments.
+
+The Merchant Bridge:
+
+* stores encrypted confirmation fingerprints locally;
+* timestamps each event;
+* signs it with the registered device key;
+* queues uploads;
+* synchronises automatically when internet returns;
+* prevents local editing of captured events;
+* displays pending and synchronised status;
+* can confirm local orders within merchant-defined risk limits.
+
+Example:
+A ticket scanner at a venue can receive a locally approved ticket list through Bluetooth, Wi-Fi Direct or periodic sync, without requiring continuous internet.
+
+## 13. Security controls
+
+**Merchant-device security**
+
+* device registration;
+* SIM and phone-number association;
+* device public/private key pair;
+* remote revocation;
+* biometric access;
+* root and tamper detection;
+* encrypted local storage;
+* merchant employee roles;
+* device activity logs.
+
+**Transaction security**
+
+* transaction fingerprint;
+* one-time consumption;
+* amount and currency validation;
+* merchant-destination validation;
+* replay protection;
+* webhook signature;
+* idempotency keys;
+* immutable audit trail;
+* duplicate reference blocking.
+
+**Human controls**
+
+* maker-checker approval;
+* manual override reason;
+* supervisor approval;
+* override limits;
+* cashier-level reporting;
+* unusual-override alerts;
+* branch-level restrictions.
+
+## 14. What the system must never do
+
+KODA must never:
+
+* request the customer's mobile-money PIN;
+* store wallet passwords;
+* simulate a mobile-money operator;
+* claim that a payment is settled using only a screenshot;
+* use AI confidence as the sole approval mechanism;
+* automatically approve an untrusted customer reference;
+* bypass operator terms or local financial regulations;
+* describe itself as a bank or payment institution unless licensed;
+* hide from merchants that verification is confirmation-based rather than operator-API-based.
+
 
