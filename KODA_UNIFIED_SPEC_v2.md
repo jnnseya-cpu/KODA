@@ -3,6 +3,7 @@
 **Groupe Nseya Digital / BitriPay Ecosystem — Confidential**
 **Supersedes:** Verify Engine Master Spec v1.0 + API & Monetisation Spec v1.0 (fully consolidated here)
 **New in v2.0:** ① No-code Manual Verification mode — full product for merchants without developers · ② Worldwide mobile money scope · ③ Single unified pricing ladder across all modes
+**Branding:** Regardless of any other name used historically or internally (e.g. "Verify Engine"), **KODA is the sole and permanent brand name** — across all modes, markets, surfaces, and documents. Sub-products (KODA Sentinel, KODA Lite, Verify Console) are features of KODA, never standalone brands.
 
 > **One line:** KODA turns the confirmation SMS every mobile money operator on Earth already sends to merchants into structured payment truth — verified **manually in a KODA account**, **conversationally in WhatsApp**, or **automatically by API**. Same engine. Three doors. Any operator, any country.
 
@@ -191,5 +192,15 @@ Coverage = a **template pack**: a versioned parsing grammar per operator/country
 **Honest exclusions, stated in the docs:** app-only/push-notification wallets with no SMS leg, and bank-rail systems like UPI/PIX, are different mechanisms — roadmap adapters (notification-listener capture where OS-permitted), not v2 claims. KODA's promise is exact, which is why it's credible.
 
 **Currency layer:** multi-currency native (CDF, KES, GHS, XOF, NGN, BDT, PKR, PHP, USD…); amounts stored in minor units with operator-declared currency; FX display only — KODA never converts funds because KODA never holds funds.
+
+## 5. Sentinel engineering decisions (unchanged from v1, hardened)
+
+| Concern | Decision |
+|---|---|
+| SMS scope | Operator sender-IDs only; non-payment SMS never read or transmitted — enforced in code, stated in the privacy policy |
+| Play policy risk | Real, mitigated: direct APK + managed-Play private channel + KODA-certified preloaded devices; public listing pursued under transactional-SMS core-functionality declaration, never depended on |
+| Integrity | Attestation at enrol + rolling; per-device signing keys; unattested records quarantined; instant revocation |
+| Offline reality | Store-and-forward; late SMS matched retroactively → `payment.verified.late`, never lost |
+| Parsing drift | Template packs OTA; ParserAgent regenerates from drift; public per-operator parse-health page |
 
 
