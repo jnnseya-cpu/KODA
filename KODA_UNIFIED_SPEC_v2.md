@@ -359,4 +359,18 @@ No fund transmission, no float, no payment execution → outside EME/établissem
 
 ---
 
+# PART IX — EXECUTION
+
+## 16. Roadmap
+
+| Phase | Window | Exit gate |
+|---|---|---|
+| **P0 — Forge** | | Sentinel + W1 packs ≥99% parse on live Tunakula/Scan & Go traffic; **Verify Console GA** (Manual mode ships in P0 — it's the fastest door to build and the widest to sell); core API; MatchMaker + FraudSentinel v1 |
+| **P1 — Proof** | | 250 Kinshasa merchants, ≥70% Manual-mode; Chat Mode GA; DisputeAgent; fraud loss <0.1% of verified volume; first prepaid top-ups verified by KODA itself |
+| **P2 — Corridor** | | W2 packs (MTN, Wave: CI/SN/GH/KE); widget + Reconciler GA; first Platform deal on wholesale; sub-merchant API hardened |
+| **P3 — Worldwide** | | (bKash, JazzCash, GCash corridors) via Community Template Program; localised price cards + LinguaAgent languages; `payment.reversed`; assisted-USSD |
+| **P4 — OS** | M14+ | KODA = the portfolio's Payment Truth Layer in X-EXECUTE; verified-cash-flow credit scoring; W5–W6; optional operator white-label deals |
+
+**90-day API-business launch sequence:** spec freeze + simulator (W0–2) → Tunakula & Scan & Go as first *paying* accounts on real invoices (W2–4) → FR/EN docs + 10 external pilots (W4–6) → first bot-builder Platform deal (W6–10) → public self-serve launch + case studies ("0 telco meetings, 11 minutes to first verified payment") (W10–13). "Real" = 100 external accounts, ≥30% paid, ≥1 Platform, API revenue clearing infra COGS.
+
 
