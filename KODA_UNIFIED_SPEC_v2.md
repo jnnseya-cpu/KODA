@@ -497,4 +497,31 @@ The customer uses:
 The payment remains entirely within the existing mobile-money network.
 KODA never asks the customer for a PIN or wallet password.
 
+**Step 3 — Customer submits the transaction reference**
+
+The customer sends:
+
+* transaction ID;
+* payer phone number;
+* payment amount;
+* optional screenshot;
+* optional last four digits of the payer number.
+
+Submission channels:
+
+* WhatsApp;
+* merchant website;
+* checkout page;
+* USSD-assisted agent portal;
+* cashier application;
+* QR payment-status page.
+
+Example WhatsApp message:
+
+```
+I have paid 45,000 CDF.
+Transaction code: PP26071784729
+Number used: 0812345678
+```
+
 
