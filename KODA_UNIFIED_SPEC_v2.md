@@ -671,4 +671,35 @@ Creates the payment request and selects:
 
 It can route customers to the most suitable available merchant wallet based on capacity, network and transaction limits.
 
+### 6.2 Confirmation Extraction Agent
+
+Reads structured and unstructured confirmation messages.
+
+Example inputs:
+
+```
+Vous avez reçu 45 000 CDF de 0812345678.
+Référence: PP26071784729
+Date: 17/07/2026 16:42
+```
+
+```
+You have received USD 20 from JOHN K.
+Transaction ID: MP26071799821
+```
+
+It normalises them into one internal schema:
+
+```json
+{
+  "network": "MOBILE_MONEY_NETWORK",
+  "amount": 45000,
+  "currency": "CDF",
+  "payer_number": "HASHED_VALUE",
+  "transaction_reference": "PP26071784729",
+  "transaction_time": "2026-07-17T16:42:00+01:00",
+  "source_trust": "MERCHANT_DEVICE_NOTIFICATION"
+}
+```
+
 
