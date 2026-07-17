@@ -340,4 +340,23 @@ Revenue $0.026 · COGS: cloud+inference $0.004, Vision blended $0.002, support/d
 
 ---
 
+# PART VIII — TRUST, COMPLIANCE, LIMITS
+
+## 13. Go-live machinery
+Self-serve gate: attested Sentinel + KYB-light (name, operator msisdn ownership via $0.10 self-verification) + (API mode) webhook passing a signed test event. **SLA (Commerce+):** 99.9% API availability; KODA-side p95 < 5 s — contract language explicitly separates KODA's clock from the operator's SMS-delivery clock. Miss the SLA → that month's subscription credited, automatically.
+
+## 14. Compliance posture
+No fund transmission, no float, no payment execution → outside EME/établissement-de-paiement scope (BCC/DRC and analogous regimes); **formal legal opinion per market is a launch gate for every wave**, not an afterthought. Where BitriPay's EME licence lands, KODA slots under it as the verification layer. Data: payment-SMS-only capture enforced in code; per-market residency options; masked msisdn outside the fraud pipeline; DPIA published; consent copy written by humans, local language first. CQRS append-only store = every verification replayable for disputes and regulators.
+
+## 15. Honest limitations (in the public docs, on purpose)
+1. **Latency floor is the operator's, not ours** — congested networks delay the SMS; SLA language separates the clocks.
+2. **No payment initiation in v2** — customer still dials USSD (assisted deep-links now; optional aggregator STK-push later as premium, never a dependency).
+3. **Funds sit on the merchant SIM** — treasury/sweep is BitriPay's job downstream, cleanly separated for licensing.
+4. **Google Play SMS policy is a live risk** — mitigated by distribution strategy, never assumed away.
+5. **App-only wallets and bank rails (UPI/PIX) are out of scope in v2** — different mechanism, roadmap adapters.
+6. **Operator format drift will break parsing periodically** — which is why drift-detection + OTA packs is a core competence, with a public parse-health page.
+7. **Manual mode verifies payments, not business ethics** — a merchant-side insider with the merchant's phone creates *real* entries, because they're real payments.
+
+---
+
 
