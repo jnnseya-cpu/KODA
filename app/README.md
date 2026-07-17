@@ -86,8 +86,21 @@ index and scale Cloud Run instances linearly.
 | `KODA_JWT_SECRET` | session signing — set in production |
 | `KODA_DATA_DIR` | SQLite location |
 | `BREVO_API_KEY` | flips email deliveries from `sandbox` to live |
-| `META_WA_TOKEN` | flips WhatsApp deliveries to live |
+| `META_WA_TOKEN` | Meta system-user access token — flips WhatsApp sends to live (Graph API) |
+| `META_WA_PHONE_ID` | WhatsApp Business phone-number ID (from Meta API Setup) |
+| `META_API_VERSION` | Graph API version, default `v20.0` |
+| `META_WA_VERIFY_TOKEN` | webhook verify token you set in Meta app config (default `koda-verify`) |
 | `FCM_KEY` | flips push deliveries to live |
+
+**WhatsApp (Door 2) wiring:** point the Meta app's webhook at
+`https://api.koda.africa/webhooks/whatsapp` with your verify token and subscribe to
+`messages`. Outbound: business-initiated events send pre-approved templates
+(`koda_payment_verified`, `koda_topup_verified`, `koda_low_balance`,
+`koda_sentinel_offline`, `koda_security_alert`, `koda_daily_digest` — create these in
+WhatsApp Manager); in-window replies send plain text. Inbound: a customer message
+containing a reference code is verified through the same engine (`mode: chat`) and
+answered in-thread (✅ confirmed / ⏳ watching / ⚠️ already used / ❌ not matched).
+Without the token everything runs and is recorded as sandbox deliveries.
 
 ## Production path
 

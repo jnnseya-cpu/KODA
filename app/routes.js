@@ -406,6 +406,57 @@ module.exports = function registerRoutes(r) {
 
   r.get('/v1/openapi.json', () => openapi());
 
+  // ---------- WhatsApp Cloud API webhook (Door 2 — Chat Mode) ----------
+  // GET: Meta's verification handshake (echo hub.challenge when the verify token matches)
+  r.get('/webhooks/whatsapp', (req) => {
+    const qy = req.query;
+    if (qy['hub.mode'] === 'subscribe' && qy['hub.verify_token'] === (process.env.META_WA_VERIFY_TOKEN || 'koda-verify')) {
+      return qy['hub.challenge'] || '';
+    }
+    return [403, { error: 'verify_token_mismatch' }];
+  });
+  // POST: inbound customer messages — extract a reference code, verify, reply in-thread
+  r.post('/webhooks/whatsapp', (req) => {
+    const meta = require('./lib/comms/meta');
+    const entries = req.body.entry || [];
+    for (const entry of entries) {
+      for (const change of (entry.changes || [])) {
+        const val = change.value || {};
+        for (const msg of (val.messages || [])) {
+          if (msg.type !== 'text') continue;
+          const from = msg.from;                                  // customer wa_id
+          const text = String(msg.text?.body || '');
+          // merchant routing: display number ↔ merchant msisdn, else the first active merchant
+          const display = val.metadata?.display_phone_number || '';
+          const m = q.get(`SELECT * FROM merchants WHERE replace(msisdn,'+','') = ? AND status='active'`, display.replace(/[^\d]/g, ''))
+                 || q.get(`SELECT * FROM merchants WHERE status='active' AND parent_id IS NULL ORDER BY created_at LIMIT 1`);
+          if (!m) continue;
+          const ref = (text.toUpperCase().match(/[A-Z0-9][A-Z0-9.\-]{6,}/) || [])[0];
+          let reply;
+          if (!ref) {
+            reply = m.language === 'en'
+              ? 'Send the transaction code from your payment confirmation to verify your payment.'
+              : 'Envoie le code de transaction de ta confirmation de paiement pour vérifier ton paiement.';
+          } else {
+            const res = engine.verify(q.get('SELECT * FROM merchants WHERE id=?', m.id), null, ref, { mode: 'chat' });
+            reply = res.status === 'verified'
+              ? `✅ Paiement confirmé — ${Number(res.amount_confirmed).toLocaleString('fr-FR')} ${m.currency}. Merci !`
+              : res.status === 'not_found_yet'
+              ? `⏳ Ton paiement est en route — on te confirme dès que le réseau nous le montre.`
+              : res.code === 'code_already_used'
+              ? `⚠️ Ce code a déjà été utilisé. Vérifie ta référence.`
+              : `❌ Nous n'avons pas pu confirmer ce paiement. Vérifie le code, le montant et le numéro de réception.`;
+          }
+          if (meta.configured()) meta.sendText(from, reply).catch(() => {});
+          q.run(`INSERT INTO comm_deliveries (id,merchant_id,user_id,event_key,channel,recipient,subject,provider,status)
+                 VALUES (?,?,NULL,'chat.inbound_reply','whatsapp',?,?,?,?)`,
+            U.id('dlv'), m.id, from, reply.slice(0, 120), meta.configured() ? 'meta' : 'sandbox', meta.configured() ? 'sent' : 'logged');
+        }
+      }
+    }
+    return { received: true };
+  });
+
   // health for status page
   r.get('/healthz', () => ({ ok: true, service: 'koda-api', time: new Date().toISOString() }));
 };

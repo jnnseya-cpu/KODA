@@ -8,9 +8,11 @@ const { id } = require('../util');
 const { BY_KEY, CHANNELS } = require('./events');
 const { renderEmail } = require('./email');
 
+const meta = require('./meta');
+
 const PROVIDERS = {
   email: () => process.env.BREVO_API_KEY ? 'brevo' : 'sandbox',
-  whatsapp: () => process.env.META_WA_TOKEN ? 'meta' : 'sandbox',
+  whatsapp: () => meta.configured() ? 'meta' : 'sandbox',
   push: () => process.env.FCM_KEY ? 'fcm' : 'sandbox',
   sms: () => process.env.SMS_GATEWAY_KEY ? 'gateway' : 'sandbox',
   inapp: () => 'inapp',
@@ -53,13 +55,22 @@ function fire(eventKey, opts = {}) {
     }
 
     // provider adapters: real send when a key exists, otherwise sandbox-log.
-    // (Brevo/Meta/FCM HTTP calls plug in here — payloads are already final.)
-    const status = provider === 'sandbox' || provider === 'inapp' ? (provider === 'inapp' ? 'sent' : 'logged') : 'sent';
-
+    const dlvId = id('dlv');
+    let status = provider === 'sandbox' || provider === 'inapp' ? (provider === 'inapp' ? 'sent' : 'logged') : 'queued';
     q.run(`INSERT INTO comm_deliveries (id,merchant_id,user_id,event_key,channel,recipient,subject,provider,status)
            VALUES (?,?,?,?,?,?,?,?,?)`,
-      id('dlv'), merchant?.id || null, user?.id || null, ev.key, channel,
+      dlvId, merchant?.id || null, user?.id || null, ev.key, channel,
       recipient, subject, provider, status);
+
+    // live WhatsApp send via Meta Cloud API — async, never blocks the caller
+    if (channel === 'whatsapp' && provider === 'meta' && recipient) {
+      const tpl = meta.EVENT_TEMPLATES[ev.key];
+      const to = String(recipient).replace(/[^\d]/g, '');
+      (tpl ? meta.sendTemplate(to, tpl, (merchant?.language || 'fr') === 'fr' ? 'fr' : 'en_US')
+           : meta.sendText(to, subject))
+        .then(() => q.run(`UPDATE comm_deliveries SET status='sent' WHERE id=?`, dlvId))
+        .catch(e => q.run(`UPDATE comm_deliveries SET status='failed' WHERE id=?`, dlvId));
+    }
     results.push({ channel, provider, status });
   }
   return { event: ev.key, subject, deliveries: results };
