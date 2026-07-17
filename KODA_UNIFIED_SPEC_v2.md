@@ -38,3 +38,16 @@ Funds move operator → merchant exactly as today. KODA never touches money, whi
 
 ---
 
+# PART II — THE THREE DOORS (one engine, three verification modes)
+
+This is the v2.0 structural upgrade: **the same verification engine, exposed at three levels of technical capacity.** A market-stall trader and a 400-merchant marketplace use identical matching, fraud scoring, and audit trails — only the interface differs. Merchants graduate between doors without migration: it's one account, one ledger, one history.
+
+## DOOR 1 — MANUAL MODE (no code, no bot, no developer) 🆕
+
+**Who:** the enormous majority. Merchants already verifying payments by hand today — scrolling SMS, squinting at screenshots, calling customers. They will never "install an API." They don't have to.
+
+**Setup (one-time, ~7 minutes, phone only):**
+1. Sign up at koda.africa on any phone → KODA account created.
+2. Install **KODA Sentinel** (6 MB) on the Android that receives payment SMS — scan a QR, done. (No Android? KODA Lite: forward confirmation SMS to KODA's WhatsApp ingestion number.)
+3. Self-verify ownership: merchant sends themselves a $0.10-equivalent payment and verifies it — their first KODA verification is verifying themselves.
+
