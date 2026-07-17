@@ -310,4 +310,6 @@ Risk bands: `<0.15` auto-confirm · `0.15–0.6` challenge · `>0.6` reject. Mod
 
 Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per market (a Kinshasa boutique thinks in FC, a Dhaka shop in BDT) — pinned monthly, absorbed FX.
 
+**Margin protection law:** ACU pricing is calibrated so that every metered operation retails at **3× to 10× the underlying AI-provider cost** (model inference, vision extraction, agent orchestration). ACU rates and multipliers are re-checked against provider price changes on each monthly price-card pin; if a provider price move pushes an operation below the 3× floor, its ACU weight — not the retail anchor — is adjusted first.
+
 
