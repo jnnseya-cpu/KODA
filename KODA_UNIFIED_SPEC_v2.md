@@ -749,4 +749,29 @@ Output:
 }
 ```
 
+### 6.5 Reconciliation Agent
+
+At the end of each day, it compares:
+
+* verified transactions;
+* mobile-money statements;
+* issued tickets;
+* completed deliveries;
+* activated subscriptions;
+* refunds;
+* reversals;
+* manual overrides;
+* merchant balances.
+
+It produces:
+
+* matched transactions;
+* unmatched customer claims;
+* unmatched merchant receipts;
+* duplicate payments;
+* underpayments;
+* overpayments;
+* possible reversals;
+* cashier exceptions.
+
 
