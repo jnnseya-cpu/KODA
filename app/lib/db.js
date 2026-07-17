@@ -9,7 +9,10 @@ const fs = require('node:fs');
 const DATA_DIR = process.env.KODA_DATA_DIR || path.join(__dirname, '..', 'data');
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new DatabaseSync(path.join(DATA_DIR, 'koda.db'));
-db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;');
+// WAL + synchronous=NORMAL: commits skip per-transaction fsync (durability at
+// checkpoint), the standard high-throughput SQLite posture; busy_timeout guards
+// concurrent writers during bursts.
+db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;');
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS merchants (
@@ -243,10 +246,18 @@ CREATE INDEX IF NOT EXISTS idx_comm_created ON comm_deliveries(created_at);
 try { db.exec(`ALTER TABLE api_keys ADD COLUMN scopes TEXT NOT NULL DEFAULT '["*"]'`); } catch { /* exists */ }
 
 // tiny helpers ---------------------------------------------------------------
+// Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
+// hot verify path runs ~10 statements, so caching keeps the money path fast.
+const _stmts = new Map();
+function prep(sql) {
+  let s = _stmts.get(sql);
+  if (!s) { s = db.prepare(sql); _stmts.set(sql, s); }
+  return s;
+}
 const q = {
-  get: (sql, ...p) => db.prepare(sql).get(...p),
-  all: (sql, ...p) => db.prepare(sql).all(...p),
-  run: (sql, ...p) => db.prepare(sql).run(...p),
+  get: (sql, ...p) => prep(sql).get(...p),
+  all: (sql, ...p) => prep(sql).all(...p),
+  run: (sql, ...p) => prep(sql).run(...p),
 };
 
 module.exports = { db, q, DATA_DIR };

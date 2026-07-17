@@ -1,12 +1,15 @@
 {
   "name": "koda-platform",
   "version": "2.0.0",
-  "description": "KODA — payment verification OS. The SMS is the API. Zero-dependency Node runtime.",
+  "description": "KODA \u2014 payment verification OS. The SMS is the API. Zero-dependency Node runtime.",
   "private": true,
-  "engines": { "node": ">=22.5" },
+  "engines": {
+    "node": ">=22.5"
+  },
   "scripts": {
     "start": "node --no-warnings server.js",
     "dev": "node --no-warnings --watch server.js",
-    "smoke": "node --no-warnings tools/smoke.js"
+    "smoke": "node --no-warnings tools/smoke.js",
+    "bench": "node --no-warnings tools/bench.js"
   }
 }

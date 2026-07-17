@@ -34,7 +34,10 @@ function creditAcu(merchant, amount, kind, ref) {
   return bal;
 }
 function notifyOwners(merchant, eventKey, data) {
-  try { notify.fireMerchant(eventKey, merchant, data); } catch { /* comms must never break the money path */ }
+  // deferred off the money path: the verification response never waits on comms
+  setImmediate(() => {
+    try { notify.fireMerchant(eventKey, merchant, data); } catch { /* comms must never break the money path */ }
+  });
 }
 
 // ingest an SMS (from Sentinel push, KODA Lite forward, or sandbox simulator)
