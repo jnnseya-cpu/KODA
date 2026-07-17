@@ -373,4 +373,48 @@ No fund transmission, no float, no payment execution → outside EME/établissem
 
 **90-day API-business launch sequence:** spec freeze + simulator (W0–2) → Tunakula & Scan & Go as first *paying* accounts on real invoices (W2–4) → FR/EN docs + 10 external pilots (W4–6) → first bot-builder Platform deal (W6–10) → public self-serve launch + case studies ("0 telco meetings, 11 minutes to first verified payment") (W10–13). "Real" = 100 external accounts, ≥30% paid, ≥1 Platform, API revenue clearing infra COGS.
 
+## 17. The pitch, 90 seconds
+
+> Mobile money moves over a trillion dollars a year across Africa and Asia — and most merchants still verify payments by squinting at screenshots. Not because the payments fail. Because the **integrations** do: telco APIs take a year, cost a contract, and stop at every border.
+>
+> KODA flips it. Every operator on Earth already sends the merchant a confirmation SMS, instantly, free. That SMS *is* the API — it just wasn't structured. A 6 MB app on the merchant's own phone turns their SIM into a verification endpoint. An agent mesh matches the customer's code against it, fights fraud with the operator's own balance arithmetic, and delivers the verdict wherever the merchant lives: a **tap in their KODA account** for the trader who'll never write code, a **✅ inside WhatsApp** for the seller who lives there, a **signed webhook** for the platform automating thousands of merchants.
+>
+> Same engine. Three doors. Any operator that sends an SMS — which is nearly all of them, on every continent. No telco contract. No licence exposure. Free until the merchant actually gets paid. And every verified payment builds the cash-flow ledger that becomes merchant credit at scale.
+>
+> **KODA: le code confirme le cash. Anywhere the code exists.**
+
+---
+
+# PART X — POSITIONING STATEMENT
+
+**Mobile Money Verification Without Telco API Integration**
+
+A plug-and-play verification and automation layer for WhatsApp commerce, websites, ticketing, food delivery, schools, marketplaces and field sales.
+
+KODA does not move money and does not pretend to replace mobile-money operators.
+
+It verifies that a customer's payment appears in the merchant's trusted payment-confirmation channel, matches it against an expected transaction, scores the fraud risk, and automatically releases the connected product or service.
+
+**Customer pays normally. Merchant receives confirmation. KODA verifies. The business system acts.**
+
+## 1. The real problem
+
+African businesses regularly face four barriers:
+
+* Mobile-money API approval can take months or years.
+* Some operators provide no reliable merchant API.
+* Different countries and operators use different formats.
+* Customers still need instant confirmation after paying.
+
+Today, merchants manually:
+
+1. Ask customers for screenshots.
+2. Check transaction messages.
+3. Compare names, numbers and amounts.
+4. Confirm orders manually.
+5. Send tickets or activate services.
+
+This is slow, easy to manipulate and impossible to scale.
+KODA converts that manual confirmation process into a controlled verification engine.
+
 
