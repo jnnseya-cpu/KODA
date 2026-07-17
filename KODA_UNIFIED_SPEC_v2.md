@@ -627,4 +627,30 @@ The transaction matches the merchant confirmation and later appears in the merch
 The merchant reports a reversal, refund or balance discrepancy.
 *Action:* Freeze the related entitlement and open a recovery case according to merchant policy.
 
+## 5. The Verification Fingerprint
+
+Every payment receives a unique immutable fingerprint:
+
+```
+SHA-256(
+  network
+  + merchant_wallet
+  + transaction_reference
+  + amount
+  + currency
+  + payer_number_hash
+  + transaction_date
+)
+```
+
+This prevents one payment from being used for:
+
+* two food orders;
+* multiple tickets;
+* several school-fee invoices;
+* repeated account top-ups;
+* duplicate marketplace purchases.
+
+Once a fingerprint is consumed, the system rejects future attempts unless an authorised refund or reassignment workflow is completed.
+
 
