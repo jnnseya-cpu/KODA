@@ -1232,4 +1232,44 @@ Example:
 
 The merchant pays for verified business outcomes, not for every customer message or every AI interaction.
 
+## 18. AI cost-control model
+
+To remain profitable, KODA should use AI selectively.
+
+**Do not use AI for**
+
+* exact amount comparisons;
+* duplicate-code detection;
+* cryptographic fingerprinting;
+* state transitions;
+* expiry rules;
+* webhook execution;
+* basic known-message formats.
+
+These should use deterministic software.
+
+**Use AI for**
+
+* unknown SMS formats;
+* multilingual message extraction;
+* screenshot analysis;
+* ambiguous transaction matching;
+* anomaly explanation;
+* reconciliation exceptions;
+* dispute summarisation;
+* new operator-template discovery.
+
+**Cost-control pipeline**
+
+```
+Rules engine
+→ Template parser
+→ Regex and deterministic matching
+→ Lightweight local model
+→ External AI model only for exceptions
+→ Human review for unresolved high-risk cases
+```
+
+This can keep most verifications outside expensive AI-model calls.
+
 
