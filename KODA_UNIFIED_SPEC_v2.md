@@ -702,4 +702,19 @@ It normalises them into one internal schema:
 }
 ```
 
+### 6.3 Matching Agent
+
+Links the payment to the correct:
+
+* order;
+* invoice;
+* ticket;
+* customer;
+* subscription;
+* delivery;
+* school account;
+* marketplace transaction.
+
+Matching must remain deterministic where possible. AI is used for inconsistent text and ambiguous cases, not for overriding financial controls.
+
 
