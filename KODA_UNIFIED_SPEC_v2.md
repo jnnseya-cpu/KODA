@@ -3,7 +3,7 @@
 **Groupe Nseya Digital / BitriPay Ecosystem — Confidential**
 **Supersedes:** Verify Engine Master Spec v1.0 + API & Monetisation Spec v1.0 (fully consolidated here)
 **New in v2.0:** ① No-code Manual Verification mode — full product for merchants without developers · ② Worldwide mobile money scope · ③ Single unified pricing ladder across all modes
-**Branding:** Regardless of any other name used historically or internally (e.g. "Verify Engine"), **KODA is the sole and permanent brand name** — across all modes, markets, surfaces, and documents. Sub-products (KODA Sentinel, KODA Lite, Verify Console) are features of KODA, never standalone brands.
+**Branding:** Regardless of any other name used historically or internally (e.g. "Verify Engine"), **KODA is the sole and permanent brand name** — across all modes, markets, surfaces, and documents. Sub-products (KODA Sentinel, KODA Lite, Verify Console) are features of KODA, never standalone brands. **White-label remains possible** under Enterprise licensing (§10: +20% wholesale): a licensee may front the product under their own brand, but the underlying platform, engine, and internal naming stay KODA.
 
 > **One line:** KODA turns the confirmation SMS every mobile money operator on Earth already sends to merchants into structured payment truth — verified **manually in a KODA account**, **conversationally in WhatsApp**, or **automatically by API**. Same engine. Three doors. Any operator, any country.
 
@@ -311,5 +311,33 @@ Risk bands: `<0.15` auto-confirm · `0.15–0.6` challenge · `>0.6` reject. Mod
 Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per market (a Kinshasa boutique thinks in FC, a Dhaka shop in BDT) — pinned monthly, absorbed FX.
 
 **Margin protection law:** ACU pricing is calibrated so that every metered operation retails at **3× to 10× the underlying AI-provider cost** (model inference, vision extraction, agent orchestration). ACU rates and multipliers are re-checked against provider price changes on each monthly price-card pin; if a provider price move pushes an operation below the 3× floor, its ACU weight — not the retail anchor — is adjusted first.
+
+## 10. The unified plan ladder
+
+| Plan | Price | Door(s) | Includes | Overage |
+|---|---|---|---|---|
+| **Marché** | $0 | Manual + Chat | 50 verifications/mo, 1 Sentinel, Verify Console, Live Feed, replay protection, daily digest | — |
+| **Boutique** | $19/mo | Manual + Chat + API | 600 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.035 |
+| **Commerce** | $79/mo | All | 3,500 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.028 |
+| **Plateforme** | $399/mo | All + sub-merchants | 25,000 verifications, unlimited devices, sub-merchant API + scoped keys, trust-score API, re-billing endpoints | $0.020 |
+| **Enterprise/Gov** | Custom | All | Volume, in-country residency, dedicated corridor models, white-label (+20% wholesale), SLA | Custom |
+
+**Pay-as-you-go (no subscription):** $10→300 ACU ($0.033) · $50→1,750 ($0.029) · $200→8,000 ($0.025).
+**Wholesale (Platform class, committed monthly):** 25k+ $0.018 · 100k+ $0.014 · 500k+ $0.010 · 2M+ custom (floor ~$0.007).
+**Partners:** BSP/bot-builders 15% rev-share 24 mo or wholesale resale; agencies 10% referral + certified directory. Telco posture: none needed — if an operator wants to white-label KODA as their SME tool, that's enterprise licensing from a position of strength.
+
+## 11. Prepaid-first billing — the product bills itself with itself
+
+Card-on-file fails in these markets. KODA is **prepaid ACU wallet first**: merchants top up **via mobile money** (or BitriPay, card, bank transfer) — and **the top-up is verified by KODA's own engine**. `POST /billing/topup` creates a KODA intent on KODA's own account; the merchant pays, drops the code, credits land in seconds. Every top-up is a live demo of the product being paid for. Auto-top-up rules; low-balance WhatsApp alerts; **grace buffer** at zero balance (72 h / 100 verifications negative) so a checkout never dies at the till; postpaid invoicing for Plateforme/Enterprise contracts only.
+
+**Free-tier anti-abuse:** one Marché account per attested device + KYB msisdn; FraudSentinel velocity applies identically; conversion nudges from real usage ("You verified 48 payments this month — Boutique costs $0.63/day").
+
+## 12. Unit economics (per verification, scale, blended)
+
+Revenue $0.026 · COGS: cloud+inference $0.004, Vision blended $0.002, support/dispute $0.003 → **gross margin ≈ $0.017 (~65%)**. Sensitivity stated honestly: screenshot-heavy corridors compress margin; code-path share rises as customers learn the flow (it does). Manual-mode verifications carry the same margin — the Console is a thin client on the same engine. Wholesale floor $0.007 still clears COGS at volume.
+
+**P4 prize (unchanged, now global):** a merchant's verified KODA ledger is the cleanest SME cash-flow dataset in every market it touches — the underwriting substrate for merchant lending across the portfolio.
+
+---
 
 
