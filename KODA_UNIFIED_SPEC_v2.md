@@ -524,4 +524,66 @@ Transaction code: PP26071784729
 Number used: 0812345678
 ```
 
+**Step 4 — Merchant-side confirmation is captured**
+
+KODA waits for a trusted merchant-side signal.
+
+**Option A — Merchant Verification Phone**
+
+The merchant installs the lightweight KODA Bridge Android application on the phone receiving mobile-money confirmations.
+
+The application:
+
+* reads only authorised SMS or notification formats;
+* extracts the amount, sender number, reference and date;
+* encrypts the extracted data;
+* sends the transaction fingerprint to KODA;
+* works with intermittent internet;
+* queues verification events offline;
+* does not require the operator's API.
+
+The merchant controls which senders and notification applications the bridge may read.
+
+**Option B — WhatsApp confirmation forwarding**
+
+A merchant forwards the payment-confirmation message to a dedicated KODA WhatsApp number.
+
+The system extracts:
+
+* payment amount;
+* transaction reference;
+* sender;
+* recipient;
+* date and time;
+* network;
+* available balance, where present.
+
+This option is less automatic than the Android bridge but works with almost any merchant phone.
+
+**Option C — Merchant portal confirmation**
+
+A cashier enters or scans the transaction details in the merchant dashboard.
+
+This is suitable for:
+
+* small businesses;
+* event venues;
+* schools;
+* field agents;
+* restaurants;
+* merchants using feature phones.
+
+**Option D — Statement reconciliation**
+
+The merchant uploads:
+
+* CSV;
+* Excel;
+* PDF statement;
+* exported transaction history;
+* photographed transaction report.
+
+KODA reconciles pending orders against the statement.
+This is primarily a fallback and settlement-control mechanism, not an instant verification method.
+
 
