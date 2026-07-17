@@ -229,4 +229,48 @@ Coverage = a **template pack**: a versioned parsing grammar per operator/country
 
 **Keys:** `sk_live_` (server) · `pk_live_` (widget: create+verify only) · `sk_test_`/`pk_test_` (free, unlimited) · `sk_live_sub_` (platform-scoped) · `rk_live_` (restricted scopes). Rotation, revocation, IP allowlists per key.
 
+**Core (the money path)**
+
+```
+POST /intents                    → int_… (amount, currency, operators[], customer_msisdn?, metadata, expires_in)
+GET  /intents/{id}
+POST /intents/{id}/verify        { "reference": "OM.260717.1432.A88213" }  or  { "screenshot": "<base64>" }
+POST /intents/{id}/cancel
+GET  /receipts                    filterable ledger of verified payments
+GET  /receipts/{id}               full receipt + audit-grade decision trace
+```
+
+`verify` statuses: `verified · pending_review · rejected · not_found_yet` (SMS lag → KODA watches the window and converts to webhook-on-arrival; customer told in their language: *"Ton paiement est en route — on te confirme dès que le réseau nous le montre."*)
+
+**Disputes** `GET /disputes · GET /disputes/{id} · POST /disputes/{id}/resolve`
+**Fleet** `GET /devices · POST /devices/enroll · POST /devices/{id}/revoke`
+**Intelligence** `GET /reconciliation/reports · GET /reconciliation/unmatched · GET /trust/{id}` (Plateforme+)
+**Platform / sub-merchants (Plateforme+)** `POST/GET /submerchants · POST /submerchants/{id}/keys · GET /submerchants/{id}/usage · POST /submerchants/{id}/suspend`
+**Billing (self-serve, §11)** `GET /billing/balance · POST /billing/topup · GET /billing/usage · GET /billing/invoices · POST /billing/alerts`
+
+**Webhooks** — HMAC-SHA256 `X-Koda-Signature`, ±300 s replay tolerance, 5× exponential retry, DLQ:
+`payment.verified · payment.verified.late · payment.rejected · payment.pending_review · payment.reversed (v2.1) · intent.expired · dispute.opened · dispute.resolved · sentinel.offline · reconciliation.report · billing.low_balance`
+
+**Errors** — one format, every error a doc page with recommended FR/EN customer copy:
+`code_already_used · code_not_found_yet · amount_mismatch · intent_expired · msisdn_suffix_mismatch · sentinel_offline · insufficient_credit · rate_limited · idempotency_conflict`
+
+**Rate limits (per key):** Free 2 rps · Boutique 10 · Commerce 25 · Plateforme 100 · Enterprise custom. Verification submissions additionally velocity-limited per customer msisdn (fraud, not billing).
+
+**Web widget — one line:**
+
+```html
+<script src="https://js.koda.africa/v1/koda.js" data-key="pk_live_..."></script>
+```
+
+```javascript
+Koda.pay({amount: 25000, currency: "CDF", orderId: "TNK-88213"})
+    .on("verified", r => unlockOrder(r.receipt_id));
+```
+
+**Sandbox with a telco simulator:** magic references (`TEST-OK-{amt}`, `TEST-LATE-90`, `TEST-REPLAY`, `TEST-SUFFIX`, `TEST-REVERSAL`) + `POST /sandbox/sms` to inject any operator-formatted SMS and watch ParserAgent structure it. Free, unlimited, never expires. North-star activation metric: **first verified payment < 10 minutes from signup** — measured.
+
+**DX built for where the world's mobile money developers actually are:** Node, PHP/Laravel, Python, Flutter SDKs (webhook verification + idempotency built in); WooCommerce plugin; 40-line WhatsApp-bot recipe; Google-Sheets order tracker via Apps Script; docs equally deep in French and English (Bengali, Tagalog, Spanish per wave); support on WhatsApp with SLAs, not email; public status + parse-health pages; OpenAPI 3.1 + Postman published.
+
+---
+
 
