@@ -1033,4 +1033,33 @@ Needs:
 
 No developer is required.
 
+**Growing merchant**
+
+Suitable for ticketing, delivery, schools and ecommerce.
+
+Needs:
+
+* KODA Bridge on the payment phone;
+* website or WhatsApp integration;
+* automated webhooks;
+* merchant dashboard;
+* daily reconciliation.
+
+**Enterprise merchant**
+
+Suitable for marketplaces, transport, utilities and national platforms.
+
+Needs:
+
+* multiple merchant wallets;
+* branch-level permissions;
+* cashier devices;
+* wallet routing;
+* advanced fraud controls;
+* enterprise webhooks;
+* audit logs;
+* statement reconciliation;
+* maker-checker approvals;
+* financial reporting.
+
 
