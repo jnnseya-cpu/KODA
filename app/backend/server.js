@@ -13,6 +13,15 @@ require('../frontend/build-site'); // generate public site pages at boot
 
 const registerRoutes = require('./routes');
 
+// production guards — fail fast on unsafe defaults
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.KODA_JWT_SECRET || process.env.KODA_JWT_SECRET.includes('dev-secret')) {
+    console.error('FATAL: set KODA_JWT_SECRET before running in production.');
+    process.exit(1);
+  }
+}
+const QUIET = !!process.env.KODA_QUIET;
+
 const PORT = process.env.PORT || 4600;
 const PUBLIC = path.join(__dirname, '..', 'frontend');
 const SHARED = path.join(__dirname, '..', 'shared');
@@ -35,10 +44,23 @@ registerRoutes(router);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+  const t0 = performance.now();
+  const reqId = Math.random().toString(36).slice(2, 10);
   const send = (code, body, headers = {}) => {
     const data = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
-    res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', ...headers });
+    res.writeHead(code, {
+      'content-type': 'application/json; charset=utf-8',
+      'access-control-allow-origin': '*',
+      'x-request-id': reqId,
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'SAMEORIGIN',
+      'referrer-policy': 'strict-origin-when-cross-origin',
+      'permissions-policy': 'camera=(self), geolocation=()',
+      ...headers,
+    });
     res.end(data);
+    if (!QUIET && (url.pathname.startsWith('/v1') || url.pathname.startsWith('/app/') || url.pathname.startsWith('/webhooks')))
+      console.log(`${new Date().toISOString()} ${req.method} ${url.pathname} ${code} ${(performance.now() - t0).toFixed(1)}ms ${reqId}`);
   };
 
   if (req.method === 'OPTIONS') {
@@ -62,8 +84,8 @@ const server = http.createServer(async (req, res) => {
       if (Array.isArray(out) && typeof out[0] === 'number') return send(out[0], out[1]);
       return send(200, out ?? { ok: true });
     } catch (e) {
-      console.error('route error', url.pathname, e);
-      return send(500, { error: 'internal', request_id: Date.now().toString(36) });
+      console.error('route error', url.pathname, reqId, e);
+      return send(500, { error: 'internal', request_id: reqId });
     }
   }
 
@@ -88,7 +110,20 @@ const server = http.createServer(async (req, res) => {
   send(404, { error: 'not_found', path: url.pathname });
 });
 
+// graceful shutdown: stop accepting, checkpoint WAL, exit
+function shutdown(sig) {
+  if (!QUIET) console.log(`\n  ${sig} — shutting down gracefully…`);
+  server.close(() => {
+    try { require('./lib/db').db.exec('PRAGMA wal_checkpoint(TRUNCATE);'); } catch {}
+    process.exit(0);
+  });
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
 server.listen(PORT, () => {
+  if (QUIET) return;
   console.log(`\n  KODA platform running:`);
   console.log(`  → Public site    http://localhost:${PORT}/`);
   console.log(`  → App (SPA/PWA)  http://localhost:${PORT}/app`);

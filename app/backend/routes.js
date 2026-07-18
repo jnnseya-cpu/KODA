@@ -10,6 +10,9 @@ const notify = require('./comms/notify');
 
 const { PLANS } = require('../shared/plans');
 
+// role gate: owners always pass, KODA staff always pass
+function needRole(user, roles) { return user.is_admin || user.role === 'owner' || roles.includes(user.role); }
+
 function audit(mid, uid, action, detail) {
   q.run('INSERT INTO audit_log (id,merchant_id,user_id,action,detail) VALUES (?,?,?,?,?)',
     U.id('aud'), mid || null, uid || null, action, detail ? JSON.stringify(detail) : null);
@@ -118,6 +121,7 @@ module.exports = function registerRoutes(r) {
     return { device_id: did, enrol_code: code, qr: `koda://enroll/${code}` };
   }));
   r.post('/app/devices/:id/revoke', auth((req, user, m) => {
+    if (!needRole(user, ['manager'])) return [403, { error: 'manager_or_owner_only' }];
     q.run(`UPDATE devices SET status='revoked' WHERE id=? AND merchant_id=?`, req.params.id, m.id);
     notify.fireMerchant('sentinel.revoked', m, {});
     audit(m.id, user.id, 'device_revoked', { id: req.params.id });
@@ -176,6 +180,7 @@ module.exports = function registerRoutes(r) {
     return { ...res, pack, pay_note: 'Pay via mobile money, then submit the confirmation code — verified by KODA itself.' };
   }));
   r.post('/app/billing/plan', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
     const plan = PLANS[req.body.plan] ? req.body.plan : m.plan;
     const up = PLANS[plan].usd > (PLANS[m.plan].usd || 0);
     q.run('UPDATE merchants SET plan=?, is_platform=? WHERE id=?', plan, plan === 'plateforme' ? 1 : m.is_platform, m.id);
@@ -188,6 +193,7 @@ module.exports = function registerRoutes(r) {
   r.get('/app/keys', auth((req, user, m) =>
     q.all('SELECT id,prefix,last4,label,revoked,created_at FROM api_keys WHERE merchant_id=? AND submerchant_id IS NULL', m.id)));
   r.post('/app/keys', auth((req, user, m) => {
+    if (!needRole(user, ['manager'])) return [403, { error: 'manager_or_owner_only' }];
     const prefix = ['sk_live', 'pk_live', 'sk_test', 'pk_test', 'rk_live'].includes(req.body.prefix) ? req.body.prefix : 'sk_test';
     const secret = `${prefix}_${U.token(24)}`;
     // rk_ keys default to read-only scopes unless explicit scopes are given; others get full scope
@@ -200,6 +206,7 @@ module.exports = function registerRoutes(r) {
     return { secret, note: 'The secret is shown once. Store it now.' };
   }));
   r.post('/app/keys/:id/revoke', auth((req, user, m) => {
+    if (!needRole(user, ['manager'])) return [403, { error: 'manager_or_owner_only' }];
     q.run('UPDATE api_keys SET revoked=1 WHERE id=? AND merchant_id=?', req.params.id, m.id);
     notify.fire('apikey.revoked', { user, merchant: m });
     return { ok: true };
@@ -211,6 +218,7 @@ module.exports = function registerRoutes(r) {
     deliveries: q.all('SELECT * FROM webhook_deliveries WHERE merchant_id=? ORDER BY created_at DESC LIMIT 50', m.id),
   })));
   r.post('/app/webhooks', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
     const wid = U.id('whe'), secret = `whsec_${U.token(24)}`;
     q.run(`INSERT INTO webhook_endpoints (id,merchant_id,url,secret,events) VALUES (?,?,?,?,?)`,
       wid, m.id, req.body.url, secret, JSON.stringify(req.body.events || ['*']));
@@ -254,6 +262,7 @@ module.exports = function registerRoutes(r) {
     q.all(`SELECT s.*, (SELECT COUNT(*) FROM receipts r WHERE r.merchant_id=s.id) verifs
            FROM merchants s WHERE s.parent_id=?`, m.id)));
   r.post('/app/submerchants', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
     if (m.plan !== 'plateforme' && m.plan !== 'enterprise') return [402, { error: 'plateforme_plan_required' }];
     const sid = U.id('mch');
     q.run(`INSERT INTO merchants (id,name,country,currency,msisdn,parent_id,plan,acu_balance)

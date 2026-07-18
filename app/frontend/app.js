@@ -69,10 +69,17 @@ async function boot() {
 }
 window.addEventListener('hashchange', route);
 
+const ROLE_VIEWS = {
+  cashier: ['dashboard', 'verify', 'feed', 'receipts', 'receipt', 'comms', 'settings'],
+  manager: ['dashboard', 'verify', 'feed', 'receipts', 'receipt', 'disputes', 'devices', 'comms', 'settings'],
+};
 function route() {
   const hash = location.hash.replace(/^#\/?/, '') || (ME ? 'dashboard' : 'login');
   if (!ME && !['login', 'signup'].includes(hash.split('?')[0])) { location.hash = '#login'; return; }
   const [view, qs] = hash.split('?');
+  if (ME && !ME.user.is_admin && ROLE_VIEWS[ME.user.role] && !ROLE_VIEWS[ME.user.role].includes(view)) {
+    location.hash = '#dashboard'; return;
+  }
   const params = new URLSearchParams(qs || '');
   const fn = VIEWS[view] || VIEWS.dashboard;
   if (!ME) { (VIEWS[view] || VIEWS.login)(params); return; }
@@ -83,21 +90,35 @@ function route() {
 function shell(active, title, sub, content) {
   const m = ME.merchant, u = ME.user;
   const isPlatform = m && (m.plan === 'plateforme' || m.plan === 'enterprise');
-  const nav = [
+  // role-based navigation: cashier = till work only · manager = + operations · owner = everything
+  const role = u.is_admin ? 'admin' : (u.role || 'owner');
+  const till = [
     ['dashboard', '◫', t('dashboard')],
     ['verify', '✓', t('verify')],
     ['feed', '≋', t('feed')],
     ['receipts', '🧾', t('receipts')],
+  ];
+  const ops = [
     ['disputes', '⚖', t('disputes')],
     ['sec', '', 'Operations'],
     ['devices', '▣', t('devices')],
+  ];
+  const ownerOnly = [
     ['billing', '◈', t('billing')],
     ['team', '👥', t('team')],
     ['sec2', '', 'Platform'],
     ['developers', '</>', t('developers')],
-    ['comms', '✉', t('comms')],
     ...(isPlatform ? [['submerchants', '⌂', t('submerchants')]] : []),
+  ];
+  const tail = [
+    ['comms', '✉', t('comms')],
     ['settings', '⚙', t('settings')],
+  ];
+  const nav = [
+    ...till,
+    ...(role !== 'cashier' ? ops : []),
+    ...(role === 'owner' || role === 'admin' ? ownerOnly : []),
+    ...tail,
     ...(u.is_admin ? [['sec3', '', 'KODA staff'], ['admin', '★', t('admin')]] : []),
   ];
   root.innerHTML = `

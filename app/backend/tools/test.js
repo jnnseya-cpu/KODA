@@ -1,0 +1,125 @@
+// KODA — consolidated test suite (npm test). Boots its own server on a fresh
+// database, runs every surface end-to-end, then tears down. CI-able, zero deps.
+'use strict';
+const { spawn } = require('node:child_process');
+const path = require('node:path');
+const fs = require('node:fs');
+const os = require('node:os');
+
+const PORT = 4750;
+const B = `http://localhost:${PORT}`;
+let pass = 0, fail = 0;
+const T = (name, ok, extra = '') => { ok ? pass++ : fail++; console.log((ok ? '  ✓' : '  ✗ FAIL'), name, extra); };
+const H = (tok) => ({ 'content-type': 'application/json', authorization: `Bearer ${tok}` });
+const j = (p, opts = {}, tok) => fetch(B + p, {
+  method: opts.method || (opts.body ? 'POST' : 'GET'),
+  headers: { 'content-type': 'application/json', ...(tok ? { authorization: `Bearer ${tok}` } : {}), ...(opts.headers || {}) },
+  body: opts.body ? JSON.stringify(opts.body) : undefined,
+}).then(async r => ({ s: r.status, d: await r.json().catch(() => ({})), r }));
+
+async function main() {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'koda-test-'));
+  const srv = spawn(process.execPath, ['--no-warnings', path.join(__dirname, '..', 'server.js')], {
+    env: { ...process.env, PORT, KODA_DATA_DIR: dataDir, KODA_QUIET: '1' }, stdio: 'ignore', detached: false,
+  });
+  for (let i = 0; i < 40; i++) { // wait for boot
+    try { await fetch(B + '/healthz'); break; } catch { await new Promise(r => setTimeout(r, 250)); }
+  }
+
+  try {
+    console.log('— auth & accounts');
+    const owner = (await j('/app/auth/login', { body: { email: 'demo@koda.africa', password: 'koda-demo' } })).d;
+    T('owner login', !!owner.token);
+    T('bad password rejected', (await j('/app/auth/login', { body: { email: 'demo@koda.africa', password: 'no' } })).s === 401);
+    const cashier = (await j('/app/auth/login', { body: { email: 'caisse@koda.africa', password: 'koda-demo' } })).d;
+    T('cashier login', cashier.user?.role === 'cashier');
+    const admin = (await j('/app/auth/login', { body: { email: 'admin@koda.africa', password: 'koda-admin' } })).d;
+    T('admin login', !!admin.user?.is_admin);
+    for (const email of ['tunakula@koda.africa', 'scango@koda.africa', 'studyear@koda.africa', 'ticketroyality@koda.africa', 'platform@koda.africa']) {
+      const r = (await j('/app/auth/login', { body: { email, password: 'koda-demo' } })).d;
+      T(`portfolio account ${email.split('@')[0]}`, !!r.token && !!r.merchant);
+    }
+    const tk = owner.token;
+
+    console.log('— verification engine');
+    const feed = (await j('/app/feed', {}, tk)).d;
+    T('seeded ledger', feed.length >= 6, `rows=${feed.length}`);
+    T('spoof quarantined by balance-chain', feed.some(x => x.quarantined === 1));
+    const fresh = feed.find(x => !x.quarantined && !x.matched_intent_id && x.ref_code);
+    const mv = (await j('/app/verify', { body: { reference: fresh.ref_code } }, tk)).d;
+    T('manual verify', mv.status === 'verified', `risk=${mv.risk?.score}`);
+    const rp = (await j('/app/verify', { body: { reference: fresh.ref_code } }, tk)).d;
+    T('replay blocked', rp.status === 'rejected' && rp.code === 'code_already_used');
+    const fz = (await j('/app/verify', { body: { reference: fresh.ref_code.slice(0, -1) + (fresh.ref_code.endsWith('1') ? '2' : '1') } }, tk)).d;
+    T('fuzzy repair rejects (already used) or matches', ['rejected', 'verified', 'not_found_yet'].includes(fz.status));
+
+    console.log('— public API, scopes, agents, limits');
+    const key = (await j('/app/keys', { body: { prefix: 'sk_test', label: 'suite' } }, tk)).d.secret;
+    T('v1/ping', (await j('/v1/ping', {}, key)).d.ok === true);
+    const intent = (await j('/v1/intents', { body: { amount: 25000, currency: 'CDF', operators: ['orange_cd'] } }, key)).d;
+    T('intent create', !!intent.intent_id);
+    const ver = (await j(`/v1/intents/${intent.intent_id}/verify`, { body: { reference: 'TEST-OK-25000' } }, key)).d;
+    T('magic ref verify', ver.status === 'verified');
+    T('openapi 3.1', (await j('/v1/openapi.json')).d.openapi === '3.1.0');
+    T('agents list', (await j('/v1/agents', {}, key)).d.agents?.length === 5);
+    const run = (await j('/v1/agents/reconciler/run', { body: {} }, key)).d;
+    T('agent run consumes ACU', run.acu_consumed === 1);
+    T('usage endpoint', (await j('/v1/usage', {}, key)).d.acu_balance !== undefined);
+    const rk = (await j('/app/keys', { body: { prefix: 'rk_live' } }, tk)).d.secret;
+    T('rk key read allowed', (await j('/v1/usage', {}, rk)).s === 200);
+    T('rk key run blocked (scope)', (await j('/v1/agents/reconciler/run', { body: {} }, rk)).s === 403);
+    T('x-api-key header', (await j('/v1/ping', { headers: { 'x-api-key': key } })).s === 200);
+
+    console.log('— billing loop');
+    const top = (await j('/app/billing/topup', { body: { usd: 10 } }, tk)).d;
+    T('topup intent', !!top.intent_id);
+    const tc = (await j(`/v1/intents/${top.intent_id}/verify`, { body: { reference: 'TEST-OK-28000' } }, key)).d;
+    T('topup verified by own engine', tc.status === 'verified');
+    const bill = (await j('/app/billing', {}, tk)).d;
+    T('ACU credited +300', bill.transactions.some(x => x.kind === 'topup' && x.delta === 300));
+
+    console.log('— operations');
+    T('device enroll', !!(await j('/app/devices/enroll', { body: { label: 'T', operator: 'mpesa_cd' } }, tk)).d.enrol_code);
+    const dsp = (await j('/app/disputes', { body: { reference: 'X.1', reason: 'suite' } }, tk)).d;
+    T('dispute open + evidence', dsp.status === 'open' && !!dsp.evidence);
+    T('dispute resolve', (await j(`/app/disputes/${dsp.id}/resolve`, { body: { outcome: 'accepted' } }, tk)).d.ok === true);
+    T('webhook endpoint add', !!(await j('/app/webhooks', { body: { url: 'http://localhost:9/wh' } }, tk)).d.secret);
+    T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
+
+    console.log('— communications');
+    const cat = (await j('/app/comms/catalogue', {}, tk)).d;
+    T('catalogue 128 events', cat.stats.total === 128, `mandatory=${cat.stats.mandatory}`);
+    T('email preview branded', (await j('/app/comms/preview/payment.verified', {}, tk)).d.html.includes('Maison Kivu'));
+    T('test fire', (await j('/app/comms/test/billing.low_balance', { body: {} }, tk)).d.deliveries.length > 0);
+    T('prefs save', (await j('/app/comms/prefs', { body: { sms: false } }, tk)).d.ok === true);
+
+    console.log('— WhatsApp Door 2');
+    const ch = await fetch(B + '/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=koda-verify&hub.challenge=OK9');
+    T('meta handshake', (await ch.text()) === 'OK9');
+    const last = feed.find(s => s.operator === 'orange_cd' && !s.quarantined && s.balance_after != null);
+    const bal = (last ? last.balance_after : 250000) + 30000;
+    await j('/app/sandbox/sms', { body: { raw: `Vous avez recu 30 000 FC de SUITE C (+243891234). Ref: OM.999999.TEST.SUITE1. Solde: ${bal.toLocaleString('fr-FR')}`, operator: 'orange_cd' } }, tk);
+    await j('/webhooks/whatsapp', { body: { entry: [{ changes: [{ value: { metadata: { display_phone_number: '243812345678' }, messages: [{ type: 'text', from: '2438999', text: { body: 'code: OM.999999.TEST.SUITE1' } }] } }] }] } });
+    const receipts = (await j('/app/receipts', {}, tk)).d;
+    T('chat-door verification', receipts.some(r => r.reference === 'OM.999999.TEST.SUITE1' && r.mode === 'chat'));
+
+    console.log('— platform & admin');
+    const plat = (await j('/app/auth/login', { body: { email: 'platform@koda.africa', password: 'koda-demo' } })).d;
+    const subs = (await j('/app/submerchants', {}, plat.token)).d;
+    T('platform has sub-merchants', subs.length >= 2, `subs=${subs.length}`);
+    T('admin overview', (await j('/app/admin/overview', {}, admin.token)).d.merchants >= 6);
+    T('merchant blocked from admin', (await j('/app/admin/overview', {}, tk)).s === 403);
+
+    console.log('— static & PWA & site');
+    for (const p of ['/', '/app', '/styles.css', '/app.js', '/sw.js', '/manifest.webmanifest', '/icon.svg', '/shared/plans.js',
+      '/about', '/how-it-works', '/industries', '/blog', '/developers', '/contact', '/get-started', '/growth', '/terms', '/privacy', '/policies', '/status']) {
+      T(`GET ${p}`, (await fetch(B + p)).status === 200);
+    }
+  } finally {
+    srv.kill('SIGTERM');
+    setTimeout(() => { try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch {} }, 500);
+  }
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+}
+main().catch(e => { console.error('SUITE CRASH', e); process.exit(1); });

@@ -67,5 +67,45 @@ if (!q.get(`SELECT id FROM users WHERE email='admin@koda.africa'`)) {
   q.run(`INSERT INTO invoices (id,merchant_id,number,amount_usd,status,period)
          VALUES (?,?,'INV-2026-071',79,'paid','2026-07')`, U.id('inv'), mid);
 
-  console.log('  seed: demo data created (demo@koda.africa / koda-demo)');
+  // manager seat at Maison Kivu — completes the three-role set
+  q.run(`INSERT INTO users (id,merchant_id,email,name,pass_hash,role)
+         VALUES (?,?,'manager@koda.africa','Olga T.',?, 'manager')`,
+    U.id('usr'), mid, U.hashPassword('koda-demo'));
+
+  // ---- portfolio day-one merchants (spec §9.3: the unfair go-to-market) ----
+  const portfolio = [
+    ['Tunakula', 'tunakula@koda.africa', 'Restaurant delivery — orders verified before the kitchen fires', 'commerce', '+243815550001', 1800],
+    ['Scan & Go', 'scango@koda.africa', 'In-store checkout without POS-telco integration', 'boutique', '+243815550002', 520],
+    ['StudYear', 'studyear@koda.africa', 'Course & exam-pack unlock on verified payment', 'commerce', '+243815550003', 2600],
+    ['TicketRoyality', 'ticketroyality@koda.africa', 'Ticket issuance + paid voting at scale', 'commerce', '+243815550004', 3100],
+  ];
+  for (const [name, email, _desc, plan, msisdn, acu] of portfolio) {
+    const pid = U.id('mch');
+    q.run(`INSERT INTO merchants (id,name,country,currency,plan,msisdn,logo_text,acu_balance)
+           VALUES (?,?,'CD','CDF',?,?,?,?)`, pid, name, plan, msisdn, name, acu);
+    q.run(`INSERT INTO users (id,merchant_id,email,name,pass_hash,role)
+           VALUES (?,?,?,?,?, 'owner')`, U.id('usr'), pid, email, name + ' Ops', U.hashPassword('koda-demo'));
+    q.run(`INSERT INTO devices (id,merchant_id,label,operator,sim_msisdn,status,attested,last_seen,battery,parse_health)
+           VALUES (?,?,?,'orange_cd',?,'active',1,datetime('now'),90,0.995)`,
+      U.id('dev'), pid, name + ' — main till', msisdn);
+  }
+
+  // ---- platform account with sub-merchants (Plateforme class) ----
+  const plid = U.id('mch');
+  q.run(`INSERT INTO merchants (id,name,country,currency,plan,msisdn,logo_text,acu_balance,is_platform)
+         VALUES (?,'Kinshasa Bots (BSP)','CD','CDF','plateforme','+243815550100','Kinshasa Bots', 21000, 1)`, plid);
+  q.run(`INSERT INTO users (id,merchant_id,email,name,pass_hash,role)
+         VALUES (?,?,'platform@koda.africa','Serge Bot-Builder',?, 'owner')`,
+    U.id('usr'), plid, U.hashPassword('koda-demo'));
+  for (const sub of ['Chez Mama Ngozi', 'Pharmacie Lumière', 'Boutique 24/24']) {
+    const sid = U.id('mch');
+    q.run(`INSERT INTO merchants (id,name,country,currency,plan,msisdn,parent_id,acu_balance)
+           VALUES (?,?,'CD','CDF','boutique',NULL,?,0)`, sid, sub, plid);
+    const secret = 'sk_live_sub_' + U.token(24);
+    q.run(`INSERT INTO api_keys (id,merchant_id,prefix,key_hash,last4,label,submerchant_id)
+           VALUES (?,?,'sk_live_sub',?,?,?,?)`,
+      U.id('key'), plid, U.sha256(secret), secret.slice(-4), sub, sid);
+  }
+
+  console.log('  seed: demo + portfolio + platform accounts created (password: koda-demo)');
 }

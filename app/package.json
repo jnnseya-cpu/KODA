@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node --no-warnings backend/server.js",
     "dev": "node --no-warnings --watch backend/server.js",
-    "bench": "node --no-warnings backend/tools/bench.js"
+    "bench": "node --no-warnings backend/tools/bench.js",
+    "test": "node --no-warnings backend/tools/test.js"
   }
 }

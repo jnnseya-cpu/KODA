@@ -19,7 +19,7 @@ const FOOT_GROUPS = [
 const DISCLAIMER = `KODA is a payment <em>verification</em> service — not a bank, wallet, payment processor, aggregator, escrow or money transmitter. KODA never holds, moves, or settles funds: payments travel directly from customer to merchant over each operator's own network. Verification is based on merchant-side operator confirmations and, while fraud-scored and replay-protected, does not guarantee against operator-side reversals or constitute proof of settlement. M-Pesa, Orange Money, MTN MoMo, Airtel Money, Africell Money, Wave, bKash, GCash, JazzCash, EVC Plus and all other operator names are trademarks of their respective owners; KODA is independent of, and not endorsed by, any mobile network operator. Pricing, coverage and features are subject to the published Terms of Service and may evolve by market.`;
 
 // ---- landing: reuse the prototype, wire CTAs into the app ----
-const landingSrc = path.join(__dirname, '..', '..', 'koda-landing.html');
+const landingSrc = [path.join(__dirname, '..', '..', 'koda-landing.html'), path.join(__dirname, '..', 'landing-src.html')].find(require('node:fs').existsSync);
 if (fs.existsSync(landingSrc)) {
   let landing = fs.readFileSync(landingSrc, 'utf8');
   landing = landing

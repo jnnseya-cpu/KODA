@@ -14,11 +14,27 @@ npm start          # → http://localhost:4600  (Node ≥ 22.5, ZERO npm depende
 | Surface | URL | Login |
 |---|---|---|
 | Public site (12 pages) | `http://localhost:4600/` | — |
-| App (SPA + PWA, installable) | `http://localhost:4600/app` | `demo@koda.africa` / `koda-demo` |
-| Cashier seat | same | `caisse@koda.africa` / `koda-demo` |
-| Admin control centre | same → ★ Control centre | `admin@koda.africa` / `koda-admin` |
+| App (SPA + PWA, installable) | `http://localhost:4600/app` | see accounts below |
 | Public API | `http://localhost:4600/v1/ping` | Bearer API key (create in Developers) |
 | OpenAPI 3.1 | `/v1/openapi.json` | — |
+
+## Seeded accounts (all passwords `koda-demo` unless noted)
+
+| Account | Email | Role -> dashboard |
+|---|---|---|
+| **KODA staff** | `admin@koda.africa` / `koda-admin` | Admin -> full control centre (fleet, parse health, suspend) |
+| Maison Kivu - owner | `demo@koda.africa` | Owner -> everything (billing, team, developers) |
+| Maison Kivu - manager | `manager@koda.africa` | Manager -> + disputes & devices, no billing/keys |
+| Maison Kivu - cashier | `caisse@koda.africa` | Cashier -> till work only (verify, feed, receipts) |
+| Tunakula (delivery) | `tunakula@koda.africa` | Owner, Commerce plan - portfolio day-one account |
+| Scan & Go (retail) | `scango@koda.africa` | Owner, Boutique plan |
+| StudYear (education) | `studyear@koda.africa` | Owner, Commerce plan |
+| TicketRoyality (events) | `ticketroyality@koda.africa` | Owner, Commerce plan |
+| Kinshasa Bots (BSP platform) | `platform@koda.africa` | Owner, Plateforme - 3 sub-merchants with scoped keys |
+
+Role enforcement is two-layer: the SPA gates navigation per role, and the API
+enforces it again server-side (owner-only: plan, webhooks, sub-merchants;
+manager+: keys, device revoke; cashiers can never invite or configure).
 
 Zero dependencies by design: `node:http`, `node:sqlite`, `node:crypto`. The DB layer
 (`backend/lib/db.js`) is the single swap point for PostgreSQL in production.
@@ -127,6 +143,16 @@ WhatsApp Manager); in-window replies send plain text. Inbound: a customer messag
 containing a reference code is verified through the same engine (`mode: chat`) and
 answered in-thread (✅ confirmed / ⏳ watching / ⚠️ already used / ❌ not matched).
 Without the token everything runs and is recorded as sandbox deliveries.
+
+## Production readiness
+
+- `npm test` - 61-check end-to-end suite on a throwaway server + fresh DB (CI-able, zero deps)
+- `NODE_ENV=production` refuses to boot with the default `KODA_JWT_SECRET`
+- Security headers on every response (nosniff, frame-options, referrer-policy) + `x-request-id`
+- Structured access log for `/v1`, `/app`, `/webhooks` (silence with `KODA_QUIET=1`)
+- Graceful shutdown on SIGTERM/SIGINT with WAL checkpoint (Cloud Run friendly)
+- `Dockerfile` (node:22-alpine, non-root, `/data` volume) + `.dockerignore` + `.env.example`
+- Providers flip live per-channel the moment each key lands - no code changes
 
 ## Production path
 

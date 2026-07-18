@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KODA — The SMS is the API. Mobile money verification, anywhere the code exists.</title>
+<meta name="description" content="KODA turns the confirmation SMS every mobile money operator already sends merchants into structured payment truth. Manual, WhatsApp, or API. No telco contract. Verified in seconds.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#081813;
+    --ink-2:#0C231C;
+    --ink-3:#123027;
+    --line:rgba(233,228,213,.10);
+    --line-strong:rgba(233,228,213,.18);
+    --gold:#E8A11F;
+    --gold-bright:#F5B93E;
+    --gold-deep:#B87A0D;
+    --paper:#F5EFDF;
+    --paper-2:#EFE7D2;
+    --paper-ink:#241F14;
+    --paper-line:rgba(36,31,20,.14);
+    --verify:#23B884;
+    --verify-deep:#128A5F;
+    --danger:#E0563B;
+    --text:#E9E4D5;
+    --text-dim:#9BA79B;
+    --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+    --disp:'Archivo',system-ui,-apple-system,sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--ink);
+    color:var(--text);
+    font-family:var(--disp);
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(35,184,132,.06), transparent 60%),
+      radial-gradient(900px 500px at -10% 30%, rgba(232,161,31,.05), transparent 60%);
+  }
+  ::selection{background:var(--gold);color:var(--ink)}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+  .mono{font-family:var(--mono)}
+
+  /* ---------- NAV ---------- */
+  nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(8,24,19,.86);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-in{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.14em;font-size:19px;font-stretch:125%}
+  .logo .tick{
+    width:26px;height:26px;border-radius:6px;background:var(--gold);
+    display:grid;place-items:center;color:var(--ink);font-family:var(--mono);font-weight:700;font-size:14px;
+  }
+  .nav-links{display:flex;gap:28px;font-size:13.5px;color:var(--text-dim);font-weight:600;letter-spacing:.04em}
+  .nav-links a:hover{color:var(--text)}
+  .nav-cta{
+    font-family:var(--mono);font-size:13px;font-weight:600;
+    border:1px solid var(--gold);color:var(--gold);
+    padding:9px 18px;border-radius:8px;transition:.18s;
+  }
+  .nav-cta:hover{background:var(--gold);color:var(--ink)}
+  @media(max-width:840px){.nav-links{display:none}}
+
+  /* ---------- HERO ---------- */
+  header{padding:84px 0 30px;position:relative}
+  .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+  @media(max-width:960px){.hero{grid-template-columns:1fr}}
+  .kicker{
+    font-family:var(--mono);font-size:12.5px;letter-spacing:.22em;color:var(--gold);
+    text-transform:uppercase;display:flex;align-items:center;gap:10px;margin-bottom:22px;font-weight:600;
+  }
+  .kicker::before{content:"";width:26px;height:1px;background:var(--gold)}
+  h1{
+    font-size:clamp(42px,5.6vw,72px);line-height:1.02;font-weight:900;font-stretch:118%;
+    letter-spacing:-.015em;margin-bottom:24px;
+  }
+  h1 .accent{color:var(--gold)}
+  .sub{font-size:18.5px;color:var(--text-dim);max-width:520px;margin-bottom:34px;line-height:1.65}
+  .sub strong{color:var(--text);font-weight:700}
+  .cta-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:44px}
+  .btn{
+    display:inline-flex;align-items:center;gap:10px;
+    font-weight:800;font-size:15px;letter-spacing:.02em;
+    padding:15px 28px;border-radius:10px;transition:.18s;cursor:pointer;border:none;
+  }
+  .btn-gold{background:var(--gold);color:var(--ink);box-shadow:0 8px 30px rgba(232,161,31,.28)}
+  .btn-gold:hover{background:var(--gold-bright);transform:translateY(-2px)}
+  .btn-ghost{border:1px solid var(--line-strong);color:var(--text);font-family:var(--mono);font-weight:600;font-size:14px}
+  .btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+  .ops{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+  .ops-label{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);letter-spacing:.14em;text-transform:uppercase;margin-right:4px}
+  .chip{
+    font-family:var(--mono);font-size:12px;font-weight:500;
+    border:1px solid var(--line-strong);border-radius:999px;padding:6px 13px;color:var(--text-dim);
+    transition:.18s;
+  }
+  .chip:hover{border-color:var(--gold);color:var(--gold)}
+  .chip.more{border-style:dashed;color:var(--gold)}
+
+  /* ---------- HERO DEMO (receipt) ---------- */
+  .demo{
+    background:var(--paper);
+    color:var(--paper-ink);
+    border-radius:14px;
+    box-shadow:0 30px 80px rgba(0,0,0,.5), 0 2px 0 rgba(255,255,255,.06) inset;
+    padding:26px 26px 30px;position:relative;overflow:hidden;
+    background-image:repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(36,31,20,.035) 28px);
+  }
+  .demo::before,.demo::after{
+    content:"";position:absolute;left:0;right:0;height:12px;
+    background-image:radial-gradient(circle at 8px 0px, transparent 6px, var(--ink) 7px);
+    background-size:16px 12px;background-repeat:repeat-x;
+  }
+  .demo::before{top:-1px;transform:rotate(180deg)}
+  .demo::after{bottom:-1px}
+  .demo-head{
+    display:flex;justify-content:space-between;align-items:center;
+    font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:rgba(36,31,20,.55);border-bottom:1px dashed var(--paper-line);padding-bottom:12px;margin-bottom:16px;font-weight:600;
+  }
+  .demo-timer{color:var(--verify-deep);font-weight:600}
+  .sms{
+    background:var(--paper-2);border:1px solid var(--paper-line);border-left:3px solid var(--gold-deep);
+    border-radius:8px;padding:13px 15px;font-family:var(--mono);font-size:12.8px;line-height:1.6;
+    opacity:0;transform:translateY(8px);transition:opacity .5s,transform .5s;
+  }
+  .sms.show{opacity:1;transform:none}
+  .sms .from{font-size:10.5px;letter-spacing:.18em;color:var(--gold-deep);font-weight:700;text-transform:uppercase;display:block;margin-bottom:5px}
+  .sms .hl{background:rgba(232,161,31,.28);padding:0 3px;border-radius:3px;font-weight:600}
+  .demo-step{
+    font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
+    color:rgba(36,31,20,.45);margin:18px 0 8px;font-weight:700;
+  }
+  .code-field{
+    display:flex;align-items:center;gap:10px;
+    background:#fff;border:1.5px solid var(--paper-line);border-radius:8px;padding:12px 15px;
+    font-family:var(--mono);font-size:14.5px;font-weight:600;color:var(--paper-ink);
+  }
+  .code-field.match{border-color:var(--verify)}
+  .caret{display:inline-block;width:8px;height:17px;background:var(--gold-deep);animation:blink .85s steps(1) infinite;vertical-align:-3px}
+  @keyframes blink{50%{opacity:0}}
+  .matchbar{height:5px;background:rgba(36,31,20,.1);border-radius:99px;margin:14px 0 0;overflow:hidden}
+  .matchbar i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--gold),var(--verify));border-radius:99px;transition:width 1.1s cubic-bezier(.6,.05,.2,1)}
+  .match-legend{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:rgba(36,31,20,.5);margin-top:6px;letter-spacing:.06em}
+  .webhook{
+    margin-top:18px;background:var(--ink);color:#CBE3D6;border-radius:10px;padding:16px 18px;
+    font-family:var(--mono);font-size:12px;line-height:1.7;position:relative;
+    opacity:0;transform:translateY(10px);transition:opacity .5s,transform .5s;
+  }
+  .webhook.show{opacity:1;transform:none}
+  .webhook .k{color:#7FA893}.webhook .s{color:var(--gold-bright)}.webhook .n{color:#6FD3AC}
+  .stamp{
+    position:absolute;top:12px;right:14px;
+    border:2.5px solid var(--verify);color:var(--verify);
+    font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.24em;
+    padding:5px 12px;border-radius:6px;transform:rotate(6deg) scale(1.6);opacity:0;
+    transition:opacity .3s,transform .3s cubic-bezier(.3,1.6,.5,1);
+  }
+  .webhook.show .stamp{opacity:1;transform:rotate(-5deg) scale(1)}
+
+  /* ---------- STATS STRIP ---------- */
+  .stats{border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:70px;background:rgba(255,255,255,.015)}
+  .stats-in{display:grid;grid-template-columns:repeat(4,1fr)}
+  @media(max-width:840px){.stats-in{grid-template-columns:repeat(2,1fr)}}
+  .stat{padding:32px 26px;border-left:1px solid var(--line)}
+  .stat:first-child{border-left:none}
+  @media(max-width:840px){.stat:nth-child(3){border-left:none}.stat{border-top:1px solid var(--line)}.stat:nth-child(-n+2){border-top:none}}
+  .stat b{display:block;font-size:31px;font-weight:900;font-stretch:115%;letter-spacing:-.01em;color:var(--gold);margin-bottom:5px}
+  .stat b s{color:var(--text-dim);opacity:.55;font-weight:700;margin-right:8px;font-size:22px}
+  .stat span{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);letter-spacing:.1em;text-transform:uppercase}
+
+  /* ---------- SECTIONS ---------- */
+  section{padding:96px 0}
+  .sec-kicker{font-family:var(--mono);font-size:12px;letter-spacing:.24em;color:var(--gold);text-transform:uppercase;margin-bottom:16px;font-weight:600}
+  h2{font-size:clamp(30px,3.6vw,46px);font-weight:900;font-stretch:116%;letter-spacing:-.01em;line-height:1.08;margin-bottom:18px;max-width:760px}
+  .sec-sub{color:var(--text-dim);font-size:17px;max-width:640px;margin-bottom:52px;line-height:1.7}
+  .sec-sub strong{color:var(--text)}
+
+  /* ---------- THREE DOORS ---------- */
+  .doors{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  @media(max-width:900px){.doors{grid-template-columns:1fr}}
+  .door{
+    border:1px solid var(--line);border-radius:14px;padding:30px 26px;
+    background:linear-gradient(180deg, rgba(255,255,255,.025), transparent 55%);
+    position:relative;transition:.2s;
+  }
+  .door:hover{border-color:var(--gold);transform:translateY(-4px)}
+  .door-num{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.22em;margin-bottom:14px;font-weight:600}
+  .door h3{font-size:21px;font-weight:800;font-stretch:112%;margin-bottom:4px}
+  .door .who{font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:18px;display:block}
+  .door p{font-size:14.5px;color:var(--text-dim);line-height:1.7;margin-bottom:16px}
+  .door p strong{color:var(--text)}
+  .door ul{list-style:none;font-size:13.5px;color:var(--text-dim)}
+  .door li{padding:7px 0 7px 22px;position:relative;border-top:1px dashed var(--line)}
+  .door li::before{content:"→";position:absolute;left:0;color:var(--gold);font-family:var(--mono)}
+  .door .badge{
+    position:absolute;top:20px;right:20px;font-family:var(--mono);font-size:10px;
+    letter-spacing:.16em;padding:4px 9px;border-radius:99px;font-weight:700;
+    background:rgba(232,161,31,.14);color:var(--gold);border:1px solid rgba(232,161,31,.3);
+  }
+  .grad-note{
+    margin-top:26px;border:1px dashed var(--line-strong);border-radius:12px;padding:20px 24px;
+    font-size:14.5px;color:var(--text-dim);display:flex;gap:14px;align-items:flex-start;
+  }
+  .grad-note b{color:var(--gold);font-family:var(--mono);font-size:16px;flex-shrink:0}
+  .grad-note strong{color:var(--text)}
+
+  /* ---------- FLOW (4 steps) ---------- */
+  .flow{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;counter-reset:step}
+  @media(max-width:960px){.flow{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.flow{grid-template-columns:1fr}}
+  .fstep{border:1px solid var(--line);border-radius:12px;padding:24px 20px;background:var(--ink-2)}
+  .fstep::before{
+    counter-increment:step;content:"0" counter(step);
+    font-family:var(--mono);font-size:12px;color:var(--gold);letter-spacing:.2em;display:block;margin-bottom:14px;font-weight:600;
+  }
+  .fstep h4{font-size:16.5px;font-weight:800;margin-bottom:8px;font-stretch:110%}
+  .fstep p{font-size:13.5px;color:var(--text-dim);line-height:1.65;margin-bottom:14px}
+  .snip{
+    font-family:var(--mono);font-size:11px;line-height:1.6;color:#A9C4B4;
+    background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:11px 13px;overflow-x:auto;white-space:pre;
+  }
+  .snip .g{color:var(--gold-bright)}.snip .v{color:#6FD3AC}
+
+  /* ---------- WORLDWIDE ---------- */
+  .sec-alt{background:var(--ink-2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .waves{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.waves{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.waves{grid-template-columns:1fr}}
+  .wave{border:1px solid var(--line);border-radius:12px;padding:20px;background:rgba(8,24,19,.55);transition:.2s}
+  .wave:hover{border-color:var(--gold)}
+  .wave .w{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;color:var(--gold);font-weight:700;display:block;margin-bottom:8px}
+  .wave h4{font-size:15.5px;font-weight:800;margin-bottom:6px}
+  .wave p{font-family:var(--mono);font-size:11.8px;color:var(--text-dim);line-height:1.65}
+  .wave.open{border-style:dashed;border-color:rgba(232,161,31,.45)}
+  .doctrine{
+    margin-top:28px;display:flex;gap:16px;align-items:flex-start;
+    background:rgba(232,161,31,.06);border:1px solid rgba(232,161,31,.22);border-radius:12px;padding:22px 26px;
+  }
+  .doctrine .mark{font-size:22px;line-height:1;flex-shrink:0;margin-top:2px}
+  .doctrine p{font-size:14.5px;color:var(--text-dim);line-height:1.7}
+  .doctrine strong{color:var(--text)}
+
+  /* ---------- FRAUD (paper) ---------- */
+  .fraud-panel{
+    background:var(--paper);color:var(--paper-ink);border-radius:16px;
+    padding:52px;box-shadow:0 30px 80px rgba(0,0,0,.45);
+    background-image:repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(36,31,20,.03) 28px);
+  }
+  @media(max-width:700px){.fraud-panel{padding:32px 22px}}
+  .fraud-panel .sec-kicker{color:var(--gold-deep)}
+  .fraud-panel h2{color:var(--paper-ink)}
+  .fraud-panel .sec-sub{color:rgba(36,31,20,.65)}
+  .fraud-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:start}
+  @media(max-width:900px){.fraud-grid{grid-template-columns:1fr}}
+  .attacks{display:flex;flex-direction:column;gap:12px}
+  .attack{
+    background:rgba(255,255,255,.65);border:1px solid var(--paper-line);border-radius:12px;
+    padding:16px 18px;
+  }
+  .attack-name{
+    display:flex;align-items:center;gap:10px;
+    font-size:15.5px;font-weight:800;font-stretch:110%;color:var(--paper-ink);
+  }
+  .attack-name::before{
+    content:"✗";flex-shrink:0;width:22px;height:22px;border-radius:6px;
+    display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:700;
+    background:rgba(224,86,59,.12);color:var(--danger);border:1px solid rgba(224,86,59,.3);
+  }
+  .attack-def{
+    display:flex;align-items:flex-start;gap:10px;margin-top:9px;
+    font-size:14px;color:rgba(36,31,20,.78);line-height:1.65;
+  }
+  .attack-def::before{
+    content:"✓";flex-shrink:0;width:22px;height:22px;border-radius:6px;margin-top:1px;
+    display:grid;place-items:center;font-family:var(--mono);font-size:12px;font-weight:700;
+    background:rgba(18,138,95,.1);color:var(--verify-deep);border:1px solid rgba(18,138,95,.28);
+  }
+  .attack-def strong{color:var(--paper-ink)}
+  .ledger{
+    background:#fff;border:1px solid var(--paper-line);border-radius:12px;padding:22px;
+    font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;
+  }
+  .ledger-title{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:rgba(36,31,20,.5);font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between}
+  .lhead,.lrow{
+    display:grid;grid-template-columns:1fr 82px 120px;gap:12px;align-items:baseline;
+    padding:10px 8px;
+  }
+  .lhead{
+    font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:rgba(36,31,20,.42);
+    font-weight:700;padding-bottom:6px;
+  }
+  .lhead span:nth-child(2),.lhead span:nth-child(3){text-align:right}
+  .lrow{border-top:1px dashed var(--paper-line)}
+  .lrow .ref{color:rgba(36,31,20,.8)}
+  .lrow .amt{color:var(--verify-deep);font-weight:600;text-align:right;white-space:nowrap}
+  .lrow .bal{color:rgba(36,31,20,.6);text-align:right;white-space:nowrap}
+  .lrow .bal b{color:var(--verify-deep);font-weight:700;margin-left:5px}
+  .lrow.spoof{background:rgba(224,86,59,.08);border-radius:8px;border:1px solid rgba(224,86,59,.35)}
+  .lrow.spoof .ref,.lrow.spoof .amt{color:var(--danger)}
+  .lrow.spoof .bal{color:var(--danger);font-weight:700}
+  .lrow.spoof .bal b{color:var(--danger)}
+  @media(max-width:420px){
+    .lhead,.lrow{grid-template-columns:1fr 70px 104px;gap:8px;font-size:11.5px}
+  }
+  .ledger-verdict{
+    margin-top:14px;background:rgba(224,86,59,.1);border:1.5px dashed var(--danger);
+    color:var(--danger);border-radius:8px;padding:11px 14px;font-weight:600;font-size:12px;letter-spacing:.04em;
+  }
+  .fraud-tag{
+    margin-top:18px;font-family:var(--mono);font-size:12.5px;color:rgba(36,31,20,.6);
+    border-left:3px solid var(--gold-deep);padding-left:14px;line-height:1.7;
+  }
+
+  /* ---------- AGENT MESH ---------- */
+  .agents{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:900px){.agents{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.agents{grid-template-columns:1fr}}
+  .agent{
+    background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:18px;
+    font-family:var(--mono);transition:.2s;
+  }
+  .agent:hover{border-color:var(--verify)}
+  .agent .id{font-size:10px;color:var(--verify);letter-spacing:.2em;font-weight:600}
+  .agent .id::before{content:"● ";font-size:8px}
+  .agent h4{font-family:var(--disp);font-size:16px;font-weight:800;margin:8px 0 6px;font-stretch:110%}
+  .agent p{font-size:11.8px;color:var(--text-dim);line-height:1.65}
+
+  /* ---------- DEV SECTION ---------- */
+  .dev-grid{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:start}
+  @media(max-width:900px){.dev-grid{grid-template-columns:1fr}}
+  .tabs{display:flex;gap:6px;margin-bottom:0;border:1px solid var(--line);border-bottom:none;border-radius:12px 12px 0 0;padding:10px 12px;background:var(--ink-2)}
+  .tab{
+    font-family:var(--mono);font-size:12.5px;font-weight:600;padding:7px 16px;border-radius:7px;
+    color:var(--text-dim);cursor:pointer;border:none;background:transparent;transition:.15s;
+  }
+  .tab.on{background:var(--gold);color:var(--ink)}
+  .codebox{
+    background:var(--ink);border:1px solid var(--line);border-radius:0 0 12px 12px;
+    padding:22px;font-family:var(--mono);font-size:12.6px;line-height:1.75;overflow-x:auto;white-space:pre;color:#B9CFC1;
+    min-height:320px;
+  }
+  .codebox .c{color:#5E7368}.codebox .g{color:var(--gold-bright)}.codebox .v{color:#6FD3AC}.codebox .p{color:#D8A6E8}
+  .magic{list-style:none;margin-top:26px}
+  .magic li{
+    display:flex;gap:14px;align-items:baseline;padding:11px 0;border-top:1px dashed var(--line);
+    font-size:14px;color:var(--text-dim);
+  }
+  .magic code{
+    font-family:var(--mono);font-size:12.5px;background:rgba(232,161,31,.1);color:var(--gold-bright);
+    padding:3px 9px;border-radius:6px;white-space:nowrap;border:1px solid rgba(232,161,31,.2);
+  }
+  .north{
+    margin-top:24px;font-size:15px;border:1px solid var(--line-strong);border-radius:12px;padding:18px 22px;
+    background:linear-gradient(90deg, rgba(35,184,132,.07), transparent);color:var(--text-dim);
+  }
+  .north strong{color:var(--verify)}
+
+  /* ---------- PRICING ---------- */
+  .plans{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:stretch}
+  @media(max-width:1080px){.plans{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:700px){.plans{grid-template-columns:1fr}}
+  .plan{border:1px solid var(--line);border-radius:14px;padding:26px 20px;display:flex;flex-direction:column;background:var(--ink-2)}
+  .plan.hot{border-color:var(--gold);background:linear-gradient(180deg, rgba(232,161,31,.09), var(--ink-2) 45%);position:relative}
+  .plan.hot::before{
+    content:"MOST CHOSEN";position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+    font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;background:var(--gold);color:var(--ink);
+    padding:4px 11px;border-radius:99px;font-weight:700;white-space:nowrap;
+  }
+  .plan h4{font-size:16px;font-weight:800;font-stretch:112%;letter-spacing:.02em}
+  .plan .pr{font-size:30px;font-weight:900;font-stretch:115%;margin:10px 0 2px}
+  .plan .pr small{font-size:13px;color:var(--text-dim);font-weight:600}
+  .plan .per{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-bottom:16px;letter-spacing:.04em}
+  .plan ul{list-style:none;font-size:12.8px;color:var(--text-dim);flex:1}
+  .plan li{padding:6.5px 0 6.5px 18px;position:relative;border-top:1px dashed var(--line)}
+  .plan li::before{content:"✓";position:absolute;left:0;color:var(--verify);font-family:var(--mono);font-size:11px}
+  .plan .pbtn{
+    margin-top:18px;text-align:center;font-family:var(--mono);font-size:12.5px;font-weight:600;
+    border:1px solid var(--line-strong);border-radius:8px;padding:11px;transition:.15s;display:block;
+  }
+  .plan .pbtn:hover{border-color:var(--gold);color:var(--gold)}
+  .plan.hot .pbtn{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+  .plan.hot .pbtn:hover{background:var(--gold-bright)}
+  .moral{
+    margin-top:34px;text-align:center;font-size:19px;font-weight:800;font-stretch:112%;
+  }
+  .moral em{color:var(--gold);font-style:normal}
+  .moral small{display:block;font-family:var(--mono);font-weight:500;font-size:12.5px;color:var(--text-dim);margin-top:8px;letter-spacing:.06em}
+
+  /* ---------- CTA BAND ---------- */
+  .band{
+    background:var(--gold);color:var(--ink);
+    padding:74px 0;position:relative;overflow:hidden;
+  }
+  .band::before{
+    content:"KODA · KODA · KODA · KODA · KODA · KODA · KODA · KODA ·";
+    position:absolute;top:8px;left:0;white-space:nowrap;font-family:var(--mono);
+    font-size:11px;letter-spacing:.4em;opacity:.22;font-weight:700;
+  }
+  .band-in{display:flex;justify-content:space-between;align-items:center;gap:32px;flex-wrap:wrap}
+  .band h2{color:var(--ink);margin:0;max-width:640px}
+  .band .btn{background:var(--ink);color:var(--gold);box-shadow:none}
+  .band .btn:hover{background:var(--ink-2);transform:translateY(-2px)}
+  .band p{font-family:var(--mono);font-size:13px;font-weight:600;margin-top:12px;opacity:.75}
+
+  /* ---------- FOOTER ---------- */
+  footer{padding:56px 0 44px;border-top:1px solid var(--line)}
+  .foot{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:flex-end}
+  .foot-tag{font-size:22px;font-weight:900;font-stretch:118%}
+  .foot-tag em{color:var(--gold);font-style:normal}
+  .foot-meta{font-family:var(--mono);font-size:11.5px;color:var(--text-dim);line-height:2;letter-spacing:.05em;text-align:right}
+  @media(max-width:700px){.foot-meta{text-align:left}}
+
+  /* reduced motion: land in final state */
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important;scroll-behavior:auto}
+    .sms,.webhook{opacity:1;transform:none}
+    .matchbar i{width:100%}
+    .webhook .stamp{opacity:1;transform:rotate(-5deg)}
+    .caret{display:none}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-in">
+    <a class="logo" href="#"><span class="tick">✓</span>KODA</a>
+    <div class="nav-links">
+      <a href="#doors">Three Doors</a>
+      <a href="#how">How it works</a>
+      <a href="#world">Coverage</a>
+      <a href="#fraud">Fraud engine</a>
+      <a href="#dev">Developers</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+    <a class="nav-cta" href="#pricing">Start free →</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header>
+  <div class="wrap hero">
+    <div>
+      <div class="kicker">Payment verification · zero telco contract</div>
+      <h1>The SMS<br>is the <span class="accent">API.</span></h1>
+      <p class="sub">
+        Every mobile money operator on Earth already sends your merchants a confirmation SMS.
+        KODA turns it into <strong>structured payment truth</strong> — verified manually in your KODA account,
+        conversationally in WhatsApp, or automatically by API. <strong>Same engine. Three doors.</strong>
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-gold" href="#pricing">Verify your first payment free</a>
+        <a class="btn btn-ghost" href="#dev">curl sandbox.koda.africa</a>
+      </div>
+      <div class="ops">
+        <span class="ops-label">Works with</span>
+        <span class="chip">M-Pesa</span><span class="chip">Orange Money</span><span class="chip">MTN MoMo</span>
+        <span class="chip">Airtel Money</span><span class="chip">Wave</span><span class="chip">bKash</span>
+        <span class="chip">GCash</span><span class="chip">JazzCash</span><span class="chip">EVC Plus</span>
+        <span class="chip more">+ any operator that sends SMS</span>
+      </div>
+    </div>
+
+    <!-- live demo -->
+    <div class="demo" id="demo" aria-label="Live verification demo">
+      <div class="demo-head">
+        <span>Merchant SIM · Kinshasa</span>
+        <span class="demo-timer" id="timer">t = 0.0s</span>
+      </div>
+
+      <div class="sms" id="sms">
+        <span class="from">Orange Money · incoming SMS</span>
+        Vous avez recu <span class="hl">25 000 FC</span> de JEANNE N. (+243 89•···4521).
+        Ref: <span class="hl">OM.260717.1432.A88213</span>. Solde: 342 500 FC
+      </div>
+
+      <div class="demo-step">Customer submits the reference</div>
+      <div class="code-field" id="field"><span id="typed"></span><span class="caret" id="caret"></span></div>
+
+      <div class="matchbar"><i id="bar"></i></div>
+      <div class="match-legend">
+        <span>code ↔ ledger</span><span>amount</span><span>window</span><span>suffix</span><span>replay</span>
+      </div>
+
+      <div class="webhook" id="hook">
+        <div class="stamp">VERIFIED</div>
+<span class="c">→ POST merchant.webhook</span>
+{
+  <span class="k">"event"</span>: <span class="s">"payment.verified"</span>,
+  <span class="k">"amount"</span>: <span class="n">25000</span>, <span class="k">"currency"</span>: <span class="s">"CDF"</span>,
+  <span class="k">"operator"</span>: <span class="s">"orange_cd"</span>,
+  <span class="k">"risk_score"</span>: <span class="n">0.02</span>,
+  <span class="k">"receipt_id"</span>: <span class="s">"rcp_KODA_7f21"</span>
+}</div>
+    </div>
+  </div>
+
+  <!-- stats strip -->
+  <div class="stats">
+    <div class="wrap stats-in">
+      <div class="stat"><b><s>6–18 mo</s>&lt;10 s</b><span>telco negotiation → verification</span></div>
+      <div class="stat"><b>0</b><span>contracts, paybills, aggregators</span></div>
+      <div class="stat"><b>$0</b><span>per failed verification — success only</span></div>
+      <div class="stat"><b>3</b><span>doors: manual · WhatsApp · API</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ THREE DOORS ============ -->
+<section id="doors">
+  <div class="wrap">
+    <div class="sec-kicker">One engine · three doors</div>
+    <h2>A market trader and a 400-merchant platform use the exact same truth.</h2>
+    <p class="sec-sub">
+      Identical matching, fraud scoring, replay protection and audit trail — only the interface differs
+      by technical capacity. <strong>One account, one ledger, zero migration</strong> when you graduate.
+    </p>
+    <div class="doors">
+      <div class="door">
+        <span class="badge">NEW · NO CODE</span>
+        <div class="door-num">DOOR 01</div>
+        <h3>Manual Mode</h3>
+        <span class="who">For merchants verifying by hand today</span>
+        <p>Open the <strong>Verify Console</strong>, paste the customer's code or snap their screenshot —
+        get a telco-anchored verdict in ~3 seconds, with the matched SMS shown.</p>
+        <ul>
+          <li>Live Payments Feed — every payment on your SIM, structured</li>
+          <li>Replay lock — a code used once is dead forever</li>
+          <li>One-tap branded customer receipts</li>
+          <li>Daily WhatsApp digest + team seats with audit</li>
+        </ul>
+      </div>
+      <div class="door">
+        <div class="door-num">DOOR 02</div>
+        <h3>WhatsApp Chat Mode</h3>
+        <span class="who">For sellers who live in the chat</span>
+        <p>Add KODA's number to the conversation. The customer drops their code,
+        KODA replies <strong>"✅ Paiement confirmé — 25 000 FC reçus"</strong> right in the thread.</p>
+        <ul>
+          <li>Verification joins the conversation where the sale happens</li>
+          <li>Zero code, zero console, zero customer behaviour change</li>
+          <li>FR · EN · Lingala · Swahili · Wolof · Twi at launch</li>
+          <li>Everything logged to the same merchant ledger</li>
+        </ul>
+      </div>
+      <div class="door">
+        <div class="door-num">DOOR 03</div>
+        <h3>API Mode</h3>
+        <span class="who">For developers &amp; platforms</span>
+        <p>Intents, code submission, signed webhooks — <strong>order confirmed, ticket issued,
+        course unlocked</strong>, no human in the loop.</p>
+        <ul>
+          <li>3 core endpoints — integrate in an afternoon</li>
+          <li>Sub-merchant API: onboard whole merchant bases</li>
+          <li>HMAC-signed webhooks, idempotency built in</li>
+          <li>Wholesale from $0.010/verification</li>
+        </ul>
+      </div>
+    </div>
+    <div class="grad-note">
+      <b>↗</b>
+      <div>The built-in growth path: start Manual → see the value of unmatched-payment detection → flip on Chat →
+      volume grows → switch on the API. <strong>Same account, same ledger, same history. Graduation is a toggle, not a rebuild.</strong></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how" class="sec-alt">
+  <div class="wrap">
+    <div class="sec-kicker">The canonical flow</div>
+    <h2>Your customer pays exactly the way they paid yesterday.</h2>
+    <p class="sec-sub">The only thing that changes: <strong>you finally know — instantly, provably, in your language.</strong></p>
+    <div class="flow">
+      <div class="fstep">
+        <h4>Customer pays normally</h4>
+        <p>USSD or operator app, to your existing number. Nothing new to learn, nothing to install.</p>
+        <div class="snip"><span class="g">*144#</span> → send 25 000 FC
+→ merchant number</div>
+      </div>
+      <div class="fstep">
+        <h4>Operator texts your SIM</h4>
+        <p>KODA Sentinel (6 MB) captures the confirmation, parses on-device, pushes a signed record.</p>
+        <div class="snip">ref <span class="v">OM.260717…A88213</span>
+amt <span class="v">25 000 FC</span> · bal <span class="v">✓chain</span></div>
+      </div>
+      <div class="fstep">
+        <h4>The code reaches KODA</h4>
+        <p>Typed at checkout, dropped in WhatsApp, or pasted in your Verify Console.</p>
+        <div class="snip"><span class="g">POST</span> /intents/{id}/verify
+{ "reference": "OM…A88213" }</div>
+      </div>
+      <div class="fstep">
+        <h4>Truth, delivered</h4>
+        <p>Matched against the ledger, fraud-scored, locked against replay — verdict where you live.</p>
+        <div class="snip"><span class="g">event</span>: <span class="v">payment.verified</span>
+risk 0.02 · &lt;10 s</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WORLDWIDE ============ -->
+<section id="world">
+  <div class="wrap">
+    <div class="sec-kicker">Worldwide by construction</div>
+    <h2>Coverage is a parsing template, not a contract.</h2>
+    <p class="sec-sub">
+      KODA works wherever the operator sends the merchant a confirmation SMS with a reference and amount —
+      the standard behaviour of GSMA-model mobile money on <strong>every continent</strong>. Each operator is a
+      versioned template pack, shipped over the air, drift-monitored, regenerated automatically.
+    </p>
+    <div class="waves">
+      <div class="wave"><span class="w">WAVE 1 · HOME</span><h4>DR Congo</h4><p>M-Pesa (Vodacom) · Orange Money · Airtel Money · Africell Money</p></div>
+      <div class="wave"><span class="w">WAVE 2 · AFRICA CORE</span><h4>KE · TZ · UG · GH · CI · SN · CM · NG · RW</h4><p>M-Pesa · MTN MoMo · Airtel · Orange · Wave · Moov</p></div>
+      <div class="wave"><span class="w">WAVE 3 · SOUTH ASIA</span><h4>Bangladesh · Pakistan · Nepal</h4><p>bKash · Nagad · Rocket · JazzCash · Easypaisa · eSewa</p></div>
+      <div class="wave"><span class="w">WAVE 4 · SE ASIA &amp; PACIFIC</span><h4>PH · ID · MM · PG · FJ</h4><p>GCash · Maya · DANA · OVO · GoPay · Wave Money · M-PAiSA</p></div>
+      <div class="wave"><span class="w">WAVE 5 · MENA &amp; HORN</span><h4>SO · EG · JO · YE</h4><p>EVC Plus · Zaad · Sahal · Vodafone Cash · Orange Money</p></div>
+      <div class="wave open"><span class="w">WAVE ∞ · ANYWHERE</span><h4>Community Template Program</h4><p>Send 5 sample SMS from any unsupported operator → live pack within days. Coverage requests become coverage.</p></div>
+    </div>
+    <div class="doctrine">
+      <div class="mark">✳</div>
+      <p><strong>The honest boundary, stated on purpose:</strong> app-only wallets with no SMS leg and bank rails like UPI/PIX
+      are different mechanisms — roadmap adapters, not v2 claims. KODA's promise is exact. That's why it's credible.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FRAUD ============ -->
+<section id="fraud">
+  <div class="wrap">
+    <div class="fraud-panel">
+      <div class="sec-kicker">Fraud engine</div>
+      <h2>Built to be lied to.</h2>
+      <p class="sec-sub">
+        Screenshot fraud exists because merchants verify against <strong>customer-side</strong> artifacts.
+        KODA's truth is <strong>merchant-side, operator-issued, device-attested</strong> — a fraudster would
+        have to forge an SMS into your own phone.
+      </p>
+      <div class="fraud-grid">
+        <div class="attacks">
+          <div class="attack">
+            <div class="attack-name">Code replay</div>
+            <div class="attack-def">Global Replay Index — every code is <strong>single-use per merchant, forever</strong>, across all three doors. A code verified manually is dead to the API too.</div>
+          </div>
+          <div class="attack">
+            <div class="attack-name">Stolen code</div>
+            <div class="attack-def">Payer-number suffix must match the checkout identity, with exact amount and a tight time window. Mismatch → challenge: <em>"confirm the last 3 digits of the paying number."</em></div>
+          </div>
+          <div class="attack">
+            <div class="attack-name">Forged screenshot</div>
+            <div class="attack-def">A screenshot is never accepted as proof on its own. Vision forensics feed the risk score — <strong>the truth is always the merchant-side ledger</strong>.</div>
+          </div>
+          <div class="attack">
+            <div class="attack-name">Spoofed SMS</div>
+            <div class="attack-def">Sender-ID allowlist, grammar validation, and the <strong>balance-chain defence</strong> (shown right) → the fake message is quarantined and the merchant alerted.</div>
+          </div>
+          <div class="attack">
+            <div class="attack-name">Pay, then reverse</div>
+            <div class="attack-def">Reversal SMS are parsed too and fire <code style="font-family:var(--mono);font-size:12.5px">payment.reversed</code>. KODA can't stop an operator reversal — it makes you <strong>the first to know</strong>.</div>
+          </div>
+        </div>
+        <div>
+          <div class="ledger">
+            <div class="ledger-title"><span>Balance-chain audit</span><span>live</span></div>
+            <div class="lhead"><span>Incoming SMS</span><span>Amount</span><span>New balance</span></div>
+            <div class="lrow"><span class="ref">14:02 OM…F4410</span><span class="amt">+15 000</span><span class="bal">302 500<b>✓</b></span></div>
+            <div class="lrow"><span class="ref">14:17 OM…B7802</span><span class="amt">+15 000</span><span class="bal">317 500<b>✓</b></span></div>
+            <div class="lrow"><span class="ref">14:32 OM…A88213</span><span class="amt">+25 000</span><span class="bal">342 500<b>✓</b></span></div>
+            <div class="lrow spoof"><span class="ref">14:41 "OM"…X9931</span><span class="amt">+80 000</span><span class="bal">350 000<b>✗</b></span></div>
+            <div class="ledger-verdict">⚠ CHAIN BREAK — 342 500 + 80 000 ≠ 350 000<br>→ quarantined · merchant alerted</div>
+          </div>
+          <p class="fraud-tag">
+            Every genuine operator SMS carries the running balance, so each new balance must equal the
+            previous balance plus the amount. A spoofed SMS breaks that arithmetic.
+            <strong>The operator's own bookkeeping is the firewall</strong> — and it works identically for
+            bKash in Dhaka and Orange Money in Kinshasa.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AGENT MESH ============ -->
+<section class="sec-alt">
+  <div class="wrap">
+    <div class="sec-kicker">The agent mesh</div>
+    <h2>Nine agents. Every decision auditable.</h2>
+    <p class="sec-sub">A LangGraph mesh supervises every verification. <strong>Agent law:</strong> every autonomous
+    confirmation writes its full decision trace to an append-only store — <em>a verification you cannot audit
+    is a verification you cannot defend.</em></p>
+    <div class="agents">
+      <div class="agent"><span class="id">K-01</span><h4>ParserAgent</h4><p>Structures SMS; detects operator format drift; regenerates + canary-ships template packs worldwide, OTA.</p></div>
+      <div class="agent"><span class="id">K-02</span><h4>MatchMaker</h4><p>Code↔ledger↔intent↔amount↔window↔suffix matching. Repairs customer typos up to edit distance 2.</p></div>
+      <div class="agent"><span class="id">K-03</span><h4>FraudSentinel</h4><p>~40-feature risk score per match; Global Replay Index; retrained per corridor — Kinshasa fraud ≠ Dhaka fraud.</p></div>
+      <div class="agent"><span class="id">K-04</span><h4>VisionAgent</h4><p>Extracts refs from screenshots; forgery forensics. Assistive evidence only — never sole proof.</p></div>
+      <div class="agent"><span class="id">K-05</span><h4>ReconcilerAgent</h4><p>Three-way reconciliation; surfaces unmatched payments — "you were paid 3× today with no order attached."</p></div>
+      <div class="agent"><span class="id">K-06</span><h4>DisputeAgent</h4><p>Interviews the customer in-channel on failed verifies; hands you an evidence file + recommendation.</p></div>
+      <div class="agent"><span class="id">K-07</span><h4>LinguaAgent</h4><p>All dialogue in FR, EN, Lingala, Swahili, Wolof, Twi — Bengali, Urdu, Tagalog, Somali per wave.</p></div>
+      <div class="agent"><span class="id">K-08</span><h4>OpsPilot</h4><p>Fleet heartbeats, per-operator parse health, webhook delivery — auto-remediates known failure classes.</p></div>
+      <div class="agent"><span class="id">K-09</span><h4>COSA-K</h4><p>Chief-of-staff orchestration, policy, escalation, and your weekly merchant intelligence brief.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DEVELOPERS ============ -->
+<section id="dev">
+  <div class="wrap">
+    <div class="sec-kicker">Developers</div>
+    <h2>Three endpoints. One coffee.</h2>
+    <p class="sec-sub">If you can call Stripe, you can call KODA. SDKs for Node, PHP/Laravel, Python and Flutter —
+    webhook verification and idempotency built in. Docs equally deep in <strong>French and English</strong>.</p>
+    <div class="dev-grid">
+      <div>
+        <div class="tabs" role="tablist">
+          <button class="tab on" data-t="curl" role="tab">curl</button>
+          <button class="tab" data-t="node" role="tab">Node</button>
+          <button class="tab" data-t="php" role="tab">PHP</button>
+        </div>
+        <div class="codebox" id="code"></div>
+      </div>
+      <div>
+        <h3 style="font-size:20px;font-weight:800;font-stretch:112%;margin-bottom:6px">A sandbox with a telco simulator</h3>
+        <p style="color:var(--text-dim);font-size:14.5px;line-height:1.7">
+          You can't send yourself real mobile money all day. Magic references produce deterministic
+          outcomes, and <span class="mono" style="font-size:13px;color:var(--gold-bright)">POST /sandbox/sms</span>
+          lets you inject any operator-formatted SMS and watch ParserAgent structure it.
+        </p>
+        <ul class="magic">
+          <li><code>TEST-OK-25000</code><span>instant <b>payment.verified</b></span></li>
+          <li><code>TEST-LATE-90</code><span>verifies after 90 s → <b>payment.verified.late</b></span></li>
+          <li><code>TEST-REPLAY</code><span>rejected → <b>code_already_used</b></span></li>
+          <li><code>TEST-SUFFIX</code><span>mismatch → DisputeAgent challenge flow</span></li>
+          <li><code>TEST-REVERSAL</code><span>verify, then <b>payment.reversed</b></span></li>
+        </ul>
+        <div class="north">North-star metric, measured: <strong>first verified payment &lt; 10 minutes from signup.</strong> Sandbox is free, unlimited, never expires.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section id="pricing" class="sec-alt">
+  <div class="wrap">
+    <div class="sec-kicker">One ladder · all three doors</div>
+    <h2>Free until your merchant actually gets paid.</h2>
+    <p class="sec-sub">The billable atom is a <strong>successful verification</strong> — identical whether a human
+    clicked Verify or a webhook fired. Failed matches, rejections, expired intents: <strong>free.</strong>
+    Top up prepaid credit via mobile money — verified by KODA's own engine.</p>
+    <div class="plans">
+      <div class="plan">
+        <h4>Marché</h4><div class="pr">$0</div><div class="per">forever</div>
+        <ul><li>50 verifications/mo</li><li>1 Sentinel device</li><li>Verify Console + Live Feed</li><li>Replay protection</li><li>Daily digest</li></ul>
+        <a class="pbtn" href="#">Start free</a>
+      </div>
+      <div class="plan">
+        <h4>Boutique</h4><div class="pr">$19<small>/mo</small></div><div class="per">600 verifs · $0.035 over</div>
+        <ul><li>Manual + Chat + API</li><li>2 devices · 3 team seats</li><li>Customer receipts</li><li>Web widget + webhooks</li><li>Reconciliation</li></ul>
+        <a class="pbtn" href="#">Choose Boutique</a>
+      </div>
+      <div class="plan hot">
+        <h4>Commerce</h4><div class="pr">$79<small>/mo</small></div><div class="per">3,500 verifs · $0.028 over</div>
+        <ul><li>Everything in Boutique</li><li>5 devices · 10 seats</li><li>Vision + screenshot forensics</li><li>DisputeAgent</li><li>Priority parsing · WhatsApp SLA</li></ul>
+        <a class="pbtn" href="#">Choose Commerce</a>
+      </div>
+      <div class="plan">
+        <h4>Plateforme</h4><div class="pr">$399<small>/mo</small></div><div class="per">25,000 verifs · $0.020 over</div>
+        <ul><li>Sub-merchant API + scoped keys</li><li>Unlimited devices</li><li>Trust-score API</li><li>Re-billing endpoints</li><li>Wholesale to $0.010</li></ul>
+        <a class="pbtn" href="#">Talk platforms</a>
+      </div>
+      <div class="plan">
+        <h4>Enterprise / Gov</h4><div class="pr">Custom</div><div class="per">committed volume</div>
+        <ul><li>In-country residency</li><li>Dedicated corridor models</li><li>White-label (+20%)</li><li>99.9% SLA, credited if missed</li><li>Annual contract</li></ul>
+        <a class="pbtn" href="#">Contact sales</a>
+      </div>
+    </div>
+    <div class="moral">
+      "Pay only when your merchant gets paid." <em>— the moral centre of the pricing.</em>
+      <small>Pay-as-you-go from $10 → 300 ACU · wholesale floor ~$0.007 · prepaid top-ups verified by the engine itself</small>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA BAND ============ -->
+<div class="band">
+  <div class="wrap band-in">
+    <div>
+      <h2>Zero telco meetings.<br>Eleven minutes to your first verified payment.</h2>
+      <p>No card required · sandbox never expires · docs in FR + EN</p>
+    </div>
+    <a class="btn" href="#">Open your KODA account →</a>
+  </div>
+</div>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap foot">
+    <div>
+      <div class="logo" style="margin-bottom:14px"><span class="tick">✓</span>KODA</div>
+      <div class="foot-tag">le code confirme <em>le cash.</em></div>
+    </div>
+    <div class="foot-meta">
+      Groupe Nseya Digital / BitriPay Ecosystem<br>
+      api.koda.africa · docs.koda.africa · status.koda.africa<br>
+      © 2026 JNN Global Ltd. KODA never touches, holds, or moves funds.
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var sms = document.getElementById('sms'),
+      typed = document.getElementById('typed'),
+      caret = document.getElementById('caret'),
+      field = document.getElementById('field'),
+      bar = document.getElementById('bar'),
+      hook = document.getElementById('hook'),
+      timer = document.getElementById('timer');
+  var CODE = 'OM.260717.1432.A88213';
+
+  if (reduced) {
+    // final state, no animation
+    typed.textContent = CODE;
+    field.classList.add('match');
+    timer.textContent = 't = 8.2s · verified';
+    return;
+  }
+
+  var t0, raf;
+  function tick(){
+    var s = (performance.now() - t0) / 1000;
+    timer.textContent = 't = ' + s.toFixed(1) + 's';
+    raf = requestAnimationFrame(tick);
+  }
+
+  function run(){
+    // reset
+    sms.classList.remove('show');
+    hook.classList.remove('show');
+    field.classList.remove('match');
+    typed.textContent = '';
+    caret.style.display = 'inline-block';
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
+    void bar.offsetWidth;
+    bar.style.transition = '';
+
+    t0 = performance.now();
+    cancelAnimationFrame(raf);
+    tick();
+
+    setTimeout(function(){ sms.classList.add('show'); }, 600);
+
+    // type the code
+    var i = 0;
+    setTimeout(function type(){
+      if (i < CODE.length) {
+        typed.textContent += CODE[i++];
+        setTimeout(type, 46 + Math.random()*54);
+      } else {
+        caret.style.display = 'none';
+        field.classList.add('match');
+        setTimeout(function(){ bar.style.width = '100%'; }, 220);
+        setTimeout(function(){
+          hook.classList.add('show');
+          cancelAnimationFrame(raf);
+          var s = (performance.now() - t0) / 1000;
+          timer.textContent = 't = ' + s.toFixed(1) + 's · verified';
+        }, 1500);
+      }
+    }, 1900);
+
+    setTimeout(run, 9500); // loop
+  }
+  run();
+
+  // dev tabs
+  var SNIPS = {
+    curl:
+'<span class="c"># 1 · create the intent</span>\n' +
+'curl https://api.koda.africa/v1/intents \\\n' +
+'  -H <span class="g">"Authorization: Bearer sk_live_..."</span> \\\n' +
+'  -d amount=<span class="v">25000</span> -d currency=<span class="v">CDF</span> \\\n' +
+'  -d <span class="g">"operators[]=orange_cd"</span>\n\n' +
+'<span class="c"># 2 · customer pays, drops their code</span>\n' +
+'curl /v1/intents/int_9f3.../verify \\\n' +
+'  -d reference=<span class="v">OM.260717.1432.A88213</span>\n\n' +
+'<span class="c"># 3 · truth arrives, signed</span>\n' +
+'{ <span class="g">"event"</span>: <span class="v">"payment.verified"</span>,\n' +
+'  <span class="g">"risk_score"</span>: 0.02 }',
+    node:
+'<span class="p">import</span> Koda <span class="p">from</span> <span class="v">"@koda/node"</span>;\n' +
+'<span class="p">const</span> koda = <span class="p">new</span> Koda(<span class="v">"sk_live_..."</span>);\n\n' +
+'<span class="p">const</span> intent = <span class="p">await</span> koda.intents.create({\n' +
+'  amount: <span class="g">25000</span>, currency: <span class="v">"CDF"</span>,\n' +
+'  operators: [<span class="v">"orange_cd"</span>, <span class="v">"mpesa_cd"</span>],\n' +
+'  metadata: { orderId: <span class="v">"TNK-88213"</span> }\n' +
+'});\n\n' +
+'<span class="c">// webhook — signature verified by the SDK</span>\n' +
+'koda.webhooks.on(<span class="v">"payment.verified"</span>, (r) =&gt; {\n' +
+'  unlockOrder(r.receipt_id);  <span class="c">// &lt;10s later</span>\n' +
+'});',
+    php:
+'<span class="p">use</span> Koda\\KodaClient;\n\n' +
+'$koda = <span class="p">new</span> KodaClient(<span class="v">"sk_live_..."</span>);\n\n' +
+'$intent = $koda-&gt;intents-&gt;create([\n' +
+'  <span class="v">"amount"</span>   =&gt; <span class="g">25000</span>,\n' +
+'  <span class="v">"currency"</span> =&gt; <span class="v">"CDF"</span>,\n' +
+'  <span class="v">"operators"</span> =&gt; [<span class="v">"orange_cd"</span>],\n' +
+']);\n\n' +
+'<span class="c">// Laravel route — signed webhook</span>\n' +
+'Route::koda(<span class="v">"payment.verified"</span>, <span class="p">fn</span>($r) =&gt;\n' +
+'  Order::confirm($r-&gt;metadata[<span class="v">"orderId"</span>])\n' +
+');'
+  };
+  var box = document.getElementById('code');
+  var tabs = document.querySelectorAll('.tab');
+  function show(t){
+    box.innerHTML = SNIPS[t];
+    tabs.forEach(function(b){ b.classList.toggle('on', b.dataset.t === t); });
+  }
+  tabs.forEach(function(b){ b.addEventListener('click', function(){ show(b.dataset.t); }); });
+  show('curl');
+})();
+</script>
+</body>
+</html>
