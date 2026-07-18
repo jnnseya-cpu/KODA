@@ -3,9 +3,9 @@
 // Without provider keys every delivery is recorded as 'logged' (sandbox) so the
 // whole flow is testable end-to-end before any key is installed.
 'use strict';
-const { q } = require('../db');
-const { id } = require('../util');
-const { BY_KEY, CHANNELS } = require('./events');
+const { q } = require('../lib/db');
+const { id } = require('../lib/util');
+const { BY_KEY, CHANNELS } = require('../../shared/events');
 const { renderEmail } = require('./email');
 
 const meta = require('./meta');

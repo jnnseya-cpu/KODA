@@ -4,17 +4,11 @@
 const { q } = require('./lib/db');
 const U = require('./lib/util');
 const engine = require('./lib/engine');
-const { OPERATORS } = require('./lib/parser');
-const { CATEGORIES, ALL, BY_KEY, CHANNELS } = require('./lib/comms/events');
-const notify = require('./lib/comms/notify');
+const { OPERATORS } = require('../shared/parser');
+const { CATEGORIES, ALL, BY_KEY, CHANNELS } = require('../shared/events');
+const notify = require('./comms/notify');
 
-const PLANS = {
-  marche:     { label: 'Marché', usd: 0,   verifs: 50,    overage: null },
-  boutique:   { label: 'Boutique', usd: 19,  verifs: 600,   overage: 0.035 },
-  commerce:   { label: 'Commerce', usd: 79,  verifs: 3500,  overage: 0.028 },
-  plateforme: { label: 'Plateforme', usd: 399, verifs: 25000, overage: 0.020 },
-  enterprise: { label: 'Enterprise', usd: null, verifs: null, overage: null },
-};
+const { PLANS } = require('../shared/plans');
 
 function audit(mid, uid, action, detail) {
   q.run('INSERT INTO audit_log (id,merchant_id,user_id,action,detail) VALUES (?,?,?,?,?)',
@@ -417,7 +411,7 @@ module.exports = function registerRoutes(r) {
   });
   // POST: inbound customer messages — extract a reference code, verify, reply in-thread
   r.post('/webhooks/whatsapp', (req) => {
-    const meta = require('./lib/comms/meta');
+    const meta = require('./comms/meta');
     const entries = req.body.entry || [];
     for (const entry of entries) {
       for (const change of (entry.changes || [])) {
@@ -496,10 +490,9 @@ function admin(handler) {
   return auth((req, user, merchant) => user.is_admin ? handler(req, user, merchant) : [403, { error: 'admin_only' }]);
 }
 // per-key sliding-window rate limiter (per plan: Free 2 rps · Boutique 10 · Commerce 25 · Plateforme 100)
-const RPS = { marche: 2, boutique: 10, commerce: 25, plateforme: 100, enterprise: 1000 };
 const _hits = new Map();
 function rateLimited(keyId, plan) {
-  const now = Date.now(), limit = RPS[plan] || 2;
+  const now = Date.now(), limit = (PLANS[plan] && PLANS[plan].rps) || 2;
   const arr = (_hits.get(keyId) || []).filter(t => now - t < 1000);
   arr.push(now); _hits.set(keyId, arr);
   return arr.length > limit;

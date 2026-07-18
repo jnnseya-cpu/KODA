@@ -5,7 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const OUT = path.join(__dirname, '..', 'public', 'site');
+const OUT = path.join(__dirname, 'site');
 fs.mkdirSync(OUT, { recursive: true });
 
 // the 12 site pages, grouped for the footer (used by landing + every content page)

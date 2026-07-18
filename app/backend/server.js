@@ -9,12 +9,13 @@ const { URL } = require('node:url');
 
 require('./lib/db');            // init schema
 require('./seed');              // idempotent demo seed
-require('./tools/build-site');  // generate public site pages at boot
+require('../frontend/build-site'); // generate public site pages at boot
 
 const registerRoutes = require('./routes');
 
 const PORT = process.env.PORT || 4600;
-const PUBLIC = path.join(__dirname, 'public');
+const PUBLIC = path.join(__dirname, '..', 'frontend');
+const SHARED = path.join(__dirname, '..', 'shared');
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
@@ -66,6 +67,12 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // shared modules served to the browser (UMD)
+  if (url.pathname.startsWith('/shared/')) {
+    const sp = path.join(SHARED, path.normalize(url.pathname.slice(8)).replace(/^([.][.][/\\])+/, ''));
+    if (sp.startsWith(SHARED) && fs.existsSync(sp) && fs.statSync(sp).isFile())
+      return send(200, fs.readFileSync(sp), { 'content-type': 'text/javascript' });
+  }
   // static files (SPA + site + PWA)
   let file = url.pathname === '/' ? '/site/index.html' : url.pathname;
   if (file === '/app' || file.startsWith('/app/')) file = '/app.html'; // SPA catch-all

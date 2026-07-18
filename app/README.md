@@ -21,7 +21,33 @@ npm start          # → http://localhost:4600  (Node ≥ 22.5, ZERO npm depende
 | OpenAPI 3.1 | `/v1/openapi.json` | — |
 
 Zero dependencies by design: `node:http`, `node:sqlite`, `node:crypto`. The DB layer
-(`lib/db.js`) is the single swap point for PostgreSQL in production.
+(`backend/lib/db.js`) is the single swap point for PostgreSQL in production.
+
+## Structure — frontend / backend / shared
+
+```
+app/
+├── backend/                  # the API + engine (deploy target: Cloud Run)
+│   ├── server.js             #   HTTP server, router, static serving
+│   ├── routes.js             #   /app/* session routes + /v1/* public API + webhooks
+│   ├── seed.js               #   idempotent demo data
+│   ├── lib/                  #   db · engine · fraud · util · webhooks
+│   ├── comms/                #   notify (fan-out) · email (Brevo) · meta (WhatsApp)
+│   └── tools/bench.js        #   performance benchmark (npm run bench)
+├── frontend/                 # everything the browser gets
+│   ├── app.html/app.js/styles.css   # the SPA (all dashboards, i18n)
+│   ├── sw.js · manifest.webmanifest · icon.svg   # PWA
+│   ├── build-site.js         #   generates the 12 public pages at boot
+│   └── site/                 #   generated output (gitignored)
+├── shared/                   # one source of truth for both sides + Sentinel
+│   ├── plans.js              #   plan ladder, ACU costs, top-up packs (UMD — browser-ready at /shared/plans.js)
+│   ├── parser.js             #   operator SMS template packs (also ships OTA to Sentinel)
+│   └── events.js             #   the 128-event communication catalogue
+└── data/                     # SQLite (gitignored)
+```
+
+The server also serves `shared/` to the browser at `/shared/*` so frontend and
+backend can never drift on pricing or operator grammar.
 
 ## What's implemented
 

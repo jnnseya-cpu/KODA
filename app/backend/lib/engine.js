@@ -4,14 +4,11 @@
 const { q } = require('./db');
 const { id } = require('./util');
 const { scoreMatch, chainCheck } = require('./fraud');
-const { parseSms } = require('./parser');
+const { parseSms } = require('../../shared/parser');
 const webhooks = require('./webhooks');
-const notify = require('./comms/notify');
+const notify = require('../comms/notify');
 
-const ACU = { code: 1, vision: 3, dispute: 3, trust: 0.5, submerchant: 5 };
-const TOPUP_PACKS = [
-  { usd: 10, acu: 300 }, { usd: 50, acu: 1750 }, { usd: 200, acu: 8000 },
-];
+const { ACU, TOPUP_PACKS } = require('../../shared/plans');
 
 function getMerchant(mid) { return q.get('SELECT * FROM merchants WHERE id=?', mid); }
 
