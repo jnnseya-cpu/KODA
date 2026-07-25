@@ -202,6 +202,7 @@ window.doSignup = async (plan) => {
 const v = (id) => document.getElementById(id).value.trim();
 
 VIEWS.dashboard = async () => {
+  if (ME.user.is_admin && !ME.merchant) { location.hash = '#admin'; return; } // KODA staff go straight to the control centre
   const d = await api('/app/dashboard');
   const max = Math.max(1, ...d.daily.map(x => x.c));
   shell('dashboard', `${t('welcome')}, ${esc(ME.user.name.split(' ')[0])}`, esc(ME.merchant.name) + ' · ' + d.plan.label, `

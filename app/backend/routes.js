@@ -55,6 +55,10 @@ module.exports = function registerRoutes(r) {
 
   // ---------- dashboard ----------
   r.get('/app/dashboard', auth((req, user, m) => {
+    if (!m) { // KODA staff have no merchant — return an empty till and let the SPA route to the control centre
+      return { today: { c: 0, s: 0 }, month: { c: 0, s: 0 }, unmatched: { c: 0, s: 0 },
+               disputes: 0, devices: [], daily: [], byMode: [], acu: 0, plan: PLANS.enterprise };
+    }
     const today = q.get(`SELECT COUNT(*) c, COALESCE(SUM(amount),0) s FROM receipts
       WHERE merchant_id=? AND verified_at > date('now')`, m.id);
     const month = q.get(`SELECT COUNT(*) c, COALESCE(SUM(amount),0) s FROM receipts
