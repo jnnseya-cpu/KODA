@@ -4,6 +4,19 @@ const { q } = require('./lib/db');
 const U = require('./lib/util');
 const engine = require('./lib/engine');
 
+// PRODUCTION: never seed demo accounts. Bootstrap a single admin from env.
+if (process.env.NODE_ENV === 'production' && process.env.KODA_SEED_DEMO !== '1') {
+  const adminEmail = (process.env.KODA_ADMIN_EMAIL || '').toLowerCase();
+  const adminPass = process.env.KODA_ADMIN_PASSWORD;
+  if (adminEmail && adminPass && !q.get('SELECT id FROM users WHERE email=?', adminEmail)) {
+    q.run(`INSERT INTO users (id,merchant_id,email,name,pass_hash,role,is_admin)
+           VALUES (?,NULL,?,'KODA Operations',?, 'owner',1)`,
+      U.id('usr'), adminEmail, U.hashPassword(adminPass));
+    console.log('  seed: production admin bootstrapped from env');
+  }
+  return; // demo/portfolio data stays out of production
+}
+
 if (!q.get(`SELECT id FROM users WHERE email='admin@koda.africa'`)) {
   // KODA staff admin
   q.run(`INSERT INTO users (id,merchant_id,email,name,pass_hash,role,is_admin)

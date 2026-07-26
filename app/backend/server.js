@@ -44,6 +44,11 @@ registerRoutes(router);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+  // production: enforce HTTPS behind the load balancer
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] === 'http') {
+    res.writeHead(301, { location: `https://${req.headers.host}${req.url}` });
+    return res.end();
+  }
   const t0 = performance.now();
   const reqId = Math.random().toString(36).slice(2, 10);
   const send = (code, body, headers = {}) => {
@@ -56,6 +61,7 @@ const server = http.createServer(async (req, res) => {
       'x-frame-options': 'SAMEORIGIN',
       'referrer-policy': 'strict-origin-when-cross-origin',
       'permissions-policy': 'camera=(self), geolocation=()',
+      ...(process.env.NODE_ENV === 'production' ? { 'strict-transport-security': 'max-age=31536000; includeSubDomains' } : {}),
       ...headers,
     });
     res.end(data);
