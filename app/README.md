@@ -154,6 +154,20 @@ Without the token everything runs and is recorded as sandbox deliveries.
 - `Dockerfile` (node:22-alpine, non-root, `/data` volume) + `.dockerignore` + `.env.example`
 - Providers flip live per-channel the moment each key lands - no code changes
 
+## Finance guard — month-one procedure
+
+`npm run margin` enforces the 100%-profit rule (every usage price >= 2x fully-loaded
+variable cost; subscriptions carry fixed overhead). It also runs inside `npm test`,
+so CI fails if pricing ever drops below the floor.
+
+When the first real invoices arrive (GCP, Meta/WhatsApp, Brevo, operator fees):
+1. Open `shared/costs.js` and replace the estimated `UNIT` and `FIXED_MONTHLY`
+   values with actuals from the invoices.
+2. Run `npm run margin`. If any price point fails, the tool names it — adjust
+   ACU weights first, the retail anchor last (spec §9 margin-protection law).
+3. Commit the updated costs so the guard polices real numbers from then on.
+Repeat whenever a provider changes prices or a new market adds cost lines.
+
 ## Production path
 
 Deployment target per `../THIRD_PARTY_KEYS.md`: Cloud Run + Cloud SQL (swap `lib/db.js`),
