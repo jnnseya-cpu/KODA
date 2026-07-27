@@ -310,7 +310,7 @@ Risk bands: `<0.15` auto-confirm · `0.15–0.6` challenge · `>0.6` reject. Mod
 
 Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per market (a Kinshasa boutique thinks in FC, a Dhaka shop in BDT) — pinned monthly, absorbed FX.
 
-**Margin protection law:** ACU pricing is calibrated so that every metered operation retails at **3× to 10× the underlying AI-provider cost** (model inference, vision extraction, agent orchestration). ACU rates and multipliers are re-checked against provider price changes on each monthly price-card pin; if a provider price move pushes an operation below the 3× floor, its ACU weight — not the retail anchor — is adjusted first.
+**Margin protection law (v2.1 — fully-loaded):** every usage price retails at **≥2× the fully-loaded variable cost** (AI inference + cloud/Firebase + WhatsApp/Meta conversation fees + email/SMS + mobile-money gateway fees + support ops) — the 100%-profit floor — and AI-heavy operations additionally at 3×–10× raw AI cost. **Subscriptions are sized to carry fixed overhead** (cloud baseline, Firebase, email tier, monitoring, domain, devices, legal/accounting amortization), so per-unit margins never subsidize infrastructure. Enforced in code: `app/shared/costs.js` + `npm run margin` fail CI if any price point drops below the floor. Re-run after any provider price change; ACU weights — not the retail anchor — adjust first.
 
 ## 10. The unified plan ladder
 
@@ -323,7 +323,7 @@ Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per mark
 | **Enterprise/Gov** | Custom | All | Volume, in-country residency, dedicated corridor models, white-label (+20% wholesale), SLA | Custom |
 
 **Pay-as-you-go (no subscription):** $10→300 ACU ($0.033) · $50→1,750 ($0.029) · $200→8,000 ($0.025).
-**Wholesale (Platform class, committed monthly):** 25k+ $0.018 · 100k+ $0.014 · 500k+ $0.010 · 2M+ custom (floor ~$0.007).
+**Wholesale (Platform class, committed monthly):** 25k+ $0.018 · 100k+ $0.014 · 500k+ $0.014 · 2M+ custom — **absolute floor $0.014**, cost-indexed (never below 2× fully-loaded variable cost).
 **Partners:** BSP/bot-builders 15% rev-share 24 mo or wholesale resale; agencies 10% referral + certified directory. Telco posture: none needed — if an operator wants to white-label KODA as their SME tool, that's enterprise licensing from a position of strength.
 
 ## 11. Prepaid-first billing — the product bills itself with itself

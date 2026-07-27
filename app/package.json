@@ -12,6 +12,7 @@
     "bench": "node --no-warnings backend/tools/bench.js",
     "test": "node --no-warnings backend/tools/test.js",
     "test:ui": "node --no-warnings backend/tools/ui-test.js",
-    "backup": "node --no-warnings backend/tools/backup.js"
+    "backup": "node --no-warnings backend/tools/backup.js",
+    "margin": "node --no-warnings backend/tools/margin.js"
   }
 }
