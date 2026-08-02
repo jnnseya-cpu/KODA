@@ -8,11 +8,16 @@ function scoreMatch({ merchant, intent, sms, reference, suffixProvided }) {
   const reasons = [];
   let score = 0.02; // base
 
-  // replay is checked before scoring (hard reject) — velocity features here
-  const recentAttempts = q.get(
-    `SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > datetime('now','-10 minutes')`,
-    merchant.id).c;
-  if (recentAttempts > 30) { score += 0.15; reasons.push('velocity_merchant_high'); }
+  // Velocity is a fraud signal only when it comes from ONE payer hammering —
+  // a merchant taking many DIFFERENT legitimate payments is a healthy business,
+  // never suspicious. So we look at same-payer burst, not merchant total volume.
+  if (sms && sms.counterparty_suffix) {
+    const samePayer = q.get(
+      `SELECT COUNT(*) c FROM sms_ledger
+       WHERE merchant_id=? AND counterparty_suffix=? AND received_at > datetime('now','-5 minutes')`,
+      merchant.id, sms.counterparty_suffix).c;
+    if (samePayer > 8) { score += 0.12; reasons.push('same_payer_burst'); } // mild; won't alone force review
+  }
 
   if (!sms) { score += 0.5; reasons.push('no_merchant_side_confirmation'); }
   else {

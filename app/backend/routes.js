@@ -81,11 +81,15 @@ module.exports = function registerRoutes(r) {
     const ref = reference || req.body.screenshot_ref;
     if (!ref) return [422, { error: 'vision_could_not_extract' }];
     let intent = null;
-    if (amount) { // ad-hoc manual intent so the receipt carries an expected amount
+    const amt = Number(amount);
+    if (amount !== undefined && amount !== '' && (!Number.isFinite(amt) || amt <= 0)) {
+      return [400, { error: 'invalid_amount' }];
+    }
+    if (Number.isFinite(amt) && amt > 0) { // ad-hoc manual intent so the receipt carries an expected amount
       const iid = U.id('int');
       q.run(`INSERT INTO intents (id,merchant_id,amount,currency,operators,status,expires_at,metadata)
              VALUES (?,?,?,?,?, 'awaiting_payment', datetime('now','+15 minutes'), ?)`,
-        iid, m.id, Number(amount), m.currency, JSON.stringify(OPERATORS.map(o => o.id)),
+        iid, m.id, amt, m.currency, JSON.stringify(OPERATORS.map(o => o.id)),
         JSON.stringify({ manual: true }));
       intent = q.get('SELECT * FROM intents WHERE id=?', iid);
     }
@@ -472,11 +476,19 @@ module.exports = function registerRoutes(r) {
 function createIntent(m, body) {
   if (m.status !== 'active') return [403, { error: { code: 'merchant_suspended' } }];
   if (m.acu_balance <= -100) return [402, { error: { code: 'insufficient_credit' } }];
+  // validate amount: positive finite number within sane bounds (in minor units)
+  const amount = Number(body.amount);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12) {
+    return [400, { error: { code: 'invalid_amount', message: 'amount must be a positive number' } }];
+  }
+  const currency = typeof body.currency === 'string' && /^[A-Z]{3}$/.test(body.currency) ? body.currency : m.currency;
   const iid = U.id('int');
-  const ops = Array.isArray(body.operators) && body.operators.length ? body.operators : ['orange_cd', 'mpesa_cd'];
+  const ops = Array.isArray(body.operators) && body.operators.length
+    ? body.operators.filter(o => typeof o === 'string').slice(0, 12) : ['orange_cd', 'mpesa_cd'];
+  if (!ops.length) return [400, { error: { code: 'invalid_operators' } }];
   q.run(`INSERT INTO intents (id,merchant_id,amount,currency,operators,customer_msisdn,metadata,purpose,expires_at)
          VALUES (?,?,?,?,?,?,?,?, datetime('now','+' || ? || ' seconds'))`,
-    iid, m.id, Number(body.amount), body.currency || m.currency, JSON.stringify(ops),
+    iid, m.id, amount, currency, JSON.stringify(ops),
     body.customer_msisdn || null, JSON.stringify(body.metadata || {}),
     body.purpose === 'topup' ? 'topup' : 'sale', Math.min(3600, Number(body.expires_in) || 900));
   const intent = q.get('SELECT * FROM intents WHERE id=?', iid);
