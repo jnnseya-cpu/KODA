@@ -380,4 +380,39 @@ fetch('/healthz').then(r=>r.json()).then(d=>{
 for (const [name, html] of Object.entries(pages)) {
   fs.writeFileSync(path.join(OUT, `${name}.html`), html);
 }
-module.exports = { generated: Object.keys(pages).length };
+
+// ---- SEO blog: crawlable posts + index, interlinked, JSON-LD, sitemap, robots ----
+const seo = require('../backend/lib/seo');
+const BUILD_NOW = process.env.KODA_BUILD_DATE || '2026-08-03T08:00:00Z';
+const dates = seo.postDates(BUILD_NOW);
+const posts = seo.allPosts();
+const blogDir = path.join(OUT, 'blog');
+fs.mkdirSync(blogDir, { recursive: true });
+
+// each post is a full standalone SEO page (reusing the content-page layout shell)
+function blogPage({ title, headExtra, kicker, h1, lead, bodyHtml }) {
+  const shell = page({ title, kicker, lead, body: bodyHtml });
+  // inject SEO head just before </head>-equivalent: our page() has no <head>, it inlines <style>; add meta after <title>
+  return shell.replace(/<title>[^<]*<\/title>/, m => m + '\n' + headExtra);
+}
+for (const p of posts) {
+  const r = seo.renderPost(p, dates[p.slug]);
+  const body = `${r.bodyHtml}\n${r.faqHtml}\n${r.relatedHtml}\n<p style="margin-top:26px"><a href="/get-started">Verify your first payment free →</a> · <a href="/blog">← all articles</a></p>`;
+  const html = blogPage({ title: p.title + ' | KODA', headExtra: r.head, kicker: 'KODA Blog', h1: p.title, lead: p.description, bodyHtml: body })
+    .replace(/<h1>[^<]*<\/h1>/, `<h1>${p.title.replace(/&/g, '&amp;')}</h1>`);
+  fs.writeFileSync(path.join(blogDir, `${p.slug}.html`), html);
+}
+// blog index
+const indexBody = `<div class="grid" style="grid-template-columns:1fr">${posts.map(p =>
+  `<div class="card"><h3><a href="/blog/${p.slug}">${p.title.replace(/&/g, '&amp;')}</a></h3><p>${p.description}</p>
+   <span style="font-family:var(--mono);font-size:11px;color:var(--dim)">${(p.tags || []).join(' · ')}</span></div>`).join('')}</div>`;
+fs.writeFileSync(path.join(OUT, 'blog.html'),
+  page({ title: 'KODA Blog — mobile money payment verification', kicker: 'KODA Blog',
+    lead: 'Guides on verifying mobile money payments, stopping fraud, and getting paid with certainty across Africa.', body: indexBody })
+    .replace(/<title>[^<]*<\/title>/, m => m + '\n' + seo.seoHead({ title: 'KODA Blog — mobile money payment verification', description: 'Guides on verifying mobile money payments, stopping screenshot fraud, and reconciliation for African merchants.', path: '/blog', jsonld: [seo.orgJsonLd()] })));
+
+// sitemap + robots at site root (served by the server)
+fs.writeFileSync(path.join(OUT, 'sitemap.xml'), seo.sitemap(dates));
+fs.writeFileSync(path.join(OUT, 'robots.txt'), seo.robots());
+
+module.exports = { generated: Object.keys(pages).length, posts: posts.length };

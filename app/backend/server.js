@@ -108,10 +108,16 @@ const server = http.createServer(async (req, res) => {
   if (fp.startsWith(PUBLIC) && fs.existsSync(fp) && fs.statSync(fp).isFile()) {
     return send(200, fs.readFileSync(fp), { 'content-type': MIME[path.extname(fp)] || 'application/octet-stream', 'cache-control': 'no-cache' });
   }
-  // pretty URLs for site pages: /about → /site/about.html
-  const page = path.join(PUBLIC, 'site', path.normalize(file).replace(/^\/|\/$/g, '') + '.html');
+  // sitemap.xml / robots.txt at site root (SEO)
+  if (file === '/sitemap.xml' || file === '/robots.txt') {
+    const sf = path.join(PUBLIC, 'site', file.slice(1));
+    if (fs.existsSync(sf)) return send(200, fs.readFileSync(sf), { 'content-type': file.endsWith('.xml') ? 'application/xml' : 'text/plain' });
+  }
+  // pretty URLs for site pages incl. /blog and /blog/<slug>: → /site/<path>.html
+  const rel = path.normalize(file).replace(/^\/|\/$/g, '');
+  const page = path.join(PUBLIC, 'site', rel + '.html');
   if (page.startsWith(PUBLIC) && fs.existsSync(page)) {
-    return send(200, fs.readFileSync(page), { 'content-type': 'text/html; charset=utf-8' });
+    return send(200, fs.readFileSync(page), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=600' });
   }
   send(404, { error: 'not_found', path: url.pathname });
 });

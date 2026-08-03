@@ -468,6 +468,32 @@ module.exports = function registerRoutes(r) {
     return { received: true };
   });
 
+  // ---------- SEO agent (K-10) + autopilot ----------
+  const seo = require('./lib/seo');
+  // public: what the SEO agent has published (also handy for internal dashboards)
+  r.get('/v1/seo/posts', () => ({
+    site: seo.SITE,
+    posts: seo.allPosts().map(p => ({ slug: p.slug, title: p.title, keyword: p.keyword,
+      url: `${seo.SITE}/blog/${p.slug}`, tags: p.tags, internal_links: (p.links || []).length + (p.related || []).length })),
+  }));
+  // admin: run the autopilot — regenerate the blog, sitemap and robots now
+  r.post('/app/seo/autopilot', admin(() => {
+    const before = require('node:fs');
+    let out;
+    try { delete require.cache[require.resolve('../frontend/build-site')]; out = require('../frontend/build-site'); }
+    catch (e) { return [500, { error: 'build_failed', detail: String(e.message) }]; }
+    audit(null, null, 'seo_autopilot_run', { posts: out.posts });
+    return { ok: true, regenerated: { pages: out.generated, posts: out.posts }, sitemap: `${seo.SITE}/sitemap.xml`,
+      note: 'Blog, internal-link web, JSON-LD, sitemap and robots regenerated. Submit the sitemap in Google Search Console once live.' };
+  }));
+  r.get('/app/seo/status', admin(() => ({
+    posts: seo.allPosts().length,
+    total_internal_links: seo.allPosts().reduce((a, p) => a + (p.links || []).length + (p.related || []).length + (p.faqs || []).length, 0),
+    keywords: seo.allPosts().map(p => p.keyword),
+    surfaces: ['sitemap.xml', 'robots.txt', 'JSON-LD (BlogPosting, FAQPage, BreadcrumbList, Organization)', 'OpenGraph', 'Twitter cards', 'canonical URLs'],
+    ai_gateway: !!(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY),
+  })));
+
   // health for status page
   r.get('/healthz', () => ({ ok: true, service: 'koda-api', time: new Date().toISOString() }));
 };
