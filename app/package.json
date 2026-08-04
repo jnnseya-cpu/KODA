@@ -16,6 +16,7 @@
     "margin": "node --no-warnings backend/tools/margin.js",
     "test:security": "node --no-warnings backend/tools/adversarial.js",
     "test:all": "npm test && npm run test:security",
-    "test:busy": "node --no-warnings backend/tools/test-busy-merchant.js"
+    "test:busy": "node --no-warnings backend/tools/test-busy-merchant.js",
+    "test:growth": "node --no-warnings backend/tools/test-growth.js"
   }
 }

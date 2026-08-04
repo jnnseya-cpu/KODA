@@ -17,6 +17,7 @@ const I18N = {
     invite: 'Inviter', create_key: 'Créer une clé', add_webhook: 'Ajouter un webhook', test: 'Tester',
     preview: 'Aperçu', send_test: "M'envoyer un test", mark_read: 'Tout marquer lu', save: 'Enregistrer',
     plan: 'Formule', change_plan: 'Changer de formule', language: 'Langue', auto: 'Auto (appareil)',
+    growth: 'Moteur de croissance', generate: 'Générer', growth_sub: 'Outils marketing IA — développe ta portée et tes partenaires',
   },
   en: {
     dashboard: 'Dashboard', verify: 'Verify', feed: 'Live payments feed', receipts: 'Receipts',
@@ -32,6 +33,7 @@ const I18N = {
     invite: 'Invite', create_key: 'Create key', add_webhook: 'Add webhook', test: 'Test',
     preview: 'Preview', send_test: 'Send test to me', mark_read: 'Mark all read', save: 'Save',
     plan: 'Plan', change_plan: 'Change plan', language: 'Language', auto: 'Auto (device)',
+    growth: 'AI Growth Engine', generate: 'Generate', growth_sub: 'AI marketing tools — maximise your reach and partners',
   },
 };
 let LANG = localStorage.getItem('koda_lang') || '';
@@ -73,6 +75,13 @@ const ROLE_VIEWS = {
   cashier: ['dashboard', 'verify', 'feed', 'receipts', 'receipt', 'comms', 'settings'],
   manager: ['dashboard', 'verify', 'feed', 'receipts', 'receipt', 'disputes', 'devices', 'comms', 'settings'],
 };
+const GROWTH_TOOLS = [
+  ['social_post', '📱', 'Social media post'], ['advert', '📢', 'Advert creator'],
+  ['email_campaign', '✉️', 'Email campaign'], ['landing_page', '🖥️', 'Landing page builder'],
+  ['hashtags', '#️⃣', 'Hashtag generator'], ['video_script', '🎬', 'Video script'],
+  ['recommendations', '💡', 'Performance recommendations'], ['audience', '🎯', 'Audience optimisation'],
+  ['analytics', '📊', 'Campaign analytics'], ['posting_time', '⏰', 'Best posting time'],
+];
 function route() {
   const hash = location.hash.replace(/^#\/?/, '') || (ME ? 'dashboard' : 'login');
   if (!ME && !['login', 'signup'].includes(hash.split('?')[0])) { location.hash = '#login'; return; }
@@ -104,6 +113,7 @@ function shell(active, title, sub, content) {
     ['devices', '▣', t('devices')],
   ];
   const ownerOnly = [
+    ['growth', '🚀', t('growth')],
     ['billing', '◈', t('billing')],
     ['team', '👥', t('team')],
     ['sec2', '', 'Platform'],
@@ -650,6 +660,78 @@ window.addSub = async () => {
     toast('✓ Onboarded'); } catch (e) { toast('✗ ' + e.message); }
 };
 window.suspendSub = async (id) => { await api(`/app/submerchants/${id}/suspend`, { body: {} }); route(); };
+
+VIEWS.growth = async () => {
+  const d = await api('/app/growth/tools');
+  const acuBy = Object.fromEntries(d.tools.map(x => [x.id, x.acu]));
+  shell('growth', t('growth'), t('growth_sub') + ' · K-11', `
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div style="font-size:13.5px;color:var(--dim)">Each tool runs the KODA Growth agent and produces ready-to-use output.
+      Metered in ACU — <span class="mono" style="color:var(--gold)">${fmt(d.balance)} ACU</span> available.</div>
+    <a class="btn btn-ghost btn-sm" href="#billing">${t('topup')}</a>
+  </div>
+  <div class="grid g3" style="margin-top:14px">
+    ${GROWTH_TOOLS.map(([id, ic, label]) => `<button class="card" style="text-align:left;border:1px solid var(--line);cursor:pointer" onclick="runGrowth('${id}')">
+      <div style="font-size:22px;margin-bottom:8px">${ic}</div>
+      <div style="font-weight:800;font-size:14.5px">${label}</div>
+      <div class="mono" style="font-size:11px;color:var(--dim);margin-top:4px">${acuBy[id] === 0 ? 'free' : acuBy[id] + ' ACU'}</div>
+    </button>`).join('')}
+  </div>
+  <div id="growth-out" style="margin-top:16px"></div>`);
+};
+window.runGrowth = async (tool) => {
+  const out = document.getElementById('growth-out');
+  out.innerHTML = `<div class="card"><div class="mono" style="color:var(--dim)">Running ${tool}…</div></div>`;
+  try {
+    const r = await api('/app/growth/' + tool, { body: growthOpts(tool) });
+    ME = await api('/app/me');
+    out.innerHTML = `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="margin:0">${esc(GROWTH_TOOLS.find(x => x[0] === tool)[2])}</h3>
+        <span class="badge b-info mono">${r.acu_consumed === 0 ? 'free' : r.acu_consumed + ' ACU'}</span></div>
+      ${renderGrowth(tool, r.result)}
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="copyGrowth(this)" data-t="${esc(JSON.stringify(r.result))}">Copy output</button>
+        <button class="btn btn-gold btn-sm" onclick="runGrowth('${tool}')">Regenerate</button>
+      </div></div>`;
+  } catch (e) {
+    out.innerHTML = `<div class="card" style="border-color:var(--danger)"><div class="mono" style="color:var(--danger)">✗ ${esc(e.message)}${e.status === 402 ? ' — top up ACU to use this tool' : ''}</div></div>`;
+  }
+};
+function growthOpts(tool) {
+  // sensible defaults; a fuller UI could expose these as fields
+  return { social_post: { channel: 'whatsapp' }, advert: { channel: 'facebook', budget_usd: 20 },
+    hashtags: { topic: 'mobile money', channel: 'instagram' }, video_script: { seconds: 30, platform: 'tiktok' } }[tool] || {};
+}
+function renderGrowth(tool, r) {
+  const pre = (o) => `<div class="codebox" style="white-space:pre-wrap">${esc(typeof o === 'string' ? o : JSON.stringify(o, null, 2))}</div>`;
+  if (tool === 'social_post') return `<div class="codebox" style="white-space:pre-wrap">${esc(r.text)}</div>
+    <div style="margin-top:8px">${(r.hashtags || []).map(h => `<span class="chan inapp">${esc(h)}</span>`).join(' ')}</div>`;
+  if (tool === 'advert') return `<dl class="kv"><dt>headline</dt><dd>${esc(r.headline)}</dd><dt>primary</dt><dd>${esc(r.primary_text)}</dd>
+    <dt>CTA</dt><dd>${esc(r.cta_button)}</dd><dt>reach/day</dt><dd>${esc(r.est_reach)}</dd><dt>creative</dt><dd>${esc(r.creative_brief)}</dd></dl>`;
+  if (tool === 'email_campaign') return `<dl class="kv"><dt>subject</dt><dd>${esc(r.subject)}</dd><dt>preheader</dt><dd>${esc(r.preheader)}</dd>
+    <dt>send</dt><dd>${esc(r.send_time_hint)}</dd></dl><div class="codebox" style="margin-top:8px">${esc(r.body_html)}</div>`;
+  if (tool === 'hashtags') return `<div>${r.hashtags.map(h => `<span class="chan inapp" style="margin:2px">${esc(h)}</span>`).join(' ')}</div>`;
+  if (tool === 'video_script') return `<dl class="kv">${r.scenes.map(s => `<dt>${esc(s.t)}</dt><dd><b>${esc(s.shot)}</b><br><span style="color:var(--dim)">${esc(s.vo)}</span></dd>`).join('')}</dl>
+    <div style="margin-top:8px" class="mono">${esc(r.caption)} · ${(r.hashtags || []).join(' ')}</div>`;
+  if (tool === 'recommendations') return r.recommendations.map(x => `<div class="feed-row"><div class="feed-ic ${x.priority === 'high' ? 'f-bad' : x.priority === 'medium' ? 'f-dim' : 'f-ok'}">${x.priority[0].toUpperCase()}</div>
+    <div><div class="t">${esc(x.text)}</div><div class="m">${esc(x.area)} · ${esc(x.priority)}</div></div></div>`).join('');
+  if (tool === 'landing_page') return `<dl class="kv"><dt>hero</dt><dd><b>${esc(r.hero.headline)}</b><br>${esc(r.hero.sub)}</dd></dl>
+    ${r.sections.map(s => `<div style="margin-top:6px"><b>${esc(s.title)}</b> — <span style="color:var(--dim)">${esc(s.text)}</span></div>`).join('')}`;
+  if (tool === 'audience') return `<dl class="kv"><dt>primary</dt><dd>${esc(r.primary)}</dd></dl>
+    ${r.segments.map(s => `<div style="margin-top:6px"><b>${esc(s.name)}</b> — <span style="color:var(--dim)">${esc(s.angle)}</span></div>`).join('')}
+    <div class="mono" style="margin-top:8px;color:var(--dim)">Channels: ${r.channels.join(' · ')}</div>`;
+  if (tool === 'analytics') return `<dl class="kv">${Object.entries(r.metrics).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v ?? '—')}</dd>`).join('')}
+    <dt>verdict</dt><dd><span class="badge ${r.verdict === 'strong' ? 'b-ok' : r.verdict === 'healthy' ? 'b-info' : 'b-warn'}">${esc(r.verdict)}</span></dd>
+    <dt>next</dt><dd>${esc(r.next_step)}</dd></dl>`;
+  if (tool === 'posting_time') return `<dl class="kv">${r.best_windows.map(w => `<dt>${esc(w.channel)}</dt><dd>${esc(w.days)} · ${esc(w.time)}</dd>`).join('')}</dl>
+    <div class="mono" style="color:var(--dim);margin-top:6px">${esc(r.note)}</div>`;
+  return pre(r);
+}
+window.copyGrowth = (btn) => {
+  try { const o = JSON.parse(btn.dataset.t); const s = typeof o.text === 'string' ? o.text : JSON.stringify(o, null, 2);
+    navigator.clipboard?.writeText(s); toast('✓ Copied'); } catch { toast('copied'); }
+};
 
 VIEWS.settings = async () => {
   const m = ME.merchant;

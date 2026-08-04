@@ -54,6 +54,9 @@
     { label: 'Wholesale 100k+', usd: 0.014, path: 'code' },
     { label: 'Wholesale 500k+ (floor)', usd: 0.014, path: 'code' },   // raised from 0.010
     { label: 'Vision path (3 ACU @ $0.03)', usd: 0.090, path: 'vision' },
+    { label: 'Growth: social post (1 ACU)', usd: 0.030, path: 'code' },
+    { label: 'Growth: landing page (3 ACU)', usd: 0.090, path: 'vision' },
+    { label: 'Growth: hashtags (0.5 ACU)', usd: 0.015, path: 'code' },
     { label: 'Wholesale absolute floor', usd: 0.014, path: 'code' },  // raised from ~0.007
   ];
 

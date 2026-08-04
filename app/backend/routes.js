@@ -468,6 +468,31 @@ module.exports = function registerRoutes(r) {
     return { received: true };
   });
 
+  // ---------- AI Growth Engine (K-11) ----------
+  const growth = require('./lib/growth');
+  r.get('/app/growth/tools', auth((req, user, m) => ({
+    tools: Object.entries(growth.TOOLS).map(([id, t]) => ({ id, label: t.label, acu: t.acu })),
+    balance: m ? m.acu_balance : 0,
+  })));
+  r.post('/app/growth/:tool', auth((req, user, m) => {
+    if (!m) return [400, { error: 'no_merchant' }];
+    const tool = growth.TOOLS[req.params.tool];
+    if (!tool) return [404, { error: 'unknown_tool' }];
+    if (m.acu_balance < tool.acu) return [402, { error: 'insufficient_credit', required_acu: tool.acu, balance: m.acu_balance }];
+    // recommendations reads the merchant's real KODA data
+    let input = req.body || {};
+    if (req.params.tool === 'recommendations') {
+      const month = q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > date('now','start of month')`, m.id).c;
+      const unmatched = q.get(`SELECT COUNT(*) c FROM sms_ledger WHERE merchant_id=? AND matched_intent_id IS NULL AND quarantined=0 AND ref_code IS NOT NULL`, m.id).c;
+      const disputes = q.get(`SELECT COUNT(*) c FROM disputes WHERE merchant_id=? AND status='open'`, m.id).c;
+      input = { acu: m.acu_balance, unmatched, disputes, monthVerifs: month, planQuota: (PLANS[m.plan] || {}).verifs };
+    }
+    const result = tool.run(m, input);
+    if (tool.acu > 0) engine.chargeAcu(m, tool.acu, 'growth:' + req.params.tool, null);
+    audit(m.id, user.id, 'growth_tool', { tool: req.params.tool, acu: tool.acu });
+    return { tool: req.params.tool, acu_consumed: tool.acu, result };
+  }));
+
   // ---------- SEO agent (K-10) + autopilot ----------
   const seo = require('./lib/seo');
   // public: what the SEO agent has published (also handy for internal dashboards)
