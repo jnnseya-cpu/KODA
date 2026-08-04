@@ -15,8 +15,9 @@
     "backup": "node --no-warnings backend/tools/backup.js",
     "margin": "node --no-warnings backend/tools/margin.js",
     "test:security": "node --no-warnings backend/tools/adversarial.js",
-    "test:all": "npm test && npm run test:security",
+    "test:all": "npm test && npm run test:security && npm run test:growth && npm run test:gating",
     "test:busy": "node --no-warnings backend/tools/test-busy-merchant.js",
-    "test:growth": "node --no-warnings backend/tools/test-growth.js"
+    "test:growth": "node --no-warnings backend/tools/test-growth.js",
+    "test:gating": "node --no-warnings backend/tools/test-ai-gating.js"
   }
 }

@@ -30,6 +30,23 @@ function creditAcu(merchant, amount, kind, ref) {
   merchant.acu_balance = bal;
   return bal;
 }
+// ── AI METERING GATE ────────────────────────────────────────────────────────
+// Policy: EVERY AI action is metered and gated by available ACU. No AI action is
+// free (min cost enforced), and none runs when the balance cannot cover it.
+// Returns {ok:true} or a 402-shaped [status, body] to return directly.
+const AI_MIN = 0.25; // no AI operation may be free or cost less than this
+function gateAI(merchant, cost, label) {
+  const c = Number(cost);
+  if (!Number.isFinite(c) || c < AI_MIN) {
+    return [500, { error: { code: 'ai_action_not_metered', message: `AI action "${label}" has no valid ACU price` } }];
+  }
+  if (!merchant || merchant.acu_balance < c) {
+    return [402, { error: { code: 'insufficient_credit', required_acu: c, balance: merchant ? merchant.acu_balance : 0,
+      message: 'Top up ACU to run this AI action.' } }];
+  }
+  return { ok: true, cost: c };
+}
+
 function notifyOwners(merchant, eventKey, data) {
   // deferred off the money path: the verification response never waits on comms
   setImmediate(() => {
@@ -201,4 +218,4 @@ function editDistance(a, b) {
 }
 function fmtAmt(n) { return Number(n || 0).toLocaleString('fr-FR'); }
 
-module.exports = { verify, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners };
+module.exports = { verify, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN };

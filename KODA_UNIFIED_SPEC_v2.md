@@ -310,6 +310,8 @@ Risk bands: `<0.15` auto-confirm · `0.15–0.6` challenge · `>0.6` reject. Mod
 
 Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per market (a Kinshasa boutique thinks in FC, a Dhaka shop in BDT) — pinned monthly, absorbed FX.
 
+**AI metering policy (absolute):** every AI action on the platform — verification, Vision extraction, dispute-evidence generation, on-demand agent runs, and all AI Growth Engine tools — is **metered in ACU and gated by available balance**. No AI action is free (enforced minimum 0.25 ACU) and none executes when the balance cannot cover it (HTTP 402). Enforced centrally by one gate (`engine.gateAI`) that every AI endpoint passes through, and regression-tested (`npm run test:gating`). The sole money-path nuance: code-path *verification* retains a bounded, repayable grace overdraft (spec §11) so a paying customer is never stranded at the till — that is deferred billing, not free usage.
+
 **Margin protection law (v2.1 — fully-loaded):** every usage price retails at **≥2× the fully-loaded variable cost** (AI inference + cloud/Firebase + WhatsApp/Meta conversation fees + email/SMS + mobile-money gateway fees + support ops) — the 100%-profit floor — and AI-heavy operations additionally at 3×–10× raw AI cost. **Subscriptions are sized to carry fixed overhead** (cloud baseline, Firebase, email tier, monitoring, domain, devices, legal/accounting amortization), so per-unit margins never subsidize infrastructure. Enforced in code: `app/shared/costs.js` + `npm run margin` fail CI if any price point drops below the floor. Re-run after any provider price change; ACU weights — not the retail anchor — adjust first.
 
 ## 10. The unified plan ladder

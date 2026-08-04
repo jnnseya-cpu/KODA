@@ -80,6 +80,11 @@ module.exports = function registerRoutes(r) {
     // screenshot path: VisionAgent extraction (sandbox: caller passes extracted ref via screenshot_ref)
     const ref = reference || req.body.screenshot_ref;
     if (!ref) return [422, { error: 'vision_could_not_extract' }];
+    // screenshot = VisionAgent (AI action, 3 ACU) — gated; code path is the free-to-fall-back-on money path
+    if (screenshot) {
+      const gate = engine.gateAI(m, engine.ACU.vision, 'vision-extract');
+      if (gate.ok !== true) return gate;
+    }
     let intent = null;
     const amt = Number(amount);
     if (amount !== undefined && amount !== '' && (!Number.isFinite(amt) || amt <= 0)) {
@@ -140,6 +145,9 @@ module.exports = function registerRoutes(r) {
   r.get('/app/disputes', auth((req, user, m) =>
     q.all('SELECT * FROM disputes WHERE merchant_id=? ORDER BY created_at DESC', m.id)));
   r.post('/app/disputes', auth((req, user, m) => {
+    // DisputeAgent assembles an AI evidence file — metered + gated like every AI action
+    const gate = engine.gateAI(m, engine.ACU.dispute, 'dispute-evidence');
+    if (gate.ok !== true) return gate;
     const did = U.id('dsp');
     const evidence = {
       assembled_by: 'DisputeAgent K-06',
@@ -397,9 +405,10 @@ module.exports = function registerRoutes(r) {
   r.post('/v1/agents/:type/run', apiKey((req, m) => {
     const agent = AGENTS.find(a => a.type === req.params.type);
     if (!agent) return [404, { error: { code: 'unknown_agent', doc_url: 'https://docs.koda.africa/agents' } }];
-    if (m.acu_balance < agent.acu) return [402, { error: { code: 'insufficient_credit', required_acu: agent.acu, balance: m.acu_balance } }];
+    const gate = engine.gateAI(m, agent.acu, 'agent:' + agent.type);
+    if (gate.ok !== true) return gate; // 402/500 — every AI action gated by ACU
     const result = agent.run(m, req.body || {});
-    if (agent.acu > 0) engine.chargeAcu(m, agent.acu, 'agent:' + agent.type, null);
+    engine.chargeAcu(m, agent.acu, 'agent:' + agent.type, null);
     return { agent: agent.type, acu_consumed: agent.acu, result };
   }, 'run:agents'));
 
@@ -478,7 +487,8 @@ module.exports = function registerRoutes(r) {
     if (!m) return [400, { error: 'no_merchant' }];
     const tool = growth.TOOLS[req.params.tool];
     if (!tool) return [404, { error: 'unknown_tool' }];
-    if (m.acu_balance < tool.acu) return [402, { error: 'insufficient_credit', required_acu: tool.acu, balance: m.acu_balance }];
+    const gate = engine.gateAI(m, tool.acu, 'growth:' + req.params.tool);
+    if (gate.ok !== true) return gate; // every AI action gated by available ACU
     // recommendations reads the merchant's real KODA data
     let input = req.body || {};
     if (req.params.tool === 'recommendations') {
@@ -594,9 +604,9 @@ function apiKey(handler, scope) {
 
 // runnable agent catalogue — the on-demand slice of the K-01→K-09 mesh
 const AGENTS = [
-  { type: 'parser', id: 'K-01', label: 'ParserAgent', acu: 0,
-    description: 'Parse a raw operator SMS into canonical fields (teaching endpoint).',
-    run: (m, body) => require('./lib/parser').parseSms(body.raw || '', body.operator) || { parsed: false } },
+  { type: 'parser', id: 'K-01', label: 'ParserAgent', acu: 0.25,
+    description: 'Parse a raw operator SMS into canonical fields.',
+    run: (m, body) => require('../shared/parser').parseSms(body.raw || '', body.operator) || { parsed: false } },
   { type: 'reconciler', id: 'K-05', label: 'ReconcilerAgent', acu: 1,
     description: 'On-demand three-way reconciliation report: ledger vs receipts vs intents.',
     run: (m) => ({
