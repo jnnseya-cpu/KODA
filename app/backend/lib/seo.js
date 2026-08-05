@@ -84,7 +84,9 @@ function renderPost(post, dateISO) {
 function allPosts() { return POSTS; }
 function postDates(startISO) {
   // deterministic descending dates from a supplied "now" (scripts can't call Date.now())
-  const base = new Date(startISO).getTime();
+  // tolerate a missing/invalid start (e.g. KODA_BUILD_DATE=unknown) → fall back safely
+  let base = new Date(startISO).getTime();
+  if (!Number.isFinite(base)) base = new Date('2026-08-03T08:00:00Z').getTime();
   return Object.fromEntries(POSTS.map((p, i) => [p.slug, new Date(base - i * 3 * 864e5).toISOString()]));
 }
 

@@ -422,7 +422,10 @@ for (const [name, html] of Object.entries(pages)) {
 
 // ---- SEO blog: crawlable posts + index, interlinked, JSON-LD, sitemap, robots ----
 const seo = require('../backend/lib/seo');
-const BUILD_NOW = process.env.KODA_BUILD_DATE || '2026-08-03T08:00:00Z';
+// KODA_BUILD_DATE may be a git/CI stamp, unset, or a placeholder like 'unknown';
+// only trust it if it parses to a real date, else use a stable fallback.
+const BUILD_NOW = Number.isFinite(new Date(process.env.KODA_BUILD_DATE).getTime())
+  ? process.env.KODA_BUILD_DATE : '2026-08-03T08:00:00Z';
 const dates = seo.postDates(BUILD_NOW);
 const posts = seo.allPosts();
 const blogDir = path.join(OUT, 'blog');
