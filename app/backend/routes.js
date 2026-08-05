@@ -492,7 +492,7 @@ module.exports = function registerRoutes(r) {
           const m = q.get(`SELECT * FROM merchants WHERE replace(msisdn,'+','') = ? AND status='active'`, display.replace(/[^\d]/g, ''))
                  || q.get(`SELECT * FROM merchants WHERE status='active' AND parent_id IS NULL ORDER BY created_at LIMIT 1`);
           if (!m) continue;
-          const ref = (text.toUpperCase().match(/[A-Z0-9][A-Z0-9.\-]{6,}/) || [])[0];
+          const ref = (text.toUpperCase().match(/[A-Z0-9][A-Z0-9.\-]{6,}/g) || []).find(t => /\d/.test(t));
           let reply;
           if (!ref) {
             reply = m.language === 'en'
@@ -516,6 +516,62 @@ module.exports = function registerRoutes(r) {
       }
     }
     return { received: true };
+  });
+
+  // ---------- LOW / NO-INTERNET + FEATURE-PHONE DOORS ----------
+  // For zones with weak/no data and non-smartphones, the checkout page and
+  // WhatsApp don't work. USSD and inbound-SMS do — on ANY phone, over the
+  // cellular network, no internet. A MERCHANT verifies from their registered
+  // phone; KODA routes by that number. Aggregator-agnostic (Africa's Talking /
+  // Twilio / an MNO shortcode post here).
+  function merchantByPhone(phone) {
+    const digits = String(phone || '').replace(/\D/g, '');
+    if (digits.length < 6) return null;
+    const tail = digits.slice(-9);
+    return q.get(`SELECT * FROM merchants WHERE status='active' AND replace(replace(msisdn,'+',''),' ','') LIKE ?`, '%' + tail) || null;
+  }
+  function verdictText(res, m) {
+    const cur = m.currency || 'CDF';
+    if (res.status === 'verified' || res.status === 'verified_late')
+      return `Paiement confirme: ${Number(res.amount_confirmed).toLocaleString('fr-FR')} ${cur}. Merci!`;
+    if (res.status === 'not_found_yet') return `Paiement en route. Reessayez dans un instant.`;
+    if (res.code === 'code_already_used') return `Code deja utilise. Verifiez la reference.`;
+    return `Non confirme. Verifiez le code et le montant.`;
+  }
+
+  // USSD (Africa's Talking style): body {sessionId, phoneNumber, text}; reply is
+  // plain text "CON ..." (menu continues) or "END ..." (session ends).
+  r.post('/webhooks/ussd', (req) => {
+    const b = req.body || {};
+    const m = merchantByPhone(b.phoneNumber);
+    const steps = String(b.text || '').split('*').filter(Boolean);
+    const send = (t) => [200, t, { 'content-type': 'text/plain; charset=utf-8' }];
+    if (!m) return send('END Numero non enregistre chez KODA.');
+    if (steps.length === 0) return send('CON KODA — verifier un paiement\nEntrez le code recu par SMS:');
+    const code = steps[steps.length - 1];
+    const res = engine.verify(m, null, code, { mode: 'ussd' });
+    q.run(`INSERT INTO comm_deliveries (id,merchant_id,user_id,event_key,channel,recipient,subject,provider,status)
+           VALUES (?,?,NULL,'verify.ussd','sms',?,?,?, 'sent')`,
+      U.id('dlv'), m.id, b.phoneNumber || '', ('ussd:' + code).slice(0, 120), 'ussd');
+    return send('END ' + verdictText(res, m));
+  });
+
+  // Inbound SMS-to-shortcode: body {from, to, text}. The merchant texts the code
+  // to KODA's number; KODA verifies and (if a gateway is set) SMS-replies.
+  r.post('/webhooks/sms', (req) => {
+    const b = req.body || {};
+    const from = b.from || b.msisdn || '';
+    const m = merchantByPhone(from);
+    if (!m) return { received: true };
+    // a transaction code always contains a digit — so a greeting isn't mistaken for one
+    const code = (String(b.text || '').toUpperCase().match(/[A-Z0-9][A-Z0-9.\-]{4,}/g) || []).find(t => /\d/.test(t));
+    const reply = code ? verdictText(engine.verify(m, null, code, { mode: 'sms' }), m)
+                       : 'Envoyez le code de transaction pour verifier votre paiement.';
+    const gw = !!process.env.SMS_GATEWAY_KEY;
+    q.run(`INSERT INTO comm_deliveries (id,merchant_id,user_id,event_key,channel,recipient,subject,provider,status)
+           VALUES (?,?,NULL,'verify.sms_reply','sms',?,?,?,?)`,
+      U.id('dlv'), m.id, from, reply.slice(0, 120), gw ? 'gateway' : 'sandbox', gw ? 'sent' : 'logged');
+    return { received: true, reply };
   });
 
   // ---------- AI Growth Engine (K-11) ----------
@@ -766,6 +822,7 @@ function openapi() {
       '/receipts': { get: { summary: 'List verified receipts', 'x-scope': 'read:receipts' } },
       '/sandbox/sms': { post: { summary: 'Inject an operator-formatted SMS (sandbox simulator)' } },
       '/device/sms': { post: { summary: 'Sentinel phone-edge SMS forward — device-token auth (fills the live ledger)' } },
+      '/operators': { get: { summary: 'Operator coverage — the mobile-money landscape KODA recognises (precise vs generic)' } },
       '/billing/balance': { get: { summary: 'Prepaid ACU balance', 'x-scope': 'read:usage' } },
       '/agents': { get: { summary: 'List runnable AI agents and their ACU cost', 'x-scope': 'read:agents' } },
       '/agents/{type}/run': { post: { summary: 'Run an AI agent — consumes prepaid ACU (402 when empty)', 'x-scope': 'run:agents' } },

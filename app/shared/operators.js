@@ -117,6 +117,21 @@
     { id: 'mtcash_ma', name: 'MT Cash', country: 'MA', region: 'NORTH', currency: 'MAD', senders: ['MTCASH', 'MAROCTELECOM'] },
     { id: 'd17_tn', name: 'D17', country: 'TN', region: 'NORTH', currency: 'TND', senders: ['D17', 'LAPOSTE'] },
     { id: 'orange_tn', name: 'Orange Money', country: 'TN', region: 'NORTH', currency: 'TND', senders: ['ORANGE'] },
+
+    // ── South Asia (SMS-based mobile financial services; India is UPI/bank-SMS) ─
+    { id: 'bkash_bd', name: 'bKash', country: 'BD', region: 'SOUTH_ASIA', currency: 'BDT', senders: ['BKASH'] },
+    { id: 'nagad_bd', name: 'Nagad', country: 'BD', region: 'SOUTH_ASIA', currency: 'BDT', senders: ['NAGAD'] },
+    { id: 'rocket_bd', name: 'Rocket', country: 'BD', region: 'SOUTH_ASIA', currency: 'BDT', senders: ['ROCKET', 'DBBL'] },
+    { id: 'upay_bd', name: 'Upay', country: 'BD', region: 'SOUTH_ASIA', currency: 'BDT', senders: ['UPAY'] },
+    { id: 'easypaisa_pk', name: 'Easypaisa', country: 'PK', region: 'SOUTH_ASIA', currency: 'PKR', senders: ['EASYPAISA'] },
+    { id: 'jazzcash_pk', name: 'JazzCash', country: 'PK', region: 'SOUTH_ASIA', currency: 'PKR', senders: ['JAZZCASH', 'JAZZ'] },
+    { id: 'upaisa_pk', name: 'UPaisa', country: 'PK', region: 'SOUTH_ASIA', currency: 'PKR', senders: ['UPAISA', 'UFONE'] },
+    { id: 'esewa_np', name: 'eSewa', country: 'NP', region: 'SOUTH_ASIA', currency: 'NPR', senders: ['ESEWA'] },
+    { id: 'khalti_np', name: 'Khalti', country: 'NP', region: 'SOUTH_ASIA', currency: 'NPR', senders: ['KHALTI'] },
+    { id: 'imepay_np', name: 'IME Pay', country: 'NP', region: 'SOUTH_ASIA', currency: 'NPR', senders: ['IMEPAY', 'IME'] },
+    { id: 'ezcash_lk', name: 'Dialog eZ Cash', country: 'LK', region: 'SOUTH_ASIA', currency: 'LKR', senders: ['EZCASH', 'DIALOG'] },
+    { id: 'mcash_lk', name: 'Mobitel mCash', country: 'LK', region: 'SOUTH_ASIA', currency: 'LKR', senders: ['MCASH', 'MOBITEL'] },
+    { id: 'upi_in', name: 'UPI (bank credit SMS)', country: 'IN', region: 'SOUTH_ASIA', currency: 'INR', senders: ['UPI', 'PHONEPE', 'PAYTM', 'GPAY'] },
   ];
 
   const byId = Object.fromEntries(OPS.map(o => [o.id, o]));

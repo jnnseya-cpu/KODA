@@ -63,6 +63,27 @@ async function j(method, path, body, headers) {
   const dev = (devices.d || []).find(x => x.id === enroll.d.device_id);
   ok(dev && dev.battery === 88, 'device battery telemetry recorded', dev ? String(dev.battery) : 'n/a');
 
+  // ── low/no-internet + feature-phone doors (USSD + inbound SMS) ────────────
+  const PHONE = '+243812345678'; // Maison Kivu registered merchant phone (seed)
+  const refU = 'OM.260805.1930.USSD' + Math.floor(performance.now() % 1e5);
+  const refS = 'OM.260805.1931.SMS' + Math.floor(performance.now() % 1e5);
+  await j('POST', '/v1/device/sms', { raw: `Vous avez recu 12 000 FC de USSD TEST (+243890111000). Ref: ${refU}.`, operator: 'orange_cd' }, DT);
+  await j('POST', '/v1/device/sms', { raw: `Vous avez recu 9 000 FC de SMS TEST (+243890222000). Ref: ${refS}.`, operator: 'orange_cd' }, DT);
+
+  // USSD: empty text → menu; unregistered number → rejected; code → verified
+  const menu = await j('POST', '/webhooks/ussd', { phoneNumber: PHONE, text: '' });
+  ok(menu.status === 200 && /^CON /.test(menu.t || ''), 'USSD menu prompts for a code (CON)', (menu.t || '').split('\n')[0]);
+  const unreg = await j('POST', '/webhooks/ussd', { phoneNumber: '+10000000', text: '' });
+  ok(/^END Numero non enregistre/.test(unreg.t || ''), 'USSD rejects unregistered number');
+  const ussdV = await j('POST', '/webhooks/ussd', { phoneNumber: PHONE, text: refU });
+  ok(ussdV.status === 200 && /^END Paiement confirme/.test(ussdV.t || ''), 'USSD verifies a real payment (feature phone, no internet)', (ussdV.t || '').replace('END ', ''));
+
+  // Inbound SMS: merchant texts the code to the shortcode → verified reply
+  const smsV = await j('POST', '/webhooks/sms', { from: PHONE, text: 'PAY ' + refS });
+  ok(smsV.status === 200 && /confirme/i.test(smsV.d.reply || ''), 'inbound SMS verifies a real payment', smsV.d.reply);
+  const smsNoCode = await j('POST', '/webhooks/sms', { from: PHONE, text: 'bonjour' });
+  ok(/code de transaction/i.test(smsNoCode.d.reply || ''), 'inbound SMS with no code asks for one');
+
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('DOORS TEST CRASH', e); process.exit(1); });

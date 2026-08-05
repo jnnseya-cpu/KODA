@@ -44,7 +44,7 @@ function num(s) {
 }
 
 // Currencies KODA recognises across the mobile-money landscape (for the generic pass).
-const CUR = 'FC|CDF|USD|XOF|XAF|GHS|NGN|KES|TZS|UGX|RWF|ZAR|EGP|MAD|TND|EUR|MZN|ZMW|MWK|SLE|SLL|GMD|GNF|LRD|BIF|ETB|SOS|AOA|MGA|LSL|SZL|BWP';
+const CUR = 'FC|CDF|USD|XOF|XAF|GHS|NGN|KES|TZS|UGX|RWF|ZAR|EGP|MAD|TND|EUR|MZN|ZMW|MWK|SLE|SLL|GMD|GNF|LRD|BIF|ETB|SOS|AOA|MGA|LSL|SZL|BWP|INR|BDT|PKR|LKR|NPR';
 
 // Generic, multilingual fallback (FR/EN/PT). Fires ONLY when no precise pack
 // matches. It extracts amount+currency, a reference code, and the payer name
@@ -68,8 +68,10 @@ function genericParse(raw) {
   if (!ref) return null;
   // currency (optional): ISO code, else a colloquial symbol/abbrev
   let currency = (s.match(new RegExp(`\\b(${CUR})\\b`, 'i')) || [])[1];
-  if (!currency) currency = (s.match(/\b(Ksh|Ush|Tsh|Br|MT)\b/i) || [])[1];
-  if (currency) currency = currency.toUpperCase().replace(/^FC$/, 'CDF').replace(/^KSH$/, 'KES').replace(/^USH$/, 'UGX').replace(/^TSH$/, 'TZS');
+  if (!currency) currency = (s.match(/\b(Ksh|Ush|Tsh|Br|MT|Rs|Tk|Taka)\b/i) || [])[1];
+  if (currency) currency = currency.toUpperCase()
+    .replace(/^FC$/, 'CDF').replace(/^KSH$/, 'KES').replace(/^USH$/, 'UGX').replace(/^TSH$/, 'TZS')
+    .replace(/^TK$|^TAKA$/, 'BDT');
   const name = (s.match(/(?:\bde\b|\bfrom\b|da parte de|\bpar\b|\bby\b)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9.'\- ]{1,40}?)(?=\s*(?:[.,(]|\bref|\btxn|\bid\b|solde|balance|saldo|\+?\d|$))/i) || [])[1];
   const suffix = (s.match(/(\d{4})(?!\d)/) || [])[1] || null;
   const balance = num((s.match(/(?:solde|balance|saldo)\s*[:.]?\s*([\d][\d\s.,]*)/i) || [])[1]);

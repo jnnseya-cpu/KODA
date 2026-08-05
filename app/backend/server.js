@@ -106,7 +106,7 @@ const server = http.createServer(async (req, res) => {
     const params = Object.fromEntries(match.p.keys.map((k, i) => [k, m[i + 1]]));
     try {
       const out = await match.h({ params, body, rawBody, query: Object.fromEntries(url.searchParams), headers: req.headers });
-      if (Array.isArray(out) && typeof out[0] === 'number') return send(out[0], out[1]);
+      if (Array.isArray(out) && typeof out[0] === 'number') return send(out[0], out[1], out[2] || {});
       return send(200, out ?? { ok: true });
     } catch (e) {
       console.error('route error', url.pathname, reqId, e);
