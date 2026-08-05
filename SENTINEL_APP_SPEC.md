@@ -1,9 +1,15 @@
 # KODA Sentinel — Android app build specification (v1)
 
-**Sentinel is the phone-edge of KODA.** It runs on an Android phone that holds the
-merchant's mobile-money SIM(s), reads the payment-confirmation SMS the operators
-send, and forwards them — signed and attested — to KODA, which fills the live
-ledger every verification is matched against.
+**Sentinel is the phone-edge of KODA.** Each **merchant** installs it on **their
+own phone** — the one holding **their own mobile-money SIM** — where it reads the
+payment-confirmation SMS the operators send and forwards them, signed and
+attested, to KODA, which fills the live ledger every verification is matched
+against.
+
+> **KODA holds no SIMs and never touches the money.** Customers pay the merchant's
+> own mobile-money number directly; the funds land in the merchant's own account.
+> Sentinel + KODA only *verify* that the payment happened. This is why onboarding a
+> merchant needs no hardware from KODA — just the merchant's phone and their number.
 
 Without Sentinel, KODA verifies only sandbox/manually-entered codes. **With
 Sentinel, real customer payments become verifiable.** This is the single piece

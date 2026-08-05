@@ -162,9 +162,14 @@ Your ledger volume is preserved across updates.
   switch on the moment you add the Meta keys / pair a phone
 
 **Not yet 🔴 (none block a public beta)**
-- Real customer money in your bank → needs the **Sentinel Android app** (see
-  `SENTINEL_APP_SPEC.md`) **+ mobile-money SIMs**
+- Real **verified payments** → needs the **Sentinel Android app** (see
+  `SENTINEL_APP_SPEC.md`). Each merchant installs it on **their own phone** and
+  links **their own mobile-money number**. KODA holds no SIMs and never touches
+  the money — customers pay the merchant directly; KODA only verifies.
 - Real **WhatsApp** messages → do `SETUP_META_WHATSAPP.md` (~30 min of clicks)
 - Real **emails** → add a Brevo key (until then they log)
 
-So: launch as a **public beta** today; add Sentinel + SIMs to see money land.
+So: launch as a **public beta** today; the **Sentinel app** is the one piece that
+switches real payments on — no SIMs, no payment gateway, no money held by KODA.
+Merchants pay you for the service via manual/prepaid top-ups at first (add a card
+gateway later only if you want it).
