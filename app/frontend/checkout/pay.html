@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Paiement sécurisé · KODA</title>
+<meta name="robots" content="noindex">
+<style>
+  :root{
+    --ink:#081813; --ink-2:#0C231C; --line:rgba(233,228,213,.12); --line-2:rgba(233,228,213,.22);
+    --gold:#E8A11F; --gold-bright:#F5B93E; --verify:#23B884; --verify-deep:#128A5F; --danger:#E0563B;
+    --paper:#F5EFDF; --paper-ink:#241F14; --paper-line:rgba(36,31,20,.16);
+    --text:#E9E4D5; --dim:#9BA79B;
+    --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --disp:'Archivo','Helvetica Neue',Arial,system-ui,sans-serif;
+    --brand:#E8A11F;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--ink);color:var(--text);font-family:var(--disp);line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100vh;
+    display:grid;place-items:center;padding:16px;
+    background-image:radial-gradient(700px 380px at 80% -10%,rgba(35,184,132,.06),transparent 60%)}
+  .card{width:100%;max-width:420px;background:var(--paper);color:var(--paper-ink);border-radius:16px;overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.5);
+    background-image:repeating-linear-gradient(0deg,transparent,transparent 27px,rgba(36,31,20,.03) 28px)}
+  .head{background:var(--ink);color:var(--text);padding:18px 22px;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .brand .dot{width:26px;height:26px;border-radius:7px;background:var(--brand);display:grid;place-items:center;color:var(--ink);font-family:var(--mono);font-weight:700}
+  .secure{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+  .body{padding:24px 22px 26px}
+  .amount{text-align:center;margin-bottom:20px}
+  .amount .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:rgba(36,31,20,.5)}
+  .amount b{display:block;font-size:38px;font-weight:900;font-stretch:112%;letter-spacing:-.01em;font-variant-numeric:tabular-nums;margin-top:4px}
+  .amount .to{font-size:13px;color:rgba(36,31,20,.6);margin-top:2px}
+  .step-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(36,31,20,.5);font-weight:700;margin:16px 0 8px}
+  .ops{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .op{border:1.5px solid var(--paper-line);background:#fff;border-radius:10px;padding:12px;text-align:left;cursor:pointer;font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--paper-ink);transition:.14s}
+  .op:hover{border-color:var(--gold)}
+  .op.on{border-color:var(--verify);background:rgba(35,184,132,.08)}
+  .payto{background:#fff;border:1px solid var(--paper-line);border-radius:10px;padding:14px;margin-top:6px}
+  .payto .num{font-family:var(--mono);font-size:19px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .copy{border:1px solid var(--paper-line);background:var(--paper);border-radius:7px;padding:6px 11px;font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer;color:var(--paper-ink)}
+  .copy:active{background:var(--verify);color:#fff}
+  .ussd{font-family:var(--mono);font-size:12px;color:rgba(36,31,20,.6);margin-top:8px}
+  .ussd a{color:var(--verify-deep);font-weight:600;text-decoration:none}
+  input.code{width:100%;background:#fff;border:1.5px solid var(--paper-line);border-radius:10px;padding:14px;font-family:var(--mono);font-size:16px;font-weight:600;color:var(--paper-ink);text-align:center;letter-spacing:.02em}
+  input.code:focus{outline:none;border-color:var(--gold)}
+  .btn{width:100%;border:none;border-radius:11px;padding:15px;font-weight:800;font-size:15px;cursor:pointer;transition:.15s;margin-top:12px;font-family:var(--disp)}
+  .btn-gold{background:var(--gold);color:var(--ink)}.btn-gold:hover{background:var(--gold-bright)}
+  .btn-gold:disabled{opacity:.5;cursor:not-allowed}
+  .btn-ghost{background:transparent;border:1.5px solid var(--paper-line);color:var(--paper-ink)}
+  .hint{font-size:12px;color:rgba(36,31,20,.55);text-align:center;margin-top:10px;line-height:1.5}
+  .hide{display:none}
+  .verdict{border-radius:12px;padding:18px;margin-top:14px;text-align:center}
+  .verdict.ok{background:rgba(35,184,132,.12);border:1.5px solid var(--verify)}
+  .verdict.warn{background:rgba(232,161,31,.14);border:1.5px solid var(--gold)}
+  .verdict.bad{background:rgba(224,86,59,.1);border:1.5px solid var(--danger)}
+  .verdict .ic{font-size:34px;line-height:1}
+  .verdict b{display:block;font-size:17px;font-weight:900;margin:8px 0 4px}
+  .verdict p{font-size:13px;color:rgba(36,31,20,.65);line-height:1.5}
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(36,31,20,.25);border-top-color:var(--paper-ink);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .foot{padding:12px 22px 16px;text-align:center;font-family:var(--mono);font-size:10px;color:rgba(36,31,20,.45);letter-spacing:.08em}
+  @media(prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="head">
+    <div class="brand"><span class="dot">✓</span><span id="merchant">KODA</span></div>
+    <div class="secure">🔒 Sécurisé · KODA</div>
+  </div>
+  <div class="body" id="content"><div style="text-align:center;padding:30px 0;color:rgba(36,31,20,.5);font-family:var(--mono);font-size:13px">Chargement…</div></div>
+  <div class="foot">Vérifié par KODA · le code confirme le cash</div>
+</div>
+<script>
+(function(){
+  'use strict';
+  var path = location.pathname.split('/'); var INTENT = path[path.length-1];
+  var CS = new URLSearchParams(location.search).get('cs');
+  var inIframe = window.parent !== window;
+  var C = document.getElementById('content');
+  var chosen = null, DATA = null, watchTimer = null;
+  var esc = function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+  var fmt = function(n){return Number(n||0).toLocaleString('fr-FR')};
+
+  function api(method, url, body){
+    return fetch(url, {method:method, headers:{'content-type':'application/json'}, body: body?JSON.stringify(body):undefined})
+      .then(function(r){return r.json().then(function(d){return {s:r.status, d:d}})});
+  }
+  function post(parent, type, payload){ if(inIframe){ try{ window.parent.postMessage(Object.assign({source:'koda', type:type}, payload||{}), '*'); }catch(e){} } }
+
+  function load(){
+    if(!INTENT || !CS){ return fail('Lien de paiement invalide.'); }
+    api('GET','/checkout/'+INTENT+'?cs='+encodeURIComponent(CS)).then(function(r){
+      if(r.s!==200){ return fail('Paiement introuvable ou expiré.'); }
+      DATA = r.d;
+      document.getElementById('merchant').textContent = DATA.merchant.name || 'KODA';
+      if(DATA.merchant.brand_color){ document.documentElement.style.setProperty('--brand', DATA.merchant.brand_color); }
+      if(DATA.status==='verified'||DATA.status==='verified_late'){ return success(DATA.amount, null, true); }
+      renderPay();
+    }).catch(function(){ fail('Connexion impossible.'); });
+  }
+
+  function renderPay(){
+    C.innerHTML =
+      '<div class="amount"><span class="lbl">Montant à payer</span><b>'+fmt(DATA.amount)+' '+esc(DATA.currency)+'</b>'
+      + (DATA.metadata && DATA.metadata.order_id ? '<div class="to">Commande '+esc(DATA.metadata.order_id)+'</div>':'') + '</div>'
+      + '<div class="step-label">1 · Choisis ton opérateur</div>'
+      + '<div class="ops">'+ DATA.pay_to.map(function(p,i){return '<button class="op" data-i="'+i+'">'+opLabel(p.operator)+'</button>'}).join('') +'</div>'
+      + '<div id="payblock"></div>';
+    C.querySelectorAll('.op').forEach(function(btn){ btn.addEventListener('click', function(){ choose(Number(btn.dataset.i)); }); });
+  }
+  function opLabel(o){ return ({orange_cd:'Orange Money',mpesa_cd:'M-Pesa',airtel_cd:'Airtel Money',africell_cd:'Africell',mtn_momo:'MTN MoMo',wave:'Wave'})[o] || o; }
+
+  function choose(i){
+    chosen = DATA.pay_to[i];
+    C.querySelectorAll('.op').forEach(function(b,j){ b.classList.toggle('on', j===i); });
+    document.getElementById('payblock').innerHTML =
+      '<div class="step-label">2 · Paie ce montant à ce numéro</div>'
+      + '<div class="payto"><div class="num"><span>'+esc(chosen.number)+'</span><button class="copy" id="cp">Copier</button></div>'
+      + '<div class="ussd">Compose <a href="tel:'+encodeURIComponent(chosen.ussd_hint)+'">'+esc(chosen.ussd_hint)+'</a> ou utilise ton appli. Ne partage jamais ton code PIN.</div></div>'
+      + '<button class="btn btn-gold" id="paid">J\'ai payé — entrer mon code</button>';
+    document.getElementById('cp').addEventListener('click', function(){ copy(chosen.number, this); });
+    document.getElementById('paid').addEventListener('click', renderCode);
+  }
+  function copy(txt, btn){ try{ navigator.clipboard.writeText(txt); btn.textContent='Copié ✓'; setTimeout(function(){btn.textContent='Copier'},1500);}catch(e){} }
+
+  function renderCode(){
+    document.getElementById('payblock').innerHTML =
+      '<div class="step-label">3 · Entre le code de ta confirmation</div>'
+      + '<input class="code" id="ref" placeholder="ex. OM.260717.1432.A88213" autocomplete="off" autocapitalize="characters">'
+      + '<button class="btn btn-gold" id="go">Vérifier mon paiement</button>'
+      + '<div class="hint">C\'est le code dans le SMS que <b>toi</b> tu as reçu de '+opLabel(chosen.operator)+' après avoir payé.</div>'
+      + '<div id="verdict"></div>';
+    var input = document.getElementById('ref'); input.focus();
+    document.getElementById('go').addEventListener('click', verify);
+    input.addEventListener('keydown', function(e){ if(e.key==='Enter') verify(); });
+  }
+
+  function verify(){
+    var input = document.getElementById('ref'); var ref = input.value.trim();
+    if(!ref) { input.focus(); return; }
+    var btn = document.getElementById('go'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Vérification…';
+    var vd = document.getElementById('verdict'); vd.innerHTML='';
+    api('POST','/checkout/'+INTENT+'/verify', {cs:CS, reference:ref}).then(function(r){
+      btn.disabled = false; btn.textContent='Vérifier mon paiement';
+      var d = r.d;
+      if(d.status==='verified' || d.status==='verified_late' || d.already){ return success(d.amount_confirmed||DATA.amount, d.redirect, d.receipt_id); }
+      if(d.status==='not_found_yet'){ return watching(); }
+      if(d.status==='pending_review'){ return warn('À vérifier', 'Ton paiement est en cours de contrôle. Ça peut prendre un instant.'); }
+      if(d.code==='code_already_used'){ return badV('Code déjà utilisé', 'Ce code a déjà servi pour un paiement. Vérifie ta référence.'); }
+      return badV('Non confirmé', 'On n\'a pas pu confirmer ce paiement. Vérifie le code, le montant et le numéro.');
+    }).catch(function(){ btn.disabled=false; btn.textContent='Vérifier mon paiement'; badV('Erreur','Réessaie dans un instant.'); });
+  }
+
+  function watching(){
+    var vd = document.getElementById('verdict');
+    vd.innerHTML = '<div class="verdict warn"><div class="ic">⏳</div><b>Paiement en route</b><p>Le réseau ne nous a pas encore montré ton paiement. On vérifie automatiquement…</p></div>';
+    // poll a few times — SMS may still be arriving
+    var tries = 0;
+    clearInterval(watchTimer);
+    watchTimer = setInterval(function(){
+      tries++;
+      api('POST','/checkout/'+INTENT+'/verify', {cs:CS, reference:document.getElementById('ref').value.trim()}).then(function(r){
+        var d = r.d;
+        if(d.status==='verified'||d.status==='verified_late'||d.already){ clearInterval(watchTimer); success(d.amount_confirmed||DATA.amount, d.redirect, d.receipt_id); }
+        else if(tries>=6){ clearInterval(watchTimer); warn('Toujours en attente','Ton paiement n\'est pas encore visible. Réessaie le code dans une minute.'); }
+      });
+    }, 5000);
+  }
+
+  function success(amount, redirect, receiptId){
+    clearInterval(watchTimer);
+    C.innerHTML = '<div class="verdict ok"><div class="ic">✅</div><b>Paiement confirmé</b>'
+      + '<p>'+fmt(amount)+' '+esc(DATA?DATA.currency:'')+' vérifié. Merci !</p></div>'
+      + (redirect ? '<div class="hint" id="rdir">Redirection en cours…</div>' : '<div class="hint">Tu peux fermer cette page — la commande est confirmée.</div>');
+    // Tell the embedding merchant page. It carries the redirect so the parent
+    // widget (same origin as the merchant) can move the top window forward.
+    post('koda','verified', {intent_id:INTENT, amount:amount, receipt_id:receiptId||null, redirect:redirect||null});
+    if(redirect){
+      if(inIframe){
+        // The widget redirects the top window; fall back to a self-redirect if it doesn't.
+        setTimeout(function(){ try{ window.top.location.href = redirect; }catch(e){ location.href=redirect; } }, 2600);
+      } else {
+        setTimeout(function(){ location.href = redirect; }, 1600);
+      }
+    }
+  }
+  function warn(title, msg){ document.getElementById('verdict').innerHTML = '<div class="verdict warn"><div class="ic">◔</div><b>'+esc(title)+'</b><p>'+esc(msg)+'</p></div>'; }
+  function badV(title, msg){ document.getElementById('verdict').innerHTML = '<div class="verdict bad"><div class="ic">✗</div><b>'+esc(title)+'</b><p>'+esc(msg)+'</p></div>'; }
+  function fail(msg){ C.innerHTML = '<div class="verdict bad"><div class="ic">✗</div><b>Oups</b><p>'+esc(msg)+'</p></div>'; }
+
+  load();
+})();
+</script>
+</body>
+</html>

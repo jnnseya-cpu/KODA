@@ -190,6 +190,8 @@ curl -H "Authorization: Bearer sk_test_..." https://api.koda.africa/v1/ping</pre
 <tr><td>GET</td><td><code>/intents/{id}</code></td><td>Poll intent status.</td></tr>
 <tr><td>POST</td><td><code>/intents/{id}/verify</code></td><td>Submit the customer's reference code or screenshot.</td></tr>
 <tr><td>POST</td><td><code>/intents/{id}/cancel</code></td><td>Cancel an awaiting intent.</td></tr>
+<tr><td>GET</td><td><code>/checkout/{id}?cs=</code></td><td>Customer-facing intent read, authorised by the intent's own <code>client_secret</code> — no API key. Powers the hosted page &amp; widget.</td></tr>
+<tr><td>POST</td><td><code>/checkout/{id}/verify</code></td><td>The customer submits their SMS code; on success returns the <code>redirect</code> so the order moves forward automatically.</td></tr>
 <tr><td>GET</td><td><code>/receipts</code></td><td>Filterable ledger of verified payments with audit traces.</td></tr>
 <tr><td>POST</td><td><code>/sandbox/sms</code></td><td>Inject an operator-formatted SMS and watch ParserAgent structure it.</td></tr>
 <tr><td>GET</td><td><code>/billing/balance</code></td><td>Prepaid ACU balance. <em>(read:usage)</em></td></tr>
@@ -204,8 +206,45 @@ curl -H "Authorization: Bearer sk_test_..." https://api.koda.africa/v1/ping</pre
 <tr><td><code>read:agents</code></td><td>List the AI agent catalogue</td></tr>
 <tr><td><code>run:agents</code></td><td>Run AI agents (consumes ACU)</td></tr>
 <tr><td><code>read:usage</code></td><td>Read API usage & ACU balance</td></tr>
+<tr><td><code>write:intents</code></td><td>Create payment intents. <b>Publishable <code>pk_</code> keys get only this scope</b> — safe to ship in the browser: they can start a payment, never read your data.</td></tr>
 <tr><td><code>*</code></td><td>Full account scope (sk_ keys). Restricted <code>rk_live_</code> keys default to read-only — e.g. a read-only reconciliation key for your accountant.</td></tr>
 </table>
+<h2>Drop-in checkout — pay by mobile money, automatically</h2>
+<p>Add "Pay by mobile money" to any website or marketplace. The customer picks their operator, pays, pastes the SMS code they received into a KODA panel, and KODA verifies it — <b>then the order moves forward on its own</b>. Two integration paths:</p>
+<h3>1 · Hosted checkout (recommended)</h3>
+<p>Your server creates the intent with your <b>secret</b> key and gets back a <code>checkout_url</code> + <code>client_secret</code>. Send the customer to the URL, or open it in the widget overlay:</p>
+<pre>// your server (secret key) — never exposes anything to the browser
+POST /v1/intents  { "amount": 25000, "currency": "CDF",
+  "operators": ["orange_cd","mpesa_cd"],
+  "metadata": { "order_id": "CMD-1042" },
+  "success_url": "https://shop.example.com/order/success" }
+→ { "intent_id": "int_…", "client_secret": "cs_…",
+    "checkout_url": "https://pay.koda.africa/pay/int_…?cs=cs_…" }</pre>
+<pre>&lt;script src="https://pay.koda.africa/js/koda.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  Koda.checkout({
+    checkoutUrl: '&lt;checkout_url from your server&gt;',
+    onVerified: function (r) { window.location = '/order/success'; }
+  });
+&lt;/script&gt;</pre>
+<h3>2 · Publishable key (front-end only)</h3>
+<p>No backend call needed — a <code>pk_</code> key can only create intents, so it is safe in the page. The widget creates the intent and opens the overlay for you:</p>
+<pre>&lt;script src="https://pay.koda.africa/js/koda.js"&gt;&lt;/script&gt;
+&lt;button
+  data-koda-key="pk_live_…"
+  data-koda-amount="25000"
+  data-koda-currency="CDF"
+  data-koda-operators="orange_cd,mpesa_cd"
+  data-koda-order="CMD-1042"
+  data-koda-success-url="https://shop.example.com/order/success"&gt;
+  Payer par mobile money
+&lt;/button&gt;</pre>
+<pre>// or call it directly
+Koda.pay({ key: 'pk_live_…', amount: 25000, currency: 'CDF',
+  operators: ['orange_cd','mpesa_cd'], orderId: 'CMD-1042',
+  successUrl: 'https://shop.example.com/order/success',
+  onVerified: function (r) { /* r.receipt_id, r.amount — advance the order */ } });</pre>
+<p>Behind the scenes the money path is unchanged: the code is matched against the Sentinel SIM ledger, scored by the fraud engine, checked for replay, and a signed <code>payment.verified</code> webhook fires to your server — the browser hand-off is a convenience on top, never the source of truth.</p>
 <h2>Limits & pricing</h2>
 <ul>
 <li>The billable atom is a <b>successful verification</b> — failed matches, rejections and expired intents are free.</li>

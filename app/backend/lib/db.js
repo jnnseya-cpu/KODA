@@ -104,6 +104,9 @@ CREATE TABLE IF NOT EXISTS intents (
   status TEXT NOT NULL DEFAULT 'awaiting_payment',
   -- awaiting_payment|verified|verified_late|pending_review|rejected|expired|cancelled
   purpose TEXT NOT NULL DEFAULT 'sale',          -- sale|topup
+  client_secret TEXT,                            -- per-intent token for the customer-facing checkout
+  success_url TEXT,                              -- where the customer is sent on verified
+  cancel_url TEXT,
   expires_at TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -242,8 +245,11 @@ CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_comm_created ON comm_deliveries(created_at);
 `);
 
-// lightweight migration for existing dev databases
+// lightweight migrations for existing dev databases
 try { db.exec(`ALTER TABLE api_keys ADD COLUMN scopes TEXT NOT NULL DEFAULT '["*"]'`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE intents ADD COLUMN client_secret TEXT`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE intents ADD COLUMN success_url TEXT`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE intents ADD COLUMN cancel_url TEXT`); } catch { /* exists */ }
 
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the

@@ -95,6 +95,17 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // hosted customer checkout page: /pay/:id → frontend/checkout/pay.html
+  if (url.pathname === '/pay' || url.pathname.startsWith('/pay/')) {
+    const ph = path.join(PUBLIC, 'checkout', 'pay.html');
+    if (fs.existsSync(ph)) return send(200, fs.readFileSync(ph), { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
+  }
+  // drop-in website widget: /js/koda.js → frontend/checkout/koda.js
+  if (url.pathname === '/js/koda.js') {
+    const wj = path.join(PUBLIC, 'checkout', 'koda.js');
+    if (fs.existsSync(wj)) return send(200, fs.readFileSync(wj), { 'content-type': 'text/javascript', 'cache-control': 'public, max-age=600' });
+  }
+
   // shared modules served to the browser (UMD)
   if (url.pathname.startsWith('/shared/')) {
     const sp = path.join(SHARED, path.normalize(url.pathname.slice(8)).replace(/^([.][.][/\\])+/, ''));

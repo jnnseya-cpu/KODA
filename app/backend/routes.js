@@ -212,9 +212,11 @@ module.exports = function registerRoutes(r) {
     if (!needRole(user, ['manager'])) return [403, { error: 'manager_or_owner_only' }];
     const prefix = ['sk_live', 'pk_live', 'sk_test', 'pk_test', 'rk_live'].includes(req.body.prefix) ? req.body.prefix : 'sk_test';
     const secret = `${prefix}_${U.token(24)}`;
-    // rk_ keys default to read-only scopes unless explicit scopes are given; others get full scope
+    // rk_ keys default to read-only; pk_ keys (browser-exposed) may ONLY create intents;
+    // sk_ (server-side secret) keys get full scope unless explicit scopes are given.
     const scopes = Array.isArray(req.body.scopes) && req.body.scopes.length ? req.body.scopes
-      : prefix === 'rk_live' ? ['read:receipts', 'read:usage', 'read:agents'] : ['*'];
+      : prefix === 'rk_live' ? ['read:receipts', 'read:usage', 'read:agents']
+      : prefix.startsWith('pk_') ? ['write:intents'] : ['*'];
     q.run(`INSERT INTO api_keys (id,merchant_id,prefix,key_hash,last4,label,scopes) VALUES (?,?,?,?,?,?,?)`,
       U.id('key'), m.id, prefix, U.sha256(secret), secret.slice(-4), req.body.label || null, JSON.stringify(scopes));
     notify.fire('apikey.created', { user, merchant: m });
@@ -377,7 +379,7 @@ module.exports = function registerRoutes(r) {
   r.get('/v1/ping', apiKey((req, m) => ({
     ok: true, merchant: m.name, plan: m.plan, environment: req.keyPrefix.includes('test') ? 'test' : 'live',
   })));
-  r.post('/v1/intents', apiKey((req, m) => createIntent(m, req.body)));
+  r.post('/v1/intents', apiKey((req, m) => createIntent(m, req.body), 'write:intents'));
   r.get('/v1/intents/:id', apiKey((req, m) => {
     const i = q.get('SELECT * FROM intents WHERE id=? AND merchant_id=?', req.params.id, m.id);
     return i || [404, { error: { code: 'not_found' } }];
@@ -529,9 +531,65 @@ module.exports = function registerRoutes(r) {
     ai_gateway: !!(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY),
   })));
 
+  // ---------- CUSTOMER-FACING CHECKOUT (intent-scoped, no API key) ----------
+  // Authenticated by the intent's own client_secret so it is safe to expose in a
+  // browser: it can only read and verify THIS one intent, nothing else.
+  function checkoutIntent(id, cs) {
+    if (!id || !cs) return null;
+    const i = q.get('SELECT * FROM intents WHERE id=? AND client_secret=?', id, cs);
+    return i || null;
+  }
+  // public read: what the checkout page shows the customer
+  r.get('/checkout/:id', (req) => {
+    const i = checkoutIntent(req.params.id, req.query.cs);
+    if (!i) return [404, { error: { code: 'intent_not_found' } }];
+    const m = q.get('SELECT name, msisdn, brand_color, logo_text, currency FROM merchants WHERE id=?', i.merchant_id);
+    const ops = JSON.parse(i.operators);
+    return {
+      intent_id: i.id, status: i.status, amount: i.amount, currency: i.currency,
+      merchant: { name: m.logo_text || m.name, brand_color: m.brand_color },
+      metadata: JSON.parse(i.metadata || '{}'),
+      pay_to: ops.map(o => ({ operator: o, number: m.msisdn || '+243 8XX XXX XXX',
+        ussd_hint: o.startsWith('orange') ? '#144#' : o.startsWith('mpesa') ? '*1122#' : o.startsWith('airtel') ? '*501#' : '*150#' })),
+      expires_at: i.expires_at, has_success_url: !!i.success_url,
+    };
+  });
+  // public verify: the CUSTOMER submits the code they received
+  r.post('/checkout/:id/verify', (req) => {
+    const i = checkoutIntent(req.params.id, (req.body || {}).cs);
+    if (!i) return [404, { error: { code: 'intent_not_found' } }];
+    if (i.status === 'verified' || i.status === 'verified_late') {
+      const rc = q.get('SELECT id, amount FROM receipts WHERE intent_id=? ORDER BY verified_at DESC LIMIT 1', i.id);
+      return {
+        status: i.status, already: true,
+        amount_confirmed: rc ? rc.amount : i.amount,
+        receipt_id: rc ? rc.id : null,
+        redirect: i.success_url || null,
+      };
+    }
+    if (i.status !== 'awaiting_payment' && i.status !== 'pending_review') {
+      return [409, { error: { code: 'intent_' + i.status } }];
+    }
+    const m = q.get('SELECT * FROM merchants WHERE id=?', i.merchant_id);
+    const ref = String((req.body || {}).reference || '').trim();
+    if (!ref) return [400, { error: { code: 'reference_required' } }];
+    const res = engine.verify(m, i, ref, { mode: 'api' }); // fires webhook + comms on success
+    // customer-facing shape: on success, hand back the redirect so the order moves forward
+    return {
+      status: res.status, code: res.code || null,
+      amount_confirmed: res.amount_confirmed || null,
+      receipt_id: res.receipt_id || null,
+      redirect: (res.status === 'verified' || res.status === 'verified_late') ? (i.success_url || null) : null,
+    };
+  });
+
+  // hosted checkout page + drop-in widget are static (served from frontend/checkout/*)
+
   // health for status page
   r.get('/healthz', () => ({ ok: true, service: 'koda-api', time: new Date().toISOString() }));
 };
+
+function SITE_BASE() { return process.env.KODA_PUBLIC_URL || 'http://localhost:4600'; }
 
 // ---------- shared helpers ----------
 function createIntent(m, body) {
@@ -544,17 +602,22 @@ function createIntent(m, body) {
   }
   const currency = typeof body.currency === 'string' && /^[A-Z]{3}$/.test(body.currency) ? body.currency : m.currency;
   const iid = U.id('int');
+  const clientSecret = 'cs_' + U.token(20);
   const ops = Array.isArray(body.operators) && body.operators.length
     ? body.operators.filter(o => typeof o === 'string').slice(0, 12) : ['orange_cd', 'mpesa_cd'];
   if (!ops.length) return [400, { error: { code: 'invalid_operators' } }];
-  q.run(`INSERT INTO intents (id,merchant_id,amount,currency,operators,customer_msisdn,metadata,purpose,expires_at)
-         VALUES (?,?,?,?,?,?,?,?, datetime('now','+' || ? || ' seconds'))`,
+  const okUrl = (u) => typeof u === 'string' && /^https?:\/\//.test(u) ? u.slice(0, 500) : null;
+  q.run(`INSERT INTO intents (id,merchant_id,amount,currency,operators,customer_msisdn,metadata,purpose,client_secret,success_url,cancel_url,expires_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?, datetime('now','+' || ? || ' seconds'))`,
     iid, m.id, amount, currency, JSON.stringify(ops),
     body.customer_msisdn || null, JSON.stringify(body.metadata || {}),
-    body.purpose === 'topup' ? 'topup' : 'sale', Math.min(3600, Number(body.expires_in) || 900));
+    body.purpose === 'topup' ? 'topup' : 'sale', clientSecret, okUrl(body.success_url), okUrl(body.cancel_url),
+    Math.min(3600, Number(body.expires_in) || 900));
   const intent = q.get('SELECT * FROM intents WHERE id=?', iid);
   return {
     intent_id: iid, status: intent.status,
+    client_secret: clientSecret,
+    checkout_url: `${SITE_BASE()}/pay/${iid}?cs=${clientSecret}`,
     pay_to: ops.map(o => ({ operator: o, number: m.msisdn || '+243 8XX XXX XXX', ussd_hint: o.startsWith('orange') ? '#144#' : '*1122#' })),
     expires_at: intent.expires_at,
   };
@@ -639,10 +702,12 @@ function openapi() {
     servers: [{ url: 'https://api.koda.africa/v1' }, { url: 'https://sandbox.koda.africa/v1' }],
     paths: {
       '/ping': { get: { summary: 'Verify a key and see the merchant it unlocks.' } },
-      '/intents': { post: { summary: 'Create payment intent' } },
+      '/intents': { post: { summary: 'Create payment intent — returns client_secret + checkout_url for drop-in checkout', 'x-scope': 'write:intents' } },
       '/intents/{id}': { get: { summary: 'Poll intent status' } },
       '/intents/{id}/verify': { post: { summary: 'Submit reference code or screenshot' } },
       '/intents/{id}/cancel': { post: { summary: 'Cancel intent' } },
+      '/checkout/{id}': { get: { summary: 'Customer-facing intent read, authorised by the intent client_secret (no API key)' } },
+      '/checkout/{id}/verify': { post: { summary: 'Customer submits their SMS code; returns redirect on success (no API key)' } },
       '/receipts': { get: { summary: 'List verified receipts', 'x-scope': 'read:receipts' } },
       '/sandbox/sms': { post: { summary: 'Inject an operator-formatted SMS (sandbox simulator)' } },
       '/billing/balance': { get: { summary: 'Prepaid ACU balance', 'x-scope': 'read:usage' } },
