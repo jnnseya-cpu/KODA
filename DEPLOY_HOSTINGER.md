@@ -1,180 +1,169 @@
-# KODA — Go live on your Hostinger VPS today (with a fast global frontend)
+# KODA — Go live on your Hostinger VPS (step by step)
 
-This is the whole launch, using only what you already have:
+Your server & domain (already in hand):
 
-- **Hostinger** — domain + VPS (runs the one container: frontend + backend + ledger)
-- **Your AI keys** — OpenAI + Gemini + Claude (all AI features run live)
-- **Firebase FCM** — push (optional today)
-- **Cloudflare (free)** — CDN in front for a fast frontend worldwide (no app split)
+| Thing | Value |
+|---|---|
+| VPS IP | `187.124.117.159` |
+| SSH | `ssh root@187.124.117.159` |
+| OS | Ubuntu 24.04 LTS (KVM 1 · 1 CPU · 4 GB · 50 GB) — plenty for KODA |
+| Location | UK, Manchester (fine latency to your corridors) |
+| Domain | `kodajnn.com` |
+| Admin email | `koda@kodajnn.com` |
 
-Two containers run on the VPS: **koda** (the whole OS) and **caddy** (auto‑HTTPS +
-reverse proxy). Config lives in `app/docker-compose.yml`, `app/Caddyfile`.
-
-> **Time:** ~15 min to live and public‑testable (Steps 1–6). Cloudflare speed
-> layer (Step 7) finishes the same day.
-
----
-
-## Before you start — have these ready
-
-- Your Hostinger **VPS IP** and **root SSH** access (a KVM VPS plan, not shared hosting).
-- Your **domain** (e.g. `koda.africa`) — decide the exact hostname you'll launch on.
-- Your three **AI keys**.
-- 5 minutes to generate a couple of secrets (commands below).
+One container runs the whole OS (frontend + backend + ledger); a second (Caddy)
+gives automatic HTTPS. **~15 minutes to live.** Do the steps in order.
 
 ---
 
-## Step 1 — SSH into the VPS and install Docker
+## Step 1 — Connect to the server & install Docker
+**Opens a command line on your VPS and installs Docker.**
 
+On your computer, open **Terminal** (Mac) or **PowerShell** (Windows):
 ```bash
-ssh root@YOUR_VPS_IP
-
-# install Docker + compose plugin (Ubuntu/Debian)
-curl -fsSL https://get.docker.com | sh
-docker version && docker compose version    # confirm both work
+ssh root@187.124.117.159
 ```
-
-## Step 2 — Get the KODA code onto the VPS
-
+Enter the **root password** from Hostinger when asked. Then:
 ```bash
-# private repo: use a GitHub personal access token when prompted for a password
+curl -fsSL https://get.docker.com | sh
+docker version
+```
+✅ You should see version numbers, no errors.
+
+---
+
+## Step 2 — Download KODA
+```bash
 git clone https://github.com/jnnseya-cpu/koda.git
 cd koda/app
 git checkout claude/koda-unified-spec-v2-vh5xtx
 ```
+- If asked for a password: it's a **GitHub token**, not your login password. Ask me and I'll walk you through making one (2 clicks).
 
-## Step 3 — Create the secrets file (`.env`)
+✅ You should see `Switched to branch 'claude/koda-unified-spec-v2-vh5xtx'`.
 
+---
+
+## Step 3 — Add your settings (`.env`)
+**The only file you edit.** First generate a secret and copy what it prints:
 ```bash
-# in koda/app
-cat > .env <<EOF
+openssl rand -hex 32
+```
+Open the file:
+```bash
+nano .env
+```
+Paste this and replace the CAPS values (secret from above, a strong password, your 3 AI keys):
+```
 NODE_ENV=production
 PORT=8080
 KODA_DATA_DIR=/data
-
-# your public site — MUST be the real domain (used for checkout links)
-KODA_PUBLIC_URL=https://koda.africa
-KODA_DOMAIN=koda.africa
-
-# session signing — generate a strong one:
-KODA_JWT_SECRET=$(openssl rand -hex 32)
-
-# first admin (you) — created on first boot, then rotate
-KODA_ADMIN_EMAIL=you@koda.africa
-KODA_ADMIN_PASSWORD=CHANGE_ME_STRONG
-
-# AI (live features) — paste your keys
-ANTHROPIC_API_KEY=
-GEMINI_API_KEY=
-OPENAI_API_KEY=
-
-# leave these blank today = safe sandbox (WhatsApp/email add later)
-BREVO_API_KEY=
-META_WA_TOKEN=
-META_WA_PHONE_ID=
-META_WA_VERIFY_TOKEN=koda-verify
-FCM_KEY=
-EOF
-
-nano .env    # paste your AI keys, set a real admin password
+KODA_PUBLIC_URL=https://kodajnn.com
+KODA_DOMAIN=kodajnn.com
+KODA_JWT_SECRET=PASTE_THE_LONG_STRING_FROM_ABOVE
+KODA_ADMIN_EMAIL=koda@kodajnn.com
+KODA_ADMIN_PASSWORD=PICK_A_STRONG_PASSWORD
+ANTHROPIC_API_KEY=PASTE_YOUR_CLAUDE_KEY
+GEMINI_API_KEY=PASTE_YOUR_GEMINI_KEY
+OPENAI_API_KEY=PASTE_YOUR_OPENAI_KEY
 ```
+Save: **Ctrl+O**, **Enter**, **Ctrl+X**.
 
-> `.env` is git‑ignored — it never leaves the VPS.
+*(WhatsApp & email stay blank today — safe test mode. Add them later with
+`SETUP_META_WHATSAPP.md`.)*
 
-## Step 4 — Point your domain at the VPS
+---
 
-In **Hostinger → Domains → DNS Zone**, create an **A record**:
+## Step 4 — Point the domain at the server
+In **Hostinger → Domains → kodajnn.com → DNS Zone**, add an **A record**:
 
 | Type | Name | Points to | TTL |
 |---|---|---|---|
-| A | `@` (or `koda`) | `YOUR_VPS_IP` | default |
+| A | `@` | `187.124.117.159` | default |
 
-Wait a few minutes, then confirm it resolves:
+*(Optional: add a second A record, Name `www`, same IP.)* Then check on the VPS:
 ```bash
-dig +short koda.africa    # should print YOUR_VPS_IP
+dig +short kodajnn.com
 ```
+✅ You should see `187.124.117.159` (may take a few minutes).
 
-## Step 5 — Launch KODA
+---
 
+## Step 5 — Launch (one command)
+In `koda/app`:
 ```bash
-# in koda/app
 docker compose up -d --build
-docker compose ps           # both koda + caddy should be "running"/"healthy"
-docker compose logs -f koda # watch the boot banner, then Ctrl-C
+docker compose ps
 ```
-
-Caddy automatically obtains a free HTTPS certificate for your domain on first request.
-
-## Step 6 — Verify it's live (public can test now)
-
-```bash
-curl https://koda.africa/healthz     # {"ok":true,...}
-curl https://koda.africa/readyz      # {"ok":true,"db":"up",...}
-curl https://koda.africa/version     # your build + versions
-```
-
-Open it in a browser:
-- `https://koda.africa/` — public site
-- `https://koda.africa/app` — create an account, sign in
-- Run a **sandbox verification** end‑to‑end (create intent → checkout → code → verified).
-
-**You are live and publicly testable.** 🎉
+✅ Both **koda** and **caddy** show *running*. Caddy fetches a free HTTPS
+certificate for `kodajnn.com` on the first request.
 
 ---
 
-## Step 7 — Add Cloudflare for a fast frontend (free, no app split)
+## Step 6 — Confirm it's live (public can test now)
+```bash
+curl https://kodajnn.com/healthz
+```
+✅ `{"ok":true,...}`
 
-This puts a global CDN in front so the site, `/shared/*`, and the checkout widget
-load fast worldwide — while the app keeps running as one unit on your VPS.
+In a browser:
+- **https://kodajnn.com/** — the public site
+- **https://kodajnn.com/app** — sign in with `koda@kodajnn.com` + your password,
+  then run a **sandbox test payment** (create intent → checkout → enter code → verified).
 
-1. Create a free **Cloudflare** account → **Add site** → enter your domain.
-2. Cloudflare shows two **nameservers**. In **Hostinger → Domains → Nameservers**,
-   switch from Hostinger's to the two Cloudflare ones. (Propagates in minutes–1 h.)
-3. In Cloudflare **DNS**, make sure the A record → `YOUR_VPS_IP` is **Proxied**
-   (orange cloud **on**).
-4. In Cloudflare **SSL/TLS → Overview**, set mode to **Full (strict)**.
-   (Caddy already holds a real Let's Encrypt cert on the VPS, so this is secure.)
-5. **Speed:** Cloudflare caches static assets automatically. Optionally add a
-   Cache Rule for `/*` static paths (`/shared/*`, `/js/*`, `/blog/*`, images).
-
-> Order matters: bring the site up on the VPS first (Steps 1–6) so Caddy can issue
-> its certificate, **then** flip Cloudflare's proxy on. Doing it in this order
-> avoids the cert chicken‑and‑egg.
+🎉 **You're live.**
 
 ---
 
-## Step 8 — Backups (5 minutes, keeps it all on Hostinger)
+## Step 7 — Fast frontend worldwide (Cloudflare, free) — *after Step 6*
+Adds a global CDN in front. No change to the app.
 
-Zero‑downtime SQLite snapshot on a schedule:
+1. Create a free **Cloudflare** account → **Add a site** → `kodajnn.com`.
+2. Cloudflare gives you **2 nameservers**. In **Hostinger → Domains → kodajnn.com
+   → Nameservers**, replace Hostinger's with those two.
+3. In Cloudflare **DNS**, the A record → `187.124.117.159` must be **Proxied**
+   (orange cloud ON).
+4. Cloudflare **SSL/TLS → Overview** → **Full (strict)**.
+
+✅ Site now loads fast globally. Do it after Step 6 so the certificate is already
+issued.
+
+---
+
+## Step 8 — Backups (5 minutes)
 ```bash
-# add to root's crontab (crontab -e) — snapshot every 6 hours
+crontab -e
+```
+Add this line (snapshot every 6 h):
+```
 0 */6 * * * cd /root/koda/app && docker compose exec -T koda node backend/tools/backup.js /data/backup.db
 ```
-Also enable **Hostinger's VPS Snapshots/Backups** add‑on for whole‑box recovery.
+Then in Hostinger, turn on **Snapshots & backups** (you're currently on *Weekly*;
+the £2.99/mo automated-daily add-on is worth it for a payments product).
 
 ---
 
-## Updating later (new code)
-
+## Updating later
 ```bash
-cd /root/koda/app
-git pull
-docker compose up -d --build     # ledger volume is preserved
+cd /root/koda/app && git pull && docker compose up -d --build
 ```
+Your ledger volume is preserved across updates.
 
-## Day‑1 scope (be honest with testers)
+---
 
-Everything works today **except** the parts that need vendors/hardware you don't
-have yet:
+## Day-1 scope (tell testers)
 
-| Works today | Needs setup later |
-|---|---|
-| Public site, merchant app, all dashboards | — |
-| Customer checkout (sandbox door), verify + fraud engine | Real customer money → **Sentinel Android app + mobile‑money SIMs** |
-| All 10 AI Growth tools + agents (live, your keys) | — |
-| Push (if FCM key set) | Real **WhatsApp** door → Meta setup |
-| — | Real **emails** → Brevo key (until then they log) |
+**Works today ✅**
+- Public site + every dashboard (owner, manager, cashier, admin, platform)
+- Full **checkout → verify → receipt → webhook** cycle (sandbox door)
+- All **10 AI Growth tools + agents**, live on your own AI keys
+- The **WhatsApp door** and **Sentinel device forward** are coded & tested — they
+  switch on the moment you add the Meta keys / pair a phone
 
-So: launch as a **public test / beta**. Testers can exercise the entire OS via the
-sandbox door; the only thing that can't happen yet is a real stranger's real
-payment landing in your bank — that waits on the Sentinel phone app + SIMs.
+**Not yet 🔴 (none block a public beta)**
+- Real customer money in your bank → needs the **Sentinel Android app** (see
+  `SENTINEL_APP_SPEC.md`) **+ mobile-money SIMs**
+- Real **WhatsApp** messages → do `SETUP_META_WHATSAPP.md` (~30 min of clicks)
+- Real **emails** → add a Brevo key (until then they log)
+
+So: launch as a **public beta** today; add Sentinel + SIMs to see money land.

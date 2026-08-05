@@ -127,12 +127,14 @@ module.exports = function registerRoutes(r) {
   r.get('/app/devices', auth((req, user, m) => q.all('SELECT * FROM devices WHERE merchant_id=?', m.id)));
   r.post('/app/devices/enroll', auth((req, user, m) => {
     const did = U.id('dev'), code = U.token(6).slice(0, 8).toUpperCase();
-    q.run(`INSERT INTO devices (id,merchant_id,label,operator,sim_msisdn,enrol_code,status,attested,last_seen)
-           VALUES (?,?,?,?,?,?, 'active', 1, datetime('now'))`,
-      did, m.id, req.body.label || 'Merchant phone', req.body.operator || 'orange_cd', req.body.sim || null, code);
+    const deviceToken = 'dvk_' + U.token(24);   // the Sentinel app authenticates SMS forwards with this
+    q.run(`INSERT INTO devices (id,merchant_id,label,operator,sim_msisdn,enrol_code,device_token,status,attested,last_seen)
+           VALUES (?,?,?,?,?,?,?, 'active', 1, datetime('now'))`,
+      did, m.id, req.body.label || 'Merchant phone', req.body.operator || 'orange_cd', req.body.sim || null, code, deviceToken);
     notify.fireMerchant('sentinel.enrolled', m, { item: req.body.label || 'Merchant phone' });
     audit(m.id, user.id, 'device_enrolled', { did });
-    return { device_id: did, enrol_code: code, qr: `koda://enroll/${code}` };
+    // device_token is shown ONCE (like an API key) — the app stores it in the Android keystore
+    return { device_id: did, enrol_code: code, device_token: deviceToken, qr: `koda://enroll/${code}?t=${deviceToken}` };
   }));
   r.post('/app/devices/:id/revoke', auth((req, user, m) => {
     if (!needRole(user, ['manager'])) return [403, { error: 'manager_or_owner_only' }];
@@ -403,6 +405,27 @@ module.exports = function registerRoutes(r) {
   r.post('/v1/sandbox/sms', apiKey((req, m) => engine.ingestSms(m, { raw: req.body.raw, operator: req.body.operator })));
   r.get('/v1/billing/balance', apiKey((req, m) => ({ acu_balance: m.acu_balance }), 'read:usage'));
 
+  // ---- Sentinel phone-edge: the real SMS-forward door (device-token auth) ----
+  // The Sentinel Android app posts every operator SMS it reads here. Authenticated
+  // by the per-device token minted at enrollment — NOT an API key — so a merchant
+  // phone can only forward SMS, nothing else. This is what fills the live ledger.
+  r.post('/v1/device/sms', (req) => {
+    const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.headers['x-device-token'];
+    if (!tok || !/^dvk_/.test(tok)) return [401, { error: { code: 'device_unauthenticated' } }];
+    const dev = q.get(`SELECT * FROM devices WHERE device_token=? AND status='active'`, tok);
+    if (!dev) return [401, { error: { code: 'device_unauthenticated' } }];
+    const m = q.get('SELECT * FROM merchants WHERE id=?', dev.merchant_id);
+    if (!m || m.status !== 'active') return [403, { error: { code: 'merchant_suspended' } }];
+    const raw = String(req.body.raw || '');
+    if (!raw) return [400, { error: { code: 'raw_required' } }];
+    // health telemetry the fleet view shows
+    q.run(`UPDATE devices SET last_seen=datetime('now'), battery=?, attested=? WHERE id=?`,
+      Number.isFinite(+req.body.battery) ? Math.max(0, Math.min(100, +req.body.battery)) : dev.battery,
+      req.body.attested ? 1 : dev.attested, dev.id);
+    const out = engine.ingestSms(m, { raw, operator: req.body.operator || dev.operator, device_id: dev.id });
+    return { received: true, sms_id: out.id, parsed: !!out.parsed, quarantined: !!out.quarantined };
+  });
+
   // ---- agent surface: list the runnable mesh + run an agent (draws down ACU) ----
   r.get('/v1/agents', apiKey(() => ({ agents: AGENTS.map(({ run, ...meta }) => meta) }), 'read:agents'));
   r.post('/v1/agents/:type/run', apiKey((req, m) => {
@@ -441,6 +464,10 @@ module.exports = function registerRoutes(r) {
   // POST: inbound customer messages — extract a reference code, verify, reply in-thread
   r.post('/webhooks/whatsapp', (req) => {
     const meta = require('./comms/meta');
+    // reject forged calls — Meta signs every webhook with the app secret
+    if (!meta.verifySignature(req.rawBody, req.headers['x-hub-signature-256']).ok) {
+      return [401, { error: 'invalid_signature' }];
+    }
     const entries = req.body.entry || [];
     for (const entry of entries) {
       for (const change of (entry.changes || [])) {
@@ -727,6 +754,7 @@ function openapi() {
       '/checkout/{id}/verify': { post: { summary: 'Customer submits their SMS code; returns redirect on success (no API key)' } },
       '/receipts': { get: { summary: 'List verified receipts', 'x-scope': 'read:receipts' } },
       '/sandbox/sms': { post: { summary: 'Inject an operator-formatted SMS (sandbox simulator)' } },
+      '/device/sms': { post: { summary: 'Sentinel phone-edge SMS forward — device-token auth (fills the live ledger)' } },
       '/billing/balance': { get: { summary: 'Prepaid ACU balance', 'x-scope': 'read:usage' } },
       '/agents': { get: { summary: 'List runnable AI agents and their ACU cost', 'x-scope': 'read:agents' } },
       '/agents/{type}/run': { post: { summary: 'Run an AI agent — consumes prepaid ACU (402 when empty)', 'x-scope': 'run:agents' } },

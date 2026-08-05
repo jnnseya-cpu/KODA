@@ -94,16 +94,18 @@ const server = http.createServer(async (req, res) => {
   const match = routes.find(r => r.m === req.method && r.p.re.test(url.pathname));
   if (match) {
     let body = {};
+    let rawBody = Buffer.alloc(0);
     if (req.method !== 'GET') {
       const chunks = [];
       for await (const c of req) { chunks.push(c); if (Buffer.concat(chunks).length > 2e6) return send(413, { error: 'payload_too_large' }); }
-      try { body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {}; }
+      rawBody = Buffer.concat(chunks);
+      try { body = rawBody.length ? JSON.parse(rawBody.toString()) : {}; }
       catch { return send(400, { error: 'invalid_json' }); }
     }
     const m = url.pathname.match(match.p.re);
     const params = Object.fromEntries(match.p.keys.map((k, i) => [k, m[i + 1]]));
     try {
-      const out = await match.h({ params, body, query: Object.fromEntries(url.searchParams), headers: req.headers });
+      const out = await match.h({ params, body, rawBody, query: Object.fromEntries(url.searchParams), headers: req.headers });
       if (Array.isArray(out) && typeof out[0] === 'number') return send(out[0], out[1]);
       return send(200, out ?? { ok: true });
     } catch (e) {

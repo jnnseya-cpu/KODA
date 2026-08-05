@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS devices (
   operator TEXT NOT NULL,
   sim_msisdn TEXT,
   enrol_code TEXT,
+  device_token TEXT,                             -- bearer secret the Sentinel app uses to forward SMS
   status TEXT NOT NULL DEFAULT 'pending',        -- pending|active|revoked
   attested INTEGER NOT NULL DEFAULT 0,
   last_seen TEXT,
@@ -250,6 +251,7 @@ try { db.exec(`ALTER TABLE api_keys ADD COLUMN scopes TEXT NOT NULL DEFAULT '["*
 try { db.exec(`ALTER TABLE intents ADD COLUMN client_secret TEXT`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE intents ADD COLUMN success_url TEXT`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE intents ADD COLUMN cancel_url TEXT`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE devices ADD COLUMN device_token TEXT`); } catch { /* exists */ }
 
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
