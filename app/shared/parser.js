@@ -44,7 +44,7 @@ function num(s) {
 }
 
 // Currencies KODA recognises across the mobile-money landscape (for the generic pass).
-const CUR = 'FC|CDF|USD|XOF|XAF|GHS|NGN|KES|TZS|UGX|RWF|ZAR|EGP|MAD|TND|EUR|MZN|ZMW|MWK|SLE|SLL|GMD|GNF|LRD|BIF|ETB|SOS|AOA|MGA|LSL|SZL|BWP|INR|BDT|PKR|LKR|NPR|BTN|MVR|AFN|PHP|IDR|MYR|SGD|THB|VND|KHR|MMK|LAK|BND|KZT|UZS|KGS|TJS';
+const CUR = 'FC|CDF|USD|XOF|XAF|GHS|NGN|KES|TZS|UGX|RWF|ZAR|EGP|MAD|TND|EUR|MZN|ZMW|MWK|SLE|SLL|GMD|GNF|LRD|BIF|ETB|SOS|AOA|MGA|LSL|SZL|BWP|INR|BDT|PKR|LKR|NPR|BTN|MVR|AFN|PHP|IDR|MYR|SGD|THB|VND|KHR|MMK|LAK|BND|KZT|UZS|KGS|TJS|MNT|GEL|AMD|AZN|BRL|ARS|CLP|COP|MXN|PEN|UYU|PYG';
 
 // Generic, multilingual fallback (FR/EN/PT). Fires ONLY when no precise pack
 // matches. It extracts amount+currency, a reference code, and the payer name
@@ -56,7 +56,7 @@ function genericParse(raw) {
   const VERB = 'vous avez re[cç]u|avez re[cç]u|re[cç]u|received|payment received|paiement re[cç]u|recebeu|transfert re[cç]u|credit(?:ed|é)?|menerima|diterima|terima|natanggap|nakatanggap';
   // amount: the number right after a receive verb (a currency code/symbol prefix is allowed)
   let amount = null;
-  const vm = s.match(new RegExp(`(?:${VERB})\\s*:?\\s*([A-Za-z₦₵.]{0,5}\\s?\\d[\\d\\s.,]*)`, 'i'));
+  const vm = s.match(new RegExp(`(?:${VERB})\\s*:?\\s*([A-Za-z₦₵₹৳₨$.]{0,6}\\s?\\d[\\d\\s.,]*)`, 'i'));
   if (vm) amount = num(vm[1]);
   if (!amount) { // fallback: a number adjacent to a known currency anywhere
     const cm = s.match(new RegExp(`(?:(${CUR})\\s*([\\d][\\d\\s.,]*)|([\\d][\\d\\s.,]*)\\s*(${CUR}))`, 'i'));
@@ -69,6 +69,7 @@ function genericParse(raw) {
   // currency (optional): ISO code, else a colloquial symbol/abbrev
   let currency = (s.match(new RegExp(`\\b(${CUR})\\b`, 'i')) || [])[1];
   if (!currency) currency = (s.match(/\b(Ksh|Ush|Tsh|Br|MT|Rs|Tk|Taka|Rp|RM|Nu|Php)\b/i) || [])[1];
+  if (!currency && /R\$/.test(s)) currency = 'BRL';
   if (currency) currency = currency.toUpperCase()
     .replace(/^FC$/, 'CDF').replace(/^KSH$/, 'KES').replace(/^USH$/, 'UGX').replace(/^TSH$/, 'TZS')
     .replace(/^TK$|^TAKA$/, 'BDT').replace(/^RP$/, 'IDR').replace(/^RM$/, 'MYR').replace(/^NU$/, 'BTN');
