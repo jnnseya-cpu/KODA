@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">KODA Sentinel</string>
+    <string name="tagline">Forwards your mobile-money SMS to KODA for verification.</string>
+    <string name="not_paired">Not paired</string>
+    <string name="paired_ok">Paired ✓ — protecting payments</string>
+    <string name="checking">Checking…</string>
+    <string name="label_base">KODA server</string>
+    <string name="scan_qr">Scan pairing QR</string>
+    <string name="or_paste">…or paste the pairing token</string>
+    <string name="pair">Pair this phone</string>
+    <string name="unpair">Unpair</string>
+    <string name="recent">Recent forwards</string>
+    <string name="no_sms">No SMS forwarded yet.</string>
+</resources>

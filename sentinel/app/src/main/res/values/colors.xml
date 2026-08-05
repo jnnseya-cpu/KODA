@@ -1,0 +1,8 @@
+<resources>
+    <color name="koda_ink">#081813</color>
+    <color name="koda_ink2">#0C231C</color>
+    <color name="koda_gold">#E8A11F</color>
+    <color name="koda_green">#23B884</color>
+    <color name="koda_danger">#E0563B</color>
+    <color name="koda_paper">#F5EFDF</color>
+</resources>

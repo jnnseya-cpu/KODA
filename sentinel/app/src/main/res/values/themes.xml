@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.KodaSentinel" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/koda_gold</item>
+        <item name="colorPrimaryDark">@color/koda_ink</item>
+        <item name="colorSecondary">@color/koda_green</item>
+        <item name="android:statusBarColor">@color/koda_ink</item>
+        <item name="android:windowBackground">@color/koda_ink</item>
+    </style>
+</resources>
