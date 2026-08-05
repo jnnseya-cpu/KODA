@@ -16,14 +16,15 @@ gives automatic HTTPS. **~15 minutes to live.** Do the steps in order.
 
 ---
 
-## Step 1 — Connect to the server & install Docker
-**Opens a command line on your VPS and installs Docker.**
+## Step 1 — Open the server terminal & install Docker
+**No laptop install needed** — use Hostinger's built-in browser terminal.
 
-On your computer, open **Terminal** (Mac) or **PowerShell** (Windows):
-```bash
-ssh root@187.124.117.159
-```
-Enter the **root password** from Hostinger when asked. Then:
+In Hostinger: **VPS → your server → "Web console"**. A terminal opens in your
+browser, already logged in as `root`. Everything in this guide is typed there.
+*(Prefer a real SSH client? `ssh root@187.124.117.159` also works — but the Web
+console needs nothing installed.)*
+
+Install Docker (this runs on the **server**, not your laptop):
 ```bash
 curl -fsSL https://get.docker.com | sh
 docker version
