@@ -2,7 +2,7 @@
    authz bypass, cross-merchant leaks, injection, double-spend races, money
    integrity, malformed input, DoS shapes. Any pass here is earned. */
 'use strict';
-const B = 'http://localhost:4600';
+const B = process.env.KODA_BASE || `http://localhost:${process.env.PORT || 4600}`;
 let pass = 0, fail = 0; const F = [];
 const T = (n, ok, x = '') => { ok ? pass++ : (fail++, F.push(n)); console.log((ok ? '  ✓' : '  ✗ FAIL'), n, x); };
 const j = async (p, o = {}, tok) => {

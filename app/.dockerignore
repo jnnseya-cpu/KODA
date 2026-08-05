@@ -1,3 +1,8 @@
 data/
 frontend/site/
+proof/
 *.log
+.env
+.env.*
+fly.toml
+render.yaml

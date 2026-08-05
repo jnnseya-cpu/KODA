@@ -13,14 +13,31 @@ require('../frontend/build-site'); // generate public site pages at boot
 
 const registerRoutes = require('./routes');
 
+const PROD = process.env.NODE_ENV === 'production';
 // production guards — fail fast on unsafe defaults
-if (process.env.NODE_ENV === 'production') {
+if (PROD) {
   if (!process.env.KODA_JWT_SECRET || process.env.KODA_JWT_SECRET.includes('dev-secret')) {
     console.error('FATAL: set KODA_JWT_SECRET before running in production.');
     process.exit(1);
   }
+  // not fatal, but checkout_url links break without it — warn loudly
+  if (!process.env.KODA_PUBLIC_URL) {
+    console.warn('WARN: KODA_PUBLIC_URL is unset — checkout links will point at localhost. Set it to your public domain.');
+  }
 }
 const QUIET = !!process.env.KODA_QUIET;
+
+// one-line report of which external channels are live vs sandbox
+function providerReport() {
+  const on = (v) => (v ? 'live' : 'sandbox');
+  return {
+    ai_gateway: on(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY),
+    whatsapp: on(process.env.META_WA_TOKEN && process.env.META_WA_PHONE_ID),
+    email: on(process.env.BREVO_API_KEY),
+    push: on(process.env.FCM_KEY),
+    sms_fallback: on(process.env.SMS_GATEWAY_KEY),
+  };
+}
 
 const PORT = process.env.PORT || 4600;
 const PUBLIC = path.join(__dirname, '..', 'frontend');
@@ -147,9 +164,13 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 server.listen(PORT, () => {
   if (QUIET) return;
-  console.log(`\n  KODA platform running:`);
+  const V = require('../shared/version');
+  const p = providerReport();
+  console.log(`\n  KODA platform running  ·  v${V.app} (api ${V.api}, ${V.channel})  ·  node ${process.version}`);
   console.log(`  → Public site    http://localhost:${PORT}/`);
   console.log(`  → App (SPA/PWA)  http://localhost:${PORT}/app`);
-  console.log(`  → API            http://localhost:${PORT}/v1/ping`);
-  console.log(`  → Demo login     demo@koda.africa / koda-demo   ·   Admin: admin@koda.africa / koda-admin\n`);
+  console.log(`  → API            http://localhost:${PORT}/v1/ping   ·   ops: /healthz /readyz /version`);
+  console.log(`  → Channels       ai:${p.ai_gateway} whatsapp:${p.whatsapp} email:${p.email} push:${p.push} sms:${p.sms_fallback}`);
+  if (!PROD) console.log(`  → Demo login     demo@koda.africa / koda-demo   ·   Admin: admin@koda.africa / koda-admin`);
+  console.log('');
 });

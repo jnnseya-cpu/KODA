@@ -1,0 +1,59 @@
+name: KODA CI
+
+# The whole gate that keeps the money path honest. Zero npm deps, so there is
+# nothing to install — just Node 22 and the test suites.
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Show Node version (need >= 22.5 for node:sqlite)
+        run: node --version
+
+      # self-hosted unit suite (boots its own server on an isolated port) + margin law
+      - name: Unit + margin gate
+        run: npm test
+
+      # HTTP suites need a running instance — boot one, wait for health, run them
+      - name: Boot server
+        run: |
+          KODA_QUIET=1 node --no-warnings backend/server.js &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+          for i in $(seq 1 40); do
+            curl -sf http://localhost:4600/readyz >/dev/null && break
+            sleep 0.5
+          done
+          curl -sf http://localhost:4600/version
+
+      - name: Security / adversarial
+        run: node --no-warnings backend/tools/adversarial.js
+
+      - name: AI gating (no free AI action)
+        run: node --no-warnings backend/tools/test-ai-gating.js
+
+      - name: Growth engine
+        run: node --no-warnings backend/tools/test-growth.js
+
+      - name: Checkout end-to-end
+        run: node --no-warnings backend/tools/test-checkout.js
+
+      - name: Busy-merchant fraud regression
+        run: node --no-warnings backend/tools/test-busy-merchant.js
+
+      - name: Stop server
+        if: always()
+        run: kill "$SERVER_PID" 2>/dev/null || true

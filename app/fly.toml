@@ -1,0 +1,50 @@
+# KODA — Fly.io deployment (PRIMARY recommendation).
+# Why Fly: a real persistent block volume for SQLite + an edge region physically
+# close to the merchants (jnb = Johannesburg). SQLite is a SINGLE-WRITER engine,
+# so KODA runs as ONE machine with one durable volume — never scale to N.
+#
+# First-time setup:
+#   fly launch --no-deploy --copy-config --name koda
+#   fly volumes create koda_data --region jnb --size 3
+#   fly secrets set KODA_JWT_SECRET=$(openssl rand -hex 32) \
+#       KODA_ADMIN_EMAIL=you@koda.africa KODA_ADMIN_PASSWORD=... \
+#       ANTHROPIC_API_KEY=... BREVO_API_KEY=... \
+#       META_WA_TOKEN=... META_WA_PHONE_ID=...
+#   fly deploy --build-arg KODA_BUILD_SHA=$(git rev-parse --short HEAD) \
+#              --build-arg KODA_BUILD_DATE=$(date -u +%FT%TZ)
+
+app = "koda"
+primary_region = "jnb"          # Johannesburg — lowest latency to DRC/EA/WA corridors
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "8080"
+  KODA_DATA_DIR = "/data"
+  KODA_PUBLIC_URL = "https://koda.fly.dev"   # replace with your custom domain
+  # secrets (KODA_JWT_SECRET, *_API_KEY, META_*) are set via `fly secrets set`
+
+# durable SQLite volume — the whole ledger lives here
+[[mounts]]
+  source = "koda_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false     # keep the single writer warm; do NOT autoscale
+  auto_start_machines = true
+  min_machines_running = 1       # SQLite = exactly one writer
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "15s"
+    method = "GET"
+    path = "/readyz"             # DB-backed readiness — fails if SQLite is unreachable
+    timeout = "4s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"               # zero-dep Node + SQLite is tiny; bump for heavy AI use

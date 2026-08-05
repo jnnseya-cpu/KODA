@@ -1,0 +1,51 @@
+# KODA — Render deployment (ALTERNATIVE to Fly.io).
+# Render gives a persistent disk, which SQLite needs. Like Fly, KODA must run as
+# a SINGLE instance (SQLite is single-writer) — do NOT enable horizontal scaling.
+#
+# Setup: New → Blueprint → point at this repo (root dir: app). Then set the
+# secret env vars (marked sync:false) in the dashboard.
+services:
+  - type: web
+    name: koda
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: frankfurt              # closest Render region to Africa
+    plan: starter
+    numInstances: 1                # SQLite single-writer — never > 1
+    healthCheckPath: /readyz
+    disk:
+      name: koda-data
+      mountPath: /data             # matches KODA_DATA_DIR
+      sizeGB: 3
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      - key: KODA_DATA_DIR
+        value: /data
+      - key: KODA_PUBLIC_URL
+        sync: false                # set to your Render URL / custom domain
+      - key: KODA_JWT_SECRET
+        generateValue: true        # Render mints a strong secret
+      - key: KODA_ADMIN_EMAIL
+        sync: false
+      - key: KODA_ADMIN_PASSWORD
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: BREVO_API_KEY
+        sync: false
+      - key: META_WA_TOKEN
+        sync: false
+      - key: META_WA_PHONE_ID
+        sync: false
+      - key: META_WA_VERIFY_TOKEN
+        sync: false
+      - key: FCM_KEY
+        sync: false

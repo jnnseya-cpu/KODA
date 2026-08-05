@@ -1,7 +1,7 @@
 // KODA — verification-path benchmark: measures the money path end-to-end
 // (HTTP intent create → verify) sequentially and under concurrency.
 'use strict';
-const B = process.env.KODA_URL || 'http://localhost:4600';
+const B = process.env.KODA_BASE || `http://localhost:${process.env.PORT || 4600}`;
 
 async function main() {
   // setup: login + API key

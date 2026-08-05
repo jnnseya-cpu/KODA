@@ -1,7 +1,7 @@
 // KODA — AI metering policy: EVERY AI action is metered (cost > 0) and gated by
 // available ACU. Proves no AI action is free and none runs at insufficient balance.
 'use strict';
-const B = process.env.KODA_URL || 'http://localhost:4600';
+const B = process.env.KODA_BASE || `http://localhost:${process.env.PORT || 4600}`;
 let pass = 0, fail = 0; const F = [];
 const T = (n, ok, x = '') => { ok ? pass++ : (fail++, F.push(n)); console.log((ok ? '  ✓' : '  ✗ FAIL'), n, x); };
 const j = async (p, o = {}, tok) => { const r = await fetch(B + p, { method: o.method || (o.body !== undefined ? 'POST' : 'GET'), headers: { 'content-type': 'application/json', ...(tok ? { authorization: 'Bearer ' + tok } : {}) }, body: o.body !== undefined ? JSON.stringify(o.body) : undefined }); return { s: r.status, d: await r.json().catch(() => ({})) }; };

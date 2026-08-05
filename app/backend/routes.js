@@ -9,6 +9,7 @@ const { CATEGORIES, ALL, BY_KEY, CHANNELS } = require('../shared/events');
 const notify = require('./comms/notify');
 
 const { PLANS } = require('../shared/plans');
+const VERSION = require('../shared/version');
 
 // role gate: owners always pass, KODA staff always pass
 function needRole(user, roles) { return user.is_admin || user.role === 'owner' || roles.includes(user.role); }
@@ -585,8 +586,24 @@ module.exports = function registerRoutes(r) {
 
   // hosted checkout page + drop-in widget are static (served from frontend/checkout/*)
 
-  // health for status page
+  // ---------- ops surface: health, readiness, version ----------
+  // liveness — the process is up (cheap, no I/O)
   r.get('/healthz', () => ({ ok: true, service: 'koda-api', time: new Date().toISOString() }));
+  // readiness — the process can actually serve traffic (DB reachable)
+  r.get('/readyz', () => {
+    try {
+      q.get('SELECT 1 AS ok');
+      return { ok: true, db: 'up', time: new Date().toISOString() };
+    } catch (e) {
+      return [503, { ok: false, db: 'down', error: 'db_unreachable' }];
+    }
+  });
+  // version — one coherent version identity for the whole OS
+  r.get('/version', () => ({
+    service: 'koda', app: VERSION.app, api: VERSION.api, widget: VERSION.widget,
+    fraud_model: VERSION.fraud_model, channel: VERSION.channel, build: VERSION.build(),
+    node: process.version, time: new Date().toISOString(),
+  }));
 };
 
 function SITE_BASE() { return process.env.KODA_PUBLIC_URL || 'http://localhost:4600'; }
@@ -698,7 +715,7 @@ function safeUser(u) { const { pass_hash, ...rest } = u; return rest; }
 function openapi() {
   return {
     openapi: '3.1.0',
-    info: { title: 'KODA API', version: '1.0.0', description: 'Payment verification for mobile money — the SMS is the API.' },
+    info: { title: 'KODA API', version: VERSION.api, description: 'Payment verification for mobile money — the SMS is the API.' },
     servers: [{ url: 'https://api.koda.africa/v1' }, { url: 'https://sandbox.koda.africa/v1' }],
     paths: {
       '/ping': { get: { summary: 'Verify a key and see the merchant it unlocks.' } },

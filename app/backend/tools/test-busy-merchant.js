@@ -1,4 +1,4 @@
-const B='http://localhost:4600';
+const B = process.env.KODA_BASE || `http://localhost:${process.env.PORT || 4600}`;
 const j=async(p,o={},tok)=>{const r=await fetch(B+p,{method:o.method||(o.body!==undefined?'POST':'GET'),headers:{'content-type':'application/json',...(tok?{authorization:'Bearer '+tok}:{})},body:o.body!==undefined?JSON.stringify(o.body):undefined});let d=null;try{d=await r.json()}catch{}return{s:r.status,d}};
 const topBal=async(tok)=>{const f=(await j('/app/feed',{},tok)).d;const r=f.find(x=>x.operator==='orange_cd'&&!x.quarantined&&x.balance_after!=null);return r?r.balance_after:250000;};
 (async()=>{

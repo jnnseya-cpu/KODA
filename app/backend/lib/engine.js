@@ -9,6 +9,7 @@ const webhooks = require('./webhooks');
 const notify = require('../comms/notify');
 
 const { ACU, TOPUP_PACKS } = require('../../shared/plans');
+const VERSION = require('../../shared/version');
 
 function getMerchant(mid) { return q.get('SELECT * FROM merchants WHERE id=?', mid); }
 
@@ -95,7 +96,7 @@ function ingestSms(merchant, { raw, operator, device_id }) {
 // the core verify — one truth for all three doors
 function verify(merchant, intent, reference, { mode = 'api', userId = null, viaScreenshot = false, late = false } = {}) {
   reference = String(reference || '').trim().toUpperCase();
-  const trace = { steps: [], template_version: 'v2.0', model_version: 'fraud-2026-07' };
+  const trace = { steps: [], template_version: VERSION.trace_template, model_version: VERSION.fraud_model };
 
   // magic sandbox references
   if (/^TEST-/.test(reference)) return sandboxVerify(merchant, intent, reference, { mode, userId, trace });

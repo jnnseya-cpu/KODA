@@ -1,6 +1,6 @@
 // KODA — AI Growth Engine regression: every tool returns usable output and meters ACU.
 'use strict';
-const B = process.env.KODA_URL || 'http://localhost:4600';
+const B = process.env.KODA_BASE || `http://localhost:${process.env.PORT || 4600}`;
 let pass = 0, fail = 0;
 const T = (n, ok, x = '') => { ok ? pass++ : fail++; console.log((ok ? '  ✓' : '  ✗ FAIL'), n, x); };
 const j = async (p, o = {}, tok) => { const r = await fetch(B + p, { method: o.method || (o.body !== undefined ? 'POST' : 'GET'), headers: { 'content-type': 'application/json', ...(tok ? { authorization: 'Bearer ' + tok } : {}) }, body: o.body !== undefined ? JSON.stringify(o.body) : undefined }); return { s: r.status, d: await r.json().catch(() => ({})) }; };

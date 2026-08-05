@@ -4,7 +4,7 @@
 'use strict';
 const pw = require(process.env.PLAYWRIGHT_CORE || 'playwright-core'); // npm i -D playwright-core to run locally
 const DIR = process.env.KODA_PROOF_DIR || require('node:path').join(__dirname, '..', '..', 'proof');
-const B = 'http://localhost:4600';
+const B = process.env.KODA_BASE || `http://localhost:${process.env.PORT || 4600}`;
 const results = [];
 const ok = (name, cond, extra = '') => { results.push({ name, cond: !!cond, extra }); console.log((cond ? '✓' : '✗ FAIL'), name, extra); };
 
