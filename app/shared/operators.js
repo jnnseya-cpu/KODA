@@ -132,6 +132,31 @@
     { id: 'ezcash_lk', name: 'Dialog eZ Cash', country: 'LK', region: 'SOUTH_ASIA', currency: 'LKR', senders: ['EZCASH', 'DIALOG'] },
     { id: 'mcash_lk', name: 'Mobitel mCash', country: 'LK', region: 'SOUTH_ASIA', currency: 'LKR', senders: ['MCASH', 'MOBITEL'] },
     { id: 'upi_in', name: 'UPI (bank credit SMS)', country: 'IN', region: 'SOUTH_ASIA', currency: 'INR', senders: ['UPI', 'PHONEPE', 'PAYTM', 'GPAY'] },
+    { id: 'mbob_bt', name: 'mBoB', country: 'BT', region: 'SOUTH_ASIA', currency: 'BTN', senders: ['MBOB', 'BOB'] },
+    { id: 'tpay_bt', name: 'TPay', country: 'BT', region: 'SOUTH_ASIA', currency: 'BTN', senders: ['TPAY', 'TASHICELL'] },
+    { id: 'dhiraagupay_mv', name: 'DhiraaguPay', country: 'MV', region: 'SOUTH_ASIA', currency: 'MVR', senders: ['DHIRAAGU'] },
+    { id: 'mfaisaa_mv', name: 'Ooredoo m-Faisaa', country: 'MV', region: 'SOUTH_ASIA', currency: 'MVR', senders: ['MFAISAA', 'OOREDOO'] },
+    { id: 'bml_mv', name: 'BML MobilePay', country: 'MV', region: 'SOUTH_ASIA', currency: 'MVR', senders: ['BML'] },
+    { id: 'mpaisa_af', name: 'M-Paisa', country: 'AF', region: 'SOUTH_ASIA', currency: 'AFN', senders: ['MPAISA', 'ROSHAN'] },
+    { id: 'hesabpay_af', name: 'HesabPay', country: 'AF', region: 'SOUTH_ASIA', currency: 'AFN', senders: ['HESABPAY', 'HESAB'] },
+
+    // ── Southeast Asia (wallets; national QR/rails like QRIS/PayNow are separate) ─
+    { id: 'gcash_ph', name: 'GCash', country: 'PH', region: 'SEA', currency: 'PHP', senders: ['GCASH'] },
+    { id: 'maya_ph', name: 'Maya', country: 'PH', region: 'SEA', currency: 'PHP', senders: ['MAYA', 'PAYMAYA'] },
+    { id: 'coinsph_ph', name: 'Coins.ph', country: 'PH', region: 'SEA', currency: 'PHP', senders: ['COINS'] },
+    { id: 'grabpay_ph', name: 'GrabPay', country: 'PH', region: 'SEA', currency: 'PHP', senders: ['GRABPAY', 'GRAB'] },
+    { id: 'gopay_id', name: 'GoPay', country: 'ID', region: 'SEA', currency: 'IDR', senders: ['GOPAY', 'GOJEK'] },
+    { id: 'ovo_id', name: 'OVO', country: 'ID', region: 'SEA', currency: 'IDR', senders: ['OVO'] },
+    { id: 'dana_id', name: 'DANA', country: 'ID', region: 'SEA', currency: 'IDR', senders: ['DANA'] },
+    { id: 'linkaja_id', name: 'LinkAja', country: 'ID', region: 'SEA', currency: 'IDR', senders: ['LINKAJA'] },
+    { id: 'shopeepay_id', name: 'ShopeePay', country: 'ID', region: 'SEA', currency: 'IDR', senders: ['SHOPEEPAY', 'SHOPEE'] },
+    { id: 'tng_my', name: "Touch 'n Go eWallet", country: 'MY', region: 'SEA', currency: 'MYR', senders: ['TNG', 'TOUCHNGO'] },
+    { id: 'boost_my', name: 'Boost', country: 'MY', region: 'SEA', currency: 'MYR', senders: ['BOOST'] },
+    { id: 'grabpay_my', name: 'GrabPay', country: 'MY', region: 'SEA', currency: 'MYR', senders: ['GRABPAY', 'GRAB'] },
+    { id: 'bigpay_my', name: 'BigPay', country: 'MY', region: 'SEA', currency: 'MYR', senders: ['BIGPAY'] },
+    { id: 'grabpay_sg', name: 'GrabPay', country: 'SG', region: 'SEA', currency: 'SGD', senders: ['GRABPAY', 'GRAB'] },
+    { id: 'paylah_sg', name: 'DBS PayLah!', country: 'SG', region: 'SEA', currency: 'SGD', senders: ['PAYLAH', 'DBS'] },
+    { id: 'dash_sg', name: 'Singtel Dash', country: 'SG', region: 'SEA', currency: 'SGD', senders: ['DASH', 'SINGTEL'] },
   ];
 
   const byId = Object.fromEntries(OPS.map(o => [o.id, o]));

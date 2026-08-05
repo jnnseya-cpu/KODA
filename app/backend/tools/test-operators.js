@@ -19,6 +19,9 @@ const cases = [
   ['Vodafone Cash EG (EN)', 'You received EGP 500 from AHMED. Txn 5566778899. Balance EGP 1,200', 500, '5566778899'],
   ['Free Money SN (FR)', 'Transfert recu: 8 000 XOF de MOUSSA. Reference TR12345Z. Solde 20 000', 8000, 'TR12345Z'],
   ['M-Pesa MZ (PT)', 'Recebeu 800 MT de JOAO. Ref ABC55TT. Saldo 2000', 800, 'ABC55TT'],
+  ['GCash PH (EN)', 'You have received PHP 500 from JUAN. Ref GC123456. Balance PHP 1,200', 500, 'GC123456'],
+  ['DANA ID (Rp)', 'Anda menerima Rp 50.000 dari BUDI. Ref DN99XX2. Saldo Rp 200.000', 50000, 'DN99XX2'],
+  ['bKash BD (Tk/TrxID)', 'You have received Tk 1,500 from RAHIM. TrxID BK12345678. Balance Tk 3,000', 1500, 'BK12345678'],
 ];
 for (const [label, sms, amt, ref] of cases) {
   const r = parseSms(sms);
