@@ -10,7 +10,7 @@
     "start": "node --no-warnings backend/server.js",
     "dev": "node --no-warnings --watch backend/server.js",
     "bench": "node --no-warnings backend/tools/bench.js",
-    "test": "node --no-warnings backend/tools/test.js && node --no-warnings backend/tools/margin.js",
+    "test": "node --no-warnings backend/tools/test.js && node --no-warnings backend/tools/test-operators.js && node --no-warnings backend/tools/margin.js",
     "test:ui": "node --no-warnings backend/tools/ui-test.js",
     "backup": "node --no-warnings backend/tools/backup.js",
     "margin": "node --no-warnings backend/tools/margin.js",

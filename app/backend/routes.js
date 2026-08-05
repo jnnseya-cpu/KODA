@@ -426,6 +426,17 @@ module.exports = function registerRoutes(r) {
     return { received: true, sms_id: out.id, parsed: !!out.parsed, quarantined: !!out.quarantined };
   });
 
+  // ---- operator coverage: the mobile-money landscape KODA recognises ----
+  // Public (non-sensitive). `packed` = precise parser; the rest run on the
+  // generic fallback (verified via manual review) until a pack is added.
+  r.get('/v1/operators', () => {
+    const ops = require('../shared/operators');
+    return {
+      coverage: ops.coverage(),
+      operators: ops.OPERATORS.map(o => ({ id: o.id, name: o.name, country: o.country, region: o.region, currency: o.currency, parser: o.packed ? 'precise' : 'generic' })),
+    };
+  });
+
   // ---- agent surface: list the runnable mesh + run an agent (draws down ACU) ----
   r.get('/v1/agents', apiKey(() => ({ agents: AGENTS.map(({ run, ...meta }) => meta) }), 'read:agents'));
   r.post('/v1/agents/:type/run', apiKey((req, m) => {

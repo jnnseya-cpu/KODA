@@ -21,6 +21,9 @@ function scoreMatch({ merchant, intent, sms, reference, suffixProvided }) {
 
   if (!sms) { score += 0.5; reasons.push('no_merchant_side_confirmation'); }
   else {
+    // parsed by the generic fallback (no precise pack for this operator yet) →
+    // lower trust: nudge into the challenge band so a human confirms it.
+    if (sms.operator === 'generic') { score += 0.2; reasons.push('generic_operator_low_trust'); }
     if (sms.quarantined) { score += 0.9; reasons.push('sms_quarantined_chain_break'); }
     if (intent && sms.amount !== intent.amount) { score += 0.45; reasons.push('amount_mismatch'); }
     if (intent) {

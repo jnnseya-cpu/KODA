@@ -43,7 +43,44 @@ function num(s) {
   return Number.isFinite(n) ? n : null;
 }
 
-// parse a raw SMS; returns {operator, ref, amount, currency, name, suffix, balance} or null
+// Currencies KODA recognises across the mobile-money landscape (for the generic pass).
+const CUR = 'FC|CDF|USD|XOF|XAF|GHS|NGN|KES|TZS|UGX|RWF|ZAR|EGP|MAD|TND|EUR|MZN|ZMW|MWK|SLE|SLL|GMD|GNF|LRD|BIF|ETB|SOS|AOA|MGA|LSL|SZL|BWP';
+
+// Generic, multilingual fallback (FR/EN/PT). Fires ONLY when no precise pack
+// matches. It extracts amount+currency, a reference code, and the payer name
+// from the common "you received X from Y, ref Z" shape. It is deliberately
+// lower-trust: results carry generic:true, and FraudSentinel routes them to
+// manual review (challenge) instead of auto-confirm until a real pack is added.
+function genericParse(raw) {
+  const s = String(raw);
+  const VERB = 'vous avez re[cç]u|avez re[cç]u|re[cç]u|received|payment received|paiement re[cç]u|recebeu|transfert re[cç]u|credit(?:ed|é)?';
+  // amount: the number right after a receive verb (a currency code/symbol prefix is allowed)
+  let amount = null;
+  const vm = s.match(new RegExp(`(?:${VERB})\\s*:?\\s*([A-Za-z₦₵.]{0,5}\\s?\\d[\\d\\s.,]*)`, 'i'));
+  if (vm) amount = num(vm[1]);
+  if (!amount) { // fallback: a number adjacent to a known currency anywhere
+    const cm = s.match(new RegExp(`(?:(${CUR})\\s*([\\d][\\d\\s.,]*)|([\\d][\\d\\s.,]*)\\s*(${CUR}))`, 'i'));
+    if (cm) amount = num(cm[2] || cm[3]);
+  }
+  if (!amount) return null;
+  // reference — \b-anchored keywords so "Transaction" can't leak "action"
+  const ref = (s.match(/\b(?:ref(?:erence)?|txn|tx\s*id|transaction|id|re[cç]u\s*n[°o])\b\s*[:.#]?\s*([A-Z0-9][A-Z0-9.\-]{3,})/i) || [])[1];
+  if (!ref) return null;
+  // currency (optional): ISO code, else a colloquial symbol/abbrev
+  let currency = (s.match(new RegExp(`\\b(${CUR})\\b`, 'i')) || [])[1];
+  if (!currency) currency = (s.match(/\b(Ksh|Ush|Tsh|Br|MT)\b/i) || [])[1];
+  if (currency) currency = currency.toUpperCase().replace(/^FC$/, 'CDF').replace(/^KSH$/, 'KES').replace(/^USH$/, 'UGX').replace(/^TSH$/, 'TZS');
+  const name = (s.match(/(?:\bde\b|\bfrom\b|da parte de|\bpar\b|\bby\b)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9.'\- ]{1,40}?)(?=\s*(?:[.,(]|\bref|\btxn|\bid\b|solde|balance|saldo|\+?\d|$))/i) || [])[1];
+  const suffix = (s.match(/(\d{4})(?!\d)/) || [])[1] || null;
+  const balance = num((s.match(/(?:solde|balance|saldo)\s*[:.]?\s*([\d][\d\s.,]*)/i) || [])[1]);
+  return {
+    operator: 'generic', generic: true, ref: String(ref).replace(/[.\s]+$/, ''),
+    amount, currency: currency || null, name: name ? name.trim() : null, suffix, balance,
+  };
+}
+
+// parse a raw SMS; returns {operator, ref, amount, currency, name, suffix, balance} or null.
+// A generic match carries generic:true (lower trust) — precise packs always win first.
 function parseSms(raw, operatorHint) {
   const candidates = operatorHint ? PACKS.filter(p => p.operator === operatorHint).concat(PACKS) : PACKS;
   for (const pack of candidates) {
@@ -54,9 +91,9 @@ function parseSms(raw, operatorHint) {
       if (f.ref && f.amount) return { operator: pack.operator, ...f };
     }
   }
-  return null;
+  return genericParse(raw); // graceful degradation for operators without a pack yet
 }
 
 const OPERATORS = PACKS.map(p => ({ id: p.operator, label: p.label }));
 
-module.exports = { parseSms, OPERATORS, PACKS };
+module.exports = { parseSms, genericParse, OPERATORS, PACKS };
