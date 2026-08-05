@@ -1,0 +1,49 @@
+# KODA — one-command deploy for a Hostinger (or any) VPS.
+#   docker compose up -d --build
+# Brings up TWO containers:
+#   koda   — the whole OS (frontend + backend + SQLite ledger), one process
+#   caddy  — TLS termination + reverse proxy, auto Let's Encrypt certificate
+# The ledger lives in the named volume koda_data (survives restarts/redeploys).
+services:
+  koda:
+    build:
+      context: .
+      args:
+        KODA_BUILD_SHA: ${KODA_BUILD_SHA:-dev}
+        KODA_BUILD_DATE: ${KODA_BUILD_DATE:-unknown}
+    image: koda:latest
+    restart: unless-stopped
+    env_file: .env            # KODA_JWT_SECRET, KODA_PUBLIC_URL, AI keys, etc.
+    environment:
+      PORT: "8080"
+      KODA_DATA_DIR: /data
+    volumes:
+      - koda_data:/data       # persistent SQLite ledger
+    expose:
+      - "8080"                # internal only; Caddy is the public door
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 4s
+      retries: 3
+      start_period: 10s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - koda
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      KODA_DOMAIN: ${KODA_DOMAIN}   # your domain, from .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data            # stores the issued TLS certificate
+      - caddy_config:/config
+
+volumes:
+  koda_data:
+  caddy_data:
+  caddy_config:
