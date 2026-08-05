@@ -250,7 +250,62 @@
     { id: 'wink_cr', name: 'Wink', country: 'CR', region: 'LATAM', currency: 'CRC', senders: ['WINK'] },
     { id: 'yappy_pa', name: 'Yappy', country: 'PA', region: 'LATAM', currency: 'USD', senders: ['YAPPY', 'BGENERAL'] },
     { id: 'puntopago_pa', name: 'Punto Pago', country: 'PA', region: 'LATAM', currency: 'USD', senders: ['PUNTOPAGO'] },
+
+    // ── Caribbean ─────────────────────────────────────────────────────────
+    { id: 'tpago_do', name: 'tPago', country: 'DO', region: 'CARIBBEAN', currency: 'DOP', senders: ['TPAGO'] },
+    { id: 'qik_do', name: 'Qik', country: 'DO', region: 'CARIBBEAN', currency: 'DOP', senders: ['QIK'] },
+    { id: 'moncash_ht', name: 'MonCash', country: 'HT', region: 'CARIBBEAN', currency: 'HTG', senders: ['MONCASH', 'DIGICEL'] },
+    { id: 'natcash_ht', name: 'NatCash', country: 'HT', region: 'CARIBBEAN', currency: 'HTG', senders: ['NATCASH', 'NATCOM'] },
+    { id: 'lynk_jm', name: 'Lynk', country: 'JM', region: 'CARIBBEAN', currency: 'JMD', senders: ['LYNK'] },
+    { id: 'jnpay_jm', name: 'JN Pay', country: 'JM', region: 'CARIBBEAN', currency: 'JMD', senders: ['JNPAY', 'JN'] },
+    { id: 'wipay_tt', name: 'WiPay', country: 'TT', region: 'CARIBBEAN', currency: 'TTD', senders: ['WIPAY'] },
+    { id: 'mmoney_bb', name: 'mMoney', country: 'BB', region: 'CARIBBEAN', currency: 'BBD', senders: ['MMONEY'] },
+    { id: 'mmg_gy', name: 'MMG+', country: 'GY', region: 'CARIBBEAN', currency: 'GYD', senders: ['MMG', 'GTT'] },
+    { id: 'mope_sr', name: 'Mopé', country: 'SR', region: 'CARIBBEAN', currency: 'SRD', senders: ['MOPE'] },
+
+    // ── Pacific Islands (Digicel MyCash + BSP dominate) ───────────────────
+    { id: 'mpaisa_fj', name: 'M-PAiSA', country: 'FJ', region: 'PACIFIC', currency: 'FJD', senders: ['MPAISA', 'VODAFONE'] },
+    { id: 'mycash_fj', name: 'Digicel MyCash', country: 'FJ', region: 'PACIFIC', currency: 'FJD', senders: ['MYCASH', 'DIGICEL'] },
+    { id: 'mycash_ws', name: 'Digicel MyCash', country: 'WS', region: 'PACIFIC', currency: 'WST', senders: ['MYCASH', 'DIGICEL'] },
+    { id: 'mtala_ws', name: 'M-Tala', country: 'WS', region: 'PACIFIC', currency: 'WST', senders: ['MTALA'] },
+    { id: 'mycash_to', name: 'Digicel MyCash', country: 'TO', region: 'PACIFIC', currency: 'TOP', senders: ['MYCASH', 'DIGICEL'] },
+    { id: 'mvatu_vu', name: 'M-Vatu', country: 'VU', region: 'PACIFIC', currency: 'VUV', senders: ['MVATU', 'DIGICEL'] },
+    { id: 'cellmoni_pg', name: 'Digicel CellMoni', country: 'PG', region: 'PACIFIC', currency: 'PGK', senders: ['CELLMONI', 'DIGICEL'] },
+    { id: 'mselen_sb', name: 'M-Selen', country: 'SB', region: 'PACIFIC', currency: 'SBD', senders: ['MSELEN', 'OURTELEKOM'] },
   ];
+
+  // Template families — the KODA thesis: one brand ≈ one SMS grammar, so a single
+  // precise pack unlocks every market that brand operates in (M-Pesa's 8, MTN's
+  // 16, Orange's ~17…). ~12 families reach the bulk of telco-led volume.
+  const FAMILY_RULES = [
+    [/wave money/i, 'wave_money'],            // Myanmar Wave Money (distinct grammar)
+    [/m-?pesa|vodacom|vodafone cash/i, 'mpesa'],
+    [/mtn|\bmomo\b/i, 'mtn_momo'],
+    [/orange/i, 'orange_money'],
+    [/airtel/i, 'airtel_money'],
+    [/\bwave\b/i, 'wave'],
+    [/moov|flooz/i, 'moov'],
+    [/tigo/i, 'tigo'],
+    [/digicel|mycash|cellmoni/i, 'digicel'],
+    [/afrimoney|africell/i, 'afrimoney'],
+  ];
+  function familyOf(o) {
+    for (const [re, fam] of FAMILY_RULES) if (re.test(o.name)) return fam;
+    return o.id; // single-deployment operator → its own family
+  }
+
+  // KODA-fit tier: A = SMS-native (a pack is worth building) · B = hybrid, verify
+  // via the generic pass at review-trust · C = app-push / QR / bank-rail, out of
+  // scope for SMS verification (UPI, Pix, Bakong, pure fintech apps).
+  const TIER_A_FAMILIES = new Set(['mpesa', 'mtn_momo', 'orange_money', 'airtel_money', 'wave_money', 'moov', 'tigo', 'digicel', 'afrimoney']);
+  const TIER_A_IDS = new Set(['illicocash_cd', 'telebirr_et', 'cbebirr_et', 'ecocash_zw', 'onemoney_zw', 'zamtel_zm', 'mpamba_mw', 'mvola_mg', 'emola_mz', 'mkesh_mz', 'myzaka_bw', 'bkash_bd', 'nagad_bd', 'rocket_bd', 'upay_bd', 'easypaisa_pk', 'jazzcash_pk', 'upaisa_pk', 'esewa_np', 'khalti_np', 'imepay_np', 'ezcash_lk', 'mcash_lk', 'kbzpay_mm', 'ayapay_mm', 'okdollar_mm', 'umoney_la', 'mmoney_la', 'moncash_ht', 'natcash_ht', 'mmg_gy', 'mpaisa_fj', 'mtala_ws', 'mvatu_vu', 'mselen_sb', 'mpaisa_af', 'hesabpay_af', 'elsom_kg', 'omoney_kg', 'sinpe_cr', 'pagomovil_ve']);
+  const TIER_C = /\bupi\b|pix|bakong|qris|paynow|duitnow|promptpay|instapay/i;
+  const TIER_C_IDS = new Set(['mercadopago_br', 'mercadopago_ar', 'mercadopago_mx', 'mercadopago_cl', 'picpay_br', 'nubank_br', 'pagbank_br', 'caixatem_br', 'nequi_co', 'daviplata_co', 'movii_co', 'rappipay_co', 'yape_pe', 'plin_pe', 'yape_bo', 'spin_mx', 'nu_mx', 'modo_ar', 'uala_ar', 'naranjax_ar', 'mach_cl', 'tenpo_cl', 'prex_uy', 'midinero_uy', 'gopay_id', 'ovo_id', 'dana_id', 'linkaja_id', 'shopeepay_id', 'grabpay_ph', 'grabpay_my', 'grabpay_sg', 'boost_my', 'bigpay_my', 'tng_my', 'zalopay_vn', 'vnpay_vn', 'paylah_sg', 'dash_sg', 'aba_kh', 'kaspi_kz', 'halyk_kz', 'click_uz', 'payme_uz', 'uzum_uz', 'deuna_ec', 'payphone_ec', 'peigo_ec', 'zinli_ve', 'cashea_ve', 'yappy_pa', 'puntopago_pa', 'qik_do', 'tpago_do', 'wipay_tt', 'mmoney_bb']);
+  function tierOf(o) {
+    if (TIER_C.test(o.name) || TIER_C_IDS.has(o.id)) return 'C';
+    if (TIER_A_FAMILIES.has(familyOf(o)) || TIER_A_IDS.has(o.id)) return 'A';
+    return 'B';
+  }
 
   const byId = Object.fromEntries(OPS.map(o => [o.id, o]));
 
@@ -264,19 +319,39 @@
   }
 
   function coverage() {
-    const byRegion = {}, byCountry = {};
+    const byRegion = {}, byCountry = {}, byTier = { A: 0, B: 0, C: 0 };
+    const famA = new Set();
     for (const o of OPS) {
       byRegion[o.region] = (byRegion[o.region] || 0) + 1;
       byCountry[o.country] = (byCountry[o.country] || 0) + 1;
+      const t = tierOf(o); byTier[t]++;
+      if (t !== 'C') famA.add(familyOf(o)); // grammar families worth a pack
     }
     return {
       total: OPS.length,
-      packed: OPS.filter(o => o.packed).length,       // precise parser exists
-      generic: OPS.filter(o => !o.packed).length,     // handled by fallback until a pack is added
       countries: Object.keys(byCountry).length,
+      packed: OPS.filter(o => o.packed).length,   // precise parser exists today
+      generic: OPS.filter(o => !o.packed).length, // handled by fallback until a pack is added
+      byTier,                                      // A: SMS-native · B: hybrid · C: app/rail (excluded)
+      addressable_families: famA.size,             // the Atlas thesis: ~N packs reach the A/B world
       byRegion,
     };
   }
 
-  return { OPERATORS: OPS, byId, findBySender, coverage };
+  // the pack-production backlog: unique A/B families, largest deployment-count first
+  function families() {
+    const map = {};
+    for (const o of OPS) {
+      if (tierOf(o) === 'C') continue;
+      const f = familyOf(o);
+      (map[f] || (map[f] = { family: f, tier: 'B', deployments: 0, countries: new Set() }));
+      map[f].deployments++; map[f].countries.add(o.country);
+      if (tierOf(o) === 'A') map[f].tier = 'A';
+    }
+    return Object.values(map)
+      .map(m => ({ family: m.family, tier: m.tier, deployments: m.deployments, countries: m.countries.size }))
+      .sort((a, b) => b.deployments - a.deployments);
+  }
+
+  return { OPERATORS: OPS, byId, findBySender, familyOf, tierOf, coverage, families };
 });

@@ -433,7 +433,11 @@ module.exports = function registerRoutes(r) {
     const ops = require('../shared/operators');
     return {
       coverage: ops.coverage(),
-      operators: ops.OPERATORS.map(o => ({ id: o.id, name: o.name, country: o.country, region: o.region, currency: o.currency, parser: o.packed ? 'precise' : 'generic' })),
+      families: ops.families(),   // pack-production backlog: one grammar → many markets
+      operators: ops.OPERATORS.map(o => ({
+        id: o.id, name: o.name, country: o.country, region: o.region, currency: o.currency,
+        family: ops.familyOf(o), tier: ops.tierOf(o), parser: o.packed ? 'precise' : 'generic',
+      })),
     };
   });
 

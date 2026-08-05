@@ -35,7 +35,17 @@ ok(parseSms('Your OTP is 123456, do not share it.') === null, 'OTP SMS → no pa
 
 // ── registry ──
 const cov = ops.coverage();
-ok(cov.total > 60 && cov.packed === 6, 'registry coverage', `${cov.total} operators, ${cov.packed} packed, ${cov.countries} countries`);
+ok(cov.total > 200 && cov.packed === 6 && cov.countries > 90, 'registry coverage', `${cov.total} operators, ${cov.packed} packed, ${cov.countries} countries`);
+ok(cov.byTier.A > 0 && cov.byTier.C > 0, 'KODA-fit tiers computed', JSON.stringify(cov.byTier));
+
+// the Atlas thesis: one grammar family unlocks many markets from a single pack
+const fams = ops.families();
+const orangeFam = fams.find(f => f.family === 'orange_money');
+const mpesaFam = fams.find(f => f.family === 'mpesa');
+ok(orangeFam && orangeFam.deployments >= 14, 'orange_money family = one pack, many markets', orangeFam ? orangeFam.deployments + ' markets' : 'n/a');
+ok(mpesaFam && mpesaFam.tier === 'A', 'M-Pesa family classified Tier A (SMS-native)');
+ok(ops.tierOf(ops.byId.upi_in) === 'C', 'UPI classified Tier C (bank rail, excluded)');
+ok(ops.tierOf(ops.byId.orange_cd) === 'A', 'Orange CD classified Tier A');
 ok(ops.findBySender('MTNMoMo')?.name.includes('MTN'), 'findBySender attributes MTN');
 ok(ops.findBySender('MPESA', 'KE')?.country === 'KE', 'findBySender honours country hint (M-Pesa KE)');
 ok(ops.findBySender('random-sender') === null, 'unknown sender → null');
