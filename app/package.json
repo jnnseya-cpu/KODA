@@ -12,6 +12,8 @@
     "bench": "node --no-warnings backend/tools/bench.js",
     "test": "node --no-warnings backend/tools/test.js && node --no-warnings backend/tools/test-operators.js && node --no-warnings backend/tools/margin.js",
     "test:ui": "node --no-warnings backend/tools/ui-test.js",
+    "purge-demo": "node --no-warnings backend/tools/purge-demo.js",
+    "make-admin": "node --no-warnings backend/tools/make-admin.js",
     "backup": "node --no-warnings backend/tools/backup.js",
     "restore": "node --no-warnings backend/tools/restore.js",
     "test:backup": "node --no-warnings backend/tools/test-backup.js",
