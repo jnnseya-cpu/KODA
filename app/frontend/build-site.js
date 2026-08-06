@@ -47,7 +47,7 @@ const N = COV.total, NC = COV.countries, NR = Object.keys(COV.byRegion).length, 
 
 // the 12 site pages, grouped for the footer (used by landing + every content page)
 const FOOT_GROUPS = [
-  ['Product', [['How it works', 'how-it-works'], ['Coverage', 'coverage'], ['Sentinel app', 'sentinel'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
+  ['Product', [['How it works', 'how-it-works'], ['Live demo', 'demo'], ['Coverage', 'coverage'], ['Sentinel app', 'sentinel'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
   ['Company', [['About', 'about'], ['Blog', 'blog'], ['Growth & Influencers', 'growth'], ['Contact', 'contact']]],
   ['Developers', [['API documentation', 'developers'], ['API reference', 'api-reference'], ['OpenAPI (raw JSON)', 'v1/openapi.json'], ['Open the app', 'app']]],
   ['Legal', [['Terms of Service', 'terms'], ['Privacy Policy', 'privacy'], ['All policies', 'policies']]],
@@ -744,6 +744,22 @@ fetch('/healthz').then(r=>r.json()).then(d=>{
 for (const [name, html] of Object.entries(pages)) {
   fs.writeFileSync(path.join(OUT, `${name}.html`), html);
 }
+
+// ---- /demo: interactive 5-door simulator. Inlines the REAL parser (shared/parser.js)
+// verbatim so the demo parses SMS with the exact production regex packs — no drift,
+// no backend, no auth, cannot touch production data. ----
+try {
+  const demoSrcPath = path.join(__dirname, 'demo-src.html');
+  if (fs.existsSync(demoSrcPath)) {
+    const parserSrc = fs.readFileSync(path.join(__dirname, '..', 'shared', 'parser.js'), 'utf8')
+      // strip the Node export and expose a browser global instead
+      .replace(/module\.exports\s*=\s*\{[^}]*\};?/,
+        'window.KODA_PARSER = { parseSms, genericParse, OPERATORS, PACKS };');
+    const parserBundle = '(function(){\n' + parserSrc + '\n})();';
+    const demo = fs.readFileSync(demoSrcPath, 'utf8').replace('/*__KODA_PARSER__*/', parserBundle);
+    fs.writeFileSync(path.join(OUT, 'demo.html'), demo);
+  }
+} catch (e) { console.error('demo page build skipped:', e.message); }
 
 // ---- SEO blog: crawlable posts + index, interlinked, JSON-LD, sitemap, robots ----
 const seo = require('../backend/lib/seo');

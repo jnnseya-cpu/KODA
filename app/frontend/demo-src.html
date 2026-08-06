@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="fr" id="html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KODA — Démo en direct · Live demo</title>
+<meta name="description" content="See KODA verify a mobile-money payment through all five doors — Manual, WhatsApp, API, USSD and inbound SMS — plus a fraud lab, all running KODA's real parser in your browser.">
+<style>
+  :root{
+    --ink:#081813;--ink-2:#0C231C;--ink-3:#123027;--line:rgba(233,228,213,.12);--line-2:rgba(233,228,213,.2);
+    --gold:#E8A11F;--gold-b:#F5B93E;--gold-d:#B87A0D;--paper:#F5EFDF;--paper-2:#EFE7D2;--paper-ink:#241F14;
+    --verify:#23B884;--verify-d:#128A5F;--danger:#E0563B;--warn:#E8A11F;--text:#E9E4D5;--dim:#9BA79B;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;--disp:system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--ink);color:var(--text);font-family:var(--disp);line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:var(--gold);text-decoration:none}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 20px}
+  header.top{position:sticky;top:0;z-index:20;background:rgba(8,24,19,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .top .wrap{display:flex;align-items:center;justify-content:space-between;height:58px}
+  .logo{font-weight:900;letter-spacing:.14em;font-size:18px}
+  .logo b{color:var(--gold)}
+  .langsw{display:flex;gap:4px}
+  .langsw button{font-family:var(--mono);font-size:11px;padding:6px 10px;border-radius:7px;border:1px solid var(--line-2);
+    background:transparent;color:var(--dim);cursor:pointer}
+  .langsw button.on{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:700}
+  .hero{padding:40px 0 10px;text-align:center}
+  .hero .kick{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+  .hero h1{font-size:clamp(28px,4.6vw,44px);font-weight:900;line-height:1.05;margin:14px 0 12px}
+  .hero p{color:var(--dim);max-width:600px;margin:0 auto;font-size:16px}
+  .scenario{background:var(--ink-2);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:26px 0;
+    display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center;font-size:14px}
+  .scenario .amt{font-family:var(--mono);color:var(--gold);font-weight:700}
+  .scenario .op{font-family:var(--mono);font-size:12px;background:var(--ink-3);border:1px solid var(--line-2);border-radius:999px;padding:4px 11px}
+  .doors{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:8px 0 4px}
+  .doorbtn{font-family:var(--mono);font-size:12.5px;padding:10px 15px;border-radius:10px;border:1px solid var(--line-2);
+    background:var(--ink-2);color:var(--dim);cursor:pointer;transition:.15s}
+  .doorbtn:hover{border-color:var(--gold-d);color:var(--text)}
+  .doorbtn.on{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:700}
+  .stage{background:var(--ink-2);border:1px solid var(--line);border-radius:16px;padding:22px;margin:16px 0 30px;min-height:340px}
+  .stage h2{font-size:19px;margin-bottom:4px}
+  .stage .lead{color:var(--dim);font-size:14px;margin-bottom:16px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .panel{background:var(--ink);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .panel h3{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+  .sms{background:var(--paper);color:var(--paper-ink);border-radius:10px;border-left:3px solid var(--gold-d);padding:12px 14px;
+    font-family:var(--mono);font-size:13px;line-height:1.6}
+  .sms .from{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-d);font-weight:700;display:block;margin-bottom:6px}
+  textarea,input.code{width:100%;background:#fff;color:var(--paper-ink);border:1.5px solid var(--paper-2);border-radius:9px;
+    padding:11px 13px;font-family:var(--mono);font-size:13.5px;resize:vertical}
+  label.fld{display:block;font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin:12px 0 6px}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:14px;padding:12px 20px;border-radius:10px;
+    border:none;cursor:pointer;background:var(--gold);color:var(--ink);transition:.15s}
+  .btn:hover{background:var(--gold-b)}
+  .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line-2);font-weight:600}
+  .btn.sm{padding:8px 13px;font-size:12.5px}
+  .verdict{border-radius:12px;padding:16px;margin-top:14px;display:none}
+  .verdict.show{display:block;animation:pop .25s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .verdict.ok{background:rgba(35,184,132,.12);border:1.5px solid var(--verify)}
+  .verdict.warn{background:rgba(232,161,31,.13);border:1.5px solid var(--warn)}
+  .verdict.bad{background:rgba(224,86,59,.12);border:1.5px solid var(--danger)}
+  .verdict .ic{font-size:30px}
+  .verdict b{display:block;font-size:16px;font-weight:900;margin:6px 0 4px}
+  .verdict .row{font-family:var(--mono);font-size:12.5px;color:var(--dim);margin-top:8px}
+  .verdict .row span{color:var(--text)}
+  .reasons{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+  .reasons code{font-family:var(--mono);font-size:11px;background:rgba(0,0,0,.25);border:1px solid var(--line-2);border-radius:6px;padding:3px 7px;color:var(--dim)}
+  /* WhatsApp */
+  .wa{background:#0b141a;border-radius:14px;padding:14px;max-width:380px;margin:0 auto}
+  .wa .bar{display:flex;align-items:center;gap:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:12px}
+  .wa .av{width:34px;height:34px;border-radius:50%;background:var(--verify-d);display:grid;place-items:center;font-weight:800;color:#fff}
+  .wa .nm{font-size:14px;font-weight:700;color:#fff}.wa .st{font-size:11px;color:#8fa3ad}
+  .bub{max-width:78%;padding:9px 12px;border-radius:12px;font-size:13.5px;margin:6px 0;line-height:1.5;clear:both}
+  .bub.me{background:#005c4b;color:#e9edef;float:right;border-bottom-right-radius:3px}
+  .bub.them{background:#1f2c34;color:#e9edef;float:left;border-bottom-left-radius:3px}
+  .bub .t{display:block;font-size:10px;color:#8fa3ad;text-align:right;margin-top:3px}
+  .clr{clear:both}
+  /* USSD */
+  .ussd{background:#0a0a0a;border:2px solid #333;border-radius:18px;padding:18px;max-width:300px;margin:0 auto;
+    font-family:var(--mono);font-size:14px;color:#dfffd d;color:#e6ffe6;min-height:200px;white-space:pre-wrap}
+  .ussd .scr{background:#04120a;border-radius:8px;padding:14px;min-height:150px;color:#8CF5B0;line-height:1.7}
+  /* API / code */
+  pre.code{background:#04120a;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;
+    font-family:var(--mono);font-size:12.5px;color:#cfe;line-height:1.6}
+  pre.code .k{color:var(--gold-b)}pre.code .s{color:#8CF5B0}pre.code .c{color:var(--dim)}
+  /* phone (door 5) */
+  .phone{max-width:300px;margin:0 auto;background:#0a0a0a;border:2px solid #333;border-radius:22px;padding:12px}
+  .fraudbtns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .note{font-size:12px;color:var(--dim);margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  footer{border-top:1px solid var(--line);padding:26px 0;text-align:center;color:var(--dim);font-size:13px;margin-top:30px}
+  .step{opacity:.3;transition:opacity .3s}.step.on{opacity:1}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="logo">KO<b>D</b>A · <span id="t-demo">Démo</span></div>
+  <div class="langsw" id="langsw"></div>
+</div></header>
+
+<div class="wrap">
+  <section class="hero">
+    <div class="kick" id="t-kick">Démonstration en direct</div>
+    <h1 id="t-h1">Regardez KODA vérifier un paiement.</h1>
+    <p id="t-sub">Le même paiement mobile money, vérifié par les cinq portes de KODA. Tout tourne avec le vrai moteur de KODA, dans votre navigateur — sans compte, sans argent réel.</p>
+  </section>
+
+  <div class="scenario">
+    <span id="t-scn">Scénario :</span>
+    <span class="op">Orange Money · RDC</span>
+    <span><b id="scn-payer">Marie Kalala</b> → <span id="t-merchant">votre commerce</span></span>
+    <span class="amt">25 000 FC</span>
+    <span class="op" id="scn-ref">Réf OM4F2K9</span>
+  </div>
+
+  <div class="doors" id="doors"></div>
+  <div class="stage" id="stage"></div>
+
+  <p class="note" id="t-realnote"></p>
+</div>
+
+<footer>
+  <div class="wrap">
+    KODA — <span id="t-foot">service de vérification de paiements. KODA ne détient ni ne déplace jamais les fonds.</span><br>
+    <a href="/">kodajnn.com</a> · <a href="/how-it-works" id="t-how">Comment ça marche</a> · <a href="/app#signup" id="t-signup">Créer un compte</a>
+  </div>
+</footer>
+
+<script>/*__KODA_PARSER__*/</script>
+<script>
+(function(){
+  'use strict';
+  var P = window.KODA_PARSER;
+
+  // ---------- i18n (FR default, device-detected, EN toggle) ----------
+  var STR = {
+    fr: {
+      demo:'Démo', kick:'Démonstration en direct', h1:'Regardez KODA vérifier un paiement.',
+      sub:"Le même paiement mobile money, vérifié par les cinq portes de KODA. Tout tourne avec le vrai moteur de KODA, dans votre navigateur — sans compte, sans argent réel.",
+      scn:'Scénario :', merchant:'votre commerce', how:'Comment ça marche', signup:'Créer un compte',
+      foot:'service de vérification de paiements. KODA ne détient ni ne déplace jamais les fonds.',
+      realnote:'Le moteur d’analyse (parsing) de cette page est le CODE DE PRODUCTION réel de KODA (shared/parser.js), inséré tel quel. Les verdicts de fraude reprennent les mêmes bandes de risque que le moteur FraudSentinel. Les portes API et USSD montrent des échanges représentatifs.',
+      doors:{manual:'Porte 1 · Manuel',whatsapp:'Porte 2 · WhatsApp',api:'Porte 3 · API',ussd:'Porte 4 · USSD',sms:'Porte 5 · SMS entrant',fraud:'🛡 Labo anti-fraude'},
+      manual_h:'Porte 1 — Mode manuel', manual_l:'Le commerçant colle le code du client dans la console. Verdict ancré sur le SMS opérateur en ~3 s.',
+      sms_from:'SMS reçu sur le téléphone du commerçant', code_lbl:'Code de transaction saisi par le client',
+      verify_btn:'Vérifier le paiement', incoming:'SMS opérateur entrant',
+      wa_h:'Porte 2 — WhatsApp', wa_l:'Le client dépose son code dans la conversation. KODA répond dans le fil.',
+      wa_send:'Envoyer le code', wa_status:'en ligne', wa_reply:'✅ Paiement confirmé — 25 000 FC reçus de Marie Kalala. Réf OM4F2K9.',
+      api_h:'Porte 3 — API', api_l:'Pour les plateformes : intention → paiement → vérification, sans humain. Exemple d’échange :',
+      api_run:'Rejouer l’appel', api_verified:'Statut : vérifié — commande débloquée.',
+      ussd_h:'Porte 4 — USSD', ussd_l:'Pour tout téléphone, sans smartphone ni internet. Composez le code court.',
+      ussd_dial:'Composer *789#', ussd_next:'Suivant',
+      smsdoor_h:'Porte 5 — SMS entrant (Sentinel)', smsdoor_l:'Sentinel transfère le SMS opérateur ; KODA vérifie automatiquement, sans intervention.',
+      smsdoor_go:'Simuler la réception du SMS', smsdoor_fwd:'Sentinel transfère…', smsdoor_auto:'Vérifié automatiquement — aucun humain requis.',
+      fraud_h:'🛡 Labo anti-fraude', fraud_l:'La vraie question d’un opérateur : « et si on essaie de tricher ? » Essayez — le moteur réel répond.',
+      f_forged:'Faux SMS / capture truquée', f_replay:'Rejouer un code déjà utilisé', f_amount:'Modifier le montant', f_generic:'Opérateur non pris en charge',
+      f_reset:'Réinitialiser', ledger:'Journal de la démo',
+      v_ok:'PAIEMENT VÉRIFIÉ', v_warn:'À CONTRÔLER', v_bad:'REJETÉ',
+      r_amount:'Montant', r_payer:'Payeur', r_ref:'Référence', r_op:'Opérateur',
+      reason:{no_sms:'aucun SMS opérateur lisible',replay:'code déjà utilisé (rejeu)',amount_mismatch:'le montant ne correspond pas',generic_low_trust:'opérateur générique — contrôle humain',parsed_ok:'analysé et rattaché au SMS opérateur',match_ok:'le code correspond au SMS',code_mismatch:'le code saisi ne correspond pas au SMS'},
+      typing:'KODA écrit…'
+    },
+    en: {
+      demo:'Demo', kick:'Live demonstration', h1:'Watch KODA verify a payment.',
+      sub:"The same mobile-money payment, verified through all five KODA doors. Everything runs on KODA's real engine, in your browser — no account, no real money.",
+      scn:'Scenario:', merchant:'your shop', how:'How it works', signup:'Create account',
+      foot:'a payment verification service. KODA never holds or moves funds.',
+      realnote:'The parsing engine on this page is KODA’s REAL production code (shared/parser.js), inlined verbatim. Fraud verdicts use the same risk bands as the FraudSentinel engine. The API and USSD doors show representative exchanges.',
+      doors:{manual:'Door 1 · Manual',whatsapp:'Door 2 · WhatsApp',api:'Door 3 · API',ussd:'Door 4 · USSD',sms:'Door 5 · Inbound SMS',fraud:'🛡 Fraud Lab'},
+      manual_h:'Door 1 — Manual mode', manual_l:'The merchant pastes the customer code into the console. Operator-SMS-anchored verdict in ~3s.',
+      sms_from:'SMS received on the merchant’s phone', code_lbl:'Transaction code entered by the customer',
+      verify_btn:'Verify payment', incoming:'Incoming operator SMS',
+      wa_h:'Door 2 — WhatsApp', wa_l:'The customer drops their code in the chat. KODA replies in the thread.',
+      wa_send:'Send the code', wa_status:'online', wa_reply:'✅ Payment confirmed — 25,000 FC received from Marie Kalala. Ref OM4F2K9.',
+      api_h:'Door 3 — API', api_l:'For platforms: intent → pay → verify, no human. Example exchange:',
+      api_run:'Replay the call', api_verified:'Status: verified — order unlocked.',
+      ussd_h:'Door 4 — USSD', ussd_l:'For any phone — no smartphone, no internet. Dial the shortcode.',
+      ussd_dial:'Dial *789#', ussd_next:'Next',
+      smsdoor_h:'Door 5 — Inbound SMS (Sentinel)', smsdoor_l:'Sentinel forwards the operator SMS; KODA verifies automatically, hands-free.',
+      smsdoor_go:'Simulate the SMS arriving', smsdoor_fwd:'Sentinel forwarding…', smsdoor_auto:'Verified automatically — no human needed.',
+      fraud_h:'🛡 Fraud Lab', fraud_l:'The question every operator asks: “what if someone cheats?” Try it — the real engine answers.',
+      f_forged:'Fake SMS / edited screenshot', f_replay:'Replay an already-used code', f_amount:'Edit the amount', f_generic:'Unsupported operator',
+      f_reset:'Reset', ledger:'Demo ledger',
+      v_ok:'PAYMENT VERIFIED', v_warn:'NEEDS REVIEW', v_bad:'REJECTED',
+      r_amount:'Amount', r_payer:'Payer', r_ref:'Reference', r_op:'Operator',
+      reason:{no_sms:'no readable operator SMS',replay:'code already used (replay)',amount_mismatch:'amount does not match',generic_low_trust:'generic operator — human review',parsed_ok:'parsed and matched to operator SMS',match_ok:'code matches the SMS',code_mismatch:'the entered code does not match the SMS'},
+      typing:'KODA is typing…'
+    }
+  };
+  var LANG = (function(){
+    var forced = new URLSearchParams(location.search).get('lang');
+    var cand = (forced || navigator.language || 'fr').slice(0,2).toLowerCase();
+    return STR[cand] ? cand : 'fr';
+  })();
+  function T(){ return STR[LANG]; }
+
+  // ---------- the canonical demo SMS (parses with the REAL orange_cd pack) ----------
+  var GOOD_SMS = 'Vous avez recu 25 000 FC de Marie Kalala (0812345678). Ref: OM4F2K9. Solde: 312 500';
+  var GOOD_REF = 'OM4F2K9';
+  var used = {};            // in-page replay ledger (per demo session)
+  var ledger = [];
+
+  // ---------- the demo evaluator — mirrors fraud.js bands ----------
+  // <0.15 confirm · 0.15–0.6 challenge · >0.6 reject
+  function evaluate(raw, opts){
+    opts = opts || {};
+    var f = P.parseSms(raw);
+    var reasons = [], score = 0.02;
+    if (!f){ // nothing to trust: unparseable / forged
+      return { band:'reject', score:0.99, parsed:null, reasons:['no_sms'] };
+    }
+    if (opts.expectAmount != null && f.amount !== opts.expectAmount){ score += 0.45; reasons.push('amount_mismatch'); }
+    if (f.generic){ score += 0.2; reasons.push('generic_low_trust'); }
+    // replay: a reference already consumed in this session is dead
+    var refKey = String(f.ref||'').toUpperCase();
+    if (used[refKey]){ return { band:'reject', score:0.99, parsed:f, reasons:['replay'] }; }
+    score = Math.min(0.99, score);
+    var band = score < 0.15 ? 'confirm' : score <= 0.6 ? 'challenge' : 'reject';
+    if (band==='confirm'){ reasons.unshift('parsed_ok'); if(!opts.noConsume){ used[refKey]=true; } }
+    return { band:band, score:score, parsed:f, reasons:reasons };
+  }
+  function logLedger(label, res){
+    ledger.unshift({ label:label, band:res.band, ref:res.parsed?res.parsed.ref:'—' });
+    if (ledger.length>6) ledger.pop();
+  }
+
+  // ---------- verdict renderer ----------
+  function verdictHtml(res){
+    var t=T(), cls = res.band==='confirm'?'ok':res.band==='challenge'?'warn':'bad';
+    var ic = res.band==='confirm'?'✅':res.band==='challenge'?'⏳':'⛔';
+    var title = res.band==='confirm'?t.v_ok:res.band==='challenge'?t.v_warn:t.v_bad;
+    var body='';
+    if (res.parsed){
+      var f=res.parsed;
+      body = '<div class="row">'+t.r_amount+': <span>'+(f.amount?f.amount.toLocaleString():'?')+' '+(f.currency||'')+'</span> · '+
+        t.r_payer+': <span>'+(f.name||'—')+'</span></div>'+
+        '<div class="row">'+t.r_ref+': <span>'+(f.ref||'—')+'</span> · '+t.r_op+': <span>'+(f.operator||'—')+'</span></div>';
+    }
+    var rs = (res.reasons||[]).map(function(r){ return '<code>'+(t.reason[r]||r)+'</code>'; }).join('');
+    return '<div class="verdict '+cls+' show"><span class="ic">'+ic+'</span><b>'+title+'</b>'+body+
+      '<div class="reasons">'+rs+'</div></div>';
+  }
+
+  // ---------- doors ----------
+  var DOORS = ['manual','whatsapp','api','ussd','sms','fraud'];
+  var active = 'manual';
+
+  function renderDoors(){
+    var t=T();
+    document.getElementById('doors').innerHTML = DOORS.map(function(d){
+      return '<button class="doorbtn'+(d===active?' on':'')+'" data-d="'+d+'">'+t.doors[d]+'</button>';
+    }).join('');
+    [].forEach.call(document.querySelectorAll('.doorbtn'), function(b){
+      b.onclick=function(){ active=b.getAttribute('data-d'); renderDoors(); renderStage(); };
+    });
+  }
+
+  function esc(s){ return String(s).replace(/[&<>]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+
+  function renderStage(){
+    var t=T(), s=document.getElementById('stage');
+    if (active==='manual') return stageManual(s,t);
+    if (active==='whatsapp') return stageWhatsApp(s,t);
+    if (active==='api') return stageApi(s,t);
+    if (active==='ussd') return stageUssd(s,t);
+    if (active==='sms') return stageSmsDoor(s,t);
+    if (active==='fraud') return stageFraud(s,t);
+  }
+
+  function stageManual(s,t){
+    s.innerHTML='<h2>'+t.manual_h+'</h2><p class="lead">'+t.manual_l+'</p>'+
+      '<div class="grid2"><div class="panel"><h3>'+t.incoming+'</h3>'+
+        '<div class="sms"><span class="from">Orange Money</span><span id="m-sms">'+esc(GOOD_SMS)+'</span></div>'+
+        '<label class="fld">'+t.sms_from+'</label><textarea id="m-raw" rows="3">'+esc(GOOD_SMS)+'</textarea></div>'+
+      '<div class="panel"><h3>KODA</h3>'+
+        '<label class="fld">'+t.code_lbl+'</label><input class="code" id="m-code" value="'+GOOD_REF+'">'+
+        '<div style="margin-top:14px"><button class="btn" id="m-go">'+t.verify_btn+'</button></div>'+
+        '<div id="m-out"></div></div></div>';
+    document.getElementById('m-go').onclick=function(){
+      var raw=document.getElementById('m-raw').value, code=document.getElementById('m-code').value.trim().toUpperCase();
+      var res=evaluate(raw,{noConsume:true});
+      // manual mode also requires the pasted code to match the SMS reference
+      if (res.parsed && res.band!=='reject' && String(res.parsed.ref||'').toUpperCase()!==code){
+        res={ band:'reject', score:0.99, parsed:res.parsed, reasons:['code_mismatch'] };
+      }
+      document.getElementById('m-out').innerHTML=verdictHtml(res);
+      logLedger('Manual', res);
+    };
+  }
+
+  function stageWhatsApp(s,t){
+    s.innerHTML='<h2>'+t.wa_h+'</h2><p class="lead">'+t.wa_l+'</p>'+
+      '<div class="wa"><div class="bar"><div class="av">K</div><div><div class="nm">KODA</div><div class="st">'+t.wa_status+'</div></div></div>'+
+      '<div id="wa-thread"><div class="bub them">'+esc(GOOD_SMS)+'<span class="t">14:02</span></div><div class="clr"></div></div>'+
+      '<div style="text-align:center;margin-top:12px"><button class="btn sm" id="wa-send">'+t.wa_send+'</button></div></div>';
+    document.getElementById('wa-send').onclick=function(){
+      var th=document.getElementById('wa-thread');
+      th.innerHTML+='<div class="bub me">'+GOOD_REF+'<span class="t">14:02</span></div><div class="clr"></div>';
+      var typing=document.createElement('div'); typing.innerHTML='<div class="bub them" style="opacity:.7">'+t.typing+'</div><div class="clr"></div>';
+      th.appendChild(typing);
+      var res=evaluate(GOOD_SMS,{});
+      setTimeout(function(){
+        typing.remove();
+        var reply = res.band==='confirm'? t.wa_reply : (res.band==='challenge'? '⏳ '+t.v_warn : '⛔ '+t.v_bad);
+        th.innerHTML+='<div class="bub them">'+reply+'<span class="t">14:02</span></div><div class="clr"></div>';
+        logLedger('WhatsApp', res);
+      }, 900);
+    };
+  }
+
+  function stageApi(s,t){
+    var req1='<span class="c">// 1 — create a payment intent</span>\n<span class="k">POST</span> /v1/intents\n{\n  "amount": <span class="s">25000</span>, "currency": <span class="s">"CDF"</span>,\n  "operators": [<span class="s">"orange_cd"</span>], "order_id": <span class="s">"CMD-1042"</span>\n}';
+    var res1='<span class="c">// → 200</span>\n{ "id": <span class="s">"int_9f2"</span>, "checkout_url": <span class="s">"https://kodajnn.com/pay/int_9f2"</span> }';
+    var req2='<span class="c">// 2 — customer pays, submits their code</span>\n<span class="k">POST</span> /v1/intents/int_9f2/verify\n{ "reference": <span class="s">"OM4F2K9"</span> }';
+    s.innerHTML='<h2>'+t.api_h+'</h2><p class="lead">'+t.api_l+'</p>'+
+      '<pre class="code">'+req1+'\n\n'+res1+'\n\n'+req2+'</pre>'+
+      '<div style="margin-top:12px"><button class="btn" id="api-go">'+t.api_run+'</button><div id="api-out"></div></div>';
+    document.getElementById('api-go').onclick=function(){
+      var res=evaluate(GOOD_SMS,{});
+      var out='<pre class="code"><span class="c">// → 200</span>\n{ "status": <span class="s">"verified"</span>, "receipt_id": <span class="s">"rcp_7c1"</span>,\n  "amount": <span class="s">25000</span>, "reference": <span class="s">"OM4F2K9"</span> }</pre>';
+      document.getElementById('api-out').innerHTML=out+verdictHtml(res);
+      logLedger('API', res);
+    };
+  }
+
+  function stageUssd(s,t){
+    s.innerHTML='<h2>'+t.ussd_h+'</h2><p class="lead">'+t.ussd_l+'</p>'+
+      '<div class="ussd"><div class="scr" id="u-scr">*789#</div></div>'+
+      '<div style="text-align:center;margin-top:12px"><button class="btn sm" id="u-go">'+t.ussd_dial+'</button></div>';
+    var steps = LANG==='fr' ? [
+      'KODA Vérification\n\n1. Vérifier un paiement\n2. Mon solde\n\nRéponse : 1',
+      'Entrez le code de\ntransaction :\n\n> OM4F2K9',
+      'Vérification en cours…',
+      '✅ Paiement vérifié\n\n25 000 FC\nde Marie Kalala\nRéf OM4F2K9\n\nMerci.'
+    ] : [
+      'KODA Verify\n\n1. Verify a payment\n2. My balance\n\nReply: 1',
+      'Enter the transaction\ncode:\n\n> OM4F2K9',
+      'Verifying…',
+      '✅ Payment verified\n\n25,000 FC\nfrom Marie Kalala\nRef OM4F2K9\n\nThank you.'
+    ];
+    var i=0;
+    document.getElementById('u-go').onclick=function(){
+      var scr=document.getElementById('u-scr'), btn=document.getElementById('u-go');
+      scr.textContent=steps[i]; i++;
+      if (i>=steps.length){ btn.textContent=t.ussd_dial; i=0; var res=evaluate(GOOD_SMS,{}); logLedger('USSD',res); }
+      else btn.textContent=t.ussd_next;
+    };
+  }
+
+  function stageSmsDoor(s,t){
+    s.innerHTML='<h2>'+t.smsdoor_h+'</h2><p class="lead">'+t.smsdoor_l+'</p>'+
+      '<div class="phone"><div class="sms"><span class="from">Orange Money → Sentinel</span><span id="sd-sms" style="opacity:.35">'+esc(GOOD_SMS)+'</span></div>'+
+        '<div id="sd-flow" style="font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:12px;text-align:center"></div></div>'+
+      '<div style="text-align:center;margin-top:14px"><button class="btn sm" id="sd-go">'+t.smsdoor_go+'</button></div><div id="sd-out"></div>';
+    document.getElementById('sd-go').onclick=function(){
+      var sms=document.getElementById('sd-sms'), flow=document.getElementById('sd-flow');
+      sms.style.opacity='1'; flow.textContent='📡 '+t.smsdoor_fwd;
+      var res=evaluate(GOOD_SMS,{});
+      setTimeout(function(){
+        flow.textContent='✓ '+t.smsdoor_auto;
+        document.getElementById('sd-out').innerHTML=verdictHtml(res);
+        logLedger('SMS', res);
+      }, 1000);
+    };
+  }
+
+  function ledgerHtml(t){
+    if (!ledger.length) return '';
+    return '<div class="panel" style="margin-top:16px"><h3>'+t.ledger+'</h3>'+
+      ledger.map(function(e){
+        var c=e.band==='confirm'?'var(--verify)':e.band==='challenge'?'var(--warn)':'var(--danger)';
+        return '<div style="font-family:var(--mono);font-size:12px;padding:4px 0;border-bottom:1px solid var(--line)">'+
+          '<span style="color:'+c+'">●</span> '+e.label+' — '+e.ref+' — <span style="color:'+c+'">'+e.band+'</span></div>';
+      }).join('')+'</div>';
+  }
+
+  function stageFraud(s,t){
+    s.innerHTML='<h2>'+t.fraud_h+'</h2><p class="lead">'+t.fraud_l+'</p>'+
+      '<div class="fraudbtns">'+
+        '<button class="btn sm ghost" data-f="forged">'+t.f_forged+'</button>'+
+        '<button class="btn sm ghost" data-f="replay">'+t.f_replay+'</button>'+
+        '<button class="btn sm ghost" data-f="amount">'+t.f_amount+'</button>'+
+        '<button class="btn sm ghost" data-f="generic">'+t.f_generic+'</button>'+
+        '<button class="btn sm" data-f="reset">'+t.f_reset+'</button>'+
+      '</div><div id="f-out"></div><div id="f-ledger">'+ledgerHtml(t)+'</div>';
+    [].forEach.call(s.querySelectorAll('.fraudbtns button'), function(b){
+      b.onclick=function(){ runFraud(b.getAttribute('data-f'), t); };
+    });
+  }
+  function runFraud(kind,t){
+    var res, label;
+    if (kind==='reset'){ used={}; ledger=[]; document.getElementById('f-out').innerHTML=''; document.getElementById('f-ledger').innerHTML=''; return; }
+    if (kind==='forged'){ res=evaluate('hey i sent you the money check your phone!!',{}); label='Forged'; }
+    else if (kind==='replay'){ used[GOOD_REF]=false; evaluate(GOOD_SMS,{}); res=evaluate(GOOD_SMS,{}); label='Replay'; } // first consumes, second is replay
+    else if (kind==='amount'){ res=evaluate('Vous avez recu 250 000 FC de Marie Kalala (0812345678). Ref: OM7X1B2. Solde: 537 500',{expectAmount:25000, noConsume:true}); label='Amount edit'; }
+    else if (kind==='generic'){ res=evaluate('You received 15000 KES from Amina. Ref TXN99812. Balance 40000',{noConsume:true}); label='Generic op'; }
+    document.getElementById('f-out').innerHTML=verdictHtml(res);
+    logLedger(label,res);
+    document.getElementById('f-ledger').innerHTML=ledgerHtml(t);
+  }
+
+  // ---------- language + static text ----------
+  function applyStatic(){
+    var t=T(); document.getElementById('html').setAttribute('lang',LANG);
+    document.getElementById('t-demo').textContent=t.demo;
+    document.getElementById('t-kick').textContent=t.kick;
+    document.getElementById('t-h1').textContent=t.h1;
+    document.getElementById('t-sub').textContent=t.sub;
+    document.getElementById('t-scn').textContent=t.scn;
+    document.getElementById('t-merchant').textContent=t.merchant;
+    document.getElementById('t-realnote').textContent=t.realnote;
+    document.getElementById('t-foot').textContent=t.foot;
+    document.getElementById('t-how').textContent=t.how;
+    document.getElementById('t-signup').textContent=t.signup;
+    document.getElementById('langsw').innerHTML=['fr','en'].map(function(l){
+      return '<button class="'+(l===LANG?'on':'')+'" data-l="'+l+'">'+l.toUpperCase()+'</button>';
+    }).join('');
+    [].forEach.call(document.querySelectorAll('#langsw button'),function(b){
+      b.onclick=function(){ LANG=b.getAttribute('data-l'); applyStatic(); renderDoors(); renderStage(); };
+    });
+  }
+
+  applyStatic(); renderDoors(); renderStage();
+})();
+</script>
+</body>
+</html>
