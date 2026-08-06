@@ -92,6 +92,10 @@ function route() {
   const hash = location.hash.replace(/^#\/?/, '') || (ME ? 'dashboard' : 'login');
   if (!ME && !['login', 'signup'].includes(hash.split('?')[0])) { location.hash = '#login'; return; }
   const [view, qs] = hash.split('?');
+  // staff-admin with no merchant of their own: oversight only — keep them on the control centre
+  if (ME && ME.user.is_admin && !ME.merchant && view !== 'admin') {
+    location.hash = '#admin'; return;
+  }
   if (ME && !ME.user.is_admin && ROLE_VIEWS[ME.user.role] && !ROLE_VIEWS[ME.user.role].includes(view)) {
     location.hash = '#dashboard'; return;
   }
@@ -130,13 +134,17 @@ function shell(active, title, sub, content) {
     ['comms', '✉', t('comms')],
     ['settings', '⚙', t('settings')],
   ];
-  const nav = [
-    ...till,
-    ...(role !== 'cashier' ? ops : []),
-    ...(role === 'owner' || role === 'admin' ? ownerOnly : []),
-    ...tail,
-    ...(u.is_admin ? [['sec3', '', 'KODA staff'], ['admin', '★', t('admin')]] : []),
-  ];
+  // a KODA staff-admin with no merchant of their own is oversight-only: show ONLY
+  // the control centre, not the empty merchant tabs (Verify/Feed/Billing need a merchant).
+  const nav = (u.is_admin && !m)
+    ? [['sec3', '', 'KODA staff'], ['admin', '★', t('admin')]]
+    : [
+      ...till,
+      ...(role !== 'cashier' ? ops : []),
+      ...(role === 'owner' || role === 'admin' ? ownerOnly : []),
+      ...tail,
+      ...(u.is_admin ? [['sec3', '', 'KODA staff'], ['admin', '★', t('admin')]] : []),
+    ];
   root.innerHTML = `
   <div class="shell">
     <aside class="side" id="side">
