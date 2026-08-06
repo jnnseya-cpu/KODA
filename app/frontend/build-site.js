@@ -38,7 +38,7 @@ const N = COV.total, NC = COV.countries, NR = Object.keys(COV.byRegion).length, 
 const FOOT_GROUPS = [
   ['Product', [['How it works', 'how-it-works'], ['Coverage', 'coverage'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
   ['Company', [['About', 'about'], ['Blog', 'blog'], ['Growth & Influencers', 'growth'], ['Contact', 'contact']]],
-  ['Developers', [['API documentation', 'developers'], ['OpenAPI contract', 'v1/openapi.json'], ['Open the app', 'app']]],
+  ['Developers', [['API documentation', 'developers'], ['API reference', 'api-reference'], ['OpenAPI (raw JSON)', 'v1/openapi.json'], ['Open the app', 'app']]],
   ['Legal', [['Terms of Service', 'terms'], ['Privacy Policy', 'privacy'], ['All policies', 'policies']]],
 ];
 
@@ -408,8 +408,88 @@ Koda.pay({ key: 'pk_live_…', amount: 25000, currency: 'CDF',
 TEST-LATE-90    → verifies after 90 s (payment.verified.late)
 TEST-REPLAY     → code_already_used
 TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
-<p>Machine-readable contract: <a href="/v1/openapi.json"><code>/v1/openapi.json</code></a> — import into Postman or generate an SDK. North-star: <b>first verified payment &lt; 10 minutes from signup.</b></p>
+<p>Human-readable <a href="/api-reference"><b>API reference →</b></a> · machine-readable contract: <a href="/v1/openapi.json"><code>/v1/openapi.json</code></a> (import into Postman or generate an SDK). North-star: <b>first verified payment &lt; 10 minutes from signup.</b></p>
+<h2>Use it from any stack</h2>
+<p>Door 3 is plain HTTPS — it works in <b>any</b> website or app. Ready-made drop-ins and snippets:</p>
+<ul>
+<li><b>WooCommerce / WordPress</b> — install the <a href="/api-reference">KODA Payments plugin</a> (no code).</li>
+<li><b>Flutter / Dart</b> — POST <code>/v1/intents</code> then open the <code>checkout_url</code> in a WebView.</li>
+<li><b>Native Android / iOS</b> — same REST call from your backend; open <code>checkout_url</code> in a Custom Tab / SFSafariViewController.</li>
+<li><b>Node / PHP / Python / Laravel</b> — one POST to create the intent, verify the signed webhook (<code>x-koda-signature</code> = HMAC-SHA256 of the raw body).</li>
+</ul>
 <p><a href="/app#signup">Create your sandbox account →</a></p>`,
+  }),
+
+  'api-reference': page({
+    title: 'API Reference', kicker: 'Developers',
+    lead: 'Every KODA endpoint, rendered live from the OpenAPI contract. Door 3 (API mode) — create intents, submit codes, receive HMAC-signed webhooks. Works from any website or app: WooCommerce, Flutter, native, Node, PHP.',
+    body: `
+<p>This page renders the <b>live</b> spec from <a href="/v1/openapi.json"><code>/v1/openapi.json</code></a> — the same contract your SDK generators and Postman consume, here made human-readable. <a href="/v1/openapi.json">Open the raw JSON →</a></p>
+<div class="card"><h3>Base URL &amp; authentication</h3>
+<pre>Base   https://kodajnn.com/v1
+Auth   Authorization: Bearer sk_live_xxx      (or)  X-API-Key: sk_live_xxx
+Test   use an sk_test_ key — same host, sandbox behaviour
+Keys   KODA dashboard → Developers → Create key</pre></div>
+<div id="apiref"><p style="color:var(--dim)">Loading the live API spec…</p></div>
+<h2>Webhooks — verify the signature</h2>
+<p>KODA POSTs a JSON body with header <code>x-koda-signature</code> = <code>HMAC-SHA256(raw_body, your_webhook_secret)</code> (hex). Always verify before acting. On <code>payment.verified</code>, fulfil the order in <code>metadata.order_id</code>.</p>
+<pre>// Node
+const sig = req.headers['x-koda-signature'];
+const expected = crypto.createHmac('sha256', SECRET).update(rawBody).digest('hex');
+if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return res.sendStatus(401);</pre>
+<pre># PHP
+$expected = hash_hmac('sha256', $raw, $secret);
+if (!hash_equals($expected, $_SERVER['HTTP_X_KODA_SIGNATURE'])) http_response_code(401);</pre>
+<h2>Flutter / Dart — create an intent, open checkout</h2>
+<pre>final res = await http.post(
+  Uri.parse('https://kodajnn.com/v1/intents'),
+  headers: {'Authorization': 'Bearer \$apiKey', 'Content-Type': 'application/json'},
+  body: jsonEncode({'amount': 25000, 'currency': 'CDF',
+    'operators': ['orange_cd','mpesa_cd'],
+    'metadata': {'order_id': 'CMD-1042'}}),
+);
+final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
+<style>
+.mrow{display:flex;gap:12px;align-items:flex-start;padding:11px 12px;border:1px solid var(--line);border-radius:9px;margin:8px 0;background:var(--ink2)}
+.m{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.06em;padding:4px 9px;border-radius:6px;min-width:52px;text-align:center}
+.m.get{background:rgba(35,184,132,.15);color:#23B884}
+.m.post{background:rgba(232,161,31,.16);color:var(--gold)}
+.m.del{background:rgba(220,80,60,.16);color:#e8705f}
+.mp{font-family:var(--mono);font-size:13.5px;color:var(--text);word-break:break-all}
+.ms{font-size:13px;color:var(--dim);margin-top:3px}
+.scope{font-family:var(--mono);font-size:9.5px;color:var(--gold);border:1px solid rgba(232,161,31,.3);border-radius:99px;padding:2px 7px;margin-left:6px;white-space:nowrap}
+.grp{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin:26px 0 4px}
+</style>
+<script>
+(function(){
+  var el=document.getElementById('apiref');
+  fetch('/v1/openapi.json').then(function(r){return r.json();}).then(function(spec){
+    var paths=spec.paths||{}, groups={}, order=[];
+    Object.keys(paths).forEach(function(p){
+      var seg=(p.split('/')[1]||'general');
+      if(!groups[seg]){groups[seg]=[];order.push(seg);}
+      groups[seg].push(p);
+    });
+    var html='';
+    order.forEach(function(g){
+      html+='<div class="grp">'+g+'</div>';
+      groups[g].forEach(function(p){
+        var ops=paths[p];
+        Object.keys(ops).forEach(function(method){
+          var o=ops[method]||{};
+          var cls=method==='get'?'get':(method==='delete'?'del':'post');
+          var scope=o['x-scope']?'<span class="scope">'+o['x-scope']+'</span>':'';
+          html+='<div class="mrow"><div class="m '+cls+'">'+method.toUpperCase()+'</div>'+
+                '<div><div class="mp">'+p+scope+'</div><div class="ms">'+((o.summary||'').replace(/</g,'&lt;'))+'</div></div></div>';
+        });
+      });
+    });
+    el.innerHTML=html||'<p>No endpoints found.</p>';
+  }).catch(function(){
+    el.innerHTML='<p class="warn">Could not load the live spec here. View it directly at <a href="/v1/openapi.json">/v1/openapi.json</a>.</p>';
+  });
+})();
+</script>`,
   }),
 
   'growth': page({
