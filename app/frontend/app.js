@@ -847,14 +847,30 @@ VIEWS.settings = async () => {
 
 const PLAN_KEYS = ['marche', 'boutique', 'commerce', 'plateforme', 'enterprise'];
 const ROLE_KEYS = ['cashier', 'manager', 'owner'];
+const ADMIN_TABS = [
+  ['overview', 'Overview'], ['revenue', 'Revenue'], ['fraud', 'Fraud & disputes'],
+  ['verifications', 'Verifications'], ['devices', 'Devices'], ['health', 'System health'], ['audit', 'Audit log'],
+];
+const adminTabBar = (active) => `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px">
+  ${ADMIN_TABS.map(([id, label]) => `<a href="#admin${id === 'overview' ? '' : '?tab=' + id}"
+    style="font-family:var(--mono);font-size:12px;padding:7px 13px;border-radius:8px;text-decoration:none;
+    ${active === id ? 'background:var(--gold);color:#0A1F17;font-weight:700' : 'background:var(--ink);color:var(--dim);border:1px solid var(--line)'}">${label}</a>`).join('')}
+</div>`;
 
 VIEWS.admin = async (params) => {
   if (!ME.user.is_admin) { location.hash = '#dashboard'; return; }
   const mid = params && params.get && params.get('m');
   if (mid) return adminMerchantDetail(mid);
+  const tab = (params && params.get && params.get('tab')) || 'overview';
+  if (tab === 'revenue') return adminRevenue();
+  if (tab === 'fraud') return adminFraud();
+  if (tab === 'verifications') return adminVerifications();
+  if (tab === 'devices') return adminDevices();
+  if (tab === 'health') return adminHealth();
+  if (tab === 'audit') return adminAudit();
   const o = await api('/app/admin/overview');
   const merchants = await api('/app/admin/merchants');
-  shell('admin', t('admin'), 'KODA staff — the whole fleet at a glance', `
+  shell('admin', t('admin'), 'KODA staff — the whole fleet at a glance', adminTabBar('overview') + `
   <div class="grid g4">
     <div class="card stat"><b>${fmt(o.merchants)}</b><span>merchants · ${fmt(o.submerchants)} sub</span></div>
     <div class="card stat"><b>${fmt(o.receipts)}</b><span>verifications · ${fmt(o.volume)} volume</span></div>
@@ -953,6 +969,131 @@ async function adminMerchantDetail(mid) {
     ${d.keys.map(k => `<tr><td>${esc(k.label || '—')}</td><td class="mono">${esc(k.prefix)}</td><td class="mono">…${esc(k.last4)}</td><td>${when(k.created_at)}</td></tr>`).join('')}
     </table></div>` : ''}`);
 }
+
+// ---- 5 · Revenue & billing ----
+async function adminRevenue() {
+  const d = await api('/app/admin/revenue');
+  shell('admin', 'Revenue', 'KODA staff — money in, ACU sold, top merchants', adminTabBar('revenue') + `
+  <div class="grid g4">
+    <div class="card stat"><b>$${fmt(d.mrr_usd)}</b><span>MRR · $${fmt(d.arr_usd)} ARR</span></div>
+    <div class="card stat"><b>$${fmt(d.acu_revenue_usd)}</b><span>ACU sold · ${fmt(d.acu_sold)} ACU @ $${d.acu_price_usd}</span></div>
+    <div class="card stat"><b>$${fmt(d.total_revenue_usd)}</b><span>total revenue (subs + ACU)</span></div>
+    <div class="card stat"><b>${fmt(d.acu_burned)}</b><span>ACU consumed</span></div>
+  </div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Revenue by plan</h3>
+    <table class="tbl"><tr><th>Plan</th><th class="num">Merchants</th><th class="num">Unit $/mo</th><th class="num">Subtotal $/mo</th></tr>
+    ${d.by_plan.map(p => `<tr><td><span class="badge b-info">${esc(p.plan)}</span></td><td class="num">${fmt(p.merchants)}</td><td class="num">$${fmt(p.unit_usd)}</td><td class="num">$${fmt(p.subtotal_usd)}</td></tr>`).join('') || '<tr><td colspan="4" style="color:var(--dim)">No merchants yet.</td></tr>'}
+    </table></div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Top merchants by volume</h3>
+    <table class="tbl"><tr><th>Merchant</th><th>Plan</th><th class="num">Verifs</th><th class="num">Volume</th><th class="num">ACU</th><th></th></tr>
+    ${d.top_merchants.map(m => `<tr><td>${esc(m.name)}</td><td>${esc(m.plan)}</td><td class="num">${fmt(m.verifs)}</td><td class="num">${fmt(m.volume)}</td><td class="num">${fmt(m.acu_balance)}</td><td><button class="btn btn-gold btn-sm" onclick="location.hash='#admin?m=${m.id}'">Manage</button></td></tr>`).join('') || '<tr><td colspan="6" style="color:var(--dim)">No merchants yet.</td></tr>'}
+    </table></div>
+  ${d.outstanding.length ? `<div class="card tbl-wrap" style="margin-top:14px"><h3 class="bad">Negative balances (in grace / overdue)</h3>
+    <table class="tbl"><tr><th>Merchant</th><th class="num">Balance</th></tr>
+    ${d.outstanding.map(m => `<tr><td>${esc(m.name)}</td><td class="num bad">${fmt(m.acu_balance)}</td></tr>`).join('')}</table></div>` : ''}`);
+}
+
+// ---- 6 · Fraud & disputes ----
+async function adminFraud() {
+  const f = await api('/app/admin/fraud');
+  const disputes = await api('/app/admin/disputes');
+  shell('admin', 'Fraud & disputes', 'KODA staff — quarantine, high-risk payments, open disputes', adminTabBar('fraud') + `
+  <div class="card tbl-wrap"><h3>Quarantined SMS (${f.quarantined.length})</h3>
+    ${f.quarantined.length ? `<table class="tbl"><tr><th>When</th><th>Merchant</th><th>Operator</th><th>Ref</th><th class="num">Amount</th><th>Chain</th><th></th></tr>
+    ${f.quarantined.map(s => `<tr><td>${when(s.received_at)}</td><td>${esc(s.merchant)}</td><td class="mono">${esc(s.operator)}</td><td class="mono">${esc(s.ref_code || '—')}</td><td class="num">${fmt(s.amount)} ${esc(s.currency || '')}</td><td>${s.chain_ok ? '✓' : '<span class="bad">broken</span>'}</td><td><button class="btn btn-ghost btn-sm" onclick="adminToggleSms('${s.id}')">release</button></td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No quarantined SMS. ✓</p>'}</div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>High-risk verified payments (${f.high_risk.length})</h3>
+    ${f.high_risk.length ? `<table class="tbl"><tr><th>When</th><th>Merchant</th><th>Ref</th><th class="num">Amount</th><th class="num">Risk</th><th>Mode</th></tr>
+    ${f.high_risk.map(r => `<tr><td>${when(r.verified_at)}</td><td>${esc(r.merchant)}</td><td class="mono">${esc(r.reference)}</td><td class="num">${fmt(r.amount)} ${esc(r.currency)}</td><td class="num warn">${(r.risk_score * 100).toFixed(0)}%</td><td>${esc(r.mode)}</td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No high-risk payments. ✓</p>'}</div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Open disputes (${disputes.length})</h3>
+    ${disputes.length ? `<table class="tbl"><tr><th>When</th><th>Merchant</th><th>Ref</th><th>Reason</th><th></th></tr>
+    ${disputes.map(x => `<tr><td>${when(x.created_at)}</td><td>${esc(x.merchant)}</td><td class="mono">${esc(x.reference || '—')}</td><td>${esc(x.reason)}</td>
+      <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="adminResolveDispute('${x.id}','accepted')">accept</button>
+      <button class="btn btn-danger btn-sm" onclick="adminResolveDispute('${x.id}','rejected')">reject</button></td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No open disputes. ✓</p>'}</div>`);
+}
+window.adminToggleSms = async (id) => { try { await api(`/app/admin/sms/${id}/quarantine`, { body: {} }); toast('✓ updated'); route(); } catch (e) { toast('✗ ' + e.message); } };
+window.adminResolveDispute = async (id, decision) => { try { await api(`/app/admin/disputes/${id}/resolve`, { body: { decision } }); toast('✓ ' + decision); route(); } catch (e) { toast('✗ ' + e.message); } };
+
+// ---- 7 · Verifications explorer ----
+async function adminVerifications(qstr) {
+  const term = qstr != null ? qstr : '';
+  const d = await api('/app/admin/receipts' + (term ? '?q=' + encodeURIComponent(term) : ''));
+  shell('admin', 'Verifications', 'KODA staff — search & export every verified payment', adminTabBar('verifications') + `
+  <div class="card"><div style="display:flex;gap:8px;flex-wrap:wrap">
+    <input id="rq" placeholder="Search reference or operator…" value="${esc(term)}" style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+    <button class="btn btn-gold" onclick="adminSearchReceipts()">Search</button>
+    <button class="btn btn-ghost" onclick="adminExportReceipts('${esc(term)}')">Export CSV</button>
+  </div></div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>${fmt(d.count)} results</h3>
+    ${d.receipts.length ? `<table class="tbl"><tr><th>When</th><th>Merchant</th><th>Ref</th><th class="num">Amount</th><th>Operator</th><th class="num">Risk</th><th>Mode</th></tr>
+    ${d.receipts.map(r => `<tr><td>${when(r.verified_at)}</td><td>${esc(r.merchant)}</td><td class="mono">${esc(r.reference)}</td><td class="num">${fmt(r.amount)} ${esc(r.currency)}</td><td class="mono">${esc(r.operator || '—')}</td><td class="num">${(r.risk_score * 100).toFixed(0)}%</td><td>${esc(r.mode)}</td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No verifications match.</p>'}</div>`);
+}
+window.adminSearchReceipts = () => adminVerifications(v('rq'));
+window.adminExportReceipts = async (term) => {
+  try {
+    const res = await fetch('/app/admin/receipts?format=csv' + (term ? '&q=' + encodeURIComponent(term) : ''),
+      { headers: TOKEN() ? { authorization: `Bearer ${TOKEN()}` } : {} });
+    if (!res.ok) throw new Error('export failed');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'koda-receipts.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  } catch (e) { toast('✗ ' + e.message); }
+};
+
+// ---- 7b · Sentinel devices ----
+async function adminDevices() {
+  const rows = await api('/app/admin/devices');
+  shell('admin', 'Sentinel devices', 'KODA staff — every SIM-reader device across the fleet', adminTabBar('devices') + `
+  <div class="card tbl-wrap"><h3>${fmt(rows.length)} devices</h3>
+    ${rows.length ? `<table class="tbl"><tr><th>Label</th><th>Merchant</th><th>Operator</th><th>SIM</th><th>Status</th><th class="num">Health</th><th>Last seen</th><th></th></tr>
+    ${rows.map(d => `<tr><td>${esc(d.label)}</td><td>${esc(d.merchant)}</td><td class="mono">${esc(d.operator)}</td><td class="mono">${esc(d.sim_msisdn || '—')}</td>
+      <td><span class="badge ${d.status === 'active' ? 'b-ok' : d.status === 'revoked' ? 'b-bad' : 'b-info'}">${esc(d.status)}</span></td>
+      <td class="num">${((d.parse_health ?? 1) * 100).toFixed(0)}%</td><td>${d.last_seen ? when(d.last_seen) : '—'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="adminRevokeDevice('${d.id}')">${d.status === 'revoked' ? 'restore' : 'revoke'}</button></td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No devices enrolled yet. They appear when a merchant installs Sentinel.</p>'}</div>`);
+}
+window.adminRevokeDevice = async (id) => { try { await api(`/app/admin/devices/${id}/revoke`, { body: {} }); toast('✓ updated'); route(); } catch (e) { toast('✗ ' + e.message); } };
+
+// ---- 8 · System health ----
+async function adminHealth() {
+  const h = await api('/app/admin/health');
+  const ok = (b) => b ? '<span class="ok">●</span>' : '<span class="bad">●</span>';
+  const days = Math.floor(h.uptime_s / 86400), hrs = Math.floor((h.uptime_s % 86400) / 3600), mins = Math.floor((h.uptime_s % 3600) / 60);
+  shell('admin', 'System health', 'KODA staff — operations & integrity', adminTabBar('health') + `
+  <div class="grid g4">
+    <div class="card stat"><b>${ok(h.db === 'up')} ${esc(h.db)}</b><span>database</span></div>
+    <div class="card stat"><b>${ok(h.reconcile.balanced)} ${h.reconcile.balanced ? 'balanced' : 'IMBALANCE'}</b><span>billing ledger (Σ=${h.reconcile.sum})</span></div>
+    <div class="card stat"><b>${days}d ${hrs}h ${mins}m</b><span>uptime · ${esc(h.node)}</span></div>
+    <div class="card stat"><b>${ok(h.smtp_configured)} ${h.comms_live ? 'live' : 'sandbox'}</b><span>email ${h.smtp_configured ? '(SMTP)' : '(not set)'}</span></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Build & config</h3>
+    <dl class="kv"><dt>build</dt><dd class="mono">${esc(h.build.sha)} · ${esc(h.build.date)}</dd>
+    <dt>backups</dt><dd>${h.backup.dir_configured ? (h.backup.last_backup ? '✓ last ' + when(h.backup.last_backup) : '⚠ configured, none yet') : '⚠ not configured (set KODA_BACKUP_DIR)'}</dd>
+    <dt>dead webhooks</dt><dd>${fmt(h.counts.webhooks_dead)}</dd></dl></div>
+  <div class="card" style="margin-top:14px"><h3>Live counts</h3>
+    <div class="grid g4">
+      <div class="card stat"><b>${fmt(h.counts.merchants)}</b><span>merchants</span></div>
+      <div class="card stat"><b>${fmt(h.counts.receipts)}</b><span>verifications</span></div>
+      <div class="card stat"><b class="${h.counts.quarantined ? 'warn' : ''}">${fmt(h.counts.quarantined)}</b><span>quarantined SMS</span></div>
+      <div class="card stat"><b class="${h.counts.open_disputes ? 'warn' : ''}">${fmt(h.counts.open_disputes)}</b><span>open disputes</span></div>
+    </div></div>`);
+}
+
+// ---- 8b · Audit log ----
+async function adminAudit() {
+  const rows = await api('/app/admin/audit');
+  shell('admin', 'Audit log', 'KODA staff — who did what, when', adminTabBar('audit') + `
+  <div class="card tbl-wrap"><h3>${fmt(rows.length)} recent actions</h3>
+    ${rows.length ? `<table class="tbl"><tr><th>When</th><th>Actor</th><th>Action</th><th>Detail</th></tr>
+    ${rows.map(a => `<tr><td>${when(a.created_at)}</td><td class="mono" style="font-size:12px">${esc(a.actor_email || a.user_id || 'system')}</td><td class="mono">${esc(a.action)}</td><td class="mono" style="font-size:11px;color:var(--dim)">${esc((a.detail || '').slice(0, 120))}</td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No audited actions yet.</p>'}</div>`);
+}
+
 window.adminCreateMerchant = async () => {
   const out = document.getElementById('cm-out');
   const body = { business: v('cm-biz'), name: v('cm-name'), email: v('cm-email'),

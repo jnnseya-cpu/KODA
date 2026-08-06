@@ -572,6 +572,134 @@ module.exports = function registerRoutes(r) {
     return { ok: true, status: now };
   }));
 
+  // ============ platform operator console (super-admin) ============
+  const SB = require('../shared/billing');
+
+  // ---- 5 · revenue & billing dashboard ----
+  r.get('/app/admin/revenue', admin(() => {
+    const byPlan = q.all(`SELECT plan, COUNT(*) n FROM merchants WHERE parent_id IS NULL GROUP BY plan`);
+    let mrr = 0;
+    const plans = byPlan.map(row => {
+      const usd = (PLANS[row.plan] && PLANS[row.plan].usd) || 0;
+      mrr += usd * row.n;
+      return { plan: row.plan, merchants: row.n, unit_usd: usd, subtotal_usd: usd * row.n };
+    });
+    const acuSold = q.get(`SELECT COALESCE(SUM(delta),0) s FROM acu_transactions WHERE delta>0 AND kind='topup'`).s;
+    const acuBurned = q.get(`SELECT COALESCE(-SUM(delta),0) s FROM acu_transactions WHERE delta<0`).s;
+    const acuRevenue = Math.round(acuSold * SB.ACU_PRICE_USD * 100) / 100;
+    const topMerchants = q.all(`SELECT m.id, m.name, m.plan, COUNT(r.id) verifs, COALESCE(SUM(r.amount),0) volume, m.acu_balance
+      FROM merchants m LEFT JOIN receipts r ON r.merchant_id=m.id
+      WHERE m.parent_id IS NULL GROUP BY m.id ORDER BY verifs DESC LIMIT 10`);
+    const outstanding = q.all(`SELECT id,name,acu_balance FROM merchants WHERE acu_balance < 0 ORDER BY acu_balance ASC LIMIT 20`);
+    return {
+      mrr_usd: mrr, arr_usd: mrr * 12,
+      acu_sold: acuSold, acu_burned: acuBurned, acu_revenue_usd: acuRevenue, acu_price_usd: SB.ACU_PRICE_USD,
+      total_revenue_usd: Math.round((mrr + acuRevenue) * 100) / 100,
+      by_plan: plans, top_merchants: topMerchants, outstanding,
+    };
+  }));
+
+  // ---- 6 · fraud & disputes queues ----
+  r.get('/app/admin/fraud', admin(() => ({
+    quarantined: q.all(`SELECT s.id, s.operator, s.raw, s.amount, s.currency, s.ref_code, s.chain_ok, s.received_at, m.name merchant
+      FROM sms_ledger s JOIN merchants m ON m.id=s.merchant_id WHERE s.quarantined=1 ORDER BY s.received_at DESC LIMIT 100`),
+    high_risk: q.all(`SELECT r.id, r.reference, r.amount, r.currency, r.risk_score, r.mode, r.verified_at, m.name merchant
+      FROM receipts r JOIN merchants m ON m.id=r.merchant_id WHERE r.risk_score >= 0.5 ORDER BY r.verified_at DESC LIMIT 100`),
+  })));
+  r.post('/app/admin/sms/:id/quarantine', admin((req, user) => {
+    const s = q.get('SELECT * FROM sms_ledger WHERE id=?', req.params.id);
+    if (!s) return [404, { error: { code: 'sms_not_found' } }];
+    q.run(`UPDATE sms_ledger SET quarantined = CASE quarantined WHEN 1 THEN 0 ELSE 1 END WHERE id=?`, s.id);
+    const now = q.get('SELECT quarantined FROM sms_ledger WHERE id=?', s.id).quarantined;
+    audit(s.merchant_id, user.id, now ? 'admin.sms_quarantined' : 'admin.sms_released', { sms: s.id });
+    return { ok: true, quarantined: !!now };
+  }));
+  r.get('/app/admin/disputes', admin(() =>
+    q.all(`SELECT d.*, m.name merchant FROM disputes d JOIN merchants m ON m.id=d.merchant_id
+           WHERE d.status='open' ORDER BY d.created_at DESC LIMIT 100`)));
+  r.post('/app/admin/disputes/:id/resolve', admin((req, user) => {
+    const d = q.get('SELECT * FROM disputes WHERE id=?', req.params.id);
+    if (!d) return [404, { error: { code: 'dispute_not_found' } }];
+    const decision = ['accepted', 'rejected', 'escalated'].includes(req.body.decision) ? req.body.decision : 'rejected';
+    q.run(`UPDATE disputes SET status=?, resolved_by=?, resolved_at=datetime('now') WHERE id=?`, decision, user.id, d.id);
+    audit(d.merchant_id, user.id, 'admin.dispute_' + decision, { dispute: d.id });
+    return { ok: true, status: decision };
+  }));
+
+  // ---- 7 · verifications & devices explorer ----
+  r.get('/app/admin/receipts', admin((req) => {
+    const qy = req.query || {};
+    const term = String(qy.q || '').trim();
+    const mid = String(qy.merchant || '');
+    const limit = Math.min(500, Math.max(1, Number(qy.limit) || 100));
+    const where = [], args = [];
+    if (term) { where.push('(r.reference LIKE ? OR r.operator LIKE ?)'); args.push('%' + term + '%', '%' + term + '%'); }
+    if (mid) { where.push('r.merchant_id=?'); args.push(mid); }
+    const sql = `SELECT r.id, r.reference, r.amount, r.currency, r.operator, r.risk_score, r.mode, r.verified_at, m.name merchant
+      FROM receipts r JOIN merchants m ON m.id=r.merchant_id
+      ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY r.verified_at DESC LIMIT ?`;
+    const rows = q.all(sql, ...args, limit);
+    if (qy.format === 'csv') {
+      const head = 'verified_at,merchant,reference,amount,currency,operator,risk,mode';
+      const csv = [head].concat(rows.map(r => [r.verified_at, r.merchant, r.reference, r.amount, r.currency, r.operator, r.risk_score, r.mode]
+        .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))).join('\n');
+      return [200, csv, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="koda-receipts.csv"' }];
+    }
+    return { receipts: rows, count: rows.length };
+  }));
+  r.get('/app/admin/devices', admin(() =>
+    q.all(`SELECT d.id, d.label, d.operator, d.sim_msisdn, d.status, d.attested, d.last_seen, d.battery, d.parse_health, m.name merchant
+           FROM devices d JOIN merchants m ON m.id=d.merchant_id ORDER BY d.last_seen DESC LIMIT 200`)));
+  r.post('/app/admin/devices/:id/revoke', admin((req, user) => {
+    const d = q.get('SELECT * FROM devices WHERE id=?', req.params.id);
+    if (!d) return [404, { error: { code: 'device_not_found' } }];
+    q.run(`UPDATE devices SET status = CASE status WHEN 'revoked' THEN 'active' ELSE 'revoked' END WHERE id=?`, d.id);
+    const now = q.get('SELECT status FROM devices WHERE id=?', d.id).status;
+    audit(d.merchant_id, user.id, 'admin.device_' + now, { device: d.id });
+    return { ok: true, status: now };
+  }));
+
+  // ---- 8 · system health + audit log ----
+  r.get('/app/admin/health', admin(() => {
+    let dbUp = true; try { q.get('SELECT 1'); } catch { dbUp = false; }
+    const recon = billing.reconcile();
+    const backupDir = process.env.KODA_BACKUP_DIR || '';
+    let lastBackup = null;
+    try {
+      if (backupDir) {
+        const fs = require('node:fs');
+        const files = fs.readdirSync(backupDir).filter(f => f.endsWith('.db') || f.endsWith('.sqlite') || f.includes('backup'));
+        if (files.length) {
+          const newest = files.map(f => ({ f, m: fs.statSync(require('node:path').join(backupDir, f)).mtimeMs })).sort((a, b) => b.m - a.m)[0];
+          lastBackup = new Date(newest.m).toISOString();
+        }
+      }
+    } catch { /* ignore */ }
+    return {
+      db: dbUp ? 'up' : 'down',
+      uptime_s: Math.round(process.uptime()),
+      node: process.version,
+      build: { sha: process.env.KODA_BUILD_SHA || 'dev', date: process.env.KODA_BUILD_DATE || 'unknown' },
+      reconcile: recon,
+      comms_live: !!(process.env.KODA_COMMS_LIVE === '1' || process.env.NODE_ENV === 'production'),
+      smtp_configured: !!process.env.KODA_SMTP_HOST,
+      backup: { dir_configured: !!backupDir, last_backup: lastBackup },
+      counts: {
+        merchants: q.get('SELECT COUNT(*) c FROM merchants').c,
+        users: q.get('SELECT COUNT(*) c FROM users').c,
+        receipts: q.get('SELECT COUNT(*) c FROM receipts').c,
+        quarantined: q.get('SELECT COUNT(*) c FROM sms_ledger WHERE quarantined=1').c,
+        open_disputes: q.get(`SELECT COUNT(*) c FROM disputes WHERE status='open'`).c,
+        webhooks_dead: q.get(`SELECT COUNT(*) c FROM webhook_deliveries WHERE status='dead'`).c,
+      },
+    };
+  }));
+  r.get('/app/admin/audit', admin((req) => {
+    const limit = Math.min(300, Math.max(1, Number((req.query || {}).limit) || 100));
+    return q.all(`SELECT a.*, u.email actor_email FROM audit_log a LEFT JOIN users u ON u.id=a.user_id
+                  ORDER BY a.created_at DESC LIMIT ?`, limit);
+  }));
+
   // ---------- public API (/v1) — key-authenticated ----------
   r.get('/v1/ping', apiKey((req, m) => ({
     ok: true, merchant: m.name, plan: m.plan, environment: req.keyPrefix.includes('test') ? 'test' : 'live',
