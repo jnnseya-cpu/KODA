@@ -15,6 +15,7 @@
   const PAGES = {
     home: { url: '/', title: 'KODA — Mobile Money Payment Verification' },
     how: { url: '/how-it-works', title: 'How KODA verifies mobile money payments' },
+    coverage: { url: '/coverage', title: 'KODA global coverage — operators & countries' },
     industries: { url: '/industries', title: 'KODA for restaurants, retail, schools & marketplaces' },
     developers: { url: '/developers', title: 'KODA API for developers' },
     growth: { url: '/growth', title: 'KODA Growth Partner Programme' },

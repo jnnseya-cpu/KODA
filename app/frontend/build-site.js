@@ -8,9 +8,23 @@ const path = require('node:path');
 const OUT = path.join(__dirname, 'site');
 fs.mkdirSync(OUT, { recursive: true });
 
+// ---- live coverage stats from the operator registry (single source of truth) ----
+// Every number the public site quotes about reach comes from here, so marketing
+// can never drift from what the resolver actually knows.
+const registry = require('../shared/operators');
+const COV = registry.coverage();
+const FAM = registry.families();
+const REGION_LABEL = {
+  CENTRAL: 'Central Africa', WEST: 'West Africa', EAST: 'East Africa', SOUTHERN: 'Southern Africa',
+  NORTH: 'North Africa', SOUTH_ASIA: 'South Asia', SEA: 'Southeast Asia', CENTRAL_ASIA: 'Central Asia',
+  CAUCASUS: 'Caucasus', LATAM: 'Latin America', CARIBBEAN: 'Caribbean', PACIFIC: 'Pacific',
+};
+const ADDRESSABLE = (COV.byTier.A || 0) + (COV.byTier.B || 0); // Tier A+B are SMS-verifiable; C is excluded
+const N = COV.total, NC = COV.countries, NR = Object.keys(COV.byRegion).length, NFAM = FAM.length;
+
 // the 12 site pages, grouped for the footer (used by landing + every content page)
 const FOOT_GROUPS = [
-  ['Product', [['How it works', 'how-it-works'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
+  ['Product', [['How it works', 'how-it-works'], ['Coverage', 'coverage'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
   ['Company', [['About', 'about'], ['Blog', 'blog'], ['Growth & Influencers', 'growth'], ['Contact', 'contact']]],
   ['Developers', [['API documentation', 'developers'], ['OpenAPI contract', 'v1/openapi.json'], ['Open the app', 'app']]],
   ['Legal', [['Terms of Service', 'terms'], ['Privacy Policy', 'privacy'], ['All policies', 'policies']]],
@@ -128,7 +142,7 @@ const pages = {
 </div>
 <p>KODA never touches, holds, routes, or settles funds — which keeps the verification layer outside EME/PSP licensing scope while BitriPay handles everything rail-side downstream.</p>
 <h2>The company</h2>
-<p>KODA is built by <b>Groupe Nseya Digital / JNN Global Ltd</b> within the BitriPay ecosystem, launched from Kinshasa with worldwide coverage waves — DRC → Africa core → South Asia → SE Asia & Pacific → MENA & Horn → LatAm.</p>`,
+<p>KODA is built by <b>Groupe Nseya Digital / JNN Global Ltd</b> within the BitriPay ecosystem, launched from Kinshasa with worldwide coverage waves — DRC → Africa core → South Asia → SE Asia & Pacific → MENA & Horn → LatAm. The registry already spans <b>${N} operators in ${NC} countries across ${NR} regions</b>. <a href="/coverage">See coverage →</a></p>`,
   }),
 
   'how-it-works': page({
@@ -147,9 +161,59 @@ const pages = {
 [8] Elapsed: customer-side ~30–60 s. KODA's share: &lt; 10 s.</pre>
 <h2>The fraud engine — built to be lied to</h2>
 <p>KODA's truth is <b>merchant-side, operator-issued, device-attested</b>. Code replay is impossible (Global Replay Index — single-use forever, across all three doors). Spoofed SMS break the <b>balance-chain</b>: every genuine operator SMS carries the running balance, so each new balance must equal the previous plus the amount. A spoof breaks the arithmetic and is quarantined.</p>
+<h2>Every door your customer can reach</h2>
+<p>The customer pays and confirms however they can — KODA meets them there:</p>
+<ul>
+<li><b>Smartphone checkout</b> — the hosted page auto-renders in the customer's own device language and shows only networks that actually resolve to you.</li>
+<li><b>WhatsApp</b> — the code dropped in the chat is verified in-channel.</li>
+<li><b>USSD &amp; inbound SMS</b> — for feature phones and <b>low- or no-internet zones</b>, the customer confirms by dialling a code or texting it in. No app, no data, no smartphone required on the buyer's side.</li>
+<li><b>Manual Verify Console</b> — you paste the code yourself; works entirely offline-of-the-customer.</li>
+</ul>
 <h2>Worldwide by construction</h2>
-<p>Coverage is a <b>parsing template, not a contract</b>. KODA works wherever the operator sends a merchant confirmation SMS — M-Pesa, Orange Money, MTN MoMo, Airtel, Wave, bKash, JazzCash, GCash, EVC Plus and any operator in the Community Template Program: send 5 sample SMS, get a live pack within days.</p>
+<p>Coverage is a <b>parsing template, not a contract</b>. KODA already knows <b>${N} operators across ${NC} countries and ${NR} world regions</b> — M-Pesa, Orange Money, MTN MoMo, Airtel, Wave, bKash, JazzCash, GCash, EVC Plus and beyond. Because one brand shares one SMS grammar, <b>${NFAM} template families</b> unlock that whole map: pack a family once, and every country it operates in comes online together. Any operator that sends a merchant confirmation SMS can join the Community Template Program — send 5 sample SMS, get a live pack within days. <a href="/coverage">See full coverage →</a></p>
+<h2>You only ever see what's real</h2>
+<p>A network appears to your customer <em>only</em> when KODA supports it <b>and</b> you have an active, ownership-verified, healthy receiving account on it. KODA's <b>Network Intelligence layer</b> resolves every payment method down to exactly one account it can actually verify — no dead options, no "operator not available after you paid".</p>
 <p><a href="/app#signup">Verify your first payment free →</a></p>`,
+  }),
+
+  'coverage': page({
+    title: `${N} operators. ${NC} countries. One engine.`, kicker: 'Global coverage',
+    lead: `KODA's reach is a parsing map, not a pile of telco contracts. The registry below is the single source of truth the platform actually resolves against — ${N} mobile-money operators across ${NC} countries and ${NR} world regions, including the low- and no-internet corridors most rails ignore.`,
+    body: `
+<div class="grid">
+<div class="card"><h3>${N}</h3><p>Operators in the registry</p></div>
+<div class="card"><h3>${NC}</h3><p>Countries across ${NR} world regions</p></div>
+<div class="card"><h3>${ADDRESSABLE}</h3><p>SMS-verifiable operators (Tier A + B)</p></div>
+<div class="card"><h3>${NFAM}</h3><p>Template families that unlock them all</p></div>
+</div>
+<h2>Why families, not countries, are the unit</h2>
+<p>One brand almost always sends <b>one SMS grammar</b> across every market it runs in. M-Pesa's confirmation looks the same in Kenya, Tanzania, DRC and five other markets — so a single template pack lights up all of them at once. That is why <b>${NFAM} families cover ${N} operators</b>: coverage compounds. The most valuable families first:</p>
+<table>
+<tr><th>Family</th><th>Tier</th><th>Countries it unlocks</th></tr>
+${FAM.filter(f => f.tier !== 'C').slice(0, 12).map(f =>
+  `<tr><td>${f.family.replace(/_/g, ' ')}</td><td>${f.tier}</td><td>${f.countries}</td></tr>`).join('\n')}
+</table>
+<h2>Coverage by region</h2>
+<table>
+<tr><th>Region</th><th>Operators known</th></tr>
+${Object.entries(COV.byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
+  `<tr><td>${REGION_LABEL[r] || r}</td><td>${n}</td></tr>`).join('\n')}
+</table>
+<h2>How we classify an operator</h2>
+<table>
+<tr><th>Tier</th><th>What it means</th><th>KODA</th></tr>
+<tr><td><b>A — SMS-native</b></td><td>Sends a merchant confirmation SMS with reference, amount, sender and running balance. The balance-chain defence applies in full.</td><td class="ok">Verifiable · ${COV.byTier.A}</td></tr>
+<tr><td><b>B — hybrid</b></td><td>SMS plus app/push; usually verifiable via the SMS the merchant SIM still receives, sometimes with a lighter trust band.</td><td class="warn">Verifiable · ${COV.byTier.B}</td></tr>
+<tr><td><b>C — bank-rail / app-push</b></td><td>No merchant SMS at all (pure app or bank rail — e.g. UPI). Nothing for KODA to read.</td><td>Excluded · ${COV.byTier.C}</td></tr>
+</table>
+<p>The resolver <b>refuses</b> to connect a Tier-C network rather than pretend it can verify one — honesty is enforced in code, not in copy.</p>
+<h2>LIVE vs. template-ready</h2>
+<p>An operator KODA has a hand-tuned pack for is <b>LIVE</b> (${COV.packed} today and climbing). The rest are <b>template-ready</b>: a multilingual generic parser (FR · EN · PT · ES · ID · MS) already structures their SMS at a lower trust band — verifications route through the challenge path until a precise pack is published. Nothing is silently claimed as fully supported when it isn't.</p>
+<h2>Low- and no-internet zones</h2>
+<p>Where smartphones and data are scarce, the customer never needs either. They pay by <b>USSD</b> and confirm by <b>dialling a code or sending an inbound SMS</b>; the merchant's KODA Sentinel SIM does the rest. The buyer side stays 100% feature-phone and offline-capable.</p>
+<h2>Add your operator</h2>
+<p>Missing from the map? Send five sample confirmation SMS through the <b>Community Template Program</b> and we publish a live pack within days — no telco meeting, ever. <a href="/contact">Submit samples →</a></p>
+<p><a href="/app#signup">Start verifying free →</a></p>`,
   }),
 
   'industries': page({
@@ -394,7 +458,9 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
     body: `
 <div class="card"><h3 id="api-status">◔ Checking API…</h3>
 <p class="mono" id="api-detail" style="font-family:var(--mono);font-size:12.5px;color:var(--dim)"></p></div>
-<h2>Per-operator parse health</h2>
+<h2>Registry coverage</h2>
+<p>KODA's resolver currently knows <b>${N} operators across ${NC} countries and ${NR} regions</b> — ${ADDRESSABLE} of them SMS-verifiable (Tier A + B), ${COV.packed} on hand-tuned LIVE packs with the rest on the multilingual generic parser. Full breakdown on the <a href="/coverage">coverage page</a>.</p>
+<h2>Per-operator parse health <span class="badge">LIVE packs</span></h2>
 <table>
 <tr><th>Operator</th><th>Corridor</th><th>Parse rate (7d)</th><th>Status</th></tr>
 <tr><td>Orange Money</td><td>DRC</td><td class="ok">99.5%</td><td class="ok">● operational</td></tr>
