@@ -89,8 +89,11 @@ whichever partners first, immediately.
 
 ## 5. Follow-up
 - If no reply in 5 business days: short nudge + a 60-second demo video link.
-- Bring to the meeting: live demo (a real verified payment), the disclaimer one-pager,
-  the coverage page (kodajnn.com/coverage), and a one-page pilot proposal.
+- Bring to the meeting / attach to the email: live demo (a real verified payment), the
+  coverage page (kodajnn.com/coverage), and the two leave-behinds:
+  - **`GTM_PILOT_PROPOSAL.md`** — one-page Kinshasa pilot proposal (FR + EN).
+  - **`GTM_DISCLAIMER_ONEPAGER.md`** — "what KODA is / is not" clarification for the
+    operator and, if needed, the regulator (BCC / ARPTC) (FR + EN).
 
 ---
 
