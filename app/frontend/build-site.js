@@ -526,7 +526,62 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 </ul></div>
 <div class="card"><h3>Coming to Google Play</h3>
 <p>Because Sentinel reads payment SMS, Google Play requires a special permissions review before listing. We're completing that submission. In the meantime this direct download is the official, safe way to install — it's the same signed app that will appear on Play.</p></div>
-<p><a href="/how-it-works">How verification works →</a> · <a href="/app#signup">Create your KODA account →</a></p>`,
+<p><a href="/guide-test">Guide de test (français) →</a> · <a href="/how-it-works">How verification works →</a> · <a href="/app#signup">Create your KODA account →</a></p>`,
+  }),
+
+  'guide-test': page({
+    title: 'Tester KODA en 5 étapes', kicker: 'Guide pilote · Kinshasa',
+    lead: 'Ce guide vous accompagne pour installer l\'application KODA Sentinel, jumeler votre téléphone et vérifier votre premier paiement mobile money. Comptez 10 minutes. Vous avez besoin d\'un téléphone Android (2017 ou plus récent) avec la SIM sur laquelle vous recevez l\'argent.',
+    body: `
+<div class="card"><h3>Étape 1 · Créer votre compte KODA</h3>
+<ol>
+<li>Sur votre téléphone, ouvrez <a href="/app#signup"><b>kodajnn.com/app</b></a>.</li>
+<li>Appuyez sur <b>« Créer un compte »</b> et remplissez : nom du commerce, votre nom, e-mail, numéro mobile money, mot de passe.</li>
+<li><em>Ou</em>, si KODA vous a déjà créé un compte : appuyez sur <b>« Se connecter »</b> avec l'e-mail et le mot de passe reçus.</li>
+</ol></div>
+
+<div class="card"><h3>Étape 2 · Télécharger l'application Sentinel</h3>
+<a class="btn btn-gold" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk" style="font-size:16px">⬇ Télécharger KODA Sentinel (.apk)</a>
+<ol style="margin-top:12px">
+<li>Ouvrez le fichier téléchargé.</li>
+<li>Si Android affiche <b>« source inconnue »</b>, appuyez sur <b>Paramètres → Autoriser cette source</b>, puis revenez et installez.</li>
+<li>Sentinel lit <b>uniquement</b> les SMS de paiement des opérateurs — jamais vos messages personnels.</li>
+</ol></div>
+
+<div class="card"><h3>Étape 3 · Obtenir le code de jumelage</h3>
+<ol>
+<li>Dans l'app KODA (<a href="/app">kodajnn.com/app</a>) → menu de gauche → <b>« Sentinel devices » (Appareils)</b>.</li>
+<li>Choisissez votre opérateur (Orange Money, M-Pesa, Airtel Money, Africell) puis appuyez <b>« Enroll a device » (Enrôler)</b>.</li>
+<li>Un <b>jeton de jumelage</b> apparaît (il commence par <code>dvk_…</code>). Appuyez sur <b>« Copy token »</b>.</li>
+</ol></div>
+
+<div class="card"><h3>Étape 4 · Jumeler le téléphone</h3>
+<ol>
+<li>Ouvrez l'application <b>KODA Sentinel</b>.</li>
+<li>Le serveur est déjà réglé sur <code>https://kodajnn.com</code> — ne changez rien.</li>
+<li>Collez le jeton <code>dvk_…</code> dans le champ <b>« …or paste the pairing token »</b>.</li>
+<li>Appuyez sur <b>« PAIR THIS PHONE »</b>.</li>
+<li><b>Autorisez la permission SMS</b> quand Android le demande.</li>
+<li>Le statut passe à <b>« Paired »</b> (jumelé). ✅ C'est bon.</li>
+</ol></div>
+
+<div class="card"><h3>Étape 5 · Vérifier un vrai paiement</h3>
+<ol>
+<li>Demandez à quelqu'un de vous envoyer un <b>petit montant</b> (ex. 500 FC) par mobile money sur cette SIM.</li>
+<li>Le SMS de confirmation de l'opérateur arrive → Sentinel l'envoie automatiquement à KODA.</li>
+<li>Dans l'app KODA → <b>« Live payments feed » (Flux)</b> : le paiement apparaît, structuré.</li>
+<li>Allez dans <b>« Verify » (Vérifier)</b>, collez le <b>code de transaction</b> du SMS, appuyez sur <b>Vérifier</b>.</li>
+<li>Verdict <b class="ok">vert ✓ « PAIEMENT VÉRIFIÉ »</b> en ~3 secondes. 🎉</li>
+</ol>
+<p style="font-size:13px;color:var(--dim)">La boucle est bouclée : un vrai paiement, capté par le téléphone, vérifié par KODA.</p></div>
+
+<div class="card"><h3>Un souci ?</h3>
+<ul>
+<li><b>Statut « Not paired » ?</b> Vérifiez que vous avez bien collé le jeton complet (<code>dvk_…</code>) et que le serveur est <code>https://kodajnn.com</code>.</li>
+<li><b>Le paiement n'apparaît pas dans le flux ?</b> Ouvrez Sentinel une fois pour qu'il se réveille, vérifiez que la permission SMS est accordée, et que le téléphone a du réseau/data.</li>
+<li><b>Besoin d'aide ?</b> Contactez KODA : <a href="/contact">kodajnn.com/contact</a>.</li>
+</ul></div>
+<p><a href="/sentinel">← Sentinel download page</a></p>`,
   }),
 
   'growth': page({
