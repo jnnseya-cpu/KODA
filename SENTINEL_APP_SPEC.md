@@ -138,13 +138,19 @@ stops working immediately. Sentinel should detect repeated `401`s → show
 
 ## 6. Build roadmap
 
-| Phase | Scope | Outcome |
-|---|---|---|
-| **P0 — Walking skeleton** | Pair via QR, read SMS, POST to `/v1/device/sms`, foreground service | Real payments hit the live ledger |
-| **P1 — Reliability** | Room outbox + retry/backoff, cold-start backfill, battery-optimisation opt-out | No lost payments |
-| **P2 — Trust** | Play Integrity attestation (`attested:true`), sender allowlist hardening | Verifiable device trust |
-| **P3 — Fleet UX** | Status/Log screens, re-pair on 401, dual-SIM tagging, heartbeat | Operable at scale |
-| **P4 — Store** | Privacy policy, consent, Play Store listing (or MDM side-load for owned fleet) | Distributable |
+| Phase | Scope | Outcome | Status |
+|---|---|---|---|
+| **P0 — Walking skeleton** | Pair via QR, read SMS, POST to `/v1/device/sms`, foreground service | Real payments hit the live ledger | ✅ done |
+| **P1 — Reliability** | Room outbox + retry/backoff (WorkManager), cold-start backfill, boot restart, battery-optimisation opt-out | No lost payments | ✅ done |
+| **P2 — Trust** | Play Integrity attestation (`attested:true`, fail-open), global sender allowlist from `/v1/device/config` | Verifiable device trust | ✅ done |
+| **P3 — Fleet UX** | Merchant status + re-pair on 401, queue-depth notification, ~5-min heartbeat + 15-min WorkManager backstop | Operable at scale | ✅ done |
+| **P4 — Store** | Privacy policy, consent, Play Store listing (or MDM side-load for owned fleet); optional per-device HMAC | Distributable | ▫ remaining |
+
+**Implemented (P1–P3):** `Outbox`/`OutboxDb` (Room), `DrainWorker` +
+`HeartbeatWorker` (WorkManager), `Backfill`, `BootReceiver`, `IntegrityGate`
+(Play Integrity), `DeviceConfig` (+ backend `GET /v1/device/config` serving the
+global allowlist), heartbeat in `ForwardService` inside the resolver's 10-minute
+health window. See `sentinel/README.md`.
 
 **Fastest path to real money:** P0 + P1 on **one** phone with the merchant SIM.
 That alone closes the loop end-to-end; P2–P4 harden and scale it.
