@@ -173,3 +173,31 @@ So: launch as a **public beta** today; the **Sentinel app** is the one piece tha
 switches real payments on — no SIMs, no payment gateway, no money held by KODA.
 Merchants pay you for the service via manual/prepaid top-ups at first (add a card
 gateway later only if you want it).
+
+---
+
+## Auto-deploy (no more manual redeploys)
+
+CI (`.github/workflows/ci.yml`) only **tests** each push — it never touches the
+VPS. To make pushes go live on their own, run the poll-and-deploy script from
+cron. It pulls the tracked branch, rebuilds, health-checks, and does nothing when
+there's nothing new. Your `.env` and the `koda_data` ledger volume are untouched.
+
+**One-time setup on the VPS** (as the deploy user, e.g. `koda`):
+```bash
+chmod +x ~/KODA/deploy/vps-autodeploy.sh
+# edit the branch it tracks if needed (default is the current feature branch):
+#   KODA_DEPLOY_BRANCH=main  at the top, or export it in the cron line
+( crontab -l 2>/dev/null; echo '*/2 * * * * /home/koda/KODA/deploy/vps-autodeploy.sh' ) | crontab -
+```
+
+**Watch / operate:**
+```bash
+tail -f ~/koda-deploy.log            # see each deploy as it happens
+~/KODA/deploy/vps-autodeploy.sh      # force a deploy right now
+crontab -l                           # confirm the schedule
+```
+
+Every push to the tracked branch is now live within ~2 minutes. To point
+production at `main` instead, set `KODA_DEPLOY_BRANCH=main` (recommended once the
+feature branch is merged).
