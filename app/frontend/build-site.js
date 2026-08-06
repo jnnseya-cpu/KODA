@@ -4,6 +4,18 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+
+// Guard: a syntax error in the client bundles renders a black screen at /app.
+// Fail the build loudly (so a broken deploy keeps the previous working container)
+// instead of shipping unparseable JS.
+for (const js of ['app.js', 'sw.js']) {
+  const p = path.join(__dirname, js);
+  if (fs.existsSync(p)) {
+    try { execFileSync(process.execPath, ['--check', p], { stdio: 'pipe' }); }
+    catch (e) { console.error(`\n✗ SYNTAX ERROR in frontend/${js} — build aborted:\n${e.stderr || e.message}`); process.exit(1); }
+  }
+}
 
 const OUT = path.join(__dirname, 'site');
 fs.mkdirSync(OUT, { recursive: true });
