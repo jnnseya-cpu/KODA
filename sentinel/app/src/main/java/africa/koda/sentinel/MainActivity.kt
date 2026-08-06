@@ -9,6 +9,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -18,7 +20,7 @@ import africa.koda.sentinel.databinding.ActivityMainBinding
 import com.google.zxing.integration.android.IntentIntegrator
 import java.util.concurrent.Executors
 
-/** Pair screen + status/log. P0 UI is intentionally minimal — this is a utility. */
+/** Pair screen + status/log. Minimal by design — Sentinel is a background utility. */
 class MainActivity : AppCompatActivity() {
     private lateinit var b: ActivityMainBinding
     private val io = Executors.newSingleThreadExecutor()
@@ -64,10 +66,14 @@ class MainActivity : AppCompatActivity() {
         b.status.text = getString(R.string.checking)
         io.execute {
             val ok = KodaClient.validate(baseUrl, token)
+            if (ok) {
+                Prefs.save(this, baseUrl, token)
+                DeviceConfig.refresh(this)          // learn merchant + operator + allowlist
+            }
             runOnUiThread {
                 if (ok) {
-                    Prefs.save(this, baseUrl, token)
                     ensurePermissions()
+                    requestBatteryExemption()
                     ForwardService.start(this)
                     render(); toast("Paired ✓")
                 } else toast("Pairing failed — check the token / URL")
@@ -101,9 +107,29 @@ class MainActivity : AppCompatActivity() {
         if (ask.isNotEmpty()) ActivityCompat.requestPermissions(this, ask.toTypedArray(), 7)
     }
 
+    /** Ask Android to exempt Sentinel from Doze so the outbox drains during idle. */
+    private fun requestBatteryExemption() {
+        try {
+            val pm = getSystemService(POWER_SERVICE) as PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                startActivity(
+                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                        .setData(Uri.parse("package:$packageName"))
+                )
+            }
+        } catch (e: Exception) { /* OEM without the settings screen — service still runs */ }
+    }
+
     private fun render() {
         val paired = Prefs.isPaired(this)
-        b.status.text = if (paired) getString(R.string.paired_ok) else getString(R.string.not_paired)
+        val repair = Prefs.needsRepair(this)
+        val merchant = Prefs.merchantName(this)
+        b.status.text = when {
+            !paired -> getString(R.string.not_paired)
+            repair -> getString(R.string.needs_repair)
+            merchant != null -> getString(R.string.paired_to, merchant)
+            else -> getString(R.string.paired_ok)
+        }
         b.pairedGroup.visibility = if (paired) View.VISIBLE else View.GONE
         b.pairGroup.visibility = if (paired) View.GONE else View.VISIBLE
     }

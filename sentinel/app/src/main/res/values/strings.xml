@@ -3,6 +3,8 @@
     <string name="tagline">Forwards your mobile-money SMS to KODA for verification.</string>
     <string name="not_paired">Not paired</string>
     <string name="paired_ok">Paired ✓ — protecting payments</string>
+    <string name="paired_to">Paired ✓ — protecting %1$s</string>
+    <string name="needs_repair">⚠ This phone was unpaired by the merchant. Re-pair to resume.</string>
     <string name="checking">Checking…</string>
     <string name="label_base">KODA server</string>
     <string name="scan_qr">Scan pairing QR</string>
