@@ -8,7 +8,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const SITE = 'https://koda.africa';
+  const SITE = 'https://kodajnn.com';
   const BRAND = 'KODA';
 
   // product/industry pages every post can link INTO (internal authority flow)

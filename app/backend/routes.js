@@ -633,7 +633,7 @@ module.exports = function registerRoutes(r) {
   r.get('/v1/agents', apiKey(() => ({ agents: AGENTS.map(({ run, ...meta }) => meta) }), 'read:agents'));
   r.post('/v1/agents/:type/run', apiKey((req, m) => {
     const agent = AGENTS.find(a => a.type === req.params.type);
-    if (!agent) return [404, { error: { code: 'unknown_agent', doc_url: 'https://docs.koda.africa/agents' } }];
+    if (!agent) return [404, { error: { code: 'unknown_agent', doc_url: 'https://kodajnn.com/agents' } }];
     const gate = engine.gateAI(m, agent.acu, 'agent:' + agent.type);
     if (gate.ok !== true) return gate; // 402/500 — every AI action gated by ACU
     const result = agent.run(m, req.body || {});
@@ -1027,7 +1027,7 @@ function openapi() {
   return {
     openapi: '3.1.0',
     info: { title: 'KODA API', version: VERSION.api, description: 'Payment verification for mobile money — the SMS is the API.' },
-    servers: [{ url: 'https://api.koda.africa/v1' }, { url: 'https://sandbox.koda.africa/v1' }],
+    servers: [{ url: 'https://kodajnn.com/v1', description: 'Production. Use sk_live_ keys; sk_test_ keys run in sandbox on the same host.' }],
     paths: {
       '/ping': { get: { summary: 'Verify a key and see the merchant it unlocks.' } },
       '/intents': { post: { summary: 'Create payment intent — returns client_secret + checkout_url for drop-in checkout', 'x-scope': 'write:intents' } },

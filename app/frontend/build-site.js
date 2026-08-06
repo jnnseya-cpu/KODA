@@ -291,11 +291,11 @@ ${Object.entries(COV.byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
 </div>
 <div class="card"><h3>3 · Call the engine</h3><p>Hit the endpoints below. Watch usage and ACU in your dashboard.</p></div>
 <h2>Base URL & authentication</h2>
-<pre>Base URL   https://api.koda.africa/v1
-Sandbox    https://sandbox.koda.africa/v1
+<pre>Base URL   https://kodajnn.com/v1
+Sandbox    https://kodajnn.com/v1
 Auth       Authorization: Bearer sk_live_xxx    (or)  X-API-Key: sk_live_xxx
 
-curl -H "Authorization: Bearer sk_test_..." https://api.koda.africa/v1/ping</pre>
+curl -H "Authorization: Bearer sk_test_..." https://kodajnn.com/v1/ping</pre>
 <h2>Endpoints</h2>
 <table>
 <tr><th>Method</th><th>Path</th><th>Description</th></tr>
@@ -333,8 +333,8 @@ POST /v1/intents  { "amount": 25000, "currency": "CDF",
   "metadata": { "order_id": "CMD-1042" },
   "success_url": "https://shop.example.com/order/success" }
 → { "intent_id": "int_…", "client_secret": "cs_…",
-    "checkout_url": "https://pay.koda.africa/pay/int_…?cs=cs_…" }</pre>
-<pre>&lt;script src="https://pay.koda.africa/js/koda.js"&gt;&lt;/script&gt;
+    "checkout_url": "https://kodajnn.com/pay/int_…?cs=cs_…" }</pre>
+<pre>&lt;script src="https://kodajnn.com/js/koda.js"&gt;&lt;/script&gt;
 &lt;script&gt;
   Koda.checkout({
     checkoutUrl: '&lt;checkout_url from your server&gt;',
@@ -343,7 +343,7 @@ POST /v1/intents  { "amount": 25000, "currency": "CDF",
 &lt;/script&gt;</pre>
 <h3>2 · Publishable key (front-end only)</h3>
 <p>No backend call needed — a <code>pk_</code> key can only create intents, so it is safe in the page. The widget creates the intent and opens the overlay for you:</p>
-<pre>&lt;script src="https://pay.koda.africa/js/koda.js"&gt;&lt;/script&gt;
+<pre>&lt;script src="https://kodajnn.com/js/koda.js"&gt;&lt;/script&gt;
 &lt;button
   data-koda-key="pk_live_…"
   data-koda-amount="25000"
@@ -429,9 +429,9 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
     body: `
 <div class="grid">
 <div class="card"><h3>💬 Merchants & support</h3><p>WhatsApp: <b>+243 8XX XXX XXX</b><br>FR · EN · Lingala · Swahili<br>Commerce+ plans: SLA-backed response times.</p></div>
-<div class="card"><h3>&lt;/&gt; Developers</h3><p>WhatsApp dev channel + Discord<br><code>devs@koda.africa</code><br>Docs: <a href="/developers">koda.africa/developers</a></p></div>
-<div class="card"><h3>🏢 Platforms & Enterprise</h3><p>Wholesale, sub-merchant API, white-label:<br><code>platforms@koda.africa</code></p></div>
-<div class="card"><h3>⚖ Legal & compliance</h3><p><code>legal@koda.africa</code><br>DPIA and per-market legal opinions available under NDA.</p></div>
+<div class="card"><h3>&lt;/&gt; Developers</h3><p>WhatsApp dev channel + Discord<br><code>devs@kodajnn.com</code><br>Docs: <a href="/developers">kodajnn.com/developers</a></p></div>
+<div class="card"><h3>🏢 Platforms & Enterprise</h3><p>Wholesale, sub-merchant API, white-label:<br><code>platforms@kodajnn.com</code></p></div>
+<div class="card"><h3>⚖ Legal & compliance</h3><p><code>legal@kodajnn.com</code><br>DPIA and per-market legal opinions available under NDA.</p></div>
 </div>
 <p style="margin-top:18px">Groupe Nseya Digital / JNN Global Ltd · Kinshasa, DRC · <a href="/app#signup">or just start free — no card required</a>.</p>`,
   }),
@@ -480,7 +480,7 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
 <li>Customer msisdn is masked everywhere outside the fraud pipeline.</li>
 <li>Communications per the event catalogue; mandatory service notices bypass marketing opt-outs, never marketing.</li></ul>
 <h2>Where it lives</h2><p>GCP (europe-west default) with per-market in-country residency options where mandated. Append-only event store: every verification is replayable for disputes and regulators.</p>
-<h2>Your rights</h2><p>Access, export (machine-readable), correction and deletion via Settings or <code>privacy@koda.africa</code>. DPIA published. Consent copy written by humans, French first.</p>`,
+<h2>Your rights</h2><p>Access, export (machine-readable), correction and deletion via Settings or <code>privacy@kodajnn.com</code>. DPIA published. Consent copy written by humans, French first.</p>`,
   }),
 
   'policies': page({
@@ -494,7 +494,7 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
 <tr><td>Growth Partner Terms</td><td>Referral ladder, Verified Net Revenue, anti-fraud, payouts</td><td><a href="/growth">Read →</a></td></tr>
 <tr><td>SLA (Commerce+)</td><td>99.9% API availability · p95 &lt; 5 s KODA-side · credited if missed</td><td><a href="/terms">Read →</a></td></tr>
 <tr><td>Data Processing Addendum</td><td>Controller/processor roles, sub-processors, residency</td><td><a href="/contact">Request →</a></td></tr>
-<tr><td>Responsible Disclosure</td><td>Security reports: <code>security@koda.africa</code> — safe harbour for good-faith research</td><td><a href="/contact">Report →</a></td></tr>
+<tr><td>Responsible Disclosure</td><td>Security reports: <code>security@kodajnn.com</code> — safe harbour for good-faith research</td><td><a href="/contact">Report →</a></td></tr>
 <tr><td>API Deprecation Policy</td><td>Versioned API, 12-month windows, no breaking changes inside a version</td><td><a href="/developers">Read →</a></td></tr>
 <tr><td>Platform Disclaimer</td><td>Not a bank or money transmitter; no fund custody; verification ≠ settlement; operator trademarks</td><td>Footer of every page</td></tr>
 </table>
