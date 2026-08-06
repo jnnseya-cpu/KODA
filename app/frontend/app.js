@@ -679,7 +679,7 @@ VIEWS.billing = async () => {
     <a class="btn btn-ghost" href="#kd">${t('kd_console')} →</a></div>
   <div class="card" style="margin-top:14px"><h3>${t('change_plan')}</h3>
     <div class="pill-row">${plans.map(p => `<button class="pill ${b.plan.label.toLowerCase() === p ? 'on' : ''}" onclick="setPlan('${p}')">${p}</button>`).join('')}</div>
-    <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $19 · Commerce $79 · Plateforme $399 · Enterprise custom — one ladder, all three doors.</div>
+    <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $19 · Commerce $79 · Plateforme $399 · Enterprise custom — one ladder, all five doors.</div>
     <div id="plan-pay" style="margin-top:12px"></div>
   </div>
   <div class="grid g2" style="margin-top:14px">

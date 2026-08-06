@@ -33,7 +33,7 @@ function socialPost(m, { topic = 'payment verification', channel = 'whatsapp', t
     : `${hook}\n\nAt ${m.name}, every mobile money payment is verified instantly with KODA — no doubt, no fake payments. Your customer pays as usual; you know at once it's real. 🔒\n\n👉 Start free`;
   const hashtags = hashtagsFor(m, topic, channel).slice(0, channel === 'x' ? 3 : 6);
   return { channel, tone, text: body, hashtags, char_count: body.length,
-    cta: F ? 'Commence gratuitement sur koda.africa' : 'Start free at koda.africa' };
+    cta: F ? 'Commence gratuitement sur kodajnn.com' : 'Start free at kodajnn.com' };
 }
 
 // 2 — targeted advert creator (ad copy + headline + primary text + creative brief)
@@ -60,7 +60,7 @@ function emailCampaign(m, { goal = 'activation', segment = 'new_merchants' } = {
     body_html: `<p>${F ? 'Bonjour' : 'Hello'},</p><p>${F
       ? `Avec KODA, chaque paiement mobile money reçu par ${m.name} est vérifié instantanément contre ton SMS opérateur. Fini les faux screenshots.`
       : `With KODA, every mobile money payment ${m.name} receives is verified instantly against your operator SMS. No more fake screenshots.`}</p>` +
-      `<p><a href="https://koda.africa/get-started">${F ? 'Vérifie ton premier paiement — gratuit' : 'Verify your first payment — free'}</a></p>`,
+      `<p><a href="https://kodajnn.com/get-started">${F ? 'Vérifie ton premier paiement — gratuit' : 'Verify your first payment — free'}</a></p>`,
     cta: F ? 'Commencer gratuitement' : 'Start free',
     send_time_hint: 'Tue–Thu, 09:00 or 19:00 local' };
 }
@@ -76,7 +76,7 @@ function landingPage(m, { offer = 'free_trial', audience = 'merchants' } = {}) {
       { type: 'problem', title: F ? 'Le problème' : 'The problem', text: F ? 'Les faux screenshots coûtent cher.' : 'Fake screenshots cost you money.' },
       { type: 'solution', title: F ? 'La solution' : 'The solution', text: F ? 'KODA vérifie le code contre ton SMS opérateur.' : 'KODA verifies the code against your operator SMS.' },
       { type: 'proof', title: F ? 'Sans contrat' : 'No contract', text: F ? 'Aucun accord télécom. Aucun code.' : 'No telco deal. No code.' },
-      { type: 'cta', title: F ? 'Essaie gratuitement' : 'Try it free', text: 'koda.africa/get-started' },
+      { type: 'cta', title: F ? 'Essaie gratuitement' : 'Try it free', text: 'kodajnn.com/get-started' },
     ] };
 }
 
@@ -101,7 +101,7 @@ function videoScript(m, { seconds = 30, platform = 'tiktok' } = {}) {
       { t: '8-18s', shot: F ? 'Écran KODA : code collé → coche verte' : 'KODA screen: code pasted → green check', vo: F ? `${m.name} vérifie sur son propre SMS opérateur. 3 secondes.` : `${m.name} checks it against their own operator SMS. 3 seconds.` },
       { t: '18-27s', shot: F ? 'Coche + "code verrouillé"' : 'Check + "code locked"', vo: F ? 'Vérifié. Et ce code ne servira jamais deux fois.' : 'Verified. And that code will never work twice.' },
       { t: '27-30s', shot: 'KODA logo', vo: F ? 'KODA. Le code confirme le cash. Gratuit.' : 'KODA. The SMS is the API. Free to start.' },
-    ], caption: F ? 'Vérifie tes paiements 👉 koda.africa' : 'Verify your payments 👉 koda.africa', hashtags: hashtagsFor(m, 'video', platform).slice(0, 5) };
+    ], caption: F ? 'Vérifie tes paiements 👉 kodajnn.com' : 'Verify your payments 👉 kodajnn.com', hashtags: hashtagsFor(m, 'video', platform).slice(0, 5) };
 }
 
 // 7 — performance recommendations (reads the merchant's real KODA data)

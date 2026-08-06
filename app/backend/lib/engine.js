@@ -1,5 +1,5 @@
 // KODA — the verification engine (MatchMaker + billing + webhooks + comms glue).
-// Shared by all three doors: Manual (console), Chat, API.
+// Shared by all five doors: Manual (console), WhatsApp, API, USSD, inbound SMS.
 'use strict';
 const { q } = require('./db');
 const { id } = require('./util');
@@ -170,7 +170,7 @@ function matchAwaitingIntent(merchantId, parsed) {
   return { ambiguous: true };                                // several same-amount orders → hold
 }
 
-// the core verify — one truth for all three doors
+// the core verify — one truth for all five doors
 function verify(merchant, intent, reference, { mode = 'api', userId = null, viaScreenshot = false, late = false } = {}) {
   reference = String(reference || '').trim().toUpperCase();
   const trace = { steps: [], template_version: VERSION.trace_template, model_version: VERSION.fraud_model };

@@ -190,7 +190,7 @@
   .sec-sub strong{color:var(--text)}
 
   /* ---------- THREE DOORS ---------- */
-  .doors{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  .doors{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
   @media(max-width:1100px){.doors{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:640px){.doors{grid-template-columns:1fr}}
   .door{
@@ -528,7 +528,7 @@
 <!-- ============ THREE DOORS ============ -->
 <section id="doors">
   <div class="wrap">
-    <div class="sec-kicker">One engine · four doors</div>
+    <div class="sec-kicker">One engine · five doors</div>
     <h2>A market trader and a 400-merchant platform use the exact same truth.</h2>
     <p class="sec-sub">
       Identical matching, fraud scoring, replay protection and audit trail — only the interface differs
@@ -587,6 +587,20 @@
           <li>Dial a shortcode, confirm, done — verdict in seconds</li>
           <li>Same replay lock, fraud scoring and ledger as every door</li>
           <li>Rolling out with partner operators (telco shortcode required)</li>
+        </ul>
+      </div>
+      <div class="door">
+        <span class="badge">HANDS-FREE</span>
+        <div class="door-num">DOOR 05</div>
+        <h3>Inbound SMS</h3>
+        <span class="who">For any phone — forward the operator SMS, done</span>
+        <p>The merchant forwards (or auto-forwards) the operator's payment SMS to KODA.
+        KODA reads it and verifies automatically — no code to type, works even on iPhone.</p>
+        <ul>
+          <li>Forward the whole SMS — KODA sees the real proof, not just digits</li>
+          <li>Auto-verifies the moment it lands — the merchant does nothing</li>
+          <li>Works on any device, including phones that can't run Sentinel</li>
+          <li>Same replay lock, fraud scoring and ledger as every door</li>
         </ul>
       </div>
     </div>
@@ -678,7 +692,7 @@ risk 0.02 · &lt;10 s</div>
         <div class="attacks">
           <div class="attack">
             <div class="attack-name">Code replay</div>
-            <div class="attack-def">Global Replay Index — every code is <strong>single-use per merchant, forever</strong>, across all four doors. A code verified manually is dead to the API too.</div>
+            <div class="attack-def">Global Replay Index — every code is <strong>single-use per merchant, forever</strong>, across all five doors. A code verified manually is dead to the API too.</div>
           </div>
           <div class="attack">
             <div class="attack-name">Stolen code</div>
@@ -780,7 +794,7 @@ risk 0.02 · &lt;10 s</div>
 <!-- ============ PRICING ============ -->
 <section id="pricing" class="sec-alt">
   <div class="wrap">
-    <div class="sec-kicker">One ladder · all four doors</div>
+    <div class="sec-kicker">One ladder · all five doors</div>
     <h2>Free until your merchant actually gets paid.</h2>
     <p class="sec-sub">Every plan includes a <strong>monthly verification quota at no per-use cost</strong> — identical whether a human
     clicked Verify or a webhook fired. Failed matches, rejections, expired intents: <strong>free.</strong>

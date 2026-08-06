@@ -1,6 +1,6 @@
 # KODA — origin TLS + reverse proxy. Caddy auto-provisions a free Let's Encrypt
 # certificate for your domain and forwards to the KODA container. Compression on.
-# KODA_DOMAIN comes from the .env in this folder (e.g. koda.africa or pay.koda.africa).
+# KODA_DOMAIN comes from the .env in this folder (e.g. kodajnn.com or pay.kodajnn.com).
 {$KODA_DOMAIN} {
 	encode zstd gzip
 	reverse_proxy koda:8080

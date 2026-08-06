@@ -207,7 +207,7 @@ const pages = {
     lead: 'KODA turns the confirmation SMS every mobile money operator already sends merchants into structured payment truth — with no telco contract, anywhere on Earth.',
     body: `
 <p>Every conventional mobile-money "integration" negotiates B2B API access with each operator: 6–18 months per telco, per country, contracts, and frequent flat rejection for SMEs. Which is why most mobile-money commerce worldwide still ends with <em>"send me a screenshot."</em></p>
-<p>KODA doesn't integrate with operators. A 6&nbsp;MB app on the merchant's own phone (KODA Sentinel) reads what the operator already sends — reference, amount, sender, running balance — structures it, and turns it into verifiable truth delivered through three doors: a <b>Verify Console</b> for merchants who never write code, <b>WhatsApp</b> for sellers who live in the chat, and a <b>3-endpoint API</b> for platforms.</p>
+<p>KODA doesn't integrate with operators. A 6&nbsp;MB app on the merchant's own phone (KODA Sentinel) reads what the operator already sends — reference, amount, sender, running balance — structures it, and turns it into verifiable truth delivered through five doors: a <b>Verify Console</b> for merchants who never write code, <b>WhatsApp</b> for sellers who live in the chat, a <b>3-endpoint API</b> for platforms, and <b>USSD</b> + <b>inbound SMS</b> for feature phones.</p>
 <h2>What we are / are not</h2>
 <div class="grid">
 <div class="card"><h3 class="ok">KODA is</h3><ul><li>Payment Verification-as-a-Service</li><li>A truth layer between "customer says paid" and "merchant knows paid"</li><li>Operator-agnostic and border-agnostic by construction</li></ul></div>
@@ -233,7 +233,7 @@ const pages = {
 [7] The verdict lands where you live: webhook · ✅ in the chat · green card in the Console
 [8] Elapsed: customer-side ~30–60 s. KODA's share: &lt; 10 s.</pre>
 <h2>The fraud engine — built to be lied to</h2>
-<p>KODA's truth is <b>merchant-side, operator-issued, device-attested</b>. Code replay is impossible (Global Replay Index — single-use forever, across all three doors). Spoofed SMS break the <b>balance-chain</b>: every genuine operator SMS carries the running balance, so each new balance must equal the previous plus the amount. A spoof breaks the arithmetic and is quarantined.</p>
+<p>KODA's truth is <b>merchant-side, operator-issued, device-attested</b>. Code replay is impossible (Global Replay Index — single-use forever, across all five doors). Spoofed SMS break the <b>balance-chain</b>: every genuine operator SMS carries the running balance, so each new balance must equal the previous plus the amount. A spoof breaks the arithmetic and is quarantined.</p>
 <h2>Every door your customer can reach</h2>
 <p>The customer pays and confirms however they can — KODA meets them there:</p>
 <ul>
@@ -307,7 +307,7 @@ ${Object.entries(COV.byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
 
   'industries': page({
     title: 'Anywhere money meets a merchant.', kicker: 'Industries',
-    lead: 'One engine, three doors — plus USSD and inbound-SMS for feature phones — deployed across commerce, education, transport, health, agriculture, ticketing, field sales and government.',
+    lead: 'One engine, five doors — Manual, WhatsApp, API, USSD and inbound SMS — deployed across commerce, education, transport, health, agriculture, ticketing, field sales and government.',
     body: `
 <div class="grid">
 <div class="card"><h3>🍽 Restaurants & delivery</h3><p>Orders verified before the kitchen fires. No more "I sent a screenshot" at the counter. Day-one reference: <b>Tunakula</b>.</p></div>

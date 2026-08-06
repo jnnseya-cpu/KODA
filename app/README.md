@@ -1,6 +1,6 @@
 # KODA Platform — developer-ready application
 
-The full KODA merchant OS: public site, PWA app (three doors), verification engine,
+The full KODA merchant OS: public site, PWA app (five doors), verification engine,
 communication event architecture, billing, fleet, disputes, sub-merchants and admin —
 implementing `../KODA_UNIFIED_SPEC_v2.md`.
 
@@ -135,7 +135,7 @@ index and scale Cloud Run instances linearly.
 | `FCM_KEY` | flips push deliveries to live |
 
 **WhatsApp (Door 2) wiring:** point the Meta app's webhook at
-`https://api.koda.africa/webhooks/whatsapp` with your verify token and subscribe to
+`https://api.kodajnn.com/webhooks/whatsapp` with your verify token and subscribe to
 `messages`. Outbound: business-initiated events send pre-approved templates
 (`koda_payment_verified`, `koda_topup_verified`, `koda_low_balance`,
 `koda_sentinel_offline`, `koda_security_alert`, `koda_daily_digest` — create these in
