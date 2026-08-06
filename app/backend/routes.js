@@ -186,7 +186,9 @@ module.exports = function registerRoutes(r) {
     usage: q.all(`SELECT date(created_at) d, SUM(CASE WHEN delta<0 THEN -delta ELSE 0 END) burned
                   FROM acu_transactions WHERE merchant_id=? AND created_at > date('now','-30 days')
                   GROUP BY 1 ORDER BY 1`, m.id),
-    transactions: q.all(`SELECT * FROM acu_transactions WHERE merchant_id=? ORDER BY created_at DESC LIMIT 50`, m.id),
+    // rowid tiebreak: created_at is 1-second resolution, so concurrent charges
+    // tie — order by insertion (rowid) so transactions[0] is always the true last.
+    transactions: q.all(`SELECT * FROM acu_transactions WHERE merchant_id=? ORDER BY created_at DESC, rowid DESC LIMIT 50`, m.id),
     invoices: q.all(`SELECT * FROM invoices WHERE merchant_id=? ORDER BY created_at DESC`, m.id),
   })));
   r.post('/app/billing/topup', auth((req, user, m) => {
@@ -419,6 +421,31 @@ module.exports = function registerRoutes(r) {
       Number.isFinite(+b.parse_health) ? Math.max(0, Math.min(1, +b.parse_health)) : dev.parse_health,
       dev.id);
     return { ok: true, device_id: dev.id, next_heartbeat_s: 45 };
+  });
+
+  // ---- Sentinel config: device-token-auth token check + global sender allowlist ----
+  // Sentinel calls this at pairing (validates the token, learns its merchant +
+  // enrolled operator) and periodically (refreshes the operator sender allowlist
+  // so its on-device privacy filter tracks the global registry with no rebuild).
+  r.get('/v1/device/config', (req) => {
+    const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.headers['x-device-token'];
+    if (!tok || !/^dvk_/.test(tok)) return [401, { error: { code: 'device_unauthenticated' } }];
+    const dev = q.get(`SELECT * FROM devices WHERE device_token=? AND status='active'`, tok);
+    if (!dev) return [401, { error: { code: 'device_unauthenticated' } }];
+    const m = q.get('SELECT name FROM merchants WHERE id=?', dev.merchant_id);
+    const ops = require('../shared/operators');
+    // sender token → operator id (uppercased); the phone forwards only matching SMS
+    const allowlist = {};
+    for (const o of ops.OPERATORS) for (const s of (o.senders || [])) {
+      const k = String(s).toUpperCase();
+      if (!allowlist[k]) allowlist[k] = o.id;   // first wins; device operator disambiguates at ingest
+    }
+    return {
+      ok: true, device_id: dev.id, merchant_name: (m && m.name) || 'KODA',
+      operator: dev.operator || null, heartbeat_s: 300,
+      allowlist,                                 // { "ORANGEMONEY":"orange_cd", ... } — global
+      allowlist_version: ops.OPERATORS.length,
+    };
   });
 
   // ---- Sentinel phone-edge: the real SMS-forward door (device-token auth) ----

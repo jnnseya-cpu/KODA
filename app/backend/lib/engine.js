@@ -13,9 +13,16 @@ const VERSION = require('../../shared/version');
 
 function getMerchant(mid) { return q.get('SELECT * FROM merchants WHERE id=?', mid); }
 
+// ACU mutations MUST be relative + read-back, never absolute from an in-memory
+// snapshot. A handler loads `merchant` early, then charges later; if two requests
+// interleave, both would compute a balance from the same stale snapshot and the
+// last absolute write would clobber the other's charge — leaving acu_balance out
+// of step with the ledger's balance_after. node:sqlite runs each statement here
+// synchronously with no interleaving, so a relative UPDATE + SELECT + INSERT is
+// atomic w.r.t. other requests and always self-consistent.
 function chargeAcu(merchant, amount, kind, ref) {
-  const bal = merchant.acu_balance - amount;
-  q.run('UPDATE merchants SET acu_balance=? WHERE id=?', bal, merchant.id);
+  q.run('UPDATE merchants SET acu_balance = acu_balance - ? WHERE id=?', amount, merchant.id);
+  const bal = q.get('SELECT acu_balance FROM merchants WHERE id=?', merchant.id).acu_balance;
   q.run(`INSERT INTO acu_transactions (id,merchant_id,delta,kind,ref,balance_after)
          VALUES (?,?,?,?,?,?)`, id('acu'), merchant.id, -amount, kind, ref || null, bal);
   merchant.acu_balance = bal;
@@ -24,8 +31,8 @@ function chargeAcu(merchant, amount, kind, ref) {
   return bal;
 }
 function creditAcu(merchant, amount, kind, ref) {
-  const bal = merchant.acu_balance + amount;
-  q.run('UPDATE merchants SET acu_balance=? WHERE id=?', bal, merchant.id);
+  q.run('UPDATE merchants SET acu_balance = acu_balance + ? WHERE id=?', amount, merchant.id);
+  const bal = q.get('SELECT acu_balance FROM merchants WHERE id=?', merchant.id).acu_balance;
   q.run(`INSERT INTO acu_transactions (id,merchant_id,delta,kind,ref,balance_after)
          VALUES (?,?,?,?,?,?)`, id('acu'), merchant.id, amount, kind, ref || null, bal);
   merchant.acu_balance = bal;
