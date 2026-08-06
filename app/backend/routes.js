@@ -469,6 +469,29 @@ module.exports = function registerRoutes(r) {
     q.run(`UPDATE merchants SET status = CASE status WHEN 'suspended' THEN 'active' ELSE 'suspended' END WHERE id=?`, req.params.id);
     return { ok: true };
   }));
+  // ---- admin: create a new merchant + its owner login (provision an account) ----
+  r.post('/app/admin/merchants', admin((req, user) => {
+    const { business, email, name } = req.body;
+    if (!business || !email || !name) return [400, { error: { code: 'missing_fields', message: 'business, email and name are required' } }];
+    const plan = PLANS[req.body.plan] ? req.body.plan : 'marche';
+    const country = String(req.body.country || 'CD').toUpperCase().slice(0, 2);
+    const currency = /^[A-Z]{3}$/.test(String(req.body.currency || '')) ? req.body.currency : 'CDF';
+    const em = String(email).toLowerCase().trim();
+    if (q.get('SELECT id FROM users WHERE email=?', em)) return [409, { error: { code: 'email_taken' } }];
+    const mid = U.id('mch'), uid = U.id('usr');
+    const pw = req.body.password || U.token(8);
+    const created = tx(() => {
+      q.run(`INSERT INTO merchants (id,name,country,currency,plan,msisdn,logo_text) VALUES (?,?,?,?,?,?,?)`,
+        mid, business, country, currency, plan, req.body.phone || null, business);
+      q.run(`INSERT INTO users (id,merchant_id,email,name,phone,pass_hash,role) VALUES (?,?,?,?,?,?,'owner')`,
+        uid, mid, em, name, req.body.phone || null, U.hashPassword(pw));
+      return q.get('SELECT * FROM merchants WHERE id=?', mid);
+    });
+    audit(mid, user.id, 'admin.merchant_created', { business, email: em, plan });
+    const u = q.get('SELECT * FROM users WHERE id=?', uid);
+    notify.fire('merchant.activated', { user: u, merchant: created, data: { merchant: business } });
+    return { ok: true, merchant: created, owner_email: em, temp_password: req.body.password ? undefined : pw };
+  }));
   // ---- admin: change a merchant's plan ----
   r.post('/app/admin/merchants/:id/plan', admin((req, user) => {
     const m = q.get('SELECT * FROM merchants WHERE id=?', req.params.id);

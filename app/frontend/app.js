@@ -867,6 +867,21 @@ VIEWS.admin = async (params) => {
         <span class="mono">${p.operator}</span><span class="mono" style="color:${p.rate > 0.98 ? 'var(--verify)' : 'var(--gold)'}">${(p.rate * 100).toFixed(1)}%</span></div>
       <div class="progress"><i style="width:${p.rate * 100}%"></i></div></div>`).join('')}
   </div>
+  <details class="card" style="margin-top:14px">
+    <summary style="cursor:pointer;font-weight:700;color:var(--gold)">＋ Create a merchant account</summary>
+    <p style="font-size:13px;color:var(--dim);margin:10px 0">Provision a business and its owner login directly — you get a temp password to hand over. Use this to onboard your first merchant (e.g. the Kinshasa till) or a platform (e.g. the event-ticket site).</p>
+    <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:720px">
+      <input id="cm-biz" placeholder="Business name" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="cm-name" placeholder="Owner full name" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="cm-email" placeholder="owner@business.cd" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="cm-phone" placeholder="+243 … (mobile money)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <select id="cm-plan" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+        ${PLAN_KEYS.map(p => `<option value="${p}">${p}</option>`).join('')}</select>
+      <input id="cm-currency" placeholder="CDF" value="CDF" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <button class="btn btn-gold" onclick="adminCreateMerchant()">Create account</button>
+    </div>
+    <div id="cm-out" style="margin-top:10px"></div>
+  </details>
   <div class="card tbl-wrap" style="margin-top:14px"><h3>Merchants — click Manage to change plan, grant ACU, manage the team</h3>
     ${merchants.length ? `<table class="tbl">
     <tr><th>Name</th><th>Plan</th><th class="num">Verifs</th><th class="num">ACU</th><th>Seats</th><th>Status</th><th></th></tr>
@@ -938,6 +953,17 @@ async function adminMerchantDetail(mid) {
     ${d.keys.map(k => `<tr><td>${esc(k.label || '—')}</td><td class="mono">${esc(k.prefix)}</td><td class="mono">…${esc(k.last4)}</td><td>${when(k.created_at)}</td></tr>`).join('')}
     </table></div>` : ''}`);
 }
+window.adminCreateMerchant = async () => {
+  const out = document.getElementById('cm-out');
+  const body = { business: v('cm-biz'), name: v('cm-name'), email: v('cm-email'),
+    phone: v('cm-phone'), plan: v('cm-plan'), currency: v('cm-currency') || 'CDF' };
+  if (!body.business || !body.name || !body.email) { out.innerHTML = '<div class="badge b-bad">Business, owner name and email are required.</div>'; return; }
+  try {
+    const r = await api('/app/admin/merchants', { body });
+    out.innerHTML = `<div class="badge b-ok" style="line-height:1.6">✓ Created <b>${esc(r.merchant.name)}</b> · owner <span class="mono">${esc(r.owner_email)}</span>${r.temp_password ? ` · temp password: <span class="mono">${esc(r.temp_password)}</span> — share it securely` : ''}</div>`;
+    setTimeout(route, 2500);
+  } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
 window.adminSetPlan = async (id) => {
   try { const r = await api(`/app/admin/merchants/${id}/plan`, { body: { plan: v('adm-plan') } }); toast('✓ plan → ' + r.plan); route(); }
   catch (e) { toast('✗ ' + e.message); }

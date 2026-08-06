@@ -50,6 +50,7 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript',
   '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png',
   '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon',
+  '.zip': 'application/zip', '.txt': 'text/plain; charset=utf-8',
 };
 
 // ---- tiny router ----

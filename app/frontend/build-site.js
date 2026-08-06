@@ -20,6 +20,17 @@ for (const js of ['app.js', 'sw.js']) {
 const OUT = path.join(__dirname, 'site');
 fs.mkdirSync(OUT, { recursive: true });
 
+// Package the WooCommerce plugin into a downloadable ZIP served at
+// https://kodajnn.com/koda-woocommerce.zip (regenerated from source each build,
+// so it can never drift from the plugin code).
+try {
+  const { zipDir } = require('./lib/zipdir');
+  const pluginSrc = path.join(__dirname, 'plugins', 'koda-payments');
+  if (fs.existsSync(pluginSrc)) {
+    fs.writeFileSync(path.join(__dirname, 'koda-woocommerce.zip'), zipDir(pluginSrc));
+  }
+} catch (e) { console.error('plugin zip build skipped:', e.message); }
+
 // ---- live coverage stats from the operator registry (single source of truth) ----
 // Every number the public site quotes about reach comes from here, so marketing
 // can never drift from what the resolver actually knows.
@@ -412,7 +423,7 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
 <h2>Use it from any stack</h2>
 <p>Door 3 is plain HTTPS — it works in <b>any</b> website or app. Ready-made drop-ins and snippets:</p>
 <ul>
-<li><b>WooCommerce / WordPress</b> — install the <a href="/api-reference">KODA Payments plugin</a> (no code).</li>
+<li><b>WooCommerce / WordPress</b> — <a href="/koda-woocommerce.zip"><b>download the KODA Payments plugin</b></a> and upload it in <em>Plugins → Add New → Upload</em> (no code).</li>
 <li><b>Flutter / Dart</b> — POST <code>/v1/intents</code> then open the <code>checkout_url</code> in a WebView.</li>
 <li><b>Native Android / iOS</b> — same REST call from your backend; open <code>checkout_url</code> in a Custom Tab / SFSafariViewController.</li>
 <li><b>Node / PHP / Python / Laravel</b> — one POST to create the intent, verify the signed webhook (<code>x-koda-signature</code> = HMAC-SHA256 of the raw body).</li>
@@ -425,6 +436,8 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
     lead: 'Every KODA endpoint, rendered live from the OpenAPI contract. Door 3 (API mode) — create intents, submit codes, receive HMAC-signed webhooks. Works from any website or app: WooCommerce, Flutter, native, Node, PHP.',
     body: `
 <p>This page renders the <b>live</b> spec from <a href="/v1/openapi.json"><code>/v1/openapi.json</code></a> — the same contract your SDK generators and Postman consume, here made human-readable. <a href="/v1/openapi.json">Open the raw JSON →</a></p>
+<div class="card"><h3>WooCommerce store? One-click plugin</h3>
+<p>No code — <a href="/koda-woocommerce.zip"><b>Download the WooCommerce plugin →</b></a> then in WordPress: <em>Plugins → Add New → Upload Plugin</em>, activate, and paste your KODA API key + webhook secret.</p></div>
 <div class="card"><h3>Base URL &amp; authentication</h3>
 <pre>Base   https://kodajnn.com/v1
 Auth   Authorization: Bearer sk_live_xxx      (or)  X-API-Key: sk_live_xxx
