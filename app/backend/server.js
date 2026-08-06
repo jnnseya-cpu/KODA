@@ -75,14 +75,25 @@ const server = http.createServer(async (req, res) => {
   const reqId = Math.random().toString(36).slice(2, 10);
   const send = (code, body, headers = {}) => {
     const data = typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body);
+    // Content-Security-Policy. Inline scripts/styles are used across the app, demo and
+    // checkout, so script/style allow 'unsafe-inline'; Google Fonts are allowlisted.
+    // frame-ancestors is the important control: 'self' locks the app/site against
+    // clickjacking, but the hosted checkout (/pay) + widget MUST be embeddable in a
+    // merchant's cross-origin page, so those get frame-ancestors * (a payment widget
+    // is meant to be embedded — its security is the intent client_secret, not framing).
+    const embeddable = url.pathname === '/pay' || url.pathname.startsWith('/pay/') || url.pathname === '/js/koda.js';
+    const cspBase = "default-src 'self'; base-uri 'self'; object-src 'none'; img-src 'self' data:; "
+      + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
+      + "script-src 'self' 'unsafe-inline'; connect-src 'self'";
     res.writeHead(code, {
       'content-type': 'application/json; charset=utf-8',
       'access-control-allow-origin': '*',
       'x-request-id': reqId,
       'x-content-type-options': 'nosniff',
-      'x-frame-options': 'SAMEORIGIN',
       'referrer-policy': 'strict-origin-when-cross-origin',
       'permissions-policy': 'camera=(self), geolocation=()',
+      'content-security-policy': cspBase + (embeddable ? '; frame-ancestors *' : "; frame-ancestors 'self'"),
+      ...(embeddable ? {} : { 'x-frame-options': 'SAMEORIGIN' }), // omit XFO on embeddable pages so the widget can iframe them
       ...(process.env.NODE_ENV === 'production' ? { 'strict-transport-security': 'max-age=31536000; includeSubDomains' } : {}),
       ...headers,
     });

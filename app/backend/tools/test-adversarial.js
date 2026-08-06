@@ -95,12 +95,22 @@ const signup = async (tag) => {
   // string "sk_live_ keys" — match only realistic secret material.
   secure('openapi.json exposes no real secret', !/sk_(live|test)_[A-Za-z0-9]{20,}|whsec_[A-Za-z0-9]{16,}/.test(openapi.text));
 
-  // ── PHASE 11 — SECURITY HEADERS (report; not all are hard gates) ───────────
-  console.log('— security headers (informational)');
-  const h = (await hit('/')).headers;
-  const hasCSP = !!h.get('content-security-policy');
-  const hasXCTO = (h.get('x-content-type-options') || '').toLowerCase() === 'nosniff';
-  console.log(`   CSP: ${hasCSP ? 'present' : 'ABSENT'} · X-Content-Type-Options: ${hasXCTO ? 'nosniff' : 'ABSENT'} · HSTS: ${h.get('strict-transport-security') ? 'present' : 'ABSENT (ok if TLS-terminated upstream)'}`);
+  // ── PHASE 11 — SECURITY HEADERS + FRAME POLICY (now hard gates) ────────────
+  console.log('— security headers & frame policy');
+  const rootH = (await hit('/')).headers;
+  const rootCsp = rootH.get('content-security-policy') || '';
+  secure('CSP present on app/site', /default-src/.test(rootCsp), rootCsp.slice(0, 40));
+  secure('app/site is clickjack-locked (frame-ancestors self + XFO)',
+    /frame-ancestors 'self'/.test(rootCsp) && (rootH.get('x-frame-options') || '').toUpperCase() === 'SAMEORIGIN');
+  secure('CSP hardens object-src/base-uri', /object-src 'none'/.test(rootCsp) && /base-uri 'self'/.test(rootCsp));
+  const payH = (await hit('/pay/anything')).headers;
+  const payCsp = payH.get('content-security-policy') || '';
+  // the drop-in widget iframes /pay cross-origin — it MUST be embeddable (regression
+  // guard for the X-Frame-Options bug that would blank the widget in production).
+  secure('checkout /pay is widget-embeddable (frame-ancestors *, no SAMEORIGIN XFO)',
+    /frame-ancestors \*/.test(payCsp) && (payH.get('x-frame-options') || '').toUpperCase() !== 'SAMEORIGIN',
+    `csp=${/frame-ancestors \*/.test(payCsp)} xfo=${payH.get('x-frame-options')}`);
+  console.log(`   HSTS: ${rootH.get('strict-transport-security') ? 'present' : 'set in production (NODE_ENV) / TLS-terminated upstream'}`);
 
   // ── PHASE 7 — FINANCIAL LEDGER INVARIANT (double-entry Σ=0) ─────────────────
   // Verified directly against the DB after the run (see the wrapper); here we assert
