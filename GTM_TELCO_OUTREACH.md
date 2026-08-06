@@ -54,11 +54,18 @@ whichever partners first, immediately.
 3. **Stable, documented confirmation-SMS format + sender-ID whitelisting** so our
    parser stays precise and their SMS are never filtered/blocked.
 
-### Tier 2 — the real prize (distribution & marketing)
+### Tier 2 — the real prize (distribution & a new agent revenue line)
 4. **Promote KODA to their merchant base** — SMS campaigns, in-app, merchant
    onboarding kits: "accept mobile money with confidence, verified by KODA."
-5. **Access to their agent / distributor network** to distribute the Sentinel app,
-   sell prepaid ACU vouchers, and recruit merchants.
+5. **Turn their agent / distributor network into a KODA sales channel — that pays
+   the agents.** This is the big one. Merchants **subscribe to a KODA plan and prepay
+   ACU**, so agents can **sell KODA plans and prepaid ACU vouchers at a margin —
+   exactly like they sell airtime.** KODA already has the wholesale + Ed25519-voucher
+   rails built (distributor float, PIN vouchers): an agent buys credit at wholesale,
+   resells at retail, keeps the spread. Result — a **fresh income line for their
+   agents**, who then recruit merchants and spread the Sentinel app, which grows the
+   operator's *own* mobile-money volume. A self-funding acquisition flywheel at no
+   cost to the operator.
 6. **Feature KODA in the operator's merchant-onboarding flow** (the upsell moment).
 7. **Co-branded marketing** materials and joint presence at merchant fairs/events.
 
@@ -128,7 +135,15 @@ whichever partners first, immediately.
 > 2. **Votre soutien marketing** : présenter KODA à votre base de commerçants
 >    (« acceptez le mobile money en toute confiance ») — c'est là que la valeur est la
 >    plus grande pour nous deux.
-> 3. Une **lettre de non-objection / d'intérêt** reconnaissant KODA comme outil
+> 3. **L'accès à votre réseau d'agents / distributeurs — et une nouvelle source de
+>    revenus pour eux.** Les commerçants **souscrivent à un abonnement KODA et
+>    prépaient des crédits (ACU)** ; vos agents peuvent donc **vendre les abonnements
+>    KODA et des bons ACU prépayés avec une marge — exactement comme ils vendent du
+>    crédit d'appel.** KODA dispose déjà des rails de gros et de bons sécurisés
+>    (Ed25519). Vos agents gagnent une nouvelle commission, recrutent des commerçants
+>    et diffusent l'application Sentinel — ce qui augmente **votre propre** volume
+>    mobile money. Un moteur d'acquisition qui s'autofinance, sans coût pour vous.
+> 4. Une **lettre de non-objection / d'intérêt** reconnaissant KODA comme outil
 >    complémentaire de vérification.
 >
 > Nous supportons **déjà** précisément Orange Money, M-Pesa (Vodacom), Airtel Money et
@@ -136,7 +151,8 @@ whichever partners first, immediately.
 > **avec vous**.
 >
 > Pourrions-nous échanger **30 minutes** cette semaine ? Je vous ferai une démonstration
-> d'un paiement réel vérifié en direct.
+> d'un paiement réel vérifié en direct. Vous trouverez **plus d'informations sur KODA sur
+> kodajnn.com**.
 >
 > Avec mes salutations distinguées,
 > **[Votre nom]** — Fondateur, KODA
@@ -175,13 +191,19 @@ whichever partners first, immediately.
 >
 > **Our ask, simple to start:** (1) **0% fees on KODA's own collection SIM(s)** — symbolic,
 > since we drive volume to you; (2) **your marketing support** to introduce KODA to your
-> merchant base; (3) a **letter of non-objection / interest** recognising KODA as a
-> complementary verification tool.
+> merchant base; (3) **access to your agent / distributor network — and a new revenue line
+> for them:** merchants **subscribe to a KODA plan and prepay credits (ACU)**, so your
+> agents can **sell KODA plans and prepaid ACU vouchers at a margin — exactly like they sell
+> airtime** (KODA already has the wholesale + secure-voucher rails built). Your agents earn
+> a fresh commission, recruit merchants and spread the Sentinel app — which grows **your own**
+> mobile-money volume at no cost to you; (4) a **letter of non-objection / interest**
+> recognising KODA as a complementary verification tool.
 >
 > We already precisely support Orange Money, M-Pesa (Vodacom), Airtel Money and Afrimoney
 > in DRC, and we're launching a **Kinshasa pilot** we'd love to run **with you**.
 >
-> Could we speak for **30 minutes** this week? I'll demo a real verified payment live.
+> Could we speak for **30 minutes** this week? I'll demo a real verified payment live. You'll
+> find **more about KODA at kodajnn.com**.
 >
 > Best regards,
 > **[Your name]** — Founder, KODA
