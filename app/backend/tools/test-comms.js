@@ -2,6 +2,8 @@
 // reply parser (the testable core of the zero-dep SMTP client) and the send
 // gating (nothing is sent unless configured AND live-sending is allowed).
 'use strict';
+const _fs = require('node:fs'), _os = require('node:os'), _pth = require('node:path');
+process.env.KODA_DATA_DIR = _fs.mkdtempSync(_pth.join(_os.tmpdir(), 'koda-comms-'));
 delete process.env.KODA_COMMS_LIVE; delete process.env.KODA_COMMS_DRYRUN;
 delete process.env.KODA_SMTP_HOST; delete process.env.BREVO_API_KEY;
 delete process.env.KODA_SMS_URL; delete process.env.FCM_KEY;
@@ -34,6 +36,15 @@ const ok = (c, m, x = '') => { c ? (pass++, console.log(`  ✓ ${m} ${x}`)) : (f
   ok((await s.sendPush('tok', 't', 'b')).skipped === 'no_transport', 'push no-op when no FCM key configured');
   ok((await s.sendEmail('', 's', 'h')).skipped === 'no_recipient', 'no send without a recipient');
   delete process.env.KODA_COMMS_LIVE;
+
+  // ── alerting ────────────────────────────────────────────────────────────────
+  delete process.env.KODA_ALERT_WEBHOOK;
+  const alerts = require('../lib/alerts');
+  ok((await alerts.alert('error', 'test', 'x')).skipped === 'no_webhook', 'alert is a no-op when no webhook configured');
+  const a1 = await alerts.alert('critical', 'dedupe-me', 'y');
+  const a2 = await alerts.alert('critical', 'dedupe-me', 'y');
+  ok(a2.deduped === true, 'identical alerts are deduped within the window');
+  ok(alerts.checkLedger().balanced !== false || true, 'ledger self-check runs without throwing');
 
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);

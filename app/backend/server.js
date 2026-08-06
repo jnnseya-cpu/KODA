@@ -114,6 +114,7 @@ const server = http.createServer(async (req, res) => {
       return send(200, out ?? { ok: true });
     } catch (e) {
       console.error('route error', url.pathname, reqId, e);
+      require('./lib/alerts').alert('error', 'route 500', { path: url.pathname, reqId, msg: String(e && e.message || e) });
       return send(500, { error: 'internal', request_id: reqId });
     }
   }
@@ -167,6 +168,9 @@ function shutdown(sig) {
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
+
+// operational self-monitoring: periodic ledger reconcile → alert on drift.
+require('./lib/alerts').startSelfMonitor();
 
 server.listen(PORT, () => {
   if (QUIET) return;

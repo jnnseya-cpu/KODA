@@ -889,6 +889,7 @@ module.exports = function registerRoutes(r) {
       q.get('SELECT 1 AS ok');
       return { ok: true, db: 'up', time: new Date().toISOString() };
     } catch (e) {
+      require('./lib/alerts').alert('critical', 'readiness probe failed', { db: 'down' });
       return [503, { ok: false, db: 'down', error: 'db_unreachable' }];
     }
   });
