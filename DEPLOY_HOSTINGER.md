@@ -201,3 +201,58 @@ crontab -l                           # confirm the schedule
 Every push to the tracked branch is now live within ~2 minutes. To point
 production at `main` instead, set `KODA_DEPLOY_BRANCH=main` (recommended once the
 feature branch is merged).
+
+---
+
+## Backups, disaster recovery & rollback
+
+Three operational safeguards. All zero-dependency; the `koda_data` volume holds
+the SQLite ledger.
+
+### 1. Automated offsite backups
+`backend/tools/backup.js` takes a consistent snapshot (`VACUUM INTO`, zero
+downtime), writes it **off the data volume** (`KODA_BACKUP_DIR`), optionally ships
+it offsite (`KODA_BACKUP_SHIP_CMD`, which can reference `$KODA_BACKUP_FILE`), and
+prunes old copies (`KODA_BACKUP_KEEP`, default 14). Cron it every 6h **inside the
+container** so it sees the DB:
+
+```bash
+# every 6 hours: snapshot to a host path bind-mounted off the data volume, ship offsite
+0 */6 * * * docker compose -f /root/koda/app/docker-compose.yml exec -T koda \
+  env KODA_BACKUP_DIR=/data/../koda-backups \
+      KODA_BACKUP_SHIP_CMD='rclone copy "$KODA_BACKUP_FILE" remote:koda-backups' \
+  node backend/tools/backup.js
+```
+(Or run `node backend/tools/backup.js` on a host checkout pointed at a copy of the DB.)
+
+### 2. Restore (and the drill that proves it works)
+```bash
+# validate a backup is sound + restorable (never touches live data):
+node backend/tools/restore.js /path/to/koda-YYYY-....db
+# actually install it as the live DB (stop the app first):
+node backend/tools/restore.js /path/to/backup.db --commit && docker compose restart koda
+```
+`npm run test:backup` runs an **automated backup→restore→verify drill** every test
+run (seed → snapshot → reopen as a fresh DB → integrity_check + row-count match +
+point-in-time proof). A backup you have never restored is not a backup — this
+verifies one on every gate.
+
+**RPO** = your backup interval (6h above). **RTO** = time to `restore.js --commit`
++ `docker compose restart` (~1 min). Keep at least one copy offsite.
+
+### 3. Rollback
+Code rollback never touches data (the volume persists):
+```bash
+KODA_REPO_DIR=/root/koda /root/koda/deploy/rollback.sh          # → previous commit
+KODA_REPO_DIR=/root/koda /root/koda/deploy/rollback.sh <sha>    # → a specific commit
+```
+It checks out the target, rebuilds, and **health-checks** the result (fails loudly
+if the rolled-back build is unhealthy). Return to latest with
+`git checkout claude/koda-unified-spec-v2-vh5xtx && docker compose up -d --build`
+(or just let the auto-deploy cron catch up).
+
+### Uptime alerting
+`deploy/healthcheck-cron.sh` (host-side, independent of the app process) probes
+`/readyz` each minute and posts to `KODA_ALERT_WEBHOOK` on down/recovery. The app
+also self-monitors: 500s, readiness failures, and any ledger imbalance page the
+same webhook.
