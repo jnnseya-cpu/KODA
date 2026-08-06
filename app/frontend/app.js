@@ -1175,11 +1175,12 @@ async function adminCoverage() {
     <div class="card"><h3>Top families (one grammar → many markets)</h3>${(d.families || []).slice(0, 12).map(f => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span class="mono">${esc(f.family)} <span class="badge b-info">${esc(f.tier)}</span></span><b>${fmt(f.deployments)} dep · ${fmt(f.countries)} co</b></div>`).join('')}</div>
   </div>
   <div class="card" style="margin-top:14px">
-    <h3>What "verifiable" honestly means</h3>
+    <h3>What "verifiable" honestly means — and why generic is safe</h3>
     <div style="font-size:13px;color:#C9C4B2;line-height:1.7">
-      <div><span class="badge b-ok">precise</span> hand-tuned parser — reliable today (${fmt(c.packed)}).</div>
-      <div style="margin-top:4px"><span class="badge b-info">generic · SMS</span> operator sends a confirmation SMS; the fallback parser usually reads it, at lower confidence + review. Becomes precise when we add its pack.</div>
-      <div style="margin-top:4px"><span class="badge b-bad">not SMS-verifiable</span> Tier-C app/QR/bank-rail wallet (UPI, GCash, GoPay, Kaspi, Mercado Pago, Nequi, Yape…). No operator SMS to the SIM — <b>KODA can't verify these</b>, and the system blocks connecting them.</div>
+      <div><span class="badge b-ok">precise</span> <b>Instant / auto-verify.</b> Hand-tuned parser anchored to the operator's exact SMS format; can auto-confirm with no human (fraud score &lt;0.15). Reliable today — the ${fmt(c.packed)} launch operators.</div>
+      <div style="margin-top:6px"><span class="badge b-info">generic · SMS</span> <b>Assisted / you confirm.</b> The operator sends a confirmation SMS; the multilingual fallback pre-fills the amount &amp; reference and fraud-checks it, but it is <b>always routed to human review — never silently auto-approved</b> (generic adds +0.2 → the 0.15–0.6 "confirm-by-hand" band). Worst case the merchant just reads their own SMS (Door 1). Becomes "precise/instant" once we ship its pack (one pack upgrades a whole family — e.g. one <span class="mono">mtn_momo</span> pack lifts ~14 countries).</div>
+      <div style="margin-top:6px"><span class="badge b-bad">not SMS-verifiable</span> Tier-C app/QR/bank-rail wallet (UPI, GCash, GoPay, Kaspi, Mercado Pago, Nequi, Yape…). No operator SMS to the SIM — <b>KODA can't verify these</b>, and the system blocks connecting them.</div>
+      <div style="margin-top:8px;color:var(--dim)">Bottom line: a generic operator can never produce a false "verified" — the risk is contained to the ${fmt(c.packed)} precise packs, which are hand-verified. Generic is a safety net + a head-start for the merchant, not a blind approval.</div>
     </div></div>
   <div class="card" style="margin-top:14px"><h3>All operators (${fmt(d.operators.length)}) — ${fmt(d.operators.filter(o => o.tier !== 'C').length)} SMS-verifiable · ${fmt(d.operators.filter(o => o.tier === 'C').length)} app-rail (not verifiable)</h3>
     <input id="opq" placeholder="Filter by name / country / family…" oninput="adminFilterOps()" style="width:100%;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px;margin-bottom:10px">
