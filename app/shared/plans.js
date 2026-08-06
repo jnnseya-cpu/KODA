@@ -20,7 +20,7 @@
 
   // prepaid top-up packs (spec §11) — paid via mobile money, verified by the engine itself
   const TOPUP_PACKS = [
-    { usd: 10, acu: 300 }, { usd: 50, acu: 1750 }, { usd: 200, acu: 8000 },
+    { usd: 10, acu: 100 }, { usd: 50, acu: 500 }, { usd: 200, acu: 2000 },
   ];
 
   return { PLANS, ACU, TOPUP_PACKS };

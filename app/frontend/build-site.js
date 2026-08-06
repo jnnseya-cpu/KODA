@@ -58,6 +58,8 @@ if (fs.existsSync(landingSrc)) {
     .replace('<a href="#world">Coverage</a>', '<a href="/coverage">Coverage</a>')
     .replace('<a href="#dev">Developers</a>', '<a href="/developers">Developers</a>')
     .replace('</head>', `<style>
+html{scroll-behavior:smooth}
+[id]{scroll-margin-top:76px}          /* anchors (#pricing…) clear the sticky 64px nav */
 .lnav-t{display:none}.lnav-b{display:none}
 @media(max-width:840px){
   .lnav-b{display:block;cursor:pointer;font-size:22px;line-height:1;color:var(--text);border:1px solid rgba(233,228,213,.22);border-radius:9px;padding:6px 12px;user-select:none;margin-left:auto}
@@ -72,7 +74,9 @@ if (fs.existsSync(landingSrc)) {
   .lnav-t:checked ~ .nav-links a:last-child{border-bottom:none}
 }
 </style></head>`)
-    .replace('<div class="wrap foot">', footerLinks() + '<div class="wrap foot">');
+    .replace('<div class="wrap foot">', footerLinks() + '<div class="wrap foot">')
+    // close the mobile dropdown when a menu link is tapped (pure-CSS toggle can't)
+    .replace('</body>', `<script>document.addEventListener('click',function(e){if(e.target.closest('.nav-links a')){var t=document.getElementById('lnav');if(t)t.checked=false;}});</script></body>`);
   fs.writeFileSync(path.join(OUT, 'index.html'), landing);
 }
 

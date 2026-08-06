@@ -199,7 +199,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   // top-up intents credit the wallet on verification — the product bills itself with itself
   if (intent && intent.purpose === 'topup') {
     const meta = JSON.parse(intent.metadata || '{}');
-    const pack = TOPUP_PACKS.find(p => p.usd === meta.usd) || { acu: Math.round((meta.usd || 10) * 30) };
+    const pack = TOPUP_PACKS.find(p => p.usd === meta.usd) || { acu: Math.round((meta.usd || 10) * 10) };
     creditAcu(merchant, pack.acu, 'topup', intent.id);
     notifyOwners(merchant, 'billing.topup.verified', { acu: pack.acu });
   }
@@ -224,7 +224,7 @@ function sandboxVerify(merchant, intent, reference, { mode, userId, trace }) {
     q.run(`UPDATE intents SET status='verified' WHERE id=?`, intent.id);
     if (intent.purpose === 'topup') {
       const meta = JSON.parse(intent.metadata || '{}');
-      const pack = TOPUP_PACKS.find(p => p.usd === meta.usd) || { acu: Math.round((meta.usd || 10) * 30) };
+      const pack = TOPUP_PACKS.find(p => p.usd === meta.usd) || { acu: Math.round((meta.usd || 10) * 10) };
       creditAcu(merchant, pack.acu, 'topup', intent.id);
       notifyOwners(merchant, 'billing.topup.verified', { acu: pack.acu });
     }
