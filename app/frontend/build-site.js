@@ -60,9 +60,16 @@ if (fs.existsSync(landingSrc)) {
     .replace('</head>', `<style>
 .lnav-t{display:none}.lnav-b{display:none}
 @media(max-width:840px){
-  .lnav-b{display:block;cursor:pointer;font-size:22px;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:2px 11px;user-select:none;margin-left:auto}
-  .nav-in{flex-wrap:wrap}
-  .lnav-t:checked ~ .nav-links{display:flex !important;flex-basis:100%;flex-direction:column;gap:16px;margin-top:14px}
+  .lnav-b{display:block;cursor:pointer;font-size:22px;line-height:1;color:var(--text);border:1px solid rgba(233,228,213,.22);border-radius:9px;padding:6px 12px;user-select:none;margin-left:auto}
+  nav .nav-cta{display:none}                 /* declutter the 64px bar on mobile */
+  /* open menu = solid, full-width dropdown BELOW the bar (was transparent overlap) */
+  .lnav-t:checked ~ .nav-links{
+    display:flex !important;flex-direction:column;gap:0;
+    position:absolute;top:100%;left:0;right:0;z-index:60;
+    background:#0A1F17;border-top:1px solid rgba(233,228,213,.10);
+    box-shadow:0 26px 60px rgba(0,0,0,.6);padding:4px 22px 16px}
+  .lnav-t:checked ~ .nav-links a{padding:15px 2px;font-size:16px;border-bottom:1px solid rgba(233,228,213,.07)}
+  .lnav-t:checked ~ .nav-links a:last-child{border-bottom:none}
 }
 </style></head>`)
     .replace('<div class="wrap foot">', footerLinks() + '<div class="wrap foot">');
