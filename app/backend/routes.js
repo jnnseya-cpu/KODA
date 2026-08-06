@@ -222,10 +222,9 @@ module.exports = function registerRoutes(r) {
     const ing = engine.ingestSms(m, { raw, operator: req.body.operator });
     if (!ing.parsed) return { status: 'unparseable', code: 'not_an_operator_sms' };
     if (ing.quarantined) return { status: 'rejected', code: 'sms_quarantined' };
-    const row = q.get('SELECT matched_intent_id FROM sms_ledger WHERE id=?', ing.id);
-    if (row && row.matched_intent_id) return { status: 'verified', auto: true }; // auto-matched a pending intent
-    const out = engine.confirmLedgerPayment(m, ing.id, { userId: user.id });
-    if (out.status === 'verified') audit(m.id, user.id, 'sms_pasted_verified', { receipt_id: out.receipt_id });
+    // ingestSms auto-verifies the walk-in (ing.auto) or auto-matched a pending intent.
+    const out = ing.auto || { status: 'verified', auto: true };
+    if (out.status === 'verified' && out.receipt_id) audit(m.id, user.id, 'sms_pasted_verified', { receipt_id: out.receipt_id });
     return out;
   }));
   // One-tap confirm from the feed: issue a receipt for a Sentinel-captured payment
@@ -1208,7 +1207,7 @@ module.exports = function registerRoutes(r) {
   }
   function verdictText(res, m) {
     const cur = m.currency || 'CDF';
-    if (res.status === 'verified' || res.status === 'verified_late')
+    if (res.status === 'verified' || res.status === 'verified_late' || res.status === 'already_verified')
       return `Paiement confirme: ${Number(res.amount_confirmed).toLocaleString('fr-FR')} ${cur}. Merci!`;
     if (res.status === 'pending_review') return `Paiement en controle manuel. Ouvrez votre application KODA pour confirmer.`;
     if (res.status === 'not_found_yet') return `Paiement en route. Reessayez dans un instant.`;
@@ -1250,14 +1249,11 @@ module.exports = function registerRoutes(r) {
     let res;
     if (asSms && asSms.ref && asSms.amount != null) {
       const ing = engine.ingestSms(m, { raw: text });
-      if (ing.quarantined) res = { status: 'rejected', code: 'sms_quarantined' };
-      else {
-        const row = q.get('SELECT matched_intent_id FROM sms_ledger WHERE id=?', ing.id);
-        // ingestSms auto-matches a pending intent (online sale); otherwise confirm the walk-in.
-        res = (row && row.matched_intent_id)
-          ? { status: 'verified', amount_confirmed: asSms.amount }
-          : engine.confirmLedgerPayment(m, ing.id, {});
-      }
+      // ingestSms now auto-verifies a clean walk-in (ing.auto) or auto-matches a
+      // pending intent (ing.auto is null → it was claimed as verified).
+      res = ing.quarantined ? { status: 'rejected', code: 'sms_quarantined' }
+          : ing.auto ? ing.auto
+          : { status: 'verified', amount_confirmed: asSms.amount };
     } else {
       const code = (text.toUpperCase().match(/[A-Z0-9][A-Z0-9.\-]{4,}/g) || []).find(t => /\d/.test(t));
       res = code ? engine.verify(m, null, code, { mode: 'sms' }) : { status: 'help' };

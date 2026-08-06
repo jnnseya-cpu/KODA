@@ -14,6 +14,7 @@ const I18N = {
     vmeans_n: 'Cela ne garantit pas que l’opérateur ne puisse pas annuler le paiement plus tard. KODA ne détient jamais votre argent — il arrive directement sur votre compte mobile money. Pour un gros montant ou un cas inhabituel, utilisez « à contrôler » avant de livrer.',
     verify_btn: 'Vérifier le paiement', confirm_pay: 'Confirmer', confirming: 'Confirmation…', verified: 'PAIEMENT VÉRIFIÉ', rejected: 'REJETÉ', pending: 'À CONTRÔLER',
     paste_sms_t: 'Coller le SMS de l’opérateur', paste_sms_h: 'iPhone ou téléphone sans Sentinel ? Copiez TOUT le SMS de paiement de l’opérateur ici. KODA le vérifie — mieux qu’un code, car KODA voit le vrai SMS.', paste_sms_btn: 'Vérifier ce SMS',
+    auto_stream: 'Chaque paiement est vérifié automatiquement — vous n’avez rien à faire.', manual_verify: 'Vérification manuelle (secours)',
     not_found: 'Pas encore trouvé — on surveille la fenêtre', amount: 'Montant', reference: 'Code de transaction',
     today: "aujourd'hui", month: 'ce mois', unmatched: 'paiements non rattachés', open_disputes: 'litiges ouverts',
     acu_balance: 'solde ACU', topup: 'Recharger', welcome: 'Bonjour', expected_amount: 'Montant attendu (optionnel)',
@@ -39,6 +40,7 @@ const I18N = {
     vmeans_n: 'It does not guarantee the operator can\'t reverse the payment later. KODA never holds your money — it goes straight to your mobile-money account. For a large or unusual payment, use "needs review" before releasing goods.',
     verify_btn: 'Verify payment', confirm_pay: 'Confirm', confirming: 'Confirming…', verified: 'PAYMENT VERIFIED', rejected: 'REJECTED', pending: 'NEEDS REVIEW',
     paste_sms_t: 'Paste the operator SMS', paste_sms_h: 'iPhone or a phone without Sentinel? Copy the WHOLE operator payment SMS here. KODA verifies it — better than a code, because KODA sees the real SMS.', paste_sms_btn: 'Verify this SMS',
+    auto_stream: 'Every payment is verified automatically — you do nothing.', manual_verify: 'Manual verification (fallback)',
     not_found: 'Not found yet — watching the window', amount: 'Amount', reference: 'Transaction code',
     today: 'today', month: 'this month', unmatched: 'unmatched payments', open_disputes: 'open disputes',
     acu_balance: 'ACU balance', topup: 'Top up', welcome: 'Hello', expected_amount: 'Expected amount (optional)',
@@ -125,9 +127,10 @@ function shell(active, title, sub, content) {
   const isPlatform = m && (m.plan === 'plateforme' || m.plan === 'enterprise');
   // role-based navigation: cashier = till work only · manager = + operations · owner = everything
   const role = u.is_admin ? 'admin' : (u.role || 'owner');
+  // KODA verifies automatically — the merchant does nothing. The manual Verify
+  // console stays reachable at #verify as a fallback, but is not a primary tab.
   const till = [
     ['dashboard', '◫', t('dashboard')],
-    ['verify', '✓', t('verify')],
     ['feed', '≋', t('feed')],
     ['receipts', '🧾', t('receipts')],
   ];
@@ -430,7 +433,7 @@ window.verifySms = async (btn) => {
 
 VIEWS.feed = async () => {
   const rows = await api('/app/feed');
-  shell('feed', t('feed'), `${t('live')} — every payment SMS on your SIMs, structured`, `
+  shell('feed', t('feed'), t('auto_stream'), `
   <div class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
     <span class="mono" style="font-size:11px;color:var(--dim)">SANDBOX — inject an operator SMS:</span>
     <input id="raw" placeholder='Vous avez recu 25 000 FC de ALICE K (+243897721). Ref: OM.260717.1500.H12345. Solde: 400 500'
@@ -448,11 +451,17 @@ VIEWS.feed = async () => {
         ${(!s.quarantined && !s.matched_intent_id && s.ref_code && s.amount != null)
           ? `<button class="btn btn-gold btn-sm" style="margin-left:10px" onclick="confirmFeed('${s.id}', this)">${t('confirm_pay')}</button>` : ''}
       </div>`).join('') || '<div class="empty">No SMS yet — enroll a Sentinel device or inject a sandbox SMS.</div>'}
+  </div>
+  <div style="text-align:center;margin-top:14px">
+    <a href="#verify" class="mono" style="font-size:12px;color:var(--dim)">${t('manual_verify')} →</a>
   </div>`);
 };
 window.injectSms = async () => {
   try { const r = await api('/app/sandbox/sms', { body: { raw: v('raw'), operator: 'orange_cd' } });
-    toast(r.quarantined ? '⚠ SMS quarantined — balance-chain break' : r.parsed ? '✓ SMS parsed into the ledger' : '◔ stored raw (unparseable)'); route(); }
+    toast(r.quarantined ? '⚠ SMS quarantined — balance-chain break'
+      : r.auto && r.auto.status === 'verified' ? '✓ ' + t('verified') + ' (auto)'
+      : r.auto && r.auto.status === 'pending_review' ? '◔ ' + t('pending')
+      : r.parsed ? '✓ SMS parsed into the ledger' : '◔ stored raw (unparseable)'); route(); }
   catch (e) { toast('✗ ' + e.message); }
 };
 // One-tap confirm: issue a receipt for a Sentinel-captured payment — no code typing.

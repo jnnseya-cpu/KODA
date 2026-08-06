@@ -141,7 +141,24 @@ function ingestSms(merchant, { raw, operator, device_id }) {
   // KODA self-collection: if this SIM is KODA's own collection phone, a verified
   // incoming payment auto-settles a matching pending plan/top-up (exact local amount).
   try { if (process.env.KODA_COLLECT_MERCHANT === merchant.id) require('./billing').matchKodaCollection(parsed.amount); } catch { /* billing optional */ }
-  return { id: smsId, parsed: true, quarantined: false, fields: parsed };
+
+  // FULLY-AUTOMATIC verification — the merchant does NOTHING. A clean operator SMS
+  // captured on the merchant's own device that no pending intent has claimed is a
+  // walk-in sale: verify it immediately and issue the receipt. The fraud engine still
+  // gates — a generic/low-trust operator is left as pending_review for the fallback
+  // console, and quarantined SMS never reach here. Skipped for the KODA treasury SIM,
+  // whose incoming payments are collections settled above, not sales.
+  let auto = null;
+  if (process.env.KODA_COLLECT_MERCHANT !== merchant.id) {
+    // Hold for an online sale: if a checkout intent is awaiting this exact amount,
+    // don't auto-verify as a walk-in — let the Door-3 flow claim it against the order.
+    const awaitingIntent = q.get(
+      `SELECT id FROM intents WHERE merchant_id=? AND status='awaiting_payment' AND amount=?`,
+      merchant.id, parsed.amount);
+    const still = q.get('SELECT matched_intent_id FROM sms_ledger WHERE id=?', smsId);
+    if (!awaitingIntent && still && !still.matched_intent_id) auto = confirmLedgerPayment(merchant, smsId, {});
+  }
+  return { id: smsId, parsed: true, quarantined: false, fields: parsed, auto };
 }
 
 // the core verify — one truth for all three doors
@@ -156,9 +173,18 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   const used = q.get('SELECT * FROM replay_index WHERE merchant_id=? AND reference=? AND receipt_id IS NOT NULL',
     merchant.id, reference);
   if (used) {
-    trace.steps.push('replay_index: HIT — code already consumed');
-    notifyOwners(merchant, 'replay.blocked', { reference });
-    return { status: 'rejected', code: 'code_already_used', trace };
+    // Claiming a NEW order with an already-consumed code is a replay attack → reject.
+    if (intent) {
+      trace.steps.push('replay_index: HIT — code already consumed');
+      notifyOwners(merchant, 'replay.blocked', { reference });
+      return { status: 'rejected', code: 'code_already_used', trace };
+    }
+    // No intent = a status re-check (USSD / SMS / manual console). The payment already
+    // verified (auto or earlier); return it positively — no new receipt is created.
+    const rec = q.get('SELECT amount, currency FROM receipts WHERE id=?', used.receipt_id);
+    trace.steps.push('replay_index: HIT — already confirmed (status re-check)');
+    return { status: 'already_verified', code: 'already_confirmed',
+             amount_confirmed: rec ? rec.amount : null, currency: rec ? rec.currency : null, trace };
   }
 
   // 2. ledger lookup (with fuzzy repair ≤2 edits against candidate set)
