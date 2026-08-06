@@ -1090,6 +1090,35 @@ module.exports = function registerRoutes(r) {
   r.get('/v1/catalog/countries/:code/networks', (req) =>
     networks.catalogue(String(req.params.code || '').toUpperCase(), { currency: req.query.currency, supportStatus: req.query.support_status }));
 
+  // ---- detection: country + probable operator from customer signals ----
+  // Stateless classification (Web Integration Spec §III). Public — returns no
+  // merchant data. Accepts ?msisdn=&country=&locale= (any subset).
+  r.get('/v1/detect', (req) => {
+    const ops = require('../shared/operators');
+    return ops.detect({ msisdn: req.query.msisdn, country: req.query.country, locale: req.query.locale });
+  });
+  // ---- a merchant's own enrolled operators + Sentinel health (secret key) ----
+  // Powers the "payable operators" intersection: what THIS merchant can receive on.
+  r.get('/v1/merchant/operators', apiKey((req, m) => {
+    const ops = require('../shared/operators');
+    const accounts = q.all(`SELECT network_code, account_identifier, masked, device_id, activation_status, ownership_status
+      FROM merchant_network_accounts WHERE merchant_id=?`, m.id);
+    return {
+      merchant_country: m.country || null,
+      operators: accounts.map(a => {
+        const dev = a.device_id ? q.get('SELECT status, last_seen FROM devices WHERE id=?', a.device_id) : null;
+        const online = dev && dev.status === 'active' && dev.last_seen &&
+          (Date.now() - new Date(dev.last_seen + 'Z').getTime()) < 15 * 60 * 1000;
+        return {
+          id: a.network_code, name: (ops.byId[a.network_code] || {}).name || a.network_code,
+          pay_to: a.masked || null, ussd: ops.DIAL[a.network_code] || null,
+          ownership_status: a.ownership_status, enabled: a.activation_status === 'ACTIVE',
+          sentinel_status: !a.device_id ? 'no_device' : online ? 'online' : 'offline',
+        };
+      }),
+    };
+  }, 'read:merchant'));
+
   // ---- operator coverage: the mobile-money landscape KODA recognises ----
   // Public (non-sensitive). `packed` = precise parser; the rest run on the
   // generic fallback (verified via manual review) until a pack is added.

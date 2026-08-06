@@ -309,6 +309,109 @@
 
   const byId = Object.fromEntries(OPS.map(o => [o.id, o]));
 
+  // ── Detection dataset (Coverage Atlas seed) ─────────────────────────────────
+  // MSISDN dial-prefix → operator id, and per-operator USSD hint. These are
+  // CALIBRATION SEEDS for launch markets; in production KODA Cloud serves the full
+  // versioned dataset via /v1/detect so integrations never hardcode telco data.
+  // DRC (+243) is calibrated for the pilot; other markets are representative.
+  const PREFIXES = {
+    // DR Congo (+243) — pilot market
+    '+24381': 'mpesa_cd', '+24382': 'mpesa_cd', '+24383': 'mpesa_cd',
+    '+24384': 'orange_cd', '+24385': 'orange_cd', '+24389': 'orange_cd', '+24380': 'orange_cd',
+    '+24399': 'airtel_cd', '+24397': 'airtel_cd', '+24398': 'airtel_cd',
+    '+24390': 'africell_cd', '+24391': 'africell_cd',
+    // Kenya (+254)
+    '+25470': 'mpesa_ke', '+25471': 'mpesa_ke', '+25472': 'mpesa_ke', '+254740': 'mpesa_ke', '+254768': 'mpesa_ke',
+    '+25473': 'airtel_ke', '+254100': 'airtel_ke', '+254101': 'airtel_ke',
+    // Ghana (+233)
+    '+23324': 'mtn_gh', '+23354': 'mtn_gh', '+23355': 'mtn_gh', '+23359': 'mtn_gh',
+    // Senegal (+221) — Orange + Wave share the 77/78 ranges; prefix is a rank hint only
+    '+22177': 'orange_sn', '+22178': 'orange_sn',
+    // Tanzania (+255), Uganda (+256), Rwanda (+250), Nigeria (+234)
+    '+25574': 'mpesa_tz', '+25575': 'mpesa_tz', '+25576': 'mpesa_tz',
+    '+25677': 'mtn_ug', '+25678': 'mtn_ug',
+    '+25078': 'mtn_rw', '+25079': 'mtn_rw',
+    '+23480': 'opay_ng', '+23481': 'opay_ng', '+23490': 'opay_ng',
+  };
+  const DIAL = {
+    orange_cd: '#144#', mpesa_cd: '*1122#', airtel_cd: '*501#', africell_cd: '*144#',
+    mpesa_ke: '*334#', airtel_ke: '*334#', mtn_gh: '*170#', orange_sn: '#144#',
+    mpesa_tz: '*150*00#', mtn_ug: '*165#', mtn_rw: '*182#', opay_ng: '*955#',
+  };
+  // Country calling codes (longest-match) → ISO country, for when only a bare
+  // number is known and its exact operator prefix isn't in the seed.
+  const CC = {
+    '+243': 'CD', '+254': 'KE', '+233': 'GH', '+221': 'SN', '+234': 'NG', '+255': 'TZ',
+    '+256': 'UG', '+250': 'RW', '+237': 'CM', '+225': 'CI', '+226': 'BF', '+223': 'ML',
+    '+228': 'TG', '+229': 'BJ', '+224': 'GN', '+27': 'ZA', '+20': 'EG', '+212': 'MA',
+    '+33': 'FR', '+44': 'GB', '+1': 'US', '+32': 'BE',
+  };
+
+  function normalizeMsisdn(m) {
+    let s = String(m || '').replace(/[^\d+]/g, '');
+    if (!s) return '';
+    if (s.startsWith('00')) s = '+' + s.slice(2);
+    else if (!s.startsWith('+')) s = '+' + s;
+    return s;
+  }
+  function longestMatch(s, table) {
+    let best = null;
+    for (const p in table) if (s.startsWith(p) && (!best || p.length > best.length)) best = p;
+    return best;
+  }
+  function operatorByMsisdn(msisdn) {
+    const s = normalizeMsisdn(msisdn);
+    if (!s) return null;
+    const p = longestMatch(s, PREFIXES);
+    return p ? PREFIXES[p] : null;
+  }
+  function countryByMsisdn(msisdn) {
+    const opId = operatorByMsisdn(msisdn);
+    if (opId && byId[opId]) return byId[opId].country;
+    const s = normalizeMsisdn(msisdn);
+    const cc = longestMatch(s, CC);
+    return cc ? CC[cc] : null;
+  }
+  function localeCountry(locale) {
+    const m = String(locale || '').match(/[-_]([A-Za-z]{2})/);
+    return m ? m[1].toUpperCase() : null;
+  }
+  // the operators serving a country, with USSD hint + the prefixes that map to them
+  function countryOperators(country) {
+    if (!country) return [];
+    const pref = {};
+    for (const p in PREFIXES) { const id = PREFIXES[p]; (pref[id] || (pref[id] = [])).push(p); }
+    return OPS.filter(o => o.country === country).map(o => ({
+      id: o.id, name: o.name, currency: o.currency,
+      ussd: DIAL[o.id] || null, prefixes: pref[o.id] || [], packed: !!o.packed,
+    }));
+  }
+
+  // The Detection Cascade (Web Integration Spec §III): resolve country + a probable
+  // customer operator from any subset of signals. Stateless classification — no PII
+  // stored. IP geo is intentionally omitted here (no bundled geo DB): the caller may
+  // pass a resolved `country` from its own geo layer as a lower-trust signal.
+  function detect({ msisdn, country, locale } = {}) {
+    const signals = [];
+    let resolvedCountry = null, confidence = 0, opGuess = null;
+    const opId = msisdn ? operatorByMsisdn(msisdn) : null;
+    if (opId && byId[opId]) {
+      opGuess = { id: opId, name: byId[opId].name, confidence: 0.99 };
+      resolvedCountry = byId[opId].country; confidence = 0.95; signals.push('msisdn_prefix');
+    } else if (msisdn && countryByMsisdn(msisdn)) {
+      resolvedCountry = countryByMsisdn(msisdn); confidence = 0.85; signals.push('msisdn_country');
+    }
+    if (!resolvedCountry && country) { resolvedCountry = String(country).toUpperCase(); confidence = 0.80; signals.push('billing_country'); }
+    if (!resolvedCountry && locale && localeCountry(locale)) { resolvedCountry = localeCountry(locale); confidence = 0.30; signals.push('locale'); }
+    return {
+      country: resolvedCountry,
+      confidence,
+      signals_used: signals,
+      customer_operator_guess: opGuess,
+      country_operators: countryOperators(resolvedCountry),
+    };
+  }
+
   // attribute a raw sender string to an operator (best-effort, substring on upper)
   function findBySender(sender, countryHint) {
     const s = (sender || '').toUpperCase();
@@ -353,5 +456,10 @@
       .sort((a, b) => b.deployments - a.deployments);
   }
 
-  return { OPERATORS: OPS, byId, findBySender, familyOf, tierOf, coverage, families };
+  return {
+    OPERATORS: OPS, byId, findBySender, familyOf, tierOf, coverage, families,
+    // detection layer (Web Integration Spec §III / Universal §3)
+    detect, countryOperators, operatorByMsisdn, countryByMsisdn, normalizeMsisdn,
+    PREFIXES, DIAL,
+  };
 });
