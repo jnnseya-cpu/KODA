@@ -18,6 +18,7 @@
     "test:networks": "node --no-warnings backend/tools/test-networks.js",
     "test:billing": "node --no-warnings backend/tools/test-billing.js",
     "test:comms": "node --no-warnings backend/tools/test-comms.js",
+    "loadtest": "node --no-warnings backend/tools/loadtest.js",
     "test:http": "node --no-warnings backend/tools/test-http.js",
     "test:all": "npm test && npm run test:networks && npm run test:billing && npm run test:comms && npm run test:http",
     "test:checkout": "node --no-warnings backend/tools/test-checkout.js",
