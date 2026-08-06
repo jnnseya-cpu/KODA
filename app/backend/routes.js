@@ -290,15 +290,33 @@ module.exports = function registerRoutes(r) {
     notify.fire('billing.topup.created', { user, merchant: m, data: { amount: `$${pack.usd}` } });
     return { ...res, pack, pay_note: 'Pay via mobile money, then submit the confirmation code — verified by KODA itself.' };
   }));
+  // Change plan. FREE target (or a downgrade to free) applies immediately. A PAID
+  // target requires payment through the mesh first — this returns the payment
+  // methods (KODA mobile money / Stripe / BitriPay) instead of changing the plan.
+  // (KODA staff-admins change any merchant's plan for free via /app/admin/merchants/:id/plan.)
   r.post('/app/billing/plan', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
     const plan = PLANS[req.body.plan] ? req.body.plan : m.plan;
-    const up = PLANS[plan].usd > (PLANS[m.plan].usd || 0);
-    q.run('UPDATE merchants SET plan=?, is_platform=? WHERE id=?', plan, plan === 'plateforme' ? 1 : m.is_platform, m.id);
-    notify.fire(up ? 'plan.upgraded' : 'plan.downgraded', { user, merchant: m, data: { plan: PLANS[plan].label } });
-    audit(m.id, user.id, 'plan_changed', { plan });
-    return { ok: true, plan };
+    const priced = PLANS[plan].usd || 0;
+    // free plan, no-op, or a downgrade to a cheaper/equal tier → apply free
+    if (priced <= 0 || priced <= (PLANS[m.plan].usd || 0)) {
+      q.run('UPDATE merchants SET plan=?, is_platform=? WHERE id=?', plan, plan === 'plateforme' ? 1 : m.is_platform, m.id);
+      notify.fire(priced > (PLANS[m.plan].usd || 0) ? 'plan.upgraded' : 'plan.downgraded', { user, merchant: m, data: { plan: PLANS[plan].label } });
+      audit(m.id, user.id, 'plan_changed', { plan });
+      return { ok: true, plan };
+    }
+    // paid upgrade → must collect payment
+    return { ok: false, payment_required: true, ...billing.planMethods(plan) };
   }));
+  // Payment methods to subscribe to a (paid) plan.
+  r.get('/app/billing/plan/:plan/methods', auth((req, user, m) => billing.planMethods(req.params.plan)));
+  // Start a plan-subscription checkout via a chosen rail (koda | stripe | bitripay).
+  r.post('/app/billing/subscribe', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    return billing.createPlanCheckout(m, req.body.plan, req.body.rail || 'koda');
+  }));
+  r.get('/v1/billing/plan/:plan/methods', apiKey((req, m) => billing.planMethods(req.params.plan), 'read:usage'));
+  r.post('/v1/billing/subscribe', apiKey((req, m) => billing.createPlanCheckout(m, req.body.plan, req.body.rail || 'koda'), 'write:intents'));
 
   // ---------- api keys ----------
   r.get('/app/keys', auth((req, user, m) =>
@@ -723,6 +741,21 @@ module.exports = function registerRoutes(r) {
     const recent = q.all(`SELECT id, account_key, entry_type, acu_delta, balance_after, created_at FROM billing_ledger ORDER BY created_at DESC LIMIT 40`);
     return { by_rail: byRail, settled_totals: totals, accounts, ledger: recent, reconcile: billing.reconcile() };
   }));
+
+  // ---- Confirm/settle a topup (e.g. a KODA-SIM mobile-money plan payment the
+  //      operator verified by hand, or a stuck rail). Activates plan or credits ACU. ----
+  r.post('/app/admin/topups/:id/settle', admin((req, user) => {
+    const t = q.get('SELECT * FROM topups WHERE id=?', req.params.id);
+    if (!t) return [404, { error: { code: 'topup_not_found' } }];
+    const out = billing.settleTopup(t.id);
+    audit(t.merchant_id, user.id, 'admin.topup_settled', { topup: t.id, purpose: t.purpose, plan: t.plan_key });
+    return out;
+  }));
+  // pending plan payments awaiting confirmation (surfaced in Collections)
+  r.get('/app/admin/plan-payments', admin(() =>
+    q.all(`SELECT t.id, t.plan_key, t.rail, t.total_usd, t.status, t.created_at, m.name merchant, m.id merchant_id
+           FROM topups t JOIN merchants m ON m.id=t.merchant_id
+           WHERE t.purpose='plan' ORDER BY t.created_at DESC LIMIT 100`)));
 
   // ---- Distributors (field agents who sell prepaid ACU) ----
   r.get('/app/admin/distributors', admin(() =>

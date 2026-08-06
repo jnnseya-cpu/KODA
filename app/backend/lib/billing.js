@@ -108,6 +108,20 @@ function settleTopup(topupId, { issuer = 'koda:treasury', entryType = 'koda_issu
   if (t.status === 'settled') return { ok: true, already: true, topup_id: t.id };
   if (t.status !== 'pending' && t.status !== 'initiated') return [409, { error: { code: 'bad_state', status: t.status } }];
   const merchant = q.get('SELECT * FROM merchants WHERE id=?', t.merchant_id);
+  // Plan-subscription collection: activate the plan (30-day period) instead of
+  // crediting ACU. Same exactly-once CAS gate.
+  if (t.purpose === 'plan') {
+    const res = tx(() => {
+      const cas = q.run(`UPDATE topups SET status='settled', settled_at=datetime('now') WHERE id=? AND status IN ('pending','initiated')`, t.id);
+      if (cas.changes !== 1) return { already: true };
+      q.run(`UPDATE merchants SET plan=?, is_platform=?, plan_expires_at=datetime('now','+30 days') WHERE id=?`,
+        t.plan_key, t.plan_key === 'plateforme' ? 1 : merchant.is_platform, merchant.id);
+      return { activated: true };
+    });
+    if (res.already) return { ok: true, already: true, topup_id: t.id };
+    require('./engine').notifyOwners(q.get('SELECT * FROM merchants WHERE id=?', merchant.id), 'plan.upgraded', { plan: t.plan_key });
+    return { ok: true, topup_id: t.id, plan_activated: t.plan_key };
+  }
   // Exactly-once + all-or-nothing: the CAS status flip is the atomic gate (a retry
   // finds changes=0 and credits nothing); the transaction rolls back the whole
   // settlement if any step throws, so the wallet can never diverge from the ledger.
@@ -228,7 +242,72 @@ function reconcile() {
   return { balanced: s === 0, sum: s };
 }
 
+// ── PLAN subscriptions: KODA collects its OWN plan revenue through the mesh ──
+// Rails offered for a plan: 'koda' (mobile money to KODA's DRC merchant SIM,
+// verified by KODA's own engine — the product bills itself), 'stripe' (card),
+// 'bitripay' (when its live flag flips). A free plan needs no payment.
+function planRailDef(rail) {
+  if (rail === 'koda') return { fee_pct: 0, flow: 'MOBILE_MONEY_TO_KODA_SIM', live: true, label: 'KODA Mobile Money (DRC)' };
+  return B.RAILS[rail];
+}
+function planQuote(planKey, rail) {
+  const PLANS = require('../../shared/plans').PLANS;
+  const plan = PLANS[planKey];
+  if (!plan || !(plan.usd > 0)) return null;
+  const rd = planRailDef(rail);
+  if (!rd || rd.live === false) return null;
+  const subtotal = plan.usd;
+  const fee = Math.round(subtotal * rd.fee_pct * 100) / 100;
+  const total = Math.round((subtotal + fee) * 100) / 100;
+  return { plan: planKey, plan_label: plan.label, period: 'month', subtotal_usd: subtotal, collection_fee_usd: fee, total_usd: total, rail, flow: rd.flow, label: rd.label };
+}
+function planMethods(planKey) {
+  const PLANS = require('../../shared/plans').PLANS;
+  const plan = PLANS[planKey];
+  if (!plan) return { plan: planKey, methods: [] };
+  return {
+    plan: planKey, plan_label: plan.label, monthly_usd: plan.usd, free: !(plan.usd > 0),
+    methods: [
+      { rail: 'koda', label: 'KODA Mobile Money (pay to our DRC number)', available: !!process.env.KODA_COLLECT_MSISDN, quote: planQuote(planKey, 'koda') },
+      { rail: 'stripe', label: 'Card (Stripe)', available: B.RAILS.stripe.live === true, quote: planQuote(planKey, 'stripe') },
+      { rail: 'bitripay', label: 'BitriPay', available: B.RAILS.bitripay.live === true, quote: B.RAILS.bitripay.live === true ? planQuote(planKey, 'bitripay') : null },
+    ],
+  };
+}
+function planCheckoutView(t) {
+  return { topup_id: t.id, plan: t.plan_key, purpose: 'plan', status: t.status, total_usd: t.total_usd, rail: t.rail };
+}
+function createPlanCheckout(merchant, planKey, rail = 'koda', opts = {}) {
+  const PLANS = require('../../shared/plans').PLANS;
+  const plan = PLANS[planKey];
+  if (!plan) return [400, { error: { code: 'unknown_plan' } }];
+  if (!(plan.usd > 0)) return [400, { error: { code: 'plan_is_free', message: 'the free plan needs no payment' } }];
+  const quote = planQuote(planKey, rail);
+  if (!quote) return [422, { error: { code: 'rail_unavailable', message: `rail ${rail} not available for plans` } }];
+  const idem = opts.idempotency_key || ('plan:' + merchant.id + ':' + planKey + ':' + rail);
+  const dup = q.get('SELECT * FROM topups WHERE idempotency_key=?', idem);
+  if (dup && dup.status !== 'settled') { const s = sessionFor(dup, rail, quote); return { ...planCheckoutView(dup), session: s }; }
+  const id = U.id('top');
+  q.run(`INSERT INTO topups (id,merchant_id,acu_amount,subtotal_usd,collection_fee_usd,tax_usd,total_usd,currency,rail,purpose,plan_key,idempotency_key,routing_snapshot,status)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'initiated')`,
+    id, merchant.id, 0, quote.subtotal_usd, quote.collection_fee_usd, 0, quote.total_usd, 'USD', rail, 'plan', planKey, dup ? idem + ':' + id : idem, JSON.stringify({ rail, quote }));
+  const topup = q.get('SELECT * FROM topups WHERE id=?', id);
+  const session = sessionFor(topup, rail, quote);
+  q.run('UPDATE topups SET status=?, provider_ref=? WHERE id=?', 'pending', session.provider_ref || null, id);
+  return { ...planCheckoutView(q.get('SELECT * FROM topups WHERE id=?', id)), session };
+}
+function sessionFor(topup, rail, quote) {
+  if (rail === 'koda') {
+    const num = process.env.KODA_COLLECT_MSISDN || '(KODA DRC number — set KODA_COLLECT_MSISDN)';
+    return { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, amount_usd: quote.total_usd, reference: topup.id,
+      instructions: `Pay ${quote.total_usd} USD (local equivalent) by mobile money to KODA at ${num}, then keep your confirmation SMS. Your ${quote.plan_label} plan activates as soon as KODA verifies the payment.` };
+  }
+  if (PROVIDERS[rail]) return PROVIDERS[rail].createSession(topup);
+  return { flow: quote.flow };
+}
+
 module.exports = {
   methods, createTopup, settleTopup, topupView, reconcile, post, acctBalance, verifyWebhook,
   distributorFloat, wholesalePurchase, createDistributorTopup, settleDistributorTopup, matchDistributorPayment,
+  planMethods, planQuote, createPlanCheckout,
 };

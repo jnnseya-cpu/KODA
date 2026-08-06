@@ -262,6 +262,8 @@ try { db.exec(`ALTER TABLE intents ADD COLUMN client_secret TEXT`); } catch { /*
 try { db.exec(`ALTER TABLE intents ADD COLUMN success_url TEXT`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE intents ADD COLUMN cancel_url TEXT`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE devices ADD COLUMN device_token TEXT`); } catch { /* exists */ }
+// plan-subscription: merchants table is created above, so this ALTER is safe here.
+try { db.exec(`ALTER TABLE merchants ADD COLUMN plan_expires_at TEXT`); } catch { /* exists */ }
 
 // merchant network accounts — a merchant proves + activates specific operator
 // deployments (registry network_code). The Payment Method Resolver reads these
@@ -305,9 +307,14 @@ db.exec(`CREATE TABLE IF NOT EXISTS topups (
   status TEXT NOT NULL DEFAULT 'initiated',
   idempotency_key TEXT UNIQUE,
   routing_snapshot TEXT,                       -- why this rail won (auditable JSON)
+  purpose TEXT NOT NULL DEFAULT 'acu',         -- 'acu' | 'plan' (plan-subscription collection)
+  plan_key TEXT,                               -- target plan when purpose='plan'
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   settled_at TEXT
 );`);
+// migrations for existing topups tables (no-op on fresh DBs that already have them)
+try { db.exec(`ALTER TABLE topups ADD COLUMN purpose TEXT NOT NULL DEFAULT 'acu'`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE topups ADD COLUMN plan_key TEXT`); } catch { /* exists */ }
 
 // billing_ledger: append-only, double-entry. Every settlement posts balanced rows
 // (sum of acu_delta per topup = 0). balance_after is chained per account = tamper-evident,

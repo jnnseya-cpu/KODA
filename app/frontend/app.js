@@ -525,6 +525,7 @@ VIEWS.billing = async () => {
   <div class="card" style="margin-top:14px"><h3>${t('change_plan')}</h3>
     <div class="pill-row">${plans.map(p => `<button class="pill ${b.plan.label.toLowerCase() === p ? 'on' : ''}" onclick="setPlan('${p}')">${p}</button>`).join('')}</div>
     <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $19 · Commerce $79 · Plateforme $399 · Enterprise custom — one ladder, all three doors.</div>
+    <div id="plan-pay" style="margin-top:12px"></div>
   </div>
   <div class="grid g2" style="margin-top:14px">
     <div class="card tbl-wrap"><h3>ACU transactions</h3><table class="tbl">
@@ -569,7 +570,37 @@ async function ensureTestKey() {
   const r = await api('/app/keys', { body: { prefix: 'sk_test', label: 'console-internal' } });
   _testKey = r.secret; return _testKey;
 }
-window.setPlan = async (p) => { await api('/app/billing/plan', { body: { plan: p } }); ME = await api('/app/me'); toast('✓ Plan: ' + p); route(); };
+window.setPlan = async (p) => {
+  const r = await api('/app/billing/plan', { body: { plan: p } });
+  if (r.ok) { ME = await api('/app/me'); toast('✓ Plan: ' + p); route(); return; }
+  if (r.payment_required) {
+    const box = document.getElementById('plan-pay');
+    box.innerHTML = `<div class="card" style="border-color:var(--gold)">
+      <h3>Pay for ${esc(r.plan_label)} — $${fmt(r.monthly_usd)}/mo</h3>
+      <p style="font-size:13px;color:var(--dim)">Choose how to pay. Your plan activates once payment is confirmed.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        ${r.methods.map(mth => `<button class="btn ${mth.available ? 'btn-gold' : 'btn-ghost'}" ${mth.available ? '' : 'disabled'} onclick="subscribePlan('${p}','${mth.rail}')">
+          ${esc(mth.label)}${mth.quote ? ` — $${fmt(mth.quote.total_usd)}` : ''}${mth.available ? '' : ' (coming soon)'}</button>`).join('')}
+      </div><div id="sub-out" style="margin-top:10px"></div></div>`;
+  }
+};
+window.subscribePlan = async (plan, rail) => {
+  const out = document.getElementById('sub-out');
+  out.innerHTML = '…';
+  try {
+    const r = await api('/app/billing/subscribe', { body: { plan, rail } });
+    const s = r.session || {};
+    if (s.flow === 'MOBILE_MONEY_TO_KODA_SIM') {
+      out.innerHTML = `<div class="card"><h3 class="ok">Pay by mobile money</h3>
+        <p style="font-size:14px">Send <b>$${fmt(s.amount_usd)}</b> (local equivalent) to <b class="mono">${esc(s.pay_to)}</b> by mobile money.</p>
+        <p style="font-size:13px;color:var(--dim)">Reference: <span class="mono">${esc(s.reference || r.topup_id)}</span>. Keep your confirmation SMS. Your plan activates as soon as KODA verifies the payment.</p></div>`;
+    } else if (s.checkout_url || s.url) {
+      out.innerHTML = `<a class="btn btn-gold" href="${esc(s.checkout_url || s.url)}" target="_blank" rel="noopener">Continue to secure checkout →</a>`;
+    } else {
+      out.innerHTML = `<div class="badge b-ok">✓ Payment started (${esc(r.topup_id)}). Follow your provider's instructions; the plan activates on confirmation.</div>`;
+    }
+  } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
 
 VIEWS.team = async () => {
   const d = await api('/app/team');
@@ -1039,8 +1070,16 @@ window.adminFilterOps = () => {
 // ---- Collections dashboard (Billing Mesh) ----
 async function adminCollections() {
   const d = await api('/app/admin/collections');
+  const planPays = await api('/app/admin/plan-payments');
+  const pendingPlans = planPays.filter(p => p.status !== 'settled');
   const treasury = (d.accounts.find(a => a.account_key === 'koda:treasury') || {}).balance_acu || 0;
   shell('admin', 'Collections', 'KODA staff — money in by rail · double-entry ledger', adminTabBar('collections') + `
+  ${pendingPlans.length ? `<div class="card" style="border-color:var(--gold)"><h3>Plan payments awaiting confirmation (${fmt(pendingPlans.length)})</h3>
+    <p style="font-size:13px;color:var(--dim)">A merchant paid for a plan via KODA mobile money. Confirm once you see the payment on the KODA SIM to activate their plan.</p>
+    <table class="tbl"><tr><th>When</th><th>Merchant</th><th>Plan</th><th>Rail</th><th class="num">Amount</th><th></th></tr>
+    ${pendingPlans.map(p => `<tr><td>${when(p.created_at)}</td><td>${esc(p.merchant)}</td><td><span class="badge b-info">${esc(p.plan_key)}</span></td><td class="mono">${esc(p.rail)}</td><td class="num">$${fmt(p.total_usd)}</td>
+      <td><button class="btn btn-gold btn-sm" onclick="adminSettleTopup('${p.id}')">confirm & activate</button></td></tr>`).join('')}
+    </table></div>` : ''}
   <div class="grid g4">
     <div class="card stat"><b>$${fmt(d.settled_totals.gross)}</b><span>settled gross · ${fmt(d.settled_totals.n)} topups</span></div>
     <div class="card stat"><b>$${fmt(d.settled_totals.net)}</b><span>KODA net (4× cost)</span></div>
@@ -1060,6 +1099,8 @@ async function adminCollections() {
     ${d.ledger.map(l => `<tr><td>${when(l.created_at)}</td><td class="mono" style="font-size:11px">${esc(l.account_key)}</td><td class="mono" style="font-size:11px">${esc(l.entry_type)}</td><td class="num ${l.acu_delta < 0 ? 'bad' : 'ok'}">${l.acu_delta > 0 ? '+' : ''}${fmt(l.acu_delta)}</td><td class="num">${fmt(l.balance_after)}</td></tr>`).join('')}
     </table></div>` : ''}`);
 }
+
+window.adminSettleTopup = async (id) => { try { const r = await api(`/app/admin/topups/${id}/settle`, { body: {} }); toast(r.plan_activated ? '✓ plan activated: ' + r.plan_activated : '✓ settled'); route(); } catch (e) { toast('✗ ' + e.message); } };
 
 // ---- Distributors (field agents) ----
 async function adminDistributors() {
