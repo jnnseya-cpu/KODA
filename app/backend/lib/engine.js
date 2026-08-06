@@ -115,6 +115,9 @@ function ingestSms(merchant, { raw, operator, device_id }) {
       break;
     }
   }
+  // Distributor rail (System B): if this merchant is a KODA distributor, a verified
+  // incoming payment may settle a pending merchant top-up — the engine IS the escrow.
+  try { require('./billing').matchDistributorPayment(merchant.id, parsed.amount); } catch { /* billing optional */ }
   return { id: smsId, parsed: true, quarantined: false, fields: parsed };
 }
 

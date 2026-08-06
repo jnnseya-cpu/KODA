@@ -11,6 +11,8 @@ const notify = require('./comms/notify');
 const { PLANS } = require('../shared/plans');
 const VERSION = require('../shared/version');
 const networks = require('./lib/networks');
+const billing = require('./lib/billing');
+const vouchers = require('./lib/vouchers');
 
 // role gate: owners always pass, KODA staff always pass
 function needRole(user, roles) { return user.is_admin || user.role === 'owner' || roles.includes(user.role); }
@@ -407,6 +409,62 @@ module.exports = function registerRoutes(r) {
     q.all('SELECT * FROM receipts WHERE merchant_id=? ORDER BY verified_at DESC LIMIT 100', m.id), 'read:receipts'));
   r.post('/v1/sandbox/sms', apiKey((req, m) => engine.ingestSms(m, { raw: req.body.raw, operator: req.body.operator })));
   r.get('/v1/billing/balance', apiKey((req, m) => ({ acu_balance: m.acu_balance }), 'read:usage'));
+
+  // ---------- GLOBAL BILLING MESH (System B — how KODA collects its own revenue) ----------
+  // Server-authoritative pricing (4× cost, collection fee passed through), idempotent,
+  // double-entry. Merchant-facing (JWT) + API (key) + KD console + reseller + webhooks.
+  const doTopup = (m, body) => (String(body.rail || body.method) === 'distributor'
+    ? billing.createDistributorTopup(m, body) : billing.createTopup(m, body));
+  r.get('/app/billing/methods', auth((req, user, m) => billing.methods(m, req.query)));
+  r.post('/app/billing/topup', auth((req, user, m) => doTopup(m, req.body)));
+  r.get('/app/billing/topup/:id', auth((req, user, m) => {
+    const t = q.get('SELECT * FROM topups WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    return t ? billing.topupView(t) : [404, { error: { code: 'topup_not_found' } }];
+  }));
+  r.post('/app/billing/voucher/redeem', auth((req, user, m) => vouchers.redeem(m, req.body.pin)));
+  r.get('/v1/billing/methods', apiKey((req, m) => billing.methods(m, req.query), 'read:usage'));
+  r.post('/v1/billing/topup', apiKey((req, m) => doTopup(m, req.body), 'write:intents'));
+  r.get('/v1/billing/topup/:id', apiKey((req, m) => {
+    const t = q.get('SELECT * FROM topups WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    return t ? billing.topupView(t) : [404, { error: { code: 'topup_not_found' } }];
+  }, 'read:usage'));
+  r.post('/v1/billing/voucher/redeem', apiKey((req, m) => vouchers.redeem(m, req.body.pin), 'write:intents'));
+
+  // KD (distributor) console — a KD is a merchant whose product is ACU float.
+  r.get('/app/kd/float', auth((req, user, m) => {
+    const d = q.get('SELECT * FROM distributors WHERE merchant_id=?', m.id);
+    return d ? { distributor_id: d.id, name: d.name, country: d.country, float_acu: d.float_acu, status: d.status }
+      : [404, { error: { code: 'not_a_distributor' } }];
+  }));
+  r.post('/app/kd/wholesale', auth((req, user, m) => {
+    const d = q.get('SELECT * FROM distributors WHERE merchant_id=?', m.id);
+    if (!d) return [404, { error: { code: 'not_a_distributor' } }];
+    return billing.wholesalePurchase(d.id, req.body.acu_block);   // paid via card/aggregator upstream
+  }));
+  r.get('/app/kd/sales', auth((req, user, m) => {
+    const d = q.get('SELECT * FROM distributors WHERE merchant_id=?', m.id);
+    if (!d) return [404, { error: { code: 'not_a_distributor' } }];
+    return { sales: q.all(`SELECT id,merchant_id,acu_amount,total_usd,status,created_at,settled_at FROM topups WHERE distributor_id=? ORDER BY created_at DESC LIMIT 100`, d.id) };
+  }));
+
+  // Reseller voucher issuance (admin-gated: KODA staff issue against a cleared inventory order).
+  r.post('/app/resellers/:id/vouchers', auth((req, user, m) => {
+    if (!user.is_admin) return [403, { error: { code: 'admin_only' } }];
+    const reseller = q.get('SELECT * FROM resellers WHERE id=?', req.params.id);
+    if (!reseller) return [404, { error: { code: 'reseller_not_found' } }];
+    const batch = vouchers.issueBatch(reseller, req.body || {});
+    if (req.body && req.body.activate) vouchers.activateBatch(batch.batch_id);
+    return batch;                                                  // PINs returned once
+  }));
+
+  // Provider webhooks → settle a top-up. Sandbox accepts; real adapters verify the
+  // raw-body signature before settling (never activate from a browser success screen).
+  r.post('/webhooks/billing/:provider', (req) => {
+    const tid = req.body && req.body.topup_id;
+    if (!tid) return [400, { error: { code: 'topup_id_required' } }];
+    // TODO(real providers): billing verify raw-body signature for req.params.provider here.
+    return billing.settleTopup(tid);
+  });
 
   // ---- Sentinel heartbeat: keeps device health fresh for the resolver (§9.3) ----
   r.post('/v1/device/heartbeat', (req) => {

@@ -277,6 +277,92 @@ db.exec(`CREATE TABLE IF NOT EXISTS merchant_network_accounts (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
 
+// ---------- GLOBAL BILLING MESH (System B — how KODA collects its own revenue) ----------
+// topups: one collection attempt, idempotent. status: initiated→pending→settled|failed|expired
+db.exec(`CREATE TABLE IF NOT EXISTS topups (
+  id TEXT PRIMARY KEY,
+  merchant_id TEXT NOT NULL REFERENCES merchants(id),
+  acu_amount INTEGER NOT NULL,
+  subtotal_usd REAL NOT NULL,                 -- KODA net (4× cost)
+  collection_fee_usd REAL NOT NULL DEFAULT 0, -- passed through to merchant
+  tax_usd REAL NOT NULL DEFAULT 0,
+  total_usd REAL NOT NULL,                     -- what the merchant pays
+  currency TEXT NOT NULL DEFAULT 'USD',
+  rail TEXT NOT NULL,                          -- provider code
+  distributor_id TEXT,                         -- set for the distributor rail
+  intent_id TEXT,                              -- KODA payment intent on the KD account (rail=distributor)
+  provider_ref TEXT,
+  status TEXT NOT NULL DEFAULT 'initiated',
+  idempotency_key TEXT UNIQUE,
+  routing_snapshot TEXT,                       -- why this rail won (auditable JSON)
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  settled_at TEXT
+);`);
+
+// billing_ledger: append-only, double-entry. Every settlement posts balanced rows
+// (sum of acu_delta per topup = 0). balance_after is chained per account = tamper-evident,
+// the same defence philosophy used against SMS spoofers.
+db.exec(`CREATE TABLE IF NOT EXISTS billing_ledger (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  account_key TEXT NOT NULL,                   -- 'merchant:<id>' | 'distributor:<id>' | 'koda:treasury'
+  entry_type TEXT NOT NULL,                    -- topup_credit|kd_float_debit|koda_issuance|voucher_redeem|wholesale_credit|reversal|adjustment
+  acu_delta INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  topup_id TEXT,
+  ref TEXT,
+  idempotency_key TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+
+// per-account running balance for the ledger chain (merchant wallet stays authoritative
+// in merchants.acu_balance; this tracks KD float + treasury and mirrors merchant credits)
+db.exec(`CREATE TABLE IF NOT EXISTS billing_accounts (
+  account_key TEXT PRIMARY KEY,
+  balance_acu INTEGER NOT NULL DEFAULT 0
+);`);
+
+db.exec(`CREATE TABLE IF NOT EXISTS distributors (
+  id TEXT PRIMARY KEY,
+  merchant_id TEXT REFERENCES merchants(id),   -- a KD is a KODA merchant whose product is ACU
+  name TEXT NOT NULL,
+  country TEXT NOT NULL,
+  msisdn TEXT,                                 -- the KD's own mobile-money number (pay-to)
+  device_id TEXT,                              -- the KD's Sentinel
+  float_acu INTEGER NOT NULL DEFAULT 0,        -- prepaid inventory (authoritative)
+  wholesale_bps INTEGER NOT NULL DEFAULT 8500, -- pays 85% of retail = 15% discount
+  parent_kd TEXT REFERENCES distributors(id),
+  status TEXT NOT NULL DEFAULT 'active',        -- active|frozen
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+
+db.exec(`CREATE TABLE IF NOT EXISTS resellers (
+  id TEXT PRIMARY KEY,
+  legal_name TEXT NOT NULL,
+  country TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ACTIVE',        -- APPLICANT|DUE_DILIGENCE|ACTIVE|SUSPENDED|TERMINATED
+  settlement_currency TEXT NOT NULL DEFAULT 'USD',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+
+// vouchers: Ed25519-signed, single-use, product+market locked, PIN stored hashed
+db.exec(`CREATE TABLE IF NOT EXISTS vouchers (
+  id TEXT PRIMARY KEY,
+  batch_id TEXT NOT NULL,
+  reseller_id TEXT REFERENCES resellers(id),
+  product_code TEXT NOT NULL,                   -- ACU_TOPUP|PLAN_30_DAYS|...
+  acu_amount INTEGER NOT NULL DEFAULT 0,
+  country_lock TEXT,
+  currency_lock TEXT,
+  pin_hash TEXT NOT NULL UNIQUE,
+  signature TEXT NOT NULL,                       -- Ed25519 over the payload
+  status TEXT NOT NULL DEFAULT 'dormant',        -- dormant→active→redeemed|void
+  expires_at TEXT,
+  activated_at TEXT,
+  redeemed_at TEXT,
+  redeemed_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
 // hot verify path runs ~10 statements, so caching keeps the money path fast.
