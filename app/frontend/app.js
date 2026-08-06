@@ -190,11 +190,10 @@ const VIEWS = {};
 VIEWS.login = () => {
   root.innerHTML = authCard(`
     <h1>${t('signin')}</h1><p>KODA — le code confirme le cash.</p>
-    <div class="field"><label>Email</label><input id="em" type="email" value="demo@koda.africa"></div>
-    <div class="field"><label>Password</label><input id="pw" type="password" value="koda-demo"></div>
+    <div class="field"><label>Email</label><input id="em" type="email" placeholder="you@business.com" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input id="pw" type="password" placeholder="••••••••" autocomplete="current-password"></div>
     <button class="btn btn-gold" style="width:100%" onclick="doLogin()">${t('signin')} →</button>
-    <p style="margin-top:16px">No account? <a href="#signup" style="color:var(--gold)">${t('signup')}</a>
-    · <span class="mono" style="font-size:11px">admin@koda.africa / koda-admin</span></p>`);
+    <p style="margin-top:16px">No account? <a href="#signup" style="color:var(--gold)">${t('signup')}</a></p>`);
 };
 VIEWS.signup = (params) => {
   root.innerHTML = authCard(`
@@ -786,8 +785,13 @@ VIEWS.settings = async () => {
     <p style="font-size:13px;color:var(--dim)">Install KODA on your phone: browser menu → "Add to Home screen". Works offline for the console shell; verifications sync when back online.</p></div>`);
 };
 
-VIEWS.admin = async () => {
+const PLAN_KEYS = ['marche', 'boutique', 'commerce', 'plateforme', 'enterprise'];
+const ROLE_KEYS = ['cashier', 'manager', 'owner'];
+
+VIEWS.admin = async (params) => {
   if (!ME.user.is_admin) { location.hash = '#dashboard'; return; }
+  const mid = params && params.get && params.get('m');
+  if (mid) return adminMerchantDetail(mid);
   const o = await api('/app/admin/overview');
   const merchants = await api('/app/admin/merchants');
   shell('admin', t('admin'), 'KODA staff — the whole fleet at a glance', `
@@ -803,19 +807,108 @@ VIEWS.admin = async () => {
         <span class="mono">${p.operator}</span><span class="mono" style="color:${p.rate > 0.98 ? 'var(--verify)' : 'var(--gold)'}">${(p.rate * 100).toFixed(1)}%</span></div>
       <div class="progress"><i style="width:${p.rate * 100}%"></i></div></div>`).join('')}
   </div>
-  <div class="card tbl-wrap" style="margin-top:14px"><h3>Merchants</h3><table class="tbl">
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Merchants — click Manage to change plan, grant ACU, manage the team</h3>
+    ${merchants.length ? `<table class="tbl">
     <tr><th>Name</th><th>Plan</th><th class="num">Verifs</th><th class="num">ACU</th><th>Seats</th><th>Status</th><th></th></tr>
     ${merchants.map(m => `<tr><td>${esc(m.name)}</td><td><span class="badge b-info">${m.plan}</span></td>
       <td class="num">${fmt(m.verifs)}</td><td class="num">${fmt(m.acu_balance)}</td><td class="num">${m.seats}</td>
       <td><span class="badge ${m.status === 'active' ? 'b-ok' : 'b-bad'}">${m.status}</span></td>
-      <td><button class="btn btn-danger btn-sm" onclick="adminToggle('${m.id}')">${m.status === 'active' ? 'suspend' : 'restore'}</button></td></tr>`).join('')}
-  </table></div>
+      <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="location.hash='#admin?m=${m.id}'">Manage</button>
+        <button class="btn btn-danger btn-sm" onclick="adminToggle('${m.id}')">${m.status === 'active' ? 'suspend' : 'restore'}</button></td></tr>`).join('')}
+  </table>` : '<p style="color:var(--dim);font-size:13px">No merchants yet. They appear here as businesses sign up at /app.</p>'}</div>
   <div class="card" style="margin-top:14px"><h3>Latest verifications (all merchants)</h3>
-    ${o.latest.map(r => `<div class="feed-row"><div class="feed-ic f-ok">✓</div>
+    ${o.latest.length ? o.latest.map(r => `<div class="feed-row"><div class="feed-ic f-ok">✓</div>
       <div><div class="t">${esc(r.merchant)} · <span class="mono" style="font-size:12px">${esc(r.reference)}</span></div>
       <div class="m">${esc(r.mode)} · risk ${r.risk_score} · ${when(r.verified_at)}</div></div>
-      <div class="amt">+${fmt(r.amount)}</div></div>`).join('')}
+      <div class="amt">+${fmt(r.amount)}</div></div>`).join('') : '<p style="color:var(--dim);font-size:13px">No verifications yet.</p>'}
   </div>`);
+};
+
+async function adminMerchantDetail(mid) {
+  const d = await api('/app/admin/merchants/' + mid);
+  const m = d.merchant;
+  shell('admin', esc(m.name), 'Admin — manage this merchant', `
+  <a class="btn btn-ghost btn-sm" href="#admin">← All merchants</a>
+  <div class="grid g4" style="margin-top:12px">
+    <div class="card stat"><b>${acuFmt(m.acu_balance)}</b><span>ACU balance</span></div>
+    <div class="card stat"><b>${esc(m.plan)}</b><span>plan · ${esc(m.country)}/${esc(m.currency)}</span></div>
+    <div class="card stat"><b>${fmt(d.users.length)}</b><span>team members</span></div>
+    <div class="card stat"><b><span class="badge ${m.status === 'active' ? 'b-ok' : 'b-bad'}">${m.status}</span></b><span>status</span></div>
+  </div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+    <div class="card"><h3>Change plan</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <select id="adm-plan" style="flex:1;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+          ${PLAN_KEYS.map(p => `<option value="${p}" ${p === m.plan ? 'selected' : ''}>${p}</option>`).join('')}
+        </select>
+        <button class="btn btn-gold" onclick="adminSetPlan('${m.id}')">Apply</button>
+      </div></div>
+    <div class="card"><h3>Grant / deduct ACU</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="adm-acu" type="number" placeholder="e.g. 500 (or -100)" style="flex:1;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+        <button class="btn btn-gold" onclick="adminGrantAcu('${m.id}')">Adjust</button>
+      </div>
+      <p style="font-size:12px;color:var(--dim);margin-top:8px">Positive credits, negative deducts. Admin-owned merchants are unlimited (∞).</p></div>
+  </div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Team members</h3>
+    <table class="tbl"><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr>
+    ${d.users.map(u => `<tr>
+      <td>${esc(u.name)}${u.is_admin ? ' <span class="badge b-info">admin</span>' : ''}</td>
+      <td class="mono" style="font-size:12px">${esc(u.email)}</td>
+      <td><select onchange="adminSetRole('${u.id}',this.value)" ${u.is_admin ? 'disabled' : ''} style="background:var(--ink);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);padding:5px">
+        ${ROLE_KEYS.map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${r}</option>`).join('')}</select></td>
+      <td><span class="badge ${u.status === 'active' ? 'b-ok' : 'b-bad'}">${u.status}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="adminResetPw('${u.id}')">reset pw</button>
+        ${u.is_admin ? '' : `<button class="btn btn-danger btn-sm" onclick="adminToggleUser('${u.id}','${m.id}')">${u.status === 'active' ? 'suspend' : 'restore'}</button>`}
+      </td></tr>`).join('')}
+    </table>
+    <h3 style="margin-top:16px">Add a team member</h3>
+    <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:640px">
+      <input id="nu-name" placeholder="Full name" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="nu-email" placeholder="email@example.com" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <select id="nu-role" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+        ${ROLE_KEYS.map(r => `<option value="${r}" ${r === 'cashier' ? 'selected' : ''}>${r}</option>`).join('')}</select>
+      <button class="btn btn-gold" onclick="adminAddUser('${m.id}')">Add member</button>
+    </div>
+    <div id="nu-out" style="margin-top:10px"></div>
+  </div>
+  ${d.keys.length ? `<div class="card tbl-wrap" style="margin-top:14px"><h3>API keys</h3>
+    <table class="tbl"><tr><th>Label</th><th>Prefix</th><th>Last4</th><th>Created</th></tr>
+    ${d.keys.map(k => `<tr><td>${esc(k.label || '—')}</td><td class="mono">${esc(k.prefix)}</td><td class="mono">…${esc(k.last4)}</td><td>${when(k.created_at)}</td></tr>`).join('')}
+    </table></div>` : ''}`);
+}
+window.adminSetPlan = async (id) => {
+  try { const r = await api(`/app/admin/merchants/${id}/plan`, { body: { plan: v('adm-plan') } }); toast('✓ plan → ' + r.plan); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
+window.adminGrantAcu = async (id) => {
+  const amount = Number(v('adm-acu'));
+  if (!amount) return toast('enter an amount');
+  try { const r = await api(`/app/admin/merchants/${id}/acu`, { body: { amount } }); toast('✓ balance ' + fmt(r.balance)); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
+window.adminSetRole = async (uid, role) => {
+  try { await api(`/app/admin/users/${uid}/role`, { body: { role } }); toast('✓ role → ' + role); }
+  catch (e) { toast('✗ ' + e.message); }
+};
+window.adminResetPw = async (uid) => {
+  try { const r = await api(`/app/admin/users/${uid}/reset`, { body: {} });
+    toast('✓ temp password: ' + r.temp_password, 8000); }
+  catch (e) { toast('✗ ' + e.message); }
+};
+window.adminToggleUser = async (uid, mid) => {
+  try { await api(`/app/admin/users/${uid}/suspend`, { body: {} }); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
+window.adminAddUser = async (mid) => {
+  const out = document.getElementById('nu-out');
+  try {
+    const r = await api(`/app/admin/merchants/${mid}/users`, { body: { name: v('nu-name'), email: v('nu-email'), role: v('nu-role') } });
+    out.innerHTML = `<div class="badge b-ok">✓ added · temp password: <span class="mono">${esc(r.temp_password)}</span> — share it securely</div>`;
+    setTimeout(route, 2500);
+  } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
 };
 window.adminToggle = async (id) => { await api(`/app/admin/merchants/${id}/suspend`, { body: {} }); route(); };
 

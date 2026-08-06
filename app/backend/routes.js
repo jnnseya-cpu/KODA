@@ -426,6 +426,85 @@ module.exports = function registerRoutes(r) {
     q.run(`UPDATE merchants SET status = CASE status WHEN 'suspended' THEN 'active' ELSE 'suspended' END WHERE id=?`, req.params.id);
     return { ok: true };
   }));
+  // ---- admin: change a merchant's plan ----
+  r.post('/app/admin/merchants/:id/plan', admin((req, user) => {
+    const m = q.get('SELECT * FROM merchants WHERE id=?', req.params.id);
+    if (!m) return [404, { error: { code: 'merchant_not_found' } }];
+    const plan = String(req.body.plan || '');
+    if (!PLANS[plan]) return [400, { error: { code: 'unknown_plan', allowed: Object.keys(PLANS) } }];
+    q.run('UPDATE merchants SET plan=? WHERE id=?', plan, m.id);
+    audit(m.id, user.id, 'admin.plan_changed', { from: m.plan, to: plan });
+    engine.notifyOwners({ ...m, plan }, 'billing.plan_changed', { plan });
+    return { ok: true, plan };
+  }));
+  // ---- admin: grant or deduct ACU (positive credits, negative deducts) ----
+  r.post('/app/admin/merchants/:id/acu', admin((req, user) => {
+    const m = q.get('SELECT * FROM merchants WHERE id=?', req.params.id);
+    if (!m) return [404, { error: { code: 'merchant_not_found' } }];
+    const amount = Number(req.body.amount);
+    if (!Number.isFinite(amount) || amount === 0) return [400, { error: { code: 'bad_amount' } }];
+    const bal = amount > 0
+      ? engine.creditAcu(m, amount, 'admin_grant', 'admin:' + user.id)
+      : engine.chargeAcu(m, -amount, 'admin_debit', 'admin:' + user.id);
+    audit(m.id, user.id, 'admin.acu_adjusted', { amount, balance: bal });
+    return { ok: true, balance: bal };
+  }));
+  // ---- admin: merchant detail incl. its users/team ----
+  r.get('/app/admin/merchants/:id', admin((req) => {
+    const m = q.get('SELECT * FROM merchants WHERE id=?', req.params.id);
+    if (!m) return [404, { error: { code: 'merchant_not_found' } }];
+    return {
+      merchant: m,
+      users: q.all('SELECT id,email,name,phone,role,is_admin,status,created_at FROM users WHERE merchant_id=? ORDER BY created_at', m.id),
+      keys: q.all('SELECT id,prefix,last4,label,created_at FROM api_keys WHERE merchant_id=? ORDER BY created_at DESC', m.id),
+      submerchants: q.all('SELECT id,name,plan,status FROM merchants WHERE parent_id=?', m.id),
+    };
+  }));
+  // ---- admin: add a team member to a merchant ----
+  r.post('/app/admin/merchants/:id/users', admin((req, user) => {
+    const m = q.get('SELECT * FROM merchants WHERE id=?', req.params.id);
+    if (!m) return [404, { error: { code: 'merchant_not_found' } }];
+    const { email, name, role = 'cashier' } = req.body;
+    if (!email || !name) return [400, { error: { code: 'missing_fields' } }];
+    if (!['cashier', 'manager', 'owner'].includes(role)) return [400, { error: { code: 'bad_role' } }];
+    if (q.get('SELECT id FROM users WHERE email=?', String(email).toLowerCase())) return [409, { error: { code: 'email_taken' } }];
+    const pw = req.body.password || U.token(8);
+    const uid = U.id('usr');
+    q.run(`INSERT INTO users (id,merchant_id,email,name,phone,pass_hash,role) VALUES (?,?,?,?,?,?,?)`,
+      uid, m.id, String(email).toLowerCase(), name, req.body.phone || null, U.hashPassword(pw), role);
+    audit(m.id, user.id, 'admin.user_added', { email, role });
+    engine.notifyOwners(m, 'team.member_added', { email, name, role });
+    return { ok: true, user_id: uid, temp_password: req.body.password ? undefined : pw };
+  }));
+  // ---- admin: reset a user's password ----
+  r.post('/app/admin/users/:id/reset', admin((req, user) => {
+    const target = q.get('SELECT * FROM users WHERE id=?', req.params.id);
+    if (!target) return [404, { error: { code: 'user_not_found' } }];
+    const pw = req.body.password || U.token(8);
+    q.run('UPDATE users SET pass_hash=? WHERE id=?', U.hashPassword(pw), target.id);
+    audit(target.merchant_id, user.id, 'admin.password_reset', { user: target.email });
+    return { ok: true, temp_password: req.body.password ? undefined : pw };
+  }));
+  // ---- admin: change a user's role ----
+  r.post('/app/admin/users/:id/role', admin((req, user) => {
+    const target = q.get('SELECT * FROM users WHERE id=?', req.params.id);
+    if (!target) return [404, { error: { code: 'user_not_found' } }];
+    const role = String(req.body.role || '');
+    if (!['cashier', 'manager', 'owner'].includes(role)) return [400, { error: { code: 'bad_role' } }];
+    q.run('UPDATE users SET role=? WHERE id=?', role, target.id);
+    audit(target.merchant_id, user.id, 'admin.role_changed', { user: target.email, role });
+    return { ok: true, role };
+  }));
+  // ---- admin: suspend / restore a user ----
+  r.post('/app/admin/users/:id/suspend', admin((req, user) => {
+    const target = q.get('SELECT * FROM users WHERE id=?', req.params.id);
+    if (!target) return [404, { error: { code: 'user_not_found' } }];
+    if (target.is_admin) return [403, { error: { code: 'cannot_suspend_admin' } }];
+    q.run(`UPDATE users SET status = CASE status WHEN 'suspended' THEN 'active' ELSE 'suspended' END WHERE id=?`, target.id);
+    const now = q.get('SELECT status FROM users WHERE id=?', target.id).status;
+    audit(target.merchant_id, user.id, 'admin.user_' + now, { user: target.email });
+    return { ok: true, status: now };
+  }));
 
   // ---------- public API (/v1) — key-authenticated ----------
   r.get('/v1/ping', apiKey((req, m) => ({
