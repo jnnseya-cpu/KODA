@@ -20,7 +20,7 @@ android {
     // secret); locally without one, release falls back to the debug key so
     // assembleRelease still yields an installable APK for side-load pilots.
     val ksPath = System.getenv("KODA_KEYSTORE_FILE")
-    val hasKeystore = ksPath != null && file(ksPath).exists()
+    val hasKeystore = !ksPath.isNullOrBlank() && file(ksPath).exists()
     signingConfigs {
         if (hasKeystore) {
             create("release") {
