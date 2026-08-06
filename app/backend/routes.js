@@ -444,23 +444,36 @@ module.exports = function registerRoutes(r) {
   }));
 
   // ---------- admin control centre ----------
-  r.get('/app/admin/overview', admin(() => ({
-    merchants: q.get('SELECT COUNT(*) c FROM merchants WHERE parent_id IS NULL').c,
-    submerchants: q.get('SELECT COUNT(*) c FROM merchants WHERE parent_id IS NOT NULL').c,
-    users: q.get('SELECT COUNT(*) c FROM users').c,
-    receipts: q.get('SELECT COUNT(*) c FROM receipts').c,
-    volume: q.get('SELECT COALESCE(SUM(amount),0) s FROM receipts').s,
-    devices: q.get(`SELECT COUNT(*) c FROM devices WHERE status='active'`).c,
-    quarantined: q.get('SELECT COUNT(*) c FROM sms_ledger WHERE quarantined=1').c,
-    openDisputes: q.get(`SELECT COUNT(*) c FROM disputes WHERE status='open'`).c,
-    deliveries: q.get('SELECT COUNT(*) c FROM comm_deliveries').c,
-    parseHealth: [
-      { operator: 'orange_cd', rate: 0.995 }, { operator: 'mpesa_cd', rate: 0.991 },
-      { operator: 'airtel_cd', rate: 0.987 }, { operator: 'africell_cd', rate: 0.978 },
-    ],
-    latest: q.all(`SELECT r.*, m.name merchant FROM receipts r JOIN merchants m ON m.id=r.merchant_id
-                   ORDER BY r.verified_at DESC LIMIT 20`),
-  })));
+  r.get('/app/admin/overview', admin(() => {
+    const ops = require('../shared/operators');
+    return {
+      merchants: q.get('SELECT COUNT(*) c FROM merchants WHERE parent_id IS NULL').c,
+      submerchants: q.get('SELECT COUNT(*) c FROM merchants WHERE parent_id IS NOT NULL').c,
+      users: q.get('SELECT COUNT(*) c FROM users').c,
+      receipts: q.get('SELECT COUNT(*) c FROM receipts').c,
+      volume: q.get('SELECT COALESCE(SUM(amount),0) s FROM receipts').s,
+      devices: q.get(`SELECT COUNT(*) c FROM devices WHERE status='active'`).c,
+      quarantined: q.get('SELECT COUNT(*) c FROM sms_ledger WHERE quarantined=1').c,
+      openDisputes: q.get(`SELECT COUNT(*) c FROM disputes WHERE status='open'`).c,
+      deliveries: q.get('SELECT COUNT(*) c FROM comm_deliveries').c,
+      coverage: ops.coverage(),  // real registry: total/countries/packed/byTier/byRegion
+      packedOperators: ops.OPERATORS.filter(o => o.packed).map(o => ({ id: o.id, name: o.name, country: o.country })),
+      latest: q.all(`SELECT r.*, m.name merchant FROM receipts r JOIN merchants m ON m.id=r.merchant_id
+                     ORDER BY r.verified_at DESC LIMIT 20`),
+    };
+  }));
+  // ---- full operator coverage (the real 235-operator registry, not a hardcoded 4) ----
+  r.get('/app/admin/coverage', admin(() => {
+    const ops = require('../shared/operators');
+    return {
+      coverage: ops.coverage(),
+      families: ops.families(),
+      operators: ops.OPERATORS.map(o => ({
+        id: o.id, name: o.name, country: o.country, region: o.region, currency: o.currency,
+        family: ops.familyOf(o), tier: ops.tierOf(o), parser: o.packed ? 'precise' : 'generic',
+      })),
+    };
+  }));
   r.get('/app/admin/merchants', admin(() =>
     q.all(`SELECT m.*, (SELECT COUNT(*) FROM receipts r WHERE r.merchant_id=m.id) verifs,
            (SELECT COUNT(*) FROM users u WHERE u.merchant_id=m.id) seats
@@ -698,6 +711,139 @@ module.exports = function registerRoutes(r) {
     const limit = Math.min(300, Math.max(1, Number((req.query || {}).limit) || 100));
     return q.all(`SELECT a.*, u.email actor_email FROM audit_log a LEFT JOIN users u ON u.id=a.user_id
                   ORDER BY a.created_at DESC LIMIT ?`, limit);
+  }));
+
+  // ============ Billing Mesh (collections) — operator surfaces ============
+  // ---- Collections dashboard: topups by rail/status, treasury, ledger ----
+  r.get('/app/admin/collections', admin(() => {
+    const byRail = q.all(`SELECT rail, status, COUNT(*) n, COALESCE(SUM(total_usd),0) gross, COALESCE(SUM(subtotal_usd),0) net, COALESCE(SUM(acu_amount),0) acu
+      FROM topups GROUP BY rail, status ORDER BY rail`);
+    const totals = q.get(`SELECT COUNT(*) n, COALESCE(SUM(total_usd),0) gross, COALESCE(SUM(subtotal_usd),0) net FROM topups WHERE status='settled'`);
+    const accounts = q.all(`SELECT account_key, balance_acu FROM billing_accounts ORDER BY account_key`);
+    const recent = q.all(`SELECT id, account_key, entry_type, acu_delta, balance_after, created_at FROM billing_ledger ORDER BY created_at DESC LIMIT 40`);
+    return { by_rail: byRail, settled_totals: totals, accounts, ledger: recent, reconcile: billing.reconcile() };
+  }));
+
+  // ---- Distributors (field agents who sell prepaid ACU) ----
+  r.get('/app/admin/distributors', admin(() =>
+    q.all(`SELECT d.*, (SELECT COUNT(*) FROM topups t WHERE t.distributor_id=d.id AND t.status='settled') sales,
+           (SELECT COALESCE(SUM(acu_amount),0) FROM topups t WHERE t.distributor_id=d.id AND t.status='settled') sold_acu
+           FROM distributors d ORDER BY d.created_at DESC`)));
+  r.post('/app/admin/distributors', admin((req, user) => {
+    const { name, country, msisdn } = req.body;
+    if (!name || !country) return [400, { error: { code: 'missing_fields', message: 'name and country required' } }];
+    const id = U.id('kd');
+    q.run(`INSERT INTO distributors (id,merchant_id,name,country,msisdn,wholesale_bps,status) VALUES (?,?,?,?,?,?, 'active')`,
+      id, req.body.merchant_id || null, name, String(country).toUpperCase().slice(0, 2), msisdn || null, Number(req.body.wholesale_bps) || 8500);
+    audit(null, user.id, 'admin.distributor_created', { name, country });
+    return { ok: true, id };
+  }));
+  r.post('/app/admin/distributors/:id/fund', admin((req, user) => {
+    const d = q.get('SELECT * FROM distributors WHERE id=?', req.params.id);
+    if (!d) return [404, { error: { code: 'distributor_not_found' } }];
+    const acu = Math.round(Number(req.body.acu));
+    if (!Number.isFinite(acu) || acu <= 0) return [400, { error: { code: 'bad_amount' } }];
+    try {
+      const r = billing.wholesalePurchase(d.id, acu, 'adminfund:' + d.id + ':' + user.id + ':' + acu + ':' + q.get('SELECT COUNT(*) c FROM topups').c);
+      audit(null, user.id, 'admin.distributor_funded', { distributor: d.id, acu });
+      return { ok: true, float: q.get('SELECT float_acu FROM distributors WHERE id=?', d.id).float_acu, result: r };
+    } catch (e) { return [400, { error: { code: 'fund_failed', message: String(e.message || e) } }]; }
+  }));
+  r.post('/app/admin/distributors/:id/freeze', admin((req, user) => {
+    const d = q.get('SELECT * FROM distributors WHERE id=?', req.params.id);
+    if (!d) return [404, { error: { code: 'distributor_not_found' } }];
+    q.run(`UPDATE distributors SET status = CASE status WHEN 'frozen' THEN 'active' ELSE 'frozen' END WHERE id=?`, d.id);
+    const now = q.get('SELECT status FROM distributors WHERE id=?', d.id).status;
+    audit(null, user.id, 'admin.distributor_' + now, { distributor: d.id });
+    return { ok: true, status: now };
+  }));
+
+  // ---- Resellers & vouchers ----
+  r.get('/app/admin/resellers', admin(() =>
+    q.all(`SELECT r.*, (SELECT COUNT(*) FROM vouchers v WHERE v.reseller_id=r.id) vouchers
+           FROM resellers r ORDER BY r.created_at DESC`)));
+  r.post('/app/admin/resellers', admin((req, user) => {
+    const { legal_name, country } = req.body;
+    if (!legal_name || !country) return [400, { error: { code: 'missing_fields' } }];
+    const id = U.id('rsl');
+    q.run(`INSERT INTO resellers (id,legal_name,country,status,settlement_currency) VALUES (?,?,?,?,?)`,
+      id, legal_name, String(country).toUpperCase().slice(0, 2), req.body.status || 'ACTIVE', req.body.settlement_currency || 'USD');
+    audit(null, user.id, 'admin.reseller_created', { legal_name, country });
+    return { ok: true, id };
+  }));
+  r.get('/app/admin/vouchers', admin(() =>
+    q.all(`SELECT batch_id, reseller_id, product_code, acu_amount, country_lock, currency_lock,
+           COUNT(*) n, SUM(status='dormant') dormant, SUM(status='active') active, SUM(status='redeemed') redeemed, SUM(status='void') void,
+           MIN(created_at) created_at, MAX(expires_at) expires_at
+           FROM vouchers GROUP BY batch_id ORDER BY created_at DESC LIMIT 100`)));
+  r.post('/app/admin/resellers/:id/vouchers', admin((req, user) => {
+    const reseller = q.get('SELECT * FROM resellers WHERE id=?', req.params.id);
+    if (!reseller) return [404, { error: { code: 'reseller_not_found' } }];
+    try {
+      const out = vouchers.issueBatch(reseller, {
+        product_code: req.body.product_code || 'ACU', acu_amount: Math.round(Number(req.body.acu_amount) || 0),
+        quantity: Math.min(1000, Math.max(1, Math.round(Number(req.body.quantity) || 1))),
+        country_lock: (req.body.country_lock || reseller.country || 'CD').toUpperCase().slice(0, 2),
+        currency_lock: req.body.currency_lock || null, expires_at: req.body.expires_at || null,
+      });
+      if (req.body.activate && out.batch_id) vouchers.activateBatch(out.batch_id);
+      audit(null, user.id, 'admin.voucher_batch_issued', { reseller: reseller.id, qty: req.body.quantity });
+      return { ok: true, ...out };
+    } catch (e) { return [400, { error: { code: 'issue_failed', message: String(e.message || e) } }]; }
+  }));
+  r.post('/app/admin/vouchers/:batch/activate', admin((req, user) => {
+    try { const n = vouchers.activateBatch(req.params.batch); audit(null, user.id, 'admin.voucher_batch_activated', { batch: req.params.batch }); return { ok: true, activated: n }; }
+    catch (e) { return [400, { error: { code: 'activate_failed', message: String(e.message || e) } }]; }
+  }));
+
+  // ---- Rails config (read-only view of the RAILS table + provider/secret env state) ----
+  r.get('/app/admin/rails', admin(() => {
+    const SBR = require('../shared/billing').RAILS;
+    const envKey = { paddle_mor: 'PADDLE_KEY', stripe: 'STRIPE_KEY', flutterwave: 'FLUTTERWAVE_KEY', dlocal: 'DLOCAL_KEY', bitripay: 'BITRIPAY_KEY', bank_transfer: null, distributor: null, voucher: null };
+    return {
+      acu_markup: require('../shared/billing').ACU_MARKUP, unit_cost_usd: require('../shared/billing').UNIT_COST_USD, acu_price_usd: require('../shared/billing').ACU_PRICE_USD,
+      rails: Object.entries(SBR).map(([code, r]) => ({
+        code, ...r,
+        provider_key: envKey[code] || null,
+        provider_configured: envKey[code] ? !!process.env[envKey[code]] : (code === 'distributor' || code === 'voucher' || code === 'bank_transfer'),
+        webhook_secret_set: !!(process.env['KODA_WEBHOOK_SECRET_' + code.toUpperCase()] || process.env.KODA_WEBHOOK_SECRET),
+      })),
+    };
+  }));
+
+  // ---- Doors: live-status of all 5 doors (+ Sentinel ingestion) ----
+  r.get('/app/admin/doors', admin(() => {
+    const meta = require('./comms/meta');
+    return {
+      doors: [
+        { id: 1, name: 'Manual console', endpoint: 'POST /app/verify', live: true, requires: 'nothing (pure code path)', status: 'live', note: 'Screenshot path uses VisionAgent (3 ACU).' },
+        { id: 3, name: 'API / drop-in', endpoint: 'POST /v1/intents', live: true, requires: 'an API key', status: 'live', note: 'sk_test keys run in sandbox on the same host.' },
+        { id: 2, name: 'WhatsApp Chat', endpoint: 'POST /webhooks/whatsapp', live: meta.configured(), requires: 'META_WA_TOKEN + META_WA_PHONE_ID (+ APP_SECRET)', status: meta.configured() ? 'live' : 'sandbox', note: meta.appSecretSet() ? 'app secret set' : 'app secret NOT set (signature check open)' },
+        { id: 4, name: 'USSD', endpoint: 'POST /webhooks/ussd', live: false, requires: 'a USSD shortcode from an aggregator (Africa\'s Talking / MNO)', status: 'endpoint ready', note: 'Routes by merchant msisdn. No KODA env key — shortcode lives at the aggregator.' },
+        { id: 5, name: 'Inbound SMS', endpoint: 'POST /webhooks/sms', live: !!process.env.SMS_GATEWAY_KEY, requires: 'SMS_GATEWAY_KEY + an SMS long/short-code', status: process.env.SMS_GATEWAY_KEY ? 'live' : 'endpoint ready', note: 'Replies send via gateway only when the key is set.' },
+      ],
+      sentinel: {
+        name: 'Sentinel phone-edge (feeds all doors)', endpoint: 'POST /v1/device/sms',
+        active_devices: q.get(`SELECT COUNT(*) c FROM devices WHERE status='active'`).c,
+        total_devices: q.get('SELECT COUNT(*) c FROM devices').c,
+        requires: 'the Sentinel Android app on the merchant SIM phone',
+      },
+      config: {
+        meta_wa_token: !!process.env.META_WA_TOKEN, meta_wa_phone_id: !!process.env.META_WA_PHONE_ID,
+        meta_wa_app_secret: !!process.env.META_WA_APP_SECRET, sms_gateway_key: !!process.env.SMS_GATEWAY_KEY,
+      },
+    };
+  }));
+
+  // ---- AI agents: the runnable mesh catalogue (+ growth + SEO) ----
+  r.get('/app/admin/agents', admin(() => {
+    const growth = require('./lib/growth');
+    return {
+      runnable: AGENTS.map(({ run, ...meta }) => meta),
+      growth: Object.entries(growth.TOOLS).map(([id, t]) => ({ id, label: t.label, acu: t.acu })),
+      seo: { id: 'K-10', label: 'SEO Autopilot', ai_gateway: !!(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY) },
+      acu_costs: require('../shared/plans').ACU,
+    };
   }));
 
   // ---------- public API (/v1) — key-authenticated ----------

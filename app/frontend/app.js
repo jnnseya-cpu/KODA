@@ -848,8 +848,11 @@ VIEWS.settings = async () => {
 const PLAN_KEYS = ['marche', 'boutique', 'commerce', 'plateforme', 'enterprise'];
 const ROLE_KEYS = ['cashier', 'manager', 'owner'];
 const ADMIN_TABS = [
-  ['overview', 'Overview'], ['revenue', 'Revenue'], ['fraud', 'Fraud & disputes'],
-  ['verifications', 'Verifications'], ['devices', 'Devices'], ['health', 'System health'], ['audit', 'Audit log'],
+  ['overview', 'Overview'], ['revenue', 'Revenue'], ['collections', 'Collections'],
+  ['distributors', 'Distributors'], ['vouchers', 'Resellers & vouchers'], ['rails', 'Rails'],
+  ['coverage', 'Coverage'], ['doors', 'Doors'], ['agents', 'AI agents'],
+  ['fraud', 'Fraud & disputes'], ['verifications', 'Verifications'], ['devices', 'Devices'],
+  ['health', 'System health'], ['audit', 'Audit log'],
 ];
 const adminTabBar = (active) => `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px">
   ${ADMIN_TABS.map(([id, label]) => `<a href="#admin${id === 'overview' ? '' : '?tab=' + id}"
@@ -863,6 +866,13 @@ VIEWS.admin = async (params) => {
   if (mid) return adminMerchantDetail(mid);
   const tab = (params && params.get && params.get('tab')) || 'overview';
   if (tab === 'revenue') return adminRevenue();
+  if (tab === 'collections') return adminCollections();
+  if (tab === 'distributors') return adminDistributors();
+  if (tab === 'vouchers') return adminResellers();
+  if (tab === 'rails') return adminRails();
+  if (tab === 'coverage') return adminCoverage();
+  if (tab === 'doors') return adminDoors();
+  if (tab === 'agents') return adminAgents();
   if (tab === 'fraud') return adminFraud();
   if (tab === 'verifications') return adminVerifications();
   if (tab === 'devices') return adminDevices();
@@ -877,11 +887,14 @@ VIEWS.admin = async (params) => {
     <div class="card stat"><b>${fmt(o.devices)}</b><span>active sentinels · ${fmt(o.quarantined)} quarantined SMS</span></div>
     <div class="card stat"><b>${fmt(o.openDisputes)}</b><span>open disputes · ${fmt(o.deliveries)} comms sent</span></div>
   </div>
-  <div class="card" style="margin-top:14px"><h3>Per-operator parse health (public page mirrors this)</h3>
-    ${o.parseHealth.map(p => `<div style="margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-        <span class="mono">${p.operator}</span><span class="mono" style="color:${p.rate > 0.98 ? 'var(--verify)' : 'var(--gold)'}">${(p.rate * 100).toFixed(1)}%</span></div>
-      <div class="progress"><i style="width:${p.rate * 100}%"></i></div></div>`).join('')}
+  <div class="card" style="margin-top:14px"><h3>Operator coverage — <a href="#admin?tab=coverage" style="color:var(--gold)">see all ${fmt(o.coverage.total)} →</a></h3>
+    <div class="grid g4" style="margin-top:6px">
+      <div class="card stat"><b>${fmt(o.coverage.total)}</b><span>operators · ${fmt(o.coverage.countries)} countries</span></div>
+      <div class="card stat"><b>${fmt(o.coverage.packed)}</b><span>precise packs · ${fmt(o.coverage.generic)} generic</span></div>
+      <div class="card stat"><b>${fmt(o.coverage.byTier.A)}</b><span>Tier A (SMS-native)</span></div>
+      <div class="card stat"><b>${fmt(o.coverage.addressable_families)}</b><span>addressable families</span></div>
+    </div>
+    <p style="font-size:12px;color:var(--dim);margin-top:10px">Precise (packed) operators: ${o.packedOperators.map(p => `<span class="mono">${esc(p.id)}</span>`).join(' · ')}</p>
   </div>
   <details class="card" style="margin-top:14px">
     <summary style="cursor:pointer;font-weight:700;color:var(--gold)">＋ Create a merchant account</summary>
@@ -991,6 +1004,199 @@ async function adminRevenue() {
   ${d.outstanding.length ? `<div class="card tbl-wrap" style="margin-top:14px"><h3 class="bad">Negative balances (in grace / overdue)</h3>
     <table class="tbl"><tr><th>Merchant</th><th class="num">Balance</th></tr>
     ${d.outstanding.map(m => `<tr><td>${esc(m.name)}</td><td class="num bad">${fmt(m.acu_balance)}</td></tr>`).join('')}</table></div>` : ''}`);
+}
+
+// ---- Coverage: the real 235-operator registry ----
+async function adminCoverage() {
+  const d = await api('/app/admin/coverage');
+  const c = d.coverage;
+  const regions = Object.entries(c.byRegion || {}).sort((a, b) => b[1] - a[1]);
+  shell('admin', 'Coverage', `KODA staff — ${fmt(c.total)} operators · ${fmt(c.countries)} countries`, adminTabBar('coverage') + `
+  <div class="grid g4">
+    <div class="card stat"><b>${fmt(c.total)}</b><span>operators · ${fmt(c.countries)} countries</span></div>
+    <div class="card stat"><b>${fmt(c.packed)}</b><span>precise packs · ${fmt(c.generic)} generic</span></div>
+    <div class="card stat"><b>${fmt(c.byTier.A)}/${fmt(c.byTier.B)}/${fmt(c.byTier.C)}</b><span>tier A / B / C</span></div>
+    <div class="card stat"><b>${fmt(c.addressable_families)}</b><span>addressable families</span></div>
+  </div>
+  <div class="grid" style="grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+    <div class="card"><h3>By region</h3>${regions.map(([r, n]) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span class="mono">${esc(r)}</span><b>${fmt(n)}</b></div>`).join('')}</div>
+    <div class="card"><h3>Top families (one grammar → many markets)</h3>${(d.families || []).slice(0, 12).map(f => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span class="mono">${esc(f.family)} <span class="badge b-info">${esc(f.tier)}</span></span><b>${fmt(f.deployments)} dep · ${fmt(f.countries)} co</b></div>`).join('')}</div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>All operators (${fmt(d.operators.length)})</h3>
+    <input id="opq" placeholder="Filter by name / country / family…" oninput="adminFilterOps()" style="width:100%;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px;margin-bottom:10px">
+    <div class="tbl-wrap"><table class="tbl" id="optbl"><tr><th>Operator</th><th>Country</th><th>Region</th><th>Currency</th><th>Family</th><th>Tier</th><th>Parser</th></tr>
+    ${d.operators.map(o => `<tr class="oprow" data-s="${esc((o.name + ' ' + o.country + ' ' + o.family + ' ' + o.id).toLowerCase())}">
+      <td>${esc(o.name)} <span class="mono" style="font-size:11px;color:var(--dim)">${esc(o.id)}</span></td><td class="mono">${esc(o.country)}</td><td class="mono" style="font-size:11px">${esc(o.region)}</td>
+      <td class="mono">${esc(o.currency)}</td><td class="mono" style="font-size:11px">${esc(o.family)}</td><td><span class="badge ${o.tier === 'A' ? 'b-ok' : o.tier === 'B' ? 'b-info' : 'b-bad'}">${esc(o.tier)}</span></td>
+      <td>${o.parser === 'precise' ? '<span class="badge b-ok">precise</span>' : '<span class="badge b-info">generic</span>'}</td></tr>`).join('')}
+    </table></div></div>`);
+}
+window.adminFilterOps = () => {
+  const q = (document.getElementById('opq').value || '').toLowerCase();
+  document.querySelectorAll('#optbl .oprow').forEach(r => { r.style.display = r.dataset.s.includes(q) ? '' : 'none'; });
+};
+
+// ---- Collections dashboard (Billing Mesh) ----
+async function adminCollections() {
+  const d = await api('/app/admin/collections');
+  const treasury = (d.accounts.find(a => a.account_key === 'koda:treasury') || {}).balance_acu || 0;
+  shell('admin', 'Collections', 'KODA staff — money in by rail · double-entry ledger', adminTabBar('collections') + `
+  <div class="grid g4">
+    <div class="card stat"><b>$${fmt(d.settled_totals.gross)}</b><span>settled gross · ${fmt(d.settled_totals.n)} topups</span></div>
+    <div class="card stat"><b>$${fmt(d.settled_totals.net)}</b><span>KODA net (4× cost)</span></div>
+    <div class="card stat"><b>${fmt(treasury)}</b><span>koda:treasury ACU</span></div>
+    <div class="card stat"><b>${d.reconcile.balanced ? '<span class="ok">● balanced</span>' : '<span class="bad">● IMBALANCE</span>'}</b><span>ledger Σ=${d.reconcile.sum}</span></div>
+  </div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Topups by rail &amp; status</h3>
+    ${d.by_rail.length ? `<table class="tbl"><tr><th>Rail</th><th>Status</th><th class="num">Count</th><th class="num">Gross $</th><th class="num">Net $</th><th class="num">ACU</th></tr>
+    ${d.by_rail.map(r => `<tr><td class="mono">${esc(r.rail)}</td><td><span class="badge ${r.status === 'settled' ? 'b-ok' : r.status === 'failed' ? 'b-bad' : 'b-info'}">${esc(r.status)}</span></td><td class="num">${fmt(r.n)}</td><td class="num">$${fmt(r.gross)}</td><td class="num">$${fmt(r.net)}</td><td class="num">${fmt(r.acu)}</td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No collections yet. Topups appear here as merchants pay via a rail, distributor, or voucher.</p>'}</div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Billing accounts</h3>
+    <table class="tbl"><tr><th>Account</th><th class="num">Balance (ACU)</th></tr>
+    ${d.accounts.length ? d.accounts.map(a => `<tr><td class="mono">${esc(a.account_key)}</td><td class="num">${fmt(a.balance_acu)}</td></tr>`).join('') : '<tr><td colspan="2" style="color:var(--dim)">No ledger accounts yet.</td></tr>'}
+    </table></div>
+  ${d.ledger.length ? `<div class="card tbl-wrap" style="margin-top:14px"><h3>Recent ledger entries</h3>
+    <table class="tbl"><tr><th>When</th><th>Account</th><th>Type</th><th class="num">Δ ACU</th><th class="num">Balance after</th></tr>
+    ${d.ledger.map(l => `<tr><td>${when(l.created_at)}</td><td class="mono" style="font-size:11px">${esc(l.account_key)}</td><td class="mono" style="font-size:11px">${esc(l.entry_type)}</td><td class="num ${l.acu_delta < 0 ? 'bad' : 'ok'}">${l.acu_delta > 0 ? '+' : ''}${fmt(l.acu_delta)}</td><td class="num">${fmt(l.balance_after)}</td></tr>`).join('')}
+    </table></div>` : ''}`);
+}
+
+// ---- Distributors (field agents) ----
+async function adminDistributors() {
+  const rows = await api('/app/admin/distributors');
+  shell('admin', 'Distributors', 'KODA staff — field agents who sell prepaid ACU near merchants', adminTabBar('distributors') + `
+  <details class="card"><summary style="cursor:pointer;font-weight:700;color:var(--gold)">＋ Create a distributor (KD)</summary>
+    <p style="font-size:13px;color:var(--dim);margin:10px 0">A distributor holds prepaid ACU float and sells it to merchants near them (pay-an-agent rail). Fund their float, then merchants can top up through them.</p>
+    <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:640px">
+      <input id="kd-name" placeholder="Distributor name" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="kd-country" placeholder="Country (CD)" value="CD" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="kd-msisdn" placeholder="+243 … (their mobile-money pay-to)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <button class="btn btn-gold" onclick="adminCreateKd()">Create distributor</button>
+    </div><div id="kd-out" style="margin-top:10px"></div></details>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Distributors (${fmt(rows.length)})</h3>
+    ${rows.length ? `<table class="tbl"><tr><th>Name</th><th>Country</th><th>Pay-to</th><th class="num">Float ACU</th><th class="num">Sold</th><th>Status</th><th></th></tr>
+    ${rows.map(k => `<tr><td>${esc(k.name)}</td><td class="mono">${esc(k.country)}</td><td class="mono" style="font-size:11px">${esc(k.msisdn || '—')}</td>
+      <td class="num">${fmt(k.float_acu)}</td><td class="num">${fmt(k.sold_acu)} (${fmt(k.sales)})</td>
+      <td><span class="badge ${k.status === 'active' ? 'b-ok' : 'b-bad'}">${esc(k.status)}</span></td>
+      <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="adminFundKd('${k.id}','${esc(k.name)}')">fund</button>
+        <button class="btn btn-danger btn-sm" onclick="adminFreezeKd('${k.id}')">${k.status === 'frozen' ? 'activate' : 'freeze'}</button></td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No distributors yet. Create one above, then fund their float.</p>'}</div>`);
+}
+window.adminCreateKd = async () => {
+  const out = document.getElementById('kd-out');
+  try { const r = await api('/app/admin/distributors', { body: { name: v('kd-name'), country: v('kd-country') || 'CD', msisdn: v('kd-msisdn') } });
+    out.innerHTML = `<div class="badge b-ok">✓ created ${esc(r.id)}</div>`; setTimeout(route, 1500); }
+  catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
+window.adminFundKd = async (id, name) => {
+  const acu = prompt('Fund ' + name + ' — how many ACU of float to add?', '1000');
+  if (!acu) return;
+  try { const r = await api(`/app/admin/distributors/${id}/fund`, { body: { acu: Number(acu) } }); toast('✓ float now ' + fmt(r.float)); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
+window.adminFreezeKd = async (id) => { try { await api(`/app/admin/distributors/${id}/freeze`, { body: {} }); toast('✓ updated'); route(); } catch (e) { toast('✗ ' + e.message); } };
+
+// ---- Resellers & vouchers ----
+async function adminResellers() {
+  const resellers = await api('/app/admin/resellers');
+  const batches = await api('/app/admin/vouchers');
+  shell('admin', 'Resellers & vouchers', 'KODA staff — Ed25519-signed prepaid ACU vouchers', adminTabBar('vouchers') + `
+  <details class="card"><summary style="cursor:pointer;font-weight:700;color:var(--gold)">＋ Add a reseller</summary>
+    <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:640px;margin-top:10px">
+      <input id="rs-name" placeholder="Legal name" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="rs-country" placeholder="Country (CD)" value="CD" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <button class="btn btn-gold" onclick="adminCreateReseller()">Add reseller</button>
+    </div><div id="rs-out" style="margin-top:10px"></div></details>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Resellers (${fmt(resellers.length)})</h3>
+    ${resellers.length ? `<table class="tbl"><tr><th>Legal name</th><th>Country</th><th>Status</th><th class="num">Vouchers</th><th></th></tr>
+    ${resellers.map(r => `<tr><td>${esc(r.legal_name)}</td><td class="mono">${esc(r.country)}</td><td><span class="badge ${r.status === 'ACTIVE' ? 'b-ok' : 'b-info'}">${esc(r.status)}</span></td><td class="num">${fmt(r.vouchers)}</td>
+      <td><button class="btn btn-gold btn-sm" onclick="adminIssueVouchers('${r.id}','${esc(r.legal_name)}')">issue batch</button></td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No resellers yet. Add one, then issue voucher batches.</p>'}</div>
+  <div id="vb-out"></div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Voucher batches (${fmt(batches.length)})</h3>
+    ${batches.length ? `<table class="tbl"><tr><th>Batch</th><th>Product</th><th class="num">ACU</th><th>Lock</th><th class="num">Total</th><th>Dormant/Active/Redeemed</th><th></th></tr>
+    ${batches.map(b => `<tr><td class="mono" style="font-size:11px">${esc(b.batch_id)}</td><td class="mono">${esc(b.product_code)}</td><td class="num">${fmt(b.acu_amount)}</td><td class="mono">${esc(b.country_lock || '—')}</td><td class="num">${fmt(b.n)}</td>
+      <td class="mono" style="font-size:12px">${fmt(b.dormant)}/${fmt(b.active)}/${fmt(b.redeemed)}</td>
+      <td>${b.dormant > 0 ? `<button class="btn btn-gold btn-sm" onclick="adminActivateBatch('${esc(b.batch_id)}')">activate</button>` : ''}</td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No voucher batches yet.</p>'}</div>`);
+}
+window.adminCreateReseller = async () => {
+  const out = document.getElementById('rs-out');
+  try { const r = await api('/app/admin/resellers', { body: { legal_name: v('rs-name'), country: v('rs-country') || 'CD' } });
+    out.innerHTML = `<div class="badge b-ok">✓ created ${esc(r.id)}</div>`; setTimeout(route, 1500); }
+  catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
+window.adminIssueVouchers = async (id, name) => {
+  const qty = prompt('Issue vouchers for ' + name + ' — how many?', '10');
+  if (!qty) return;
+  const acu = prompt('ACU value per voucher?', '100');
+  if (!acu) return;
+  try {
+    const r = await api(`/app/admin/resellers/${id}/vouchers`, { body: { quantity: Number(qty), acu_amount: Number(acu), activate: true } });
+    const pins = (r.pins || r.vouchers || []).map(p => typeof p === 'string' ? p : (p.pin || p)).join('<br>');
+    document.getElementById('vb-out').innerHTML = `<div class="card" style="margin-top:14px;border-color:var(--gold)"><h3 class="ok">✓ ${fmt(r.count || (r.pins || []).length)} vouchers issued — PINs shown once</h3><div class="mono" style="font-size:12px;line-height:1.9;word-break:break-all">${pins || '(see batch — PINs delivered to reseller)'}</div></div>`;
+    setTimeout(route, 6000);
+  } catch (e) { toast('✗ ' + e.message); }
+};
+window.adminActivateBatch = async (batch) => { try { const r = await api(`/app/admin/vouchers/${batch}/activate`, { body: {} }); toast('✓ activated ' + fmt(r.activated)); route(); } catch (e) { toast('✗ ' + e.message); } };
+
+// ---- Rails config ----
+async function adminRails() {
+  const d = await api('/app/admin/rails');
+  shell('admin', 'Rails', 'KODA staff — collection rails & pricing law', adminTabBar('rails') + `
+  <div class="grid g4">
+    <div class="card stat"><b>${d.acu_markup}×</b><span>ACU markup (over cost)</span></div>
+    <div class="card stat"><b>$${d.acu_price_usd}</b><span>ACU retail price</span></div>
+    <div class="card stat"><b>$${d.unit_cost_usd}</b><span>provider unit cost</span></div>
+    <div class="card stat"><b>${d.rails.filter(r => r.live).length}/${d.rails.length}</b><span>rails live</span></div>
+  </div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Collection rails</h3>
+    <table class="tbl"><tr><th>Rail</th><th class="num">Fee %</th><th>Flow</th><th>Live</th><th>Provider key</th><th>Webhook secret</th></tr>
+    ${d.rails.map(r => `<tr><td>${esc(r.label)} <span class="mono" style="font-size:11px;color:var(--dim)">${esc(r.code)}</span></td>
+      <td class="num">${(r.fee_pct * 100).toFixed(1)}%</td><td class="mono" style="font-size:11px">${esc(r.flow)}</td>
+      <td><span class="badge ${r.live ? 'b-ok' : 'b-bad'}">${r.live ? 'live' : 'off'}</span></td>
+      <td>${r.provider_key ? (r.provider_configured ? '<span class="ok">● set</span>' : '<span class="warn">● missing</span>') + ' <span class="mono" style="font-size:10px">' + esc(r.provider_key) + '</span>' : '<span class="mono" style="font-size:11px;color:var(--dim)">n/a</span>'}</td>
+      <td>${r.webhook_secret_set ? '<span class="ok">● set</span>' : '<span class="warn">● not set</span>'}</td></tr>`).join('')}
+    </table>
+    <p style="font-size:12px;color:var(--dim);margin-top:10px">Rails are configured in code + env (provider keys, webhook secrets). A rail with <code>live:false</code> (e.g. BitriPay) never appears to merchants. Fees are passed through to the merchant — KODA's margin is always ≥100%.</p></div>`);
+}
+
+// ---- Doors status ----
+async function adminDoors() {
+  const d = await api('/app/admin/doors');
+  shell('admin', 'Doors', 'KODA staff — the 5 doors into the engine & how each goes live', adminTabBar('doors') + `
+  <div class="card"><h3>Sentinel ingestion (feeds every door)</h3>
+    <p style="font-size:14px">${fmt(d.sentinel.active_devices)} active / ${fmt(d.sentinel.total_devices)} devices · <span style="color:var(--dim)">${esc(d.sentinel.requires)}</span></p></div>
+  ${d.doors.map(door => `<div class="card" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <h3 style="margin:0">Door ${door.id} · ${esc(door.name)}</h3>
+      <span class="badge ${door.live ? 'b-ok' : 'b-info'}">${esc(door.status)}</span></div>
+    <p style="font-size:13px;color:var(--dim);margin:6px 0 0"><span class="mono">${esc(door.endpoint)}</span></p>
+    <p style="font-size:13px;margin:6px 0 0"><b>To go live:</b> ${esc(door.requires)}</p>
+    <p style="font-size:12px;color:var(--dim);margin:4px 0 0">${esc(door.note)}</p></div>`).join('')}
+  <div class="card" style="margin-top:12px"><h3>Config flags</h3>
+    <dl class="kv">
+      <dt>META_WA_TOKEN</dt><dd>${d.config.meta_wa_token ? '<span class="ok">● set</span>' : '<span class="warn">● not set</span>'}</dd>
+      <dt>META_WA_PHONE_ID</dt><dd>${d.config.meta_wa_phone_id ? '<span class="ok">● set</span>' : '<span class="warn">● not set</span>'}</dd>
+      <dt>META_WA_APP_SECRET</dt><dd>${d.config.meta_wa_app_secret ? '<span class="ok">● set</span>' : '<span class="warn">● not set</span>'}</dd>
+      <dt>SMS_GATEWAY_KEY</dt><dd>${d.config.sms_gateway_key ? '<span class="ok">● set</span>' : '<span class="warn">● not set</span>'}</dd>
+    </dl></div>`);
+}
+
+// ---- AI agents ----
+async function adminAgents() {
+  const d = await api('/app/admin/agents');
+  shell('admin', 'AI agents', 'KODA staff — the runnable agent mesh & ACU costs', adminTabBar('agents') + `
+  <div class="card tbl-wrap"><h3>Runnable agents (API: /v1/agents)</h3>
+    <table class="tbl"><tr><th>ID</th><th>Agent</th><th>Type</th><th class="num">ACU</th></tr>
+    ${d.runnable.map(a => `<tr><td class="mono">${esc(a.id)}</td><td>${esc(a.label)}</td><td class="mono">${esc(a.type)}</td><td class="num">${a.acu}</td></tr>`).join('')}
+    </table></div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Growth engine (K-11) tools</h3>
+    <table class="tbl"><tr><th>Tool</th><th class="num">ACU</th></tr>
+    ${d.growth.map(g => `<tr><td>${esc(g.label)} <span class="mono" style="font-size:11px;color:var(--dim)">${esc(g.id)}</span></td><td class="num">${g.acu}</td></tr>`).join('')}
+    </table></div>
+  <div class="card" style="margin-top:14px"><h3>SEO Autopilot (${esc(d.seo.id)})</h3>
+    <p style="font-size:13px">AI gateway: ${d.seo.ai_gateway ? '<span class="ok">● configured</span>' : '<span class="warn">● not configured (set ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY)</span>'}</p></div>`);
 }
 
 // ---- 6 · Fraud & disputes ----
