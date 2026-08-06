@@ -25,6 +25,7 @@ const I18N = {
     send_reset: 'Envoyer le lien', reset_pw: 'Réinitialiser le mot de passe',
     reset_sub: 'Choisissez un nouveau mot de passe pour votre compte KODA.',
     reset_done: 'Mot de passe mis à jour. Redirection vers la connexion…',
+    accounts: 'Comptes de paiement', redeem_voucher: 'Utiliser un bon', kd_console: 'Console distributeur',
   },
   en: {
     dashboard: 'Dashboard', verify: 'Verify', feed: 'Live payments feed', receipts: 'Receipts',
@@ -48,6 +49,7 @@ const I18N = {
     send_reset: 'Send reset link', reset_pw: 'Reset password',
     reset_sub: 'Choose a new password for your KODA account.',
     reset_done: 'Password updated. Redirecting to sign in…',
+    accounts: 'Payment methods', redeem_voucher: 'Redeem voucher', kd_console: 'Distributor console',
   },
 };
 let LANG = localStorage.getItem('koda_lang') || '';
@@ -89,7 +91,7 @@ window.addEventListener('hashchange', route);
 
 const ROLE_VIEWS = {
   cashier: ['dashboard', 'verify', 'feed', 'receipts', 'receipt', 'comms', 'settings'],
-  manager: ['dashboard', 'verify', 'feed', 'receipts', 'receipt', 'disputes', 'devices', 'comms', 'settings'],
+  manager: ['dashboard', 'verify', 'feed', 'receipts', 'receipt', 'disputes', 'accounts', 'devices', 'comms', 'settings'],
 };
 const GROWTH_TOOLS = [
   ['social_post', '📱', 'Social media post'], ['advert', '📢', 'Advert creator'],
@@ -130,6 +132,7 @@ function shell(active, title, sub, content) {
   const ops = [
     ['disputes', '⚖', t('disputes')],
     ['sec', '', 'Operations'],
+    ['accounts', '🏦', t('accounts')],
     ['devices', '▣', t('devices')],
   ];
   const ownerOnly = [
@@ -473,6 +476,76 @@ window.resolveDispute = async (id, outcome) => {
   await api(`/app/disputes/${id}/resolve`, { body: { outcome } }); toast('✓ ' + outcome); route();
 };
 
+// ---- Payment methods (Network Intelligence: connect → verify → activate) ----
+VIEWS.accounts = async () => {
+  const accts = await api('/app/network-accounts');
+  const resolved = await api('/app/payment-methods').catch(() => ({ available: [], excluded: [] }));
+  const devices = await api('/app/devices').catch(() => []);
+  shell('accounts', t('accounts'), 'Connect the mobile-money accounts customers pay you on — verify ownership, then activate', `
+  <div class="card"><h3>Add a receiving account</h3>
+    <p style="font-size:13px;color:var(--dim)">Enter the operator + the number/till customers pay to. We give you a one-time reference; make a tiny test payment carrying it, and once your Sentinel captures it the account is verified.</p>
+    <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:680px">
+      <input id="na-code" placeholder="Operator code (e.g. orange_cd)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="na-ident" placeholder="Your pay-to number / till" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="na-name" placeholder="Account holder name" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <button class="btn btn-gold" onclick="connectAccount()">Connect account</button>
+    </div><div id="na-out" style="margin-top:10px"></div>
+    <p style="font-size:12px;color:var(--dim);margin-top:8px">Operator codes: see <a href="#admin?tab=coverage" style="color:var(--gold)">Coverage</a> or the public <a href="/coverage" target="_blank">coverage page</a>. Tier-C (bank/app-rail) networks aren't SMS-verifiable.</p></div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Your accounts (${fmt(accts.length)})</h3>
+    ${accts.length ? `<table class="tbl"><tr><th>Operator</th><th>Number</th><th>Ownership</th><th>Status</th><th>Doors</th><th></th></tr>
+    ${accts.map(a => `<tr><td class="mono">${esc(a.network_code)}</td><td class="mono">${esc(a.masked || '—')}</td>
+      <td><span class="badge ${a.ownership_status === 'VERIFIED' ? 'b-ok' : 'b-info'}">${esc(a.ownership_status)}</span>${a.ownership_status !== 'VERIFIED' && a.verify_ref ? `<div class="mono" style="font-size:10px;color:var(--dim)">ref ${esc(a.verify_ref)}</div>` : ''}</td>
+      <td><span class="badge ${a.activation_status === 'ACTIVE' ? 'b-ok' : a.activation_status === 'PAUSED' ? 'b-bad' : 'b-info'}">${esc(a.activation_status)}</span></td>
+      <td style="font-size:11px" class="mono">${a.enabled_manual ? 'M' : '·'}${a.enabled_whatsapp ? 'W' : '·'}${a.enabled_api ? 'A' : '·'}</td>
+      <td style="white-space:nowrap">${a.activation_status === 'DRAFT' || a.ownership_status === 'VERIFIED' && a.activation_status !== 'ACTIVE' ? `<button class="btn btn-gold btn-sm" onclick="activateAccount('${a.id}')">activate</button>` : ''}
+        ${a.activation_status === 'ACTIVE' ? `<button class="btn btn-ghost btn-sm" onclick="pauseAccount('${a.id}')">pause</button>` : a.activation_status === 'PAUSED' ? `<button class="btn btn-gold btn-sm" onclick="resumeAccount('${a.id}')">resume</button>` : ''}</td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No accounts yet. Connect one above.</p>'}</div>
+  <div class="card" style="margin-top:14px"><h3>What customers would see now</h3>
+    ${(resolved.available || []).length ? (resolved.available || []).map(mth => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span class="mono">${esc(mth.network_code || mth.network || '')}</span><span class="badge b-ok">${esc(mth.health || 'live')}</span></div>`).join('') : '<p style="color:var(--dim);font-size:13px">No live payment methods yet — connect &amp; activate an account (and keep a Sentinel online for auto doors).</p>'}
+    ${(resolved.excluded || []).length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--dim)">Why some are hidden (${resolved.excluded.length})</summary>${resolved.excluded.map(e => `<div class="mono" style="font-size:11px;color:var(--dim);padding:2px 0">${esc(e.network_code || e.network || '')} — ${esc(e.reason || '')}</div>`).join('')}</details>` : ''}</div>`);
+};
+window.connectAccount = async () => {
+  const out = document.getElementById('na-out');
+  try {
+    const r = await api('/app/network-accounts', { body: { network_code: v('na-code'), account_identifier: v('na-ident'), account_holder_name: v('na-name') } });
+    out.innerHTML = `<div class="badge b-ok" style="line-height:1.6">✓ Connected. Send a tiny test payment with reference <b class="mono">${esc(r.verify_ref)}</b> to this number; once your Sentinel captures it, come back and click <b>activate</b>.</div>`;
+    setTimeout(route, 3500);
+  } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
+window.activateAccount = async (id) => { try { await api(`/app/network-accounts/${id}/activate`, { body: {} }); toast('✓ activated'); route(); } catch (e) { toast('✗ ' + e.message); } };
+window.pauseAccount = async (id) => { try { await api(`/app/network-accounts/${id}/pause`, { body: {} }); toast('✓ paused'); route(); } catch (e) { toast('✗ ' + e.message); } };
+window.resumeAccount = async (id) => { try { await api(`/app/network-accounts/${id}/resume`, { body: {} }); toast('✓ resumed'); route(); } catch (e) { toast('✗ ' + e.message); } };
+
+// ---- Distributor (KD) console — only meaningful if this merchant is a distributor ----
+VIEWS.kd = async () => {
+  let float;
+  try { float = await api('/app/kd/float'); }
+  catch { return shell('kd', t('kd_console'), 'Distributor console', `<div class="card"><h3>Not a distributor</h3><p style="font-size:14px;color:var(--dim)">This account isn't set up as a KODA distributor. Distributors hold prepaid ACU float and sell it to nearby merchants. Ask KODA staff to enable it.</p></div>`); }
+  const sales = await api('/app/kd/sales').catch(() => ({ sales: [] }));
+  shell('kd', t('kd_console'), `${esc(float.name)} · ${esc(float.country)}`, `
+  <div class="grid g4">
+    <div class="card stat"><b>${fmt(float.float_acu)}</b><span>ACU float (inventory)</span></div>
+    <div class="card stat"><b>${fmt((sales.sales || []).filter(s => s.status === 'settled').length)}</b><span>settled sales</span></div>
+    <div class="card stat"><b><span class="badge ${float.status === 'active' ? 'b-ok' : 'b-bad'}">${esc(float.status)}</span></b><span>status</span></div>
+    <div class="card stat"><b>${fmt((sales.sales || []).reduce((a, s) => a + (s.status === 'settled' ? s.acu_amount : 0), 0))}</b><span>ACU sold</span></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Buy ACU float (wholesale)</h3>
+    <p style="font-size:13px;color:var(--dim)">Prepay a block of ACU at your wholesale rate; you resell it to merchants near you.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="kd-block" type="number" placeholder="ACU block (e.g. 5000)" style="flex:1;min-width:160px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <button class="btn btn-gold" onclick="kdBuy()">Buy float</button></div><div id="kd-out" style="margin-top:10px"></div></div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Recent sales</h3>
+    ${(sales.sales || []).length ? `<table class="tbl"><tr><th>When</th><th class="num">ACU</th><th class="num">$</th><th>Status</th></tr>
+    ${sales.sales.map(s => `<tr><td>${when(s.created_at)}</td><td class="num">${fmt(s.acu_amount)}</td><td class="num">$${fmt(s.total_usd)}</td><td><span class="badge ${s.status === 'settled' ? 'b-ok' : 'b-info'}">${esc(s.status)}</span></td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No sales yet.</p>'}</div>`);
+};
+window.kdBuy = async () => {
+  const out = document.getElementById('kd-out');
+  const block = Number(v('kd-block'));
+  if (!block) return void (out.innerHTML = '<div class="badge b-bad">Enter an ACU amount.</div>');
+  try { const r = await api('/app/kd/wholesale', { body: { acu_block: block } }); out.innerHTML = `<div class="badge b-ok">✓ float purchased</div>`; setTimeout(route, 1500); }
+  catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
+
 VIEWS.devices = async () => {
   const rows = await api('/app/devices');
   shell('devices', t('devices'), 'The edge fleet — each SIM is a verification endpoint', `
@@ -522,6 +595,14 @@ VIEWS.billing = async () => {
     </div>
     <div id="topup-out" style="margin-top:14px"></div>
   </div>
+  <div class="card" style="margin-top:14px"><h3>${t('redeem_voucher')}</h3>
+    <p style="font-size:13px;color:var(--dim)">Bought a KODA voucher from a reseller? Enter the PIN to credit ACU instantly.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="vpin" placeholder="KODA-CD-XXXX-XXXX-XXXX" style="flex:1;min-width:220px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px" class="mono">
+      <button class="btn btn-gold" onclick="redeemVoucher()">${t('redeem_voucher')}</button></div>
+    <div id="voucher-out" style="margin-top:10px"></div></div>
+  <div class="card" style="margin-top:14px"><h3>Distributor?</h3>
+    <p style="font-size:13px;color:var(--dim)">If KODA has set you up as a distributor (ACU reseller), manage your float and sales here.</p>
+    <a class="btn btn-ghost" href="#kd">${t('kd_console')} →</a></div>
   <div class="card" style="margin-top:14px"><h3>${t('change_plan')}</h3>
     <div class="pill-row">${plans.map(p => `<button class="pill ${b.plan.label.toLowerCase() === p ? 'on' : ''}" onclick="setPlan('${p}')">${p}</button>`).join('')}</div>
     <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $19 · Commerce $79 · Plateforme $399 · Enterprise custom — one ladder, all three doors.</div>
@@ -570,6 +651,13 @@ async function ensureTestKey() {
   const r = await api('/app/keys', { body: { prefix: 'sk_test', label: 'console-internal' } });
   _testKey = r.secret; return _testKey;
 }
+window.redeemVoucher = async () => {
+  const out = document.getElementById('voucher-out');
+  try { const r = await api('/app/billing/voucher/redeem', { body: { pin: v('vpin') } });
+    out.innerHTML = `<div class="badge b-ok">✓ ${fmt(r.acu_credited || r.acu || 0)} ACU credited</div>`;
+    ME = await api('/app/me'); setTimeout(route, 1800); }
+  catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
 window.setPlan = async (p) => {
   const r = await api('/app/billing/plan', { body: { plan: p } });
   if (r.ok) { ME = await api('/app/me'); toast('✓ Plan: ' + p); route(); return; }
@@ -615,7 +703,7 @@ VIEWS.team = async () => {
   <div class="card tbl-wrap" style="margin-top:14px"><table class="tbl">
     <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
     ${d.members.map(u => `<tr><td>${esc(u.name)}</td><td class="mono" style="font-size:12px">${esc(u.email)}</td>
-      <td><span class="badge b-info">${esc(u.role)}</span></td>
+      <td>${(ME.user.role === 'owner' || ME.user.is_admin) && u.id !== ME.user.id ? `<select onchange="setMemberRole('${u.id}',this.value)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);padding:5px">${['cashier', 'manager', 'owner'].map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${r}</option>`).join('')}</select>` : `<span class="badge b-info">${esc(u.role)}</span>`}</td>
       <td><span class="badge ${u.status === 'active' ? 'b-ok' : 'b-bad'}">${esc(u.status)}</span></td></tr>`).join('')}
   </table></div>
   <div class="card" style="margin-top:14px"><h3>Audit trail</h3>
@@ -624,6 +712,7 @@ VIEWS.team = async () => {
       <div class="m">${esc(a.detail || '')} · ${when(a.created_at)}</div></div></div>`).join('') || '<div class="empty">Empty</div>'}
   </div>`);
 };
+window.setMemberRole = async (id, role) => { try { await api(`/app/team/${id}/role`, { body: { role } }); toast('✓ role → ' + role); } catch (e) { toast('✗ ' + e.message); route(); } };
 window.inviteMember = async () => {
   try { await api('/app/team/invite', { body: { name: v('tname'), email: v('temail'), role: v('trole'), password: 'koda-invite' } });
     toast('✓ Invited (temp password: koda-invite)'); route(); } catch (e) { toast('✗ ' + e.message); }
@@ -873,7 +962,28 @@ VIEWS.settings = async () => {
       <button class="pill" disabled>Lingala · Swahili · Wolof — per wave</button>
     </div></div>
   <div class="card" style="margin-top:14px"><h3>PWA</h3>
-    <p style="font-size:13px;color:var(--dim)">Install KODA on your phone: browser menu → "Add to Home screen". Works offline for the console shell; verifications sync when back online.</p></div>`);
+    <p style="font-size:13px;color:var(--dim)">Install KODA on your phone: browser menu → "Add to Home screen". Works offline for the console shell; verifications sync when back online.</p></div>
+  <div class="card" style="margin-top:14px"><h3>Your data &amp; privacy</h3>
+    <p style="font-size:13px;color:var(--dim)">Download everything KODA holds for your business, or delete your account. ${ME.user.role === 'owner' || ME.user.is_admin ? '' : '(Deletion is owner-only.)'}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost" onclick="exportMyData()">Download my data (JSON)</button>
+      ${ME.user.role === 'owner' || ME.user.is_admin ? `<button class="btn btn-danger" onclick="deleteMyAccount()">Delete account</button>` : ''}
+    </div></div>`);
+};
+window.exportMyData = async () => {
+  try {
+    const res = await fetch('/app/me/export', { headers: TOKEN() ? { authorization: `Bearer ${TOKEN()}` } : {} });
+    if (!res.ok) throw new Error('export failed');
+    const blob = await res.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'koda-my-data.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  } catch (e) { toast('✗ ' + e.message); }
+};
+window.deleteMyAccount = async () => {
+  if (!confirm('Delete your KODA account and all its data? This cannot be undone.')) return;
+  if (!confirm('Are you absolutely sure? Type OK on the next prompt.')) return;
+  try { await api('/app/me/delete', { body: { confirm: true } }); localStorage.removeItem('koda_token'); ME = null; toast('Account deleted.'); location.hash = '#login'; }
+  catch (e) { toast('✗ ' + e.message); }
 };
 
 const PLAN_KEYS = ['marche', 'boutique', 'commerce', 'plateforme', 'enterprise'];
