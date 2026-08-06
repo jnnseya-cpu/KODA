@@ -609,7 +609,7 @@ VIEWS.billing = async () => {
   </div>
   <div class="card" style="margin-top:14px"><h3>${t('topup')} — prepaid via mobile money, verified by KODA itself</h3>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      ${b.packs.map(p => `<button class="btn btn-ghost" onclick="topupPay(${p.acu})">$${p.usd} → ${fmt(p.acu)} ACU</button>`).join('')}
+      ${b.packs.map(p => `<button class="btn btn-ghost" onclick="topupPay(${p.acu},${p.usd})">$${p.usd} → ${fmt(p.acu)} ACU</button>`).join('')}
     </div>
     <div id="topup-out" style="margin-top:14px"></div>
   </div>
@@ -644,33 +644,35 @@ VIEWS.billing = async () => {
   if (pending) { sessionStorage.removeItem('koda_pending_plan'); setTimeout(() => setPlan(pending), 200); }
 };
 // mesh top-up: pick an amount → choose how to pay (KODA mobile money / card)
-window.topupPay = async (acu) => {
+window.topupPay = async (acu, usd) => {
   const out = document.getElementById('topup-out');
   out.innerHTML = '…';
   try {
-    const m = await api('/app/billing/methods?amount_acu=' + acu);
-    out.innerHTML = `<div class="card" style="border-color:var(--gold)"><h3>Buy ${fmt(acu)} ACU — choose how to pay</h3>
+    const m = await api(`/app/billing/methods?amount_acu=${acu}${usd ? '&usd=' + usd : ''}`);
+    out.innerHTML = `<div class="card" style="border-color:var(--gold)"><h3>Buy ${fmt(acu)} ACU${usd ? ` for $${fmt(usd)}` : ''} — choose how to pay</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-        ${m.methods.map(mth => `<button class="btn ${mth.available === false ? 'btn-ghost' : 'btn-gold'}" ${mth.available === false ? 'disabled' : ''} onclick="collectTopup(${acu},'${mth.rail}')">
+        ${m.methods.map(mth => `<button class="btn ${mth.available === false ? 'btn-ghost' : 'btn-gold'}" ${mth.available === false ? 'disabled' : ''} onclick="collectTopup(${acu},${usd || 0},'${mth.rail}')">
           ${esc(mth.label || mth.rail)}${mth.quote ? ` — $${fmt(mth.quote.total_usd)}` : ''}${mth.available === false ? ' (not set up)' : ''}</button>`).join('')}
-      </div><div id="collect-out" style="margin-top:10px"></div></div>`;
+      </div>
+      <p style="font-size:12px;color:var(--dim);margin-top:8px">For the pilot, use <b>KODA Mobile Money</b>. Card/other rails activate when you add their provider keys.</p>
+      <div id="collect-out" style="margin-top:10px"></div></div>`;
   } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
-window.collectTopup = async (acu, rail) => {
+window.collectTopup = async (acu, usd, rail) => {
   const out = document.getElementById('collect-out');
   out.innerHTML = '…';
   try {
-    const r = await api('/app/billing/collect', { body: { amount_acu: acu, rail } });
+    const r = await api('/app/billing/collect', { body: { amount_acu: acu, usd: usd || undefined, rail } });
     const s = r.session || {};
     if (s.flow === 'MOBILE_MONEY_TO_KODA_SIM') {
       const amt = s.amount_local != null ? `<b>${fmt(s.amount_local)} ${esc(s.currency || '')}</b> (≈ $${fmt(s.amount_usd)})` : `<b>$${fmt(s.amount_usd)}</b>`;
       out.innerHTML = `<div class="card"><h3 class="ok">Pay by mobile money</h3>
         <p style="font-size:14px">Send exactly ${amt} to <b class="mono">${esc(s.pay_to)}</b>.</p>
         <p style="font-size:13px;color:var(--dim)">Your ${fmt(acu)} ACU are credited <b>automatically</b> once KODA sees the payment (usually seconds).</p></div>`;
-    } else if (s.checkout_url || s.url) {
+    } else if ((s.checkout_url || s.url) && /^https?:\/\//.test(s.checkout_url || s.url)) {
       out.innerHTML = `<a class="btn btn-gold" href="${esc(s.checkout_url || s.url)}" target="_blank" rel="noopener">Continue to secure checkout →</a>`;
     } else {
-      out.innerHTML = `<div class="badge b-ok">✓ Top-up started (${esc(r.topup_id || '')}). Follow your provider's steps; ACU credit on confirmation.</div>`;
+      out.innerHTML = `<div class="badge b-info">This rail isn't configured yet (sandbox). Use <b>KODA Mobile Money</b> for the pilot, or add the provider's keys to enable it.</div>`;
     }
   } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
@@ -735,10 +737,10 @@ window.subscribePlan = async (plan, rail) => {
       out.innerHTML = `<div class="card"><h3 class="ok">Pay by mobile money</h3>
         <p style="font-size:14px">Send exactly ${amt} to <b class="mono">${esc(s.pay_to)}</b> by mobile money.</p>
         <p style="font-size:13px;color:var(--dim)">Your plan activates <b>automatically</b> once KODA sees the payment (usually seconds). Keep your confirmation SMS.</p></div>`;
-    } else if (s.checkout_url || s.url) {
+    } else if ((s.checkout_url || s.url) && /^https?:\/\//.test(s.checkout_url || s.url)) {
       out.innerHTML = `<a class="btn btn-gold" href="${esc(s.checkout_url || s.url)}" target="_blank" rel="noopener">Continue to secure checkout →</a>`;
     } else {
-      out.innerHTML = `<div class="badge b-ok">✓ Payment started (${esc(r.topup_id)}). Follow your provider's instructions; the plan activates on confirmation.</div>`;
+      out.innerHTML = `<div class="badge b-info">This rail isn't configured yet (sandbox). Use <b>KODA Mobile Money</b> for the pilot, or add the provider's keys to enable it.</div>`;
     }
   } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };

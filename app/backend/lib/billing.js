@@ -63,14 +63,26 @@ function methods(merchant, ctx = {}) {
   const country = (ctx.country || merchant.country || '').toUpperCase();
   const acu = Math.max(1, Math.round(Number(ctx.amount_acu) || 0));
   const ranked = B.routeProviders({ country, amount_acu: acu, recurring: !!ctx.recurring });
-  const subtotal = Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
-  // KODA self-collect (pay to our DRC SIM) — the first, no-fee option.
+  // Retail base price: the pack price (ctx.usd) is authoritative when given (e.g.
+  // $10 → 100 ACU); otherwise fall back to the per-ACU rate. The rail's collection
+  // fee is added on top (passed through to the buyer, never absorbed).
+  const retail = Number(ctx.usd) > 0 ? Number(ctx.usd) : Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
+  const withFee = (railCode) => {
+    const fee = Math.round(retail * ((B.RAILS[railCode] && B.RAILS[railCode].fee_pct) || 0) * 100) / 100;
+    return { rail: railCode, acu, subtotal_usd: retail, collection_fee_usd: fee, total_usd: Math.round((retail + fee) * 100) / 100, currency: ctx.currency || 'USD' };
+  };
+  // a rail is only offered as clickable when its provider is really configured;
+  // otherwise it's shown greyed as 'not set up' (never a broken sandbox checkout).
+  const PROVIDER_ENV = { stripe: 'STRIPE_KEY', paddle_mor: 'PADDLE_KEY', flutterwave: 'FLUTTERWAVE_KEY', dlocal: 'DLOCAL_KEY', bitripay: 'BITRIPAY_KEY' };
+  const railAvailable = (code) => code === 'bank_transfer' || code === 'distributor'
+    ? true
+    : PROVIDER_ENV[code] ? !!process.env[PROVIDER_ENV[code]] : false;
   const koda = { rail: 'koda', label: 'KODA Mobile Money (pay to our number)', flow: 'MOBILE_MONEY_TO_KODA_SIM', fee_pct: 0,
     available: !!process.env.KODA_COLLECT_MSISDN,
-    quote: { rail: 'koda', acu, subtotal_usd: subtotal, collection_fee_usd: 0, total_usd: subtotal, currency: ctx.currency || 'USD' } };
+    quote: { rail: 'koda', acu, subtotal_usd: retail, collection_fee_usd: 0, total_usd: retail, currency: ctx.currency || 'USD' } };
   return {
     country, amount_acu: acu,
-    methods: [koda, ...ranked.map(r => ({ ...r, quote: B.quote(acu, r.rail, { currency: ctx.currency }) }))],
+    methods: [koda, ...ranked.filter(r => r.rail !== 'voucher').map(r => ({ ...r, available: railAvailable(r.rail), quote: withFee(r.rail) }))],
   };
 }
 
@@ -81,7 +93,7 @@ function createTopup(merchant, body = {}) {
   const rail = String(body.rail || body.method || 'koda');
   // KODA self-collect: pay by mobile money to KODA's own DRC SIM, verified by KODA.
   if (rail === 'koda') {
-    const subtotal = Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
+    const subtotal = Number(body.usd) > 0 ? Number(body.usd) : Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
     const idem = body.idempotency_key || null;
     if (idem) { const dup = q.get('SELECT * FROM topups WHERE idempotency_key=?', idem); if (dup) return topupView(dup); }
     const expected = assignExpectedLocal(subtotal);
@@ -104,6 +116,13 @@ function createTopup(merchant, body = {}) {
     if (dup) return topupView(dup); // retry-safe: same key returns the same topup
   }
   const quote = B.quote(acu, rail, { currency: body.currency });
+  // honor a retail pack price when given: subtotal = pack usd, fee added per rail
+  if (Number(body.usd) > 0) {
+    const sub = Number(body.usd);
+    quote.subtotal_usd = sub;
+    quote.collection_fee_usd = Math.round(sub * (B.RAILS[rail].fee_pct || 0) * 100) / 100;
+    quote.total_usd = Math.round((sub + quote.collection_fee_usd) * 100) / 100;
+  }
   const id = U.id('top');
   q.run(`INSERT INTO topups (id,merchant_id,acu_amount,subtotal_usd,collection_fee_usd,tax_usd,total_usd,currency,rail,idempotency_key,routing_snapshot,status)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -292,8 +311,8 @@ function planMethods(planKey) {
     plan: planKey, plan_label: plan.label, monthly_usd: plan.usd, free: !(plan.usd > 0),
     methods: [
       { rail: 'koda', label: 'KODA Mobile Money (pay to our DRC number)', available: !!process.env.KODA_COLLECT_MSISDN, quote: planQuote(planKey, 'koda') },
-      { rail: 'stripe', label: 'Card (Stripe)', available: B.RAILS.stripe.live === true, quote: planQuote(planKey, 'stripe') },
-      { rail: 'bitripay', label: 'BitriPay', available: B.RAILS.bitripay.live === true, quote: B.RAILS.bitripay.live === true ? planQuote(planKey, 'bitripay') : null },
+      { rail: 'stripe', label: 'Card (Stripe)', available: !!process.env.STRIPE_KEY, quote: planQuote(planKey, 'stripe') },
+      { rail: 'bitripay', label: 'BitriPay', available: B.RAILS.bitripay.live === true && !!process.env.BITRIPAY_KEY, quote: B.RAILS.bitripay.live === true ? planQuote(planKey, 'bitripay') : null },
     ],
   };
 }
