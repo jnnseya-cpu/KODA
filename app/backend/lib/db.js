@@ -378,4 +378,15 @@ const q = {
   run: (sql, ...p) => prep(sql).run(...p),
 };
 
-module.exports = { db, q, DATA_DIR };
+// All-or-nothing wrapper for multi-statement money moves. node:sqlite is
+// synchronous (no interleaving), but a throw BETWEEN statements would otherwise
+// leave a partial state (e.g. wallet credited but top-up not marked settled).
+// BEGIN IMMEDIATE + COMMIT, ROLLBACK on any throw. Not re-entrant — callers must
+// not nest tx() (SQLite has no nested transactions); inner helpers stay tx-free.
+function tx(fn) {
+  db.exec('BEGIN IMMEDIATE');
+  try { const r = fn(); db.exec('COMMIT'); return r; }
+  catch (e) { try { db.exec('ROLLBACK'); } catch { /* already rolled back */ } throw e; }
+}
+
+module.exports = { db, q, tx, DATA_DIR };

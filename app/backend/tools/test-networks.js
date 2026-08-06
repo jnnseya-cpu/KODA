@@ -21,7 +21,7 @@ const has = (res, code) => (res.d.available || []).some(a => a.network_code === 
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'koda-net-'));
   const srv = process.env.KODA_BASE ? null : spawn(process.execPath,
     ['--no-warnings', path.join(__dirname, '..', 'server.js')],
-    { env: { ...process.env, PORT, KODA_DATA_DIR: dataDir, KODA_QUIET: '1' }, stdio: 'ignore' });
+    { env: { ...process.env, PORT, KODA_DATA_DIR: dataDir, KODA_QUIET: '1', KODA_ALLOW_DEV_SECRET: '1' }, stdio: 'ignore' });
   const done = (code) => { if (srv) try { srv.kill('SIGKILL'); } catch {} process.exit(code); };
   for (let i = 0; i < 60; i++) { try { await fetch(B + '/healthz'); break; } catch { await new Promise(r => setTimeout(r, 250)); } }
   try {

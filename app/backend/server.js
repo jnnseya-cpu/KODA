@@ -7,19 +7,23 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { URL } = require('node:url');
 
+// Fail CLOSED on the dev signing secret — BEFORE touching the DB or seeding, and
+// independent of NODE_ENV. A single unset NODE_ENV must never let the app boot with
+// a publicly-known JWT secret (forgeable sessions). Local dev opts in explicitly.
+const PROD = process.env.NODE_ENV === 'production';
+const usingDevSecret = !process.env.KODA_JWT_SECRET || process.env.KODA_JWT_SECRET.includes('dev-secret');
+if (usingDevSecret && process.env.KODA_ALLOW_DEV_SECRET !== '1') {
+  console.error('FATAL: set KODA_JWT_SECRET (or KODA_ALLOW_DEV_SECRET=1 for local dev only). Refusing to run with a known dev secret.');
+  process.exit(1);
+}
+
 require('./lib/db');            // init schema
 require('./seed');              // idempotent demo seed
 require('../frontend/build-site'); // generate public site pages at boot
 
 const registerRoutes = require('./routes');
 
-const PROD = process.env.NODE_ENV === 'production';
-// production guards — fail fast on unsafe defaults
 if (PROD) {
-  if (!process.env.KODA_JWT_SECRET || process.env.KODA_JWT_SECRET.includes('dev-secret')) {
-    console.error('FATAL: set KODA_JWT_SECRET before running in production.');
-    process.exit(1);
-  }
   // not fatal, but checkout_url links break without it — warn loudly
   if (!process.env.KODA_PUBLIC_URL) {
     console.warn('WARN: KODA_PUBLIC_URL is unset — checkout links will point at localhost. Set it to your public domain.');

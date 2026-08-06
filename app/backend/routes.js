@@ -1,7 +1,7 @@
 // KODA — API routes. One router, sectioned by module.
 // App routes (/app/*) use JWT session auth; public API (/v1/*) uses Bearer API keys.
 'use strict';
-const { q } = require('./lib/db');
+const { q, tx } = require('./lib/db');
 const U = require('./lib/util');
 const engine = require('./lib/engine');
 const { OPERATORS } = require('../shared/parser');
@@ -43,6 +43,10 @@ module.exports = function registerRoutes(r) {
 
   r.post('/app/auth/login', (req) => {
     const { email, password } = req.body;
+    // brute-force / credential-stuffing throttle: 10 attempts / 60s per email+IP
+    const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'ip';
+    if (bruteLimited('login:' + String(email || '').toLowerCase() + ':' + ip))
+      return [429, { error: { code: 'too_many_attempts', retry_after: 60 } }];
     const user = q.get('SELECT * FROM users WHERE email=?', String(email || '').toLowerCase());
     if (!user || !U.verifyPassword(password || '', user.pass_hash)) return [401, { error: 'invalid_credentials' }];
     if (user.status !== 'active') return [403, { error: 'account_suspended' }];
@@ -56,6 +60,45 @@ module.exports = function registerRoutes(r) {
     plan: PLANS[merchant?.plan || 'marche'],
     unread: q.get('SELECT COUNT(*) c FROM notifications WHERE user_id=? AND read=0', user.id).c,
   })));
+
+  // ---- Data subject rights (the privacy page promises these) ----
+  // Machine-readable export of everything KODA holds for this merchant.
+  r.get('/app/me/export', auth((req, user, merchant) => {
+    const mid = merchant ? merchant.id : null;
+    const dump = {
+      exported_at: new Date().toISOString(),
+      account: { users: q.all('SELECT id,email,name,phone,role,created_at FROM users WHERE merchant_id=?', mid), merchant },
+      receipts: mid ? q.all('SELECT * FROM receipts WHERE merchant_id=?', mid) : [],
+      intents: mid ? q.all('SELECT * FROM intents WHERE merchant_id=?', mid) : [],
+      topups: mid ? q.all('SELECT * FROM topups WHERE merchant_id=?', mid) : [],
+      devices: mid ? q.all('SELECT id,label,operator,status,last_seen FROM devices WHERE merchant_id=?', mid) : [],
+      comm_prefs: q.all('SELECT channel,enabled FROM comm_prefs WHERE user_id=?', user.id),
+    };
+    notify.fire('privacy.data_export_ready', { user, merchant });
+    return dump;
+  }));
+
+  // Right to erasure — owner-only. Anonymises PII and purges raw payment SMS/msisdn,
+  // while retaining financial/audit records (legal-retention carve-out per the Terms).
+  r.post('/app/me/delete', auth((req, user, merchant) => {
+    if (user.role !== 'owner' && !user.is_admin) return [403, { error: { code: 'owner_only' } }];
+    const mid = merchant ? merchant.id : null;
+    notify.fire('privacy.account_deletion_requested', { user, merchant });
+    tx(() => {
+      if (mid) {
+        q.run(`UPDATE sms_ledger SET raw='[erased]', counterparty_name=NULL WHERE merchant_id=?`, mid);
+        q.run(`UPDATE intents SET customer_msisdn=NULL WHERE merchant_id=?`, mid);
+        q.run(`UPDATE merchant_network_accounts SET account_identifier=NULL, account_holder_name=NULL WHERE merchant_id=?`, mid);
+        q.run(`UPDATE devices SET sim_msisdn=NULL, status='revoked' WHERE merchant_id=?`, mid);
+        q.run(`UPDATE merchants SET status='deleted', msisdn=NULL WHERE id=?`, mid);
+      }
+      q.run(`UPDATE users SET name='Deleted User', phone=NULL, status='deleted', email=? WHERE merchant_id=?`,
+        'deleted+' + (mid || user.id) + '@koda.invalid', mid);
+    });
+    audit(mid, user.id, 'account.deletion', {});
+    notify.fire('privacy.account_deletion_completed', { user, merchant });
+    return { ok: true, erased: true, note: 'PII erased; financial and audit records retained per legal retention.' };
+  }));
 
   // ---------- dashboard ----------
   r.get('/app/dashboard', auth((req, user, m) => {
@@ -415,20 +458,24 @@ module.exports = function registerRoutes(r) {
   // double-entry. Merchant-facing (JWT) + API (key) + KD console + reseller + webhooks.
   const doTopup = (m, body) => (String(body.rail || body.method) === 'distributor'
     ? billing.createDistributorTopup(m, body) : billing.createTopup(m, body));
+  // NOTE: legacy /app/billing/topup ({usd}→verification intent) already exists above;
+  // the System-B mesh uses /app/billing/collect to avoid shadowing it.
   r.get('/app/billing/methods', auth((req, user, m) => billing.methods(m, req.query)));
-  r.post('/app/billing/topup', auth((req, user, m) => doTopup(m, req.body)));
-  r.get('/app/billing/topup/:id', auth((req, user, m) => {
+  r.post('/app/billing/collect', auth((req, user, m) => doTopup(m, req.body)));
+  r.get('/app/billing/collect/:id', auth((req, user, m) => {
     const t = q.get('SELECT * FROM topups WHERE id=? AND merchant_id=?', req.params.id, m.id);
     return t ? billing.topupView(t) : [404, { error: { code: 'topup_not_found' } }];
   }));
-  r.post('/app/billing/voucher/redeem', auth((req, user, m) => vouchers.redeem(m, req.body.pin)));
+  r.post('/app/billing/voucher/redeem', auth((req, user, m) =>
+    bruteLimited('voucher:' + m.id, 15, 60000) ? [429, { error: { code: 'too_many_attempts' } }] : vouchers.redeem(m, req.body.pin)));
   r.get('/v1/billing/methods', apiKey((req, m) => billing.methods(m, req.query), 'read:usage'));
   r.post('/v1/billing/topup', apiKey((req, m) => doTopup(m, req.body), 'write:intents'));
   r.get('/v1/billing/topup/:id', apiKey((req, m) => {
     const t = q.get('SELECT * FROM topups WHERE id=? AND merchant_id=?', req.params.id, m.id);
     return t ? billing.topupView(t) : [404, { error: { code: 'topup_not_found' } }];
   }, 'read:usage'));
-  r.post('/v1/billing/voucher/redeem', apiKey((req, m) => vouchers.redeem(m, req.body.pin), 'write:intents'));
+  r.post('/v1/billing/voucher/redeem', apiKey((req, m) =>
+    bruteLimited('voucher:' + m.id, 15, 60000) ? [429, { error: { code: 'too_many_attempts' } }] : vouchers.redeem(m, req.body.pin), 'write:intents'));
 
   // KD (distributor) console — a KD is a merchant whose product is ACU float.
   r.get('/app/kd/float', auth((req, user, m) => {
@@ -460,9 +507,12 @@ module.exports = function registerRoutes(r) {
   // Provider webhooks → settle a top-up. Sandbox accepts; real adapters verify the
   // raw-body signature before settling (never activate from a browser success screen).
   r.post('/webhooks/billing/:provider', (req) => {
+    // FAIL CLOSED: a provider callback settles real money — verify its raw-body
+    // signature before doing anything. No secret / bad signature ⇒ never settle.
+    const v = billing.verifyWebhook(req.params.provider, req);
+    if (!v.ok) return [401, { error: { code: 'webhook_unverified' } }];
     const tid = req.body && req.body.topup_id;
     if (!tid) return [400, { error: { code: 'topup_id_required' } }];
-    // TODO(real providers): billing verify raw-body signature for req.params.provider here.
     return billing.settleTopup(tid);
   });
 
@@ -912,6 +962,16 @@ function rateLimited(keyId, plan) {
   const arr = (_hits.get(keyId) || []).filter(t => now - t < 1000);
   arr.push(now); _hits.set(keyId, arr);
   return arr.length > limit;
+}
+// brute-force limiter for unauthenticated/credential endpoints (login, voucher, checkout).
+// Sliding window keyed by identity+IP; blocks credential-stuffing / PIN / code guessing.
+const _brute = new Map();
+function bruteLimited(key, max = 10, windowMs = 60000) {
+  const now = Date.now();
+  const arr = (_brute.get(key) || []).filter(t => now - t < windowMs);
+  arr.push(now); _brute.set(key, arr);
+  if (_brute.size > 5000) for (const [k, v] of _brute) if (!v.some(t => now - t < windowMs)) _brute.delete(k);
+  return arr.length > max;
 }
 
 function apiKey(handler, scope) {

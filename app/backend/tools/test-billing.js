@@ -123,6 +123,19 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   const exp = vouchers.redeem(payer, b4.vouchers[0].pin);
   ok(isErr(exp) && exp[1].error.code === 'expired', 'expired voucher rejected');
 
+  // ── WEBHOOK AUTHENTICITY (regression for the free-credit hole) ──────────────
+  const crypto = require('node:crypto');
+  const mkReq = (body, sig) => ({ body, rawBody: Buffer.from(JSON.stringify(body)), headers: sig ? { 'x-koda-signature': sig } : {} });
+  const noSecret = billing.verifyWebhook('stripe', mkReq({ topup_id: 'x' }, 'anything'));
+  ok(!noSecret.ok, 'webhook FAILS CLOSED when no secret is configured (no free settle)');
+  process.env.KODA_WEBHOOK_SECRET = 'test-secret';
+  const bodyW = { topup_id: 'x' };
+  const goodSig = crypto.createHmac('sha256', 'test-secret').update(JSON.stringify(bodyW)).digest('hex');
+  ok(billing.verifyWebhook('stripe', mkReq(bodyW, goodSig)).ok, 'webhook accepts a correctly-signed payload');
+  ok(!billing.verifyWebhook('stripe', mkReq(bodyW, 'deadbeef')).ok, 'webhook rejects a forged signature');
+  ok(!billing.verifyWebhook('stripe', mkReq(bodyW, null)).ok, 'webhook rejects a missing signature');
+  delete process.env.KODA_WEBHOOK_SECRET;
+
   // ── FINAL RECONCILIATION ────────────────────────────────────────────────────
   ok(billing.reconcile().balanced, 'FINAL: entire billing ledger reconciles to zero', `Σ=${billing.reconcile().sum}`);
 

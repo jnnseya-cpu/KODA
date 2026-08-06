@@ -12,7 +12,7 @@ const SUITES = ['adversarial', 'test-checkout', 'test-doors', 'test-ai-gating', 
 (async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'koda-http-'));
   const srv = spawn(process.execPath, ['--no-warnings', path.join(__dirname, '..', 'server.js')],
-    { env: { ...process.env, PORT, KODA_DATA_DIR: dataDir, KODA_QUIET: '1' }, stdio: 'ignore' });
+    { env: { ...process.env, PORT, KODA_DATA_DIR: dataDir, KODA_QUIET: '1', KODA_ALLOW_DEV_SECRET: '1' }, stdio: 'ignore' });
   let up = false;
   for (let i = 0; i < 60; i++) { try { await fetch(BASE + '/healthz'); up = true; break; } catch { await new Promise(r => setTimeout(r, 250)); } }
   if (!up) { console.error('server did not boot'); srv.kill('SIGKILL'); process.exit(1); }

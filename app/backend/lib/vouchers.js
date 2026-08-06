@@ -6,7 +6,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { q, DATA_DIR } = require('./db');
+const { q, tx, DATA_DIR } = require('./db');
 const U = require('./util');
 const billing = require('./billing');
 
@@ -99,20 +99,24 @@ function redeem(merchant, pin) {
   if (!reseller || reseller.status !== 'ACTIVE') return [409, { error: { code: 'reseller_inactive' } }];
   if (v.country_lock && v.country_lock !== merchant.country) return [409, { error: { code: 'country_locked', lock: v.country_lock } }];
 
-  // atomic: mark redeemed (guarded so a concurrent second redeem loses), then entitle.
-  const upd = q.run(`UPDATE vouchers SET status='redeemed', redeemed_at=datetime('now'), redeemed_by=? WHERE id=? AND status='active'`, merchant.id, v.id);
-  if (upd.changes !== 1) return [409, { error: { code: 'already_redeemed' } }]; // lost the race
-  let credited = 0;
-  if (v.acu_amount > 0) {
-    billing.post([
-      { account_key: 'koda:treasury', entry_type: 'voucher_redeem', acu_delta: -v.acu_amount },
-      { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: v.acu_amount },
-    ], { idempotencyKey: 'voucher:' + v.id, ref: 'voucher' });
-    require('./engine').creditAcu(merchant, v.acu_amount, 'topup', v.id);
-    credited = v.acu_amount;
-  }
-  require('./engine').notifyOwners(merchant, 'billing.topup.verified', { acu: credited });
-  return { ok: true, voucher_id: v.id, product_code: v.product_code, acu_credited: credited };
+  // All-or-nothing: the guarded CAS flip (a concurrent second redeem loses the race)
+  // AND the entitlement live in one transaction — if crediting throws, the redeemed
+  // flag rolls back and the voucher stays legitimately redeemable (no lost value).
+  const res = tx(() => {
+    const upd = q.run(`UPDATE vouchers SET status='redeemed', redeemed_at=datetime('now'), redeemed_by=? WHERE id=? AND status='active'`, merchant.id, v.id);
+    if (upd.changes !== 1) return { lost: true };
+    if (v.acu_amount > 0) {
+      billing.post([
+        { account_key: 'koda:treasury', entry_type: 'voucher_redeem', acu_delta: -v.acu_amount },
+        { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: v.acu_amount },
+      ], { idempotencyKey: 'voucher:' + v.id, ref: 'voucher' });
+      require('./engine').creditAcu(merchant, v.acu_amount, 'topup', v.id);
+    }
+    return { credited: v.acu_amount };
+  });
+  if (res.lost) return [409, { error: { code: 'already_redeemed' } }];
+  require('./engine').notifyOwners(merchant, 'billing.topup.verified', { acu: res.credited });
+  return { ok: true, voucher_id: v.id, product_code: v.product_code, acu_credited: res.credited };
 }
 
 module.exports = { issueBatch, activateBatch, voidBatch, redeem, sign, verifySignature, publicKeyPem: () => KEYS.pub };

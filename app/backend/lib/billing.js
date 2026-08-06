@@ -4,9 +4,24 @@
 // idempotent double-entry into billing_ledger. Prices are SERVER-AUTHORITATIVE —
 // the client's amount is never trusted; we quote from shared/billing.
 'use strict';
-const { q } = require('./db');
+const crypto = require('node:crypto');
+const { q, tx } = require('./db');
 const U = require('./util');
 const B = require('../../shared/billing');
+
+// Webhook authenticity — a provider callback settles real money, so it MUST prove
+// itself. FAIL CLOSED: no configured secret or a bad/absent signature ⇒ reject and
+// settle nothing. Real adapters map their own header/scheme onto this HMAC check.
+function verifyWebhook(provider, req) {
+  const secret = process.env['KODA_WEBHOOK_SECRET_' + String(provider || '').toUpperCase()] || process.env.KODA_WEBHOOK_SECRET;
+  if (!secret) return { ok: false, reason: 'no_secret_configured' };   // never settle from an unsigned/unconfigured webhook
+  const sig = String(req.headers['x-koda-signature'] || req.headers['x-webhook-signature'] || '');
+  const raw = req.rawBody != null ? req.rawBody : Buffer.from(JSON.stringify(req.body || {}));
+  const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
+  const a = Buffer.from(sig), e = Buffer.from(expected);
+  const ok = a.length === e.length && crypto.timingSafeEqual(a, e);
+  return { ok };
+}
 
 // ── ledger: append-only, double-entry, balance_after chained per account ──────
 function acctBalance(key) {
@@ -93,14 +108,20 @@ function settleTopup(topupId, { issuer = 'koda:treasury', entryType = 'koda_issu
   if (t.status === 'settled') return { ok: true, already: true, topup_id: t.id };
   if (t.status !== 'pending' && t.status !== 'initiated') return [409, { error: { code: 'bad_state', status: t.status } }];
   const merchant = q.get('SELECT * FROM merchants WHERE id=?', t.merchant_id);
-  const idem = 'settle:' + t.id;
-  // double-entry: issuer −acu, merchant +acu (Σ = 0). Merchant wallet stays authoritative in engine.creditAcu.
-  post([
-    { account_key: issuer, entry_type: entryType, acu_delta: -t.acu_amount },
-    { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: t.acu_amount },
-  ], { topupId: t.id, idempotencyKey: idem, ref: t.rail });
-  require('./engine').creditAcu(merchant, t.acu_amount, 'topup', t.id);
-  q.run(`UPDATE topups SET status='settled', settled_at=datetime('now') WHERE id=?`, t.id);
+  // Exactly-once + all-or-nothing: the CAS status flip is the atomic gate (a retry
+  // finds changes=0 and credits nothing); the transaction rolls back the whole
+  // settlement if any step throws, so the wallet can never diverge from the ledger.
+  const res = tx(() => {
+    const cas = q.run(`UPDATE topups SET status='settled', settled_at=datetime('now') WHERE id=? AND status IN ('pending','initiated')`, t.id);
+    if (cas.changes !== 1) return { already: true };
+    post([
+      { account_key: issuer, entry_type: entryType, acu_delta: -t.acu_amount },
+      { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: t.acu_amount },
+    ], { topupId: t.id, idempotencyKey: 'settle:' + t.id, ref: t.rail });
+    require('./engine').creditAcu(merchant, t.acu_amount, 'topup', t.id);
+    return { settled: true };
+  });
+  if (res.already) return { ok: true, already: true, topup_id: t.id };
   require('./engine').notifyOwners(merchant, 'billing.topup.verified', { acu: t.acu_amount });
   return { ok: true, topup_id: t.id, acu_credited: t.acu_amount };
 }
@@ -111,17 +132,25 @@ function distributorFloat(kdId) {
   return d ? d.float_acu : 0;
 }
 // KD prepurchases wholesale inventory (paid via card/aggregator externally) → float credit.
-function wholesalePurchase(kdId, acuBlock) {
+function wholesalePurchase(kdId, acuBlock, idemKey) {
   const d = q.get('SELECT * FROM distributors WHERE id=?', kdId);
   if (!d) return [404, { error: { code: 'distributor_not_found' } }];
   const acu = Math.round(Number(acuBlock) || 0);
   if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
-  q.run('UPDATE distributors SET float_acu = float_acu + ? WHERE id=?', acu, kdId);
-  post([
-    { account_key: 'koda:treasury', entry_type: 'wholesale_credit', acu_delta: -acu },
-    { account_key: 'distributor:' + kdId, entry_type: 'wholesale_credit', acu_delta: acu },
-  ], { idempotencyKey: 'wholesale:' + kdId + ':' + U.token(4), ref: 'wholesale' });
-  return { ok: true, distributor_id: kdId, float_acu: distributorFloat(kdId), purchased: acu };
+  // Idempotency is keyed on the caller's payment reference (NOT a random token), so a
+  // double-submitted "I paid for a block" credits float exactly once. The ledger key
+  // is the source of truth: if it already posted, the float update must not run either.
+  const key = 'wholesale:' + kdId + ':' + (idemKey || 'k' + acu + ':' + (d.float_acu));
+  const res = tx(() => {
+    const r = post([
+      { account_key: 'koda:treasury', entry_type: 'wholesale_credit', acu_delta: -acu },
+      { account_key: 'distributor:' + kdId, entry_type: 'wholesale_credit', acu_delta: acu },
+    ], { idempotencyKey: key, ref: 'wholesale' });
+    if (r.idempotent) return { already: true };
+    q.run('UPDATE distributors SET float_acu = float_acu + ? WHERE id=?', acu, kdId);
+    return { credited: true };
+  });
+  return { ok: true, already: !!res.already, distributor_id: kdId, float_acu: distributorFloat(kdId), purchased: res.already ? 0 : acu };
 }
 
 // Merchant asks to top up via a KD → creates a pending top-up + pay-to instructions.
@@ -162,13 +191,21 @@ function settleDistributorTopup(topupId, { verifiedAmountUsd } = {}) {
   // a KD can never mint ACU it hasn't prepaid for
   if (kd.float_acu < t.acu_amount) return [409, { error: { code: 'insufficient_float' } }];
   const merchant = q.get('SELECT * FROM merchants WHERE id=?', t.merchant_id);
-  q.run('UPDATE distributors SET float_acu = float_acu - ? WHERE id=?', t.acu_amount, kd.id);
-  post([
-    { account_key: 'distributor:' + kd.id, entry_type: 'kd_float_debit', acu_delta: -t.acu_amount },
-    { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: t.acu_amount },
-  ], { topupId: t.id, idempotencyKey: 'settle:' + t.id, ref: 'distributor' });
-  require('./engine').creditAcu(merchant, t.acu_amount, 'topup', t.id);
-  q.run(`UPDATE topups SET status='settled', settled_at=datetime('now') WHERE id=?`, t.id);
+  // CAS-first status flip gates the whole move; tx makes float-debit + ledger +
+  // wallet-credit all-or-nothing. A retry after any crash re-enters at changes=0.
+  const res = tx(() => {
+    const cas = q.run(`UPDATE topups SET status='settled', settled_at=datetime('now') WHERE id=? AND status='pending'`, t.id);
+    if (cas.changes !== 1) return { already: true };
+    const fd = q.run('UPDATE distributors SET float_acu = float_acu - ? WHERE id=? AND float_acu >= ?', t.acu_amount, kd.id, t.acu_amount);
+    if (fd.changes !== 1) throw new Error('float_underflow'); // rolls back the status flip
+    post([
+      { account_key: 'distributor:' + kd.id, entry_type: 'kd_float_debit', acu_delta: -t.acu_amount },
+      { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: t.acu_amount },
+    ], { topupId: t.id, idempotencyKey: 'settle:' + t.id, ref: 'distributor' });
+    require('./engine').creditAcu(merchant, t.acu_amount, 'topup', t.id);
+    return { settled: true };
+  });
+  if (res.already) return { ok: true, already: true, topup_id: t.id };
   require('./engine').notifyOwners(merchant, 'billing.topup.verified', { acu: t.acu_amount });
   return { ok: true, topup_id: t.id, acu_credited: t.acu_amount, kd_float_after: distributorFloat(kd.id) };
 }
@@ -192,6 +229,6 @@ function reconcile() {
 }
 
 module.exports = {
-  methods, createTopup, settleTopup, topupView, reconcile, post, acctBalance,
+  methods, createTopup, settleTopup, topupView, reconcile, post, acctBalance, verifyWebhook,
   distributorFloat, wholesalePurchase, createDistributorTopup, settleDistributorTopup, matchDistributorPayment,
 };
