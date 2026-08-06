@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" id="html">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -67,21 +67,153 @@
 <div class="card" id="card">
   <div class="head">
     <div class="brand"><span class="dot">✓</span><span id="merchant">KODA</span></div>
-    <div class="secure">🔒 Sécurisé · KODA</div>
+    <div class="secure" id="secure">🔒 Sécurisé · KODA</div>
   </div>
-  <div class="body" id="content"><div style="text-align:center;padding:30px 0;color:rgba(36,31,20,.5);font-family:var(--mono);font-size:13px">Chargement…</div></div>
-  <div class="foot">Vérifié par KODA · le code confirme le cash</div>
+  <div class="body" id="content"><div style="text-align:center;padding:30px 0;color:rgba(36,31,20,.5);font-family:var(--mono);font-size:13px" id="loading">Chargement…</div></div>
+  <div class="foot" id="foot">Vérifié par KODA · le code confirme le cash</div>
 </div>
 <script>
 (function(){
   'use strict';
+  // ── Device-language detection (FR/EN/ES/PT/AR/SW/PT) ──────────────────────
+  // The customer never picks a language: KODA reads the device's own setting.
+  // A ?lang= override wins for merchants who force a locale; otherwise we map
+  // navigator.language to the nearest supported pack and fall back to English.
+  var I18N = {
+    fr: { locale:'fr-FR', dir:'ltr',
+      secure:'🔒 Sécurisé · KODA', loading:'Chargement…', foot:'Vérifié par KODA · le code confirme le cash',
+      bad_link:'Lien de paiement invalide.', not_found:'Paiement introuvable ou expiré.', no_conn:'Connexion impossible.',
+      amount:'Montant à payer', order:'Commande {x}',
+      s1:'1 · Choisis ton opérateur', s2:'2 · Paie ce montant à ce numéro', s3:'3 · Entre le code de ta confirmation',
+      copy:'Copier', copied:'Copié ✓',
+      ussd:'Compose <a href="tel:{tel}">{ussd}</a> ou utilise ton appli. Ne partage jamais ton code PIN.',
+      paid:"J'ai payé — entrer mon code", ref_ph:'ex. OM.260717.1432.A88213', verify_btn:'Vérifier mon paiement', verifying:'Vérification…',
+      code_hint:"C'est le code dans le SMS que <b>toi</b> tu as reçu de {op} après avoir payé.",
+      en_route:'Paiement en route', en_route_p:'Le réseau ne nous a pas encore montré ton paiement. On vérifie automatiquement…',
+      still:'Toujours en attente', still_p:"Ton paiement n'est pas encore visible. Réessaie le code dans une minute.",
+      review:'À vérifier', review_p:'Ton paiement est en cours de contrôle. Ça peut prendre un instant.',
+      used:'Code déjà utilisé', used_p:'Ce code a déjà servi pour un paiement. Vérifie ta référence.',
+      no_conf:'Non confirmé', no_conf_p:"On n'a pas pu confirmer ce paiement. Vérifie le code, le montant et le numéro.",
+      err:'Erreur', err_p:'Réessaie dans un instant.',
+      ok:'Paiement confirmé', ok_p:'{amount} {cur} vérifié. Merci !',
+      redir:'Redirection en cours…', done_close:'Tu peux fermer cette page — la commande est confirmée.', oops:'Oups' },
+    en: { locale:'en-US', dir:'ltr',
+      secure:'🔒 Secure · KODA', loading:'Loading…', foot:'Verified by KODA · the code confirms the cash',
+      bad_link:'Invalid payment link.', not_found:'Payment not found or expired.', no_conn:'Could not connect.',
+      amount:'Amount to pay', order:'Order {x}',
+      s1:'1 · Choose your network', s2:'2 · Pay this amount to this number', s3:'3 · Enter your confirmation code',
+      copy:'Copy', copied:'Copied ✓',
+      ussd:'Dial <a href="tel:{tel}">{ussd}</a> or use your app. Never share your PIN.',
+      paid:"I've paid — enter my code", ref_ph:'e.g. OM.260717.1432.A88213', verify_btn:'Verify my payment', verifying:'Verifying…',
+      code_hint:"It's the code in the SMS that <b>you</b> received from {op} after paying.",
+      en_route:'Payment on the way', en_route_p:"The network hasn't shown us your payment yet. We're checking automatically…",
+      still:'Still waiting', still_p:"Your payment isn't visible yet. Try the code again in a minute.",
+      review:'Under review', review_p:'Your payment is being checked. This may take a moment.',
+      used:'Code already used', used_p:'This code has already been used for a payment. Check your reference.',
+      no_conf:'Not confirmed', no_conf_p:"We couldn't confirm this payment. Check the code, amount and number.",
+      err:'Error', err_p:'Try again in a moment.',
+      ok:'Payment confirmed', ok_p:'{amount} {cur} verified. Thank you!',
+      redir:'Redirecting…', done_close:'You can close this page — the order is confirmed.', oops:'Oops' },
+    es: { locale:'es-ES', dir:'ltr',
+      secure:'🔒 Seguro · KODA', loading:'Cargando…', foot:'Verificado por KODA · el código confirma el pago',
+      bad_link:'Enlace de pago no válido.', not_found:'Pago no encontrado o vencido.', no_conn:'No se pudo conectar.',
+      amount:'Importe a pagar', order:'Pedido {x}',
+      s1:'1 · Elige tu operador', s2:'2 · Paga este importe a este número', s3:'3 · Introduce tu código de confirmación',
+      copy:'Copiar', copied:'Copiado ✓',
+      ussd:'Marca <a href="tel:{tel}">{ussd}</a> o usa tu app. Nunca compartas tu PIN.',
+      paid:'Ya pagué — introducir mi código', ref_ph:'ej. OM.260717.1432.A88213', verify_btn:'Verificar mi pago', verifying:'Verificando…',
+      code_hint:'Es el código del SMS que <b>tú</b> recibiste de {op} después de pagar.',
+      en_route:'Pago en camino', en_route_p:'La red aún no nos ha mostrado tu pago. Estamos verificando automáticamente…',
+      still:'Aún esperando', still_p:'Tu pago aún no es visible. Vuelve a probar el código en un minuto.',
+      review:'En revisión', review_p:'Tu pago se está comprobando. Puede tardar un momento.',
+      used:'Código ya usado', used_p:'Este código ya se usó para un pago. Revisa tu referencia.',
+      no_conf:'No confirmado', no_conf_p:'No pudimos confirmar este pago. Revisa el código, el importe y el número.',
+      err:'Error', err_p:'Inténtalo de nuevo en un momento.',
+      ok:'Pago confirmado', ok_p:'{amount} {cur} verificado. ¡Gracias!',
+      redir:'Redirigiendo…', done_close:'Puedes cerrar esta página — el pedido está confirmado.', oops:'Vaya' },
+    pt: { locale:'pt-BR', dir:'ltr',
+      secure:'🔒 Seguro · KODA', loading:'Carregando…', foot:'Verificado pela KODA · o código confirma o pagamento',
+      bad_link:'Link de pagamento inválido.', not_found:'Pagamento não encontrado ou expirado.', no_conn:'Não foi possível conectar.',
+      amount:'Valor a pagar', order:'Pedido {x}',
+      s1:'1 · Escolha sua operadora', s2:'2 · Pague este valor para este número', s3:'3 · Digite seu código de confirmação',
+      copy:'Copiar', copied:'Copiado ✓',
+      ussd:'Disque <a href="tel:{tel}">{ussd}</a> ou use seu app. Nunca compartilhe seu PIN.',
+      paid:'Já paguei — inserir meu código', ref_ph:'ex. OM.260717.1432.A88213', verify_btn:'Verificar meu pagamento', verifying:'Verificando…',
+      code_hint:'É o código do SMS que <b>você</b> recebeu da {op} depois de pagar.',
+      en_route:'Pagamento a caminho', en_route_p:'A rede ainda não nos mostrou seu pagamento. Estamos verificando automaticamente…',
+      still:'Ainda aguardando', still_p:'Seu pagamento ainda não está visível. Tente o código novamente em um minuto.',
+      review:'Em análise', review_p:'Seu pagamento está sendo verificado. Pode levar um momento.',
+      used:'Código já usado', used_p:'Este código já foi usado para um pagamento. Verifique sua referência.',
+      no_conf:'Não confirmado', no_conf_p:'Não conseguimos confirmar este pagamento. Verifique o código, o valor e o número.',
+      err:'Erro', err_p:'Tente novamente em um instante.',
+      ok:'Pagamento confirmado', ok_p:'{amount} {cur} verificado. Obrigado!',
+      redir:'Redirecionando…', done_close:'Você pode fechar esta página — o pedido está confirmado.', oops:'Ops' },
+    ar: { locale:'ar', dir:'rtl',
+      secure:'🔒 آمن · KODA', loading:'جارٍ التحميل…', foot:'موثّق من KODA · الرمز يؤكّد الدفع',
+      bad_link:'رابط دفع غير صالح.', not_found:'الدفعة غير موجودة أو منتهية.', no_conn:'تعذّر الاتصال.',
+      amount:'المبلغ المطلوب', order:'طلب {x}',
+      s1:'١ · اختر مشغّلك', s2:'٢ · ادفع هذا المبلغ إلى هذا الرقم', s3:'٣ · أدخل رمز التأكيد',
+      copy:'نسخ', copied:'تم النسخ ✓',
+      ussd:'اطلب <a href="tel:{tel}">{ussd}</a> أو استخدم تطبيقك. لا تُشارك رمزك السرّي أبدًا.',
+      paid:'لقد دفعت — إدخال الرمز', ref_ph:'مثال OM.260717.1432.A88213', verify_btn:'تحقّق من دفعتي', verifying:'جارٍ التحقّق…',
+      code_hint:'إنه الرمز في الرسالة النصية الذي وصلك <b>أنت</b> من {op} بعد الدفع.',
+      en_route:'الدفعة في الطريق', en_route_p:'لم تُظهر لنا الشبكة دفعتك بعد. نتحقّق تلقائيًا…',
+      still:'ما زلنا ننتظر', still_p:'دفعتك غير ظاهرة بعد. جرّب الرمز مرة أخرى بعد دقيقة.',
+      review:'قيد المراجعة', review_p:'تتم مراجعة دفعتك. قد يستغرق ذلك لحظة.',
+      used:'الرمز مُستخدَم', used_p:'استُخدم هذا الرمز لدفعة سابقة. تحقّق من مرجعك.',
+      no_conf:'غير مؤكّد', no_conf_p:'تعذّر تأكيد هذه الدفعة. تحقّق من الرمز والمبلغ والرقم.',
+      err:'خطأ', err_p:'حاول مرة أخرى بعد لحظة.',
+      ok:'تم تأكيد الدفع', ok_p:'{amount} {cur} موثّق. شكرًا!',
+      redir:'جارٍ إعادة التوجيه…', done_close:'يمكنك إغلاق هذه الصفحة — الطلب مؤكّد.', oops:'عذرًا' },
+    sw: { locale:'sw', dir:'ltr',
+      secure:'🔒 Salama · KODA', loading:'Inapakia…', foot:'Imethibitishwa na KODA · msimbo unathibitisha malipo',
+      bad_link:'Kiungo cha malipo si sahihi.', not_found:'Malipo hayakupatikana au yameisha muda.', no_conn:'Imeshindwa kuunganisha.',
+      amount:'Kiasi cha kulipa', order:'Oda {x}',
+      s1:'1 · Chagua mtandao wako', s2:'2 · Lipa kiasi hiki kwa namba hii', s3:'3 · Weka msimbo wako wa uthibitisho',
+      copy:'Nakili', copied:'Imenakiliwa ✓',
+      ussd:'Piga <a href="tel:{tel}">{ussd}</a> au tumia programu yako. Usishiriki PIN yako kamwe.',
+      paid:'Nimelipa — weka msimbo wangu', ref_ph:'mf. OM.260717.1432.A88213', verify_btn:'Thibitisha malipo yangu', verifying:'Inathibitisha…',
+      code_hint:'Ni msimbo katika SMS ambao <b>wewe</b> ulipokea kutoka {op} baada ya kulipa.',
+      en_route:'Malipo yanakuja', en_route_p:'Mtandao bado haujatuonyesha malipo yako. Tunathibitisha kiotomatiki…',
+      still:'Bado tunasubiri', still_p:'Malipo yako bado hayajaonekana. Jaribu msimbo tena baada ya dakika moja.',
+      review:'Inakaguliwa', review_p:'Malipo yako yanakaguliwa. Inaweza kuchukua muda kidogo.',
+      used:'Msimbo umetumika', used_p:'Msimbo huu tayari umetumika kwa malipo. Angalia rejeleo lako.',
+      no_conf:'Haijathibitishwa', no_conf_p:'Hatukuweza kuthibitisha malipo haya. Angalia msimbo, kiasi na namba.',
+      err:'Hitilafu', err_p:'Jaribu tena baada ya muda mfupi.',
+      ok:'Malipo yamethibitishwa', ok_p:'{amount} {cur} imethibitishwa. Asante!',
+      redir:'Inaelekeza…', done_close:'Unaweza kufunga ukurasa huu — oda imethibitishwa.', oops:'Samahani' }
+  };
+  function pickLang(){
+    var forced = new URLSearchParams(location.search).get('lang');
+    var cands = [forced].concat(navigator.languages || [navigator.language || 'en']);
+    for(var i=0;i<cands.length;i++){
+      var c = (cands[i]||'').toLowerCase().slice(0,2);
+      if(I18N[c]) return c;
+    }
+    return 'en';
+  }
+  var LANG = pickLang();
+  var L = I18N[LANG];
+  function T(key){
+    var s = L[key] != null ? L[key] : (I18N.en[key] || key);
+    for(var i=1;i<arguments.length;i+=2){ s = s.split('{'+arguments[i]+'}').join(arguments[i+1]); }
+    return s;
+  }
+  // Apply document-level language + direction immediately.
+  var htmlEl = document.getElementById('html');
+  htmlEl.setAttribute('lang', LANG); htmlEl.setAttribute('dir', L.dir);
+  document.title = T('secure').replace(/^🔒\s*/, '') ; // "Secure · KODA"
+  document.getElementById('secure').textContent = T('secure');
+  document.getElementById('foot').textContent = T('foot');
+  var loadingEl = document.getElementById('loading'); if(loadingEl) loadingEl.textContent = T('loading');
+
   var path = location.pathname.split('/'); var INTENT = path[path.length-1];
   var CS = new URLSearchParams(location.search).get('cs');
   var inIframe = window.parent !== window;
   var C = document.getElementById('content');
   var chosen = null, DATA = null, watchTimer = null;
   var esc = function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
-  var fmt = function(n){return Number(n||0).toLocaleString('fr-FR')};
+  var fmt = function(n){return Number(n||0).toLocaleString(L.locale)};
 
   function api(method, url, body){
     return fetch(url, {method:method, headers:{'content-type':'application/json'}, body: body?JSON.stringify(body):undefined})
@@ -90,23 +222,23 @@
   function post(parent, type, payload){ if(inIframe){ try{ window.parent.postMessage(Object.assign({source:'koda', type:type}, payload||{}), '*'); }catch(e){} } }
 
   function load(){
-    if(!INTENT || !CS){ return fail('Lien de paiement invalide.'); }
+    if(!INTENT || !CS){ return fail(T('bad_link')); }
     api('GET','/checkout/'+INTENT+'?cs='+encodeURIComponent(CS)).then(function(r){
-      if(r.s!==200){ return fail('Paiement introuvable ou expiré.'); }
+      if(r.s!==200){ return fail(T('not_found')); }
       DATA = r.d;
       document.getElementById('merchant').textContent = DATA.merchant.name || 'KODA';
       if(DATA.merchant.brand_color){ document.documentElement.style.setProperty('--brand', DATA.merchant.brand_color); }
       if(DATA.status==='verified'||DATA.status==='verified_late'){ return success(DATA.amount, null, true); }
       renderPay();
-    }).catch(function(){ fail('Connexion impossible.'); });
+    }).catch(function(){ fail(T('no_conn')); });
   }
 
   function renderPay(){
     C.innerHTML =
-      '<div class="amount"><span class="lbl">Montant à payer</span><b>'+fmt(DATA.amount)+' '+esc(DATA.currency)+'</b>'
-      + (DATA.metadata && DATA.metadata.order_id ? '<div class="to">Commande '+esc(DATA.metadata.order_id)+'</div>':'') + '</div>'
-      + '<div class="step-label">1 · Choisis ton opérateur</div>'
-      + '<div class="ops">'+ DATA.pay_to.map(function(p,i){return '<button class="op" data-i="'+i+'">'+opLabel(p.operator)+'</button>'}).join('') +'</div>'
+      '<div class="amount"><span class="lbl">'+esc(T('amount'))+'</span><b>'+fmt(DATA.amount)+' '+esc(DATA.currency)+'</b>'
+      + (DATA.metadata && DATA.metadata.order_id ? '<div class="to">'+esc(T('order','x',DATA.metadata.order_id))+'</div>':'') + '</div>'
+      + '<div class="step-label">'+esc(T('s1'))+'</div>'
+      + '<div class="ops">'+ DATA.pay_to.map(function(p,i){return '<button class="op" data-i="'+i+'">'+esc(opLabel(p.operator))+'</button>'}).join('') +'</div>'
       + '<div id="payblock"></div>';
     C.querySelectorAll('.op').forEach(function(btn){ btn.addEventListener('click', function(){ choose(Number(btn.dataset.i)); }); });
   }
@@ -116,21 +248,21 @@
     chosen = DATA.pay_to[i];
     C.querySelectorAll('.op').forEach(function(b,j){ b.classList.toggle('on', j===i); });
     document.getElementById('payblock').innerHTML =
-      '<div class="step-label">2 · Paie ce montant à ce numéro</div>'
-      + '<div class="payto"><div class="num"><span>'+esc(chosen.number)+'</span><button class="copy" id="cp">Copier</button></div>'
-      + '<div class="ussd">Compose <a href="tel:'+encodeURIComponent(chosen.ussd_hint)+'">'+esc(chosen.ussd_hint)+'</a> ou utilise ton appli. Ne partage jamais ton code PIN.</div></div>'
-      + '<button class="btn btn-gold" id="paid">J\'ai payé — entrer mon code</button>';
+      '<div class="step-label">'+esc(T('s2'))+'</div>'
+      + '<div class="payto"><div class="num"><span>'+esc(chosen.number)+'</span><button class="copy" id="cp">'+esc(T('copy'))+'</button></div>'
+      + '<div class="ussd">'+T('ussd','tel',encodeURIComponent(chosen.ussd_hint),'ussd',esc(chosen.ussd_hint))+'</div></div>'
+      + '<button class="btn btn-gold" id="paid">'+esc(T('paid'))+'</button>';
     document.getElementById('cp').addEventListener('click', function(){ copy(chosen.number, this); });
     document.getElementById('paid').addEventListener('click', renderCode);
   }
-  function copy(txt, btn){ try{ navigator.clipboard.writeText(txt); btn.textContent='Copié ✓'; setTimeout(function(){btn.textContent='Copier'},1500);}catch(e){} }
+  function copy(txt, btn){ try{ navigator.clipboard.writeText(txt); btn.textContent=T('copied'); setTimeout(function(){btn.textContent=T('copy')},1500);}catch(e){} }
 
   function renderCode(){
     document.getElementById('payblock').innerHTML =
-      '<div class="step-label">3 · Entre le code de ta confirmation</div>'
-      + '<input class="code" id="ref" placeholder="ex. OM.260717.1432.A88213" autocomplete="off" autocapitalize="characters">'
-      + '<button class="btn btn-gold" id="go">Vérifier mon paiement</button>'
-      + '<div class="hint">C\'est le code dans le SMS que <b>toi</b> tu as reçu de '+opLabel(chosen.operator)+' après avoir payé.</div>'
+      '<div class="step-label">'+esc(T('s3'))+'</div>'
+      + '<input class="code" id="ref" placeholder="'+esc(T('ref_ph'))+'" autocomplete="off" autocapitalize="characters">'
+      + '<button class="btn btn-gold" id="go">'+esc(T('verify_btn'))+'</button>'
+      + '<div class="hint">'+T('code_hint','op',esc(opLabel(chosen.operator)))+'</div>'
       + '<div id="verdict"></div>';
     var input = document.getElementById('ref'); input.focus();
     document.getElementById('go').addEventListener('click', verify);
@@ -140,22 +272,22 @@
   function verify(){
     var input = document.getElementById('ref'); var ref = input.value.trim();
     if(!ref) { input.focus(); return; }
-    var btn = document.getElementById('go'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Vérification…';
+    var btn = document.getElementById('go'); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>'+esc(T('verifying'));
     var vd = document.getElementById('verdict'); vd.innerHTML='';
     api('POST','/checkout/'+INTENT+'/verify', {cs:CS, reference:ref}).then(function(r){
-      btn.disabled = false; btn.textContent='Vérifier mon paiement';
+      btn.disabled = false; btn.textContent=T('verify_btn');
       var d = r.d;
       if(d.status==='verified' || d.status==='verified_late' || d.already){ return success(d.amount_confirmed||DATA.amount, d.redirect, d.receipt_id); }
       if(d.status==='not_found_yet'){ return watching(); }
-      if(d.status==='pending_review'){ return warn('À vérifier', 'Ton paiement est en cours de contrôle. Ça peut prendre un instant.'); }
-      if(d.code==='code_already_used'){ return badV('Code déjà utilisé', 'Ce code a déjà servi pour un paiement. Vérifie ta référence.'); }
-      return badV('Non confirmé', 'On n\'a pas pu confirmer ce paiement. Vérifie le code, le montant et le numéro.');
-    }).catch(function(){ btn.disabled=false; btn.textContent='Vérifier mon paiement'; badV('Erreur','Réessaie dans un instant.'); });
+      if(d.status==='pending_review'){ return warn(T('review'), T('review_p')); }
+      if(d.code==='code_already_used'){ return badV(T('used'), T('used_p')); }
+      return badV(T('no_conf'), T('no_conf_p'));
+    }).catch(function(){ btn.disabled=false; btn.textContent=T('verify_btn'); badV(T('err'),T('err_p')); });
   }
 
   function watching(){
     var vd = document.getElementById('verdict');
-    vd.innerHTML = '<div class="verdict warn"><div class="ic">⏳</div><b>Paiement en route</b><p>Le réseau ne nous a pas encore montré ton paiement. On vérifie automatiquement…</p></div>';
+    vd.innerHTML = '<div class="verdict warn"><div class="ic">⏳</div><b>'+esc(T('en_route'))+'</b><p>'+esc(T('en_route_p'))+'</p></div>';
     // poll a few times — SMS may still be arriving
     var tries = 0;
     clearInterval(watchTimer);
@@ -164,16 +296,16 @@
       api('POST','/checkout/'+INTENT+'/verify', {cs:CS, reference:document.getElementById('ref').value.trim()}).then(function(r){
         var d = r.d;
         if(d.status==='verified'||d.status==='verified_late'||d.already){ clearInterval(watchTimer); success(d.amount_confirmed||DATA.amount, d.redirect, d.receipt_id); }
-        else if(tries>=6){ clearInterval(watchTimer); warn('Toujours en attente','Ton paiement n\'est pas encore visible. Réessaie le code dans une minute.'); }
+        else if(tries>=6){ clearInterval(watchTimer); warn(T('still'),T('still_p')); }
       });
     }, 5000);
   }
 
   function success(amount, redirect, receiptId){
     clearInterval(watchTimer);
-    C.innerHTML = '<div class="verdict ok"><div class="ic">✅</div><b>Paiement confirmé</b>'
-      + '<p>'+fmt(amount)+' '+esc(DATA?DATA.currency:'')+' vérifié. Merci !</p></div>'
-      + (redirect ? '<div class="hint" id="rdir">Redirection en cours…</div>' : '<div class="hint">Tu peux fermer cette page — la commande est confirmée.</div>');
+    C.innerHTML = '<div class="verdict ok"><div class="ic">✅</div><b>'+esc(T('ok'))+'</b>'
+      + '<p>'+esc(T('ok_p','amount',fmt(amount),'cur',(DATA?DATA.currency:'')))+'</p></div>'
+      + (redirect ? '<div class="hint" id="rdir">'+esc(T('redir'))+'</div>' : '<div class="hint">'+esc(T('done_close'))+'</div>');
     // Tell the embedding merchant page. It carries the redirect so the parent
     // widget (same origin as the merchant) can move the top window forward.
     post('koda','verified', {intent_id:INTENT, amount:amount, receipt_id:receiptId||null, redirect:redirect||null});
@@ -188,7 +320,7 @@
   }
   function warn(title, msg){ document.getElementById('verdict').innerHTML = '<div class="verdict warn"><div class="ic">◔</div><b>'+esc(title)+'</b><p>'+esc(msg)+'</p></div>'; }
   function badV(title, msg){ document.getElementById('verdict').innerHTML = '<div class="verdict bad"><div class="ic">✗</div><b>'+esc(title)+'</b><p>'+esc(msg)+'</p></div>'; }
-  function fail(msg){ C.innerHTML = '<div class="verdict bad"><div class="ic">✗</div><b>Oups</b><p>'+esc(msg)+'</p></div>'; }
+  function fail(msg){ C.innerHTML = '<div class="verdict bad"><div class="ic">✗</div><b>'+esc(T('oops'))+'</b><p>'+esc(msg)+'</p></div>'; }
 
   load();
 })();
