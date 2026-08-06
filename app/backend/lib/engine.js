@@ -232,6 +232,53 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
 }
 
+// One-tap confirm from the Live Feed: the SMS is ALREADY captured by Sentinel on
+// the merchant's own SIM, so there is nothing to type — the merchant just claims
+// this counter sale. Runs the SAME fraud policy and issues the SAME receipt as
+// verify(); the only difference is the SMS is looked up by id, not by a typed code.
+function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
+  const trace = { steps: ['feed_confirm: merchant tapped a Sentinel-captured payment'],
+    template_version: VERSION.trace_template, model_version: VERSION.fraud_model };
+  const sms = q.get('SELECT * FROM sms_ledger WHERE id=? AND merchant_id=?', smsId, merchant.id);
+  if (!sms) return { status: 'error', code: 'sms_not_found', trace };
+  if (sms.quarantined) return { status: 'rejected', code: 'sms_quarantined', trace };
+  if (!sms.ref_code || sms.amount == null) return { status: 'error', code: 'unparseable_sms', trace };
+  if (sms.matched_intent_id) return { status: 'error', code: 'already_matched', trace };
+
+  const reference = String(sms.ref_code).toUpperCase();
+  const used = q.get('SELECT * FROM replay_index WHERE merchant_id=? AND reference=? AND receipt_id IS NOT NULL',
+    merchant.id, reference);
+  if (used) { notifyOwners(merchant, 'replay.blocked', { reference }); return { status: 'rejected', code: 'code_already_used', trace }; }
+
+  const risk = scoreMatch({ merchant, intent: null, sms, reference });
+  trace.steps.push(`fraud_score: ${risk.score} (${risk.band}) ${risk.reasons.join(',') || 'clean'}`);
+  if (risk.band === 'reject') { notifyOwners(merchant, 'fraud.high_risk_blocked', { reference }); return { status: 'rejected', code: 'high_risk', risk, trace }; }
+  if (risk.band === 'challenge') { notifyOwners(merchant, 'payment.pending_review', { reference }); return { status: 'pending_review', code: 'needs_review', risk, trace }; }
+
+  const rcp = id('rcp');
+  const acuCost = withinQuota(merchant) ? 0 : ACU.code;
+  const masked = sms.counterparty_name
+    ? sms.counterparty_name.split(' ').map((w, i) => i === 0 ? w[0] + '***' : w[0] + '.').join(' ') : null;
+  q.run(`INSERT INTO receipts (id,merchant_id,intent_id,sms_id,reference,amount,currency,operator,
+         payer_name_masked,payer_suffix,risk_score,mode,decision_trace,acu_cost,verified_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    rcp, merchant.id, 'int_manual', sms.id, sms.ref_code, sms.amount, sms.currency, sms.operator,
+    masked, sms.counterparty_suffix, risk.score, 'manual', JSON.stringify(trace), acuCost, userId);
+  q.run(`INSERT OR REPLACE INTO replay_index (reference, merchant_id, receipt_id) VALUES (?,?,?)`, reference, merchant.id, rcp);
+  q.run(`UPDATE sms_ledger SET matched_intent_id='manual' WHERE id=?`, sms.id);
+  if (acuCost > 0) chargeAcu(merchant, acuCost, 'verification', rcp);
+
+  const payload = { intent_id: null, receipt_id: rcp, amount: sms.amount, currency: sms.currency,
+    operator: sms.operator, reference: sms.ref_code, payer_name_masked: masked,
+    matched_msisdn_suffix: sms.counterparty_suffix ? `***${sms.counterparty_suffix}` : null,
+    risk_score: risk.score, mode: 'manual', metadata: {} };
+  webhooks.dispatch(merchant.id, 'payment.verified', payload);
+  notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(sms.amount)} ${sms.currency}`, reference: sms.ref_code });
+
+  return { status: 'verified', receipt_id: rcp, risk, trace,
+           amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
+}
+
 function sandboxVerify(merchant, intent, reference, { mode, userId, trace }) {
   trace.steps.push('sandbox: magic reference');
   if (reference === 'TEST-REPLAY') return { status: 'rejected', code: 'code_already_used', trace };
@@ -271,4 +318,4 @@ function editDistance(a, b) {
 }
 function fmtAmt(n) { return Number(n || 0).toLocaleString('fr-FR'); }
 
-module.exports = { verify, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota };
+module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota };

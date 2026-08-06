@@ -12,7 +12,7 @@ const I18N = {
     vmeans_t: 'Ce que « vérifié » veut dire (et ne veut pas dire)',
     vmeans_y: 'Vérifié = le SMS de confirmation de l’opérateur est bien arrivé sur votre téléphone, le code correspond (montant, référence, fenêtre), il n’a jamais servi, et il a passé les contrôles anti-fraude.',
     vmeans_n: 'Cela ne garantit pas que l’opérateur ne puisse pas annuler le paiement plus tard. KODA ne détient jamais votre argent — il arrive directement sur votre compte mobile money. Pour un gros montant ou un cas inhabituel, utilisez « à contrôler » avant de livrer.',
-    verify_btn: 'Vérifier le paiement', verified: 'PAIEMENT VÉRIFIÉ', rejected: 'REJETÉ', pending: 'À CONTRÔLER',
+    verify_btn: 'Vérifier le paiement', confirm_pay: 'Confirmer', confirming: 'Confirmation…', verified: 'PAIEMENT VÉRIFIÉ', rejected: 'REJETÉ', pending: 'À CONTRÔLER',
     not_found: 'Pas encore trouvé — on surveille la fenêtre', amount: 'Montant', reference: 'Code de transaction',
     today: "aujourd'hui", month: 'ce mois', unmatched: 'paiements non rattachés', open_disputes: 'litiges ouverts',
     acu_balance: 'solde ACU', topup: 'Recharger', welcome: 'Bonjour', expected_amount: 'Montant attendu (optionnel)',
@@ -36,7 +36,7 @@ const I18N = {
     vmeans_t: 'What "verified" means (and doesn\'t)',
     vmeans_y: "Verified = the operator's own confirmation SMS reached your phone, the code matches (amount, reference, window), it has never been used, and it passed the fraud checks.",
     vmeans_n: 'It does not guarantee the operator can\'t reverse the payment later. KODA never holds your money — it goes straight to your mobile-money account. For a large or unusual payment, use "needs review" before releasing goods.',
-    verify_btn: 'Verify payment', verified: 'PAYMENT VERIFIED', rejected: 'REJECTED', pending: 'NEEDS REVIEW',
+    verify_btn: 'Verify payment', confirm_pay: 'Confirm', confirming: 'Confirming…', verified: 'PAYMENT VERIFIED', rejected: 'REJECTED', pending: 'NEEDS REVIEW',
     not_found: 'Not found yet — watching the window', amount: 'Amount', reference: 'Transaction code',
     today: 'today', month: 'this month', unmatched: 'unmatched payments', open_disputes: 'open disputes',
     acu_balance: 'ACU balance', topup: 'Top up', welcome: 'Hello', expected_amount: 'Expected amount (optional)',
@@ -414,6 +414,8 @@ VIEWS.feed = async () => {
           ${s.quarantined ? `<span class="badge b-bad">${t('quarantined')}</span>` : s.matched_intent_id ? '<span class="badge b-ok">matched</span>' : '<span class="badge b-dim">unmatched</span>'}</div>
         <div class="m">${esc(s.ref_code || '—')} · ${esc(s.operator)} · ${when(s.received_at)}${s.balance_after ? ` · bal ${fmt(s.balance_after)}` : ''}</div></div>
         <div class="amt">${s.amount ? '+' + fmt(s.amount) : ''}</div>
+        ${(!s.quarantined && !s.matched_intent_id && s.ref_code && s.amount != null)
+          ? `<button class="btn btn-gold btn-sm" style="margin-left:10px" onclick="confirmFeed('${s.id}', this)">${t('confirm_pay')}</button>` : ''}
       </div>`).join('') || '<div class="empty">No SMS yet — enroll a Sentinel device or inject a sandbox SMS.</div>'}
   </div>`);
 };
@@ -421,6 +423,18 @@ window.injectSms = async () => {
   try { const r = await api('/app/sandbox/sms', { body: { raw: v('raw'), operator: 'orange_cd' } });
     toast(r.quarantined ? '⚠ SMS quarantined — balance-chain break' : r.parsed ? '✓ SMS parsed into the ledger' : '◔ stored raw (unparseable)'); route(); }
   catch (e) { toast('✗ ' + e.message); }
+};
+// One-tap confirm: issue a receipt for a Sentinel-captured payment — no code typing.
+window.confirmFeed = async (id, btn) => {
+  if (btn) { btn.disabled = true; btn.textContent = t('confirming'); }
+  try {
+    const r = await api('/app/feed/' + id + '/confirm', { body: {} });
+    if (r.status === 'verified') toast('✓ ' + t('verified'));
+    else if (r.status === 'pending_review') toast('⏳ ' + t('pending') + ' — ' + t('disputes'));
+    else if (r.status === 'rejected') toast('⛔ ' + t('rejected') + (r.code ? ' — ' + r.code : ''));
+    else toast('· ' + (r.code || r.status));
+    route();
+  } catch (e) { toast('✗ ' + (e.message || 'error')); if (btn) { btn.disabled = false; btn.textContent = t('confirm_pay'); } }
 };
 
 VIEWS.receipts = async () => {

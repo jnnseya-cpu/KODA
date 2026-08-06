@@ -212,6 +212,14 @@ module.exports = function registerRoutes(r) {
     audit(m.id, user.id, 'sandbox_sms_injected', { operator: req.body.operator });
     return out;
   }));
+  // One-tap confirm from the feed: issue a receipt for a Sentinel-captured payment
+  // with no typing. Same fraud policy and receipt as the console — just no code entry.
+  r.post('/app/feed/:id/confirm', auth((req, user, m) => {
+    const out = engine.confirmLedgerPayment(m, req.params.id, { userId: user.id });
+    if (out.status === 'verified') audit(m.id, user.id, 'feed_payment_confirmed', { sms_id: req.params.id, receipt_id: out.receipt_id });
+    if (out.status === 'error') return [out.code === 'sms_not_found' ? 404 : 409, { error: out.code, trace: out.trace }];
+    return out;
+  }));
 
   // ---------- devices (Sentinel fleet) ----------
   r.get('/app/devices', auth((req, user, m) => q.all('SELECT * FROM devices WHERE merchant_id=?', m.id)));
