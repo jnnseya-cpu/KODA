@@ -556,6 +556,7 @@ VIEWS.devices = async () => {
       <option value="airtel_cd">Airtel Money</option><option value="africell_cd">Africell Money</option>
       <option value="mtn_momo">MTN MoMo</option><option value="wave">Wave</option></select>
     <button class="btn btn-gold btn-sm" onclick="enrollDevice()">${t('enroll_device')}</button>
+    <a class="btn btn-ghost btn-sm" href="/sentinel" target="_blank" rel="noopener">Get the Sentinel app ↗</a>
   </div>
   <div id="device-out"></div>
   <div class="grid g2" style="margin-top:14px">

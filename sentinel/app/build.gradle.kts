@@ -16,10 +16,27 @@ android {
         versionName = "0.2.0"
     }
 
+    // Release signing. In CI, a keystore is provided via env (decoded from a GitHub
+    // secret); locally without one, release falls back to the debug key so
+    // assembleRelease still yields an installable APK for side-load pilots.
+    val ksPath = System.getenv("KODA_KEYSTORE_FILE")
+    val hasKeystore = ksPath != null && file(ksPath).exists()
+    signingConfigs {
+        if (hasKeystore) {
+            create("release") {
+                storeFile = file(ksPath!!)
+                storePassword = System.getenv("KODA_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KODA_KEY_ALIAS")
+                keyPassword = System.getenv("KODA_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = if (hasKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
     compileOptions {

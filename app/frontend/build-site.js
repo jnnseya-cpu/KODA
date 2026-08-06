@@ -47,7 +47,7 @@ const N = COV.total, NC = COV.countries, NR = Object.keys(COV.byRegion).length, 
 
 // the 12 site pages, grouped for the footer (used by landing + every content page)
 const FOOT_GROUPS = [
-  ['Product', [['How it works', 'how-it-works'], ['Coverage', 'coverage'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
+  ['Product', [['How it works', 'how-it-works'], ['Coverage', 'coverage'], ['Sentinel app', 'sentinel'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
   ['Company', [['About', 'about'], ['Blog', 'blog'], ['Growth & Influencers', 'growth'], ['Contact', 'contact']]],
   ['Developers', [['API documentation', 'developers'], ['API reference', 'api-reference'], ['OpenAPI (raw JSON)', 'v1/openapi.json'], ['Open the app', 'app']]],
   ['Legal', [['Terms of Service', 'terms'], ['Privacy Policy', 'privacy'], ['All policies', 'policies']]],
@@ -503,6 +503,30 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
   });
 })();
 </script>`,
+  }),
+
+  'sentinel': page({
+    title: 'Get KODA Sentinel', kicker: 'Sentinel app',
+    lead: 'Sentinel is the free Android app that turns a merchant\'s SIM phone into a verification endpoint. It reads only mobile-money confirmation SMS and forwards them to KODA — so every payment on that SIM is verified automatically.',
+    body: `
+<div class="card"><h3>Download &amp; install (2 minutes)</h3>
+<a class="btn btn-gold" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk" style="font-size:16px">⬇ Download KODA Sentinel (.apk)</a>
+<ol style="margin-top:14px">
+<li><b>Allow install:</b> when your phone warns about "unknown sources", tap <b>Settings → allow from this source</b> (you can turn it back off after).</li>
+<li><b>Open KODA Sentinel.</b> The server is already set to <code>https://kodajnn.com</code>.</li>
+<li><b>Pair the phone:</b> in your KODA merchant account → <b>Sentinel devices → Enroll a device</b>, copy the <code>dvk_…</code> pairing token, paste it into the app, tap <b>PAIR THIS PHONE</b>.</li>
+<li><b>Grant the SMS permission</b> when Android asks — Sentinel reads <em>only</em> operator payment SMS (enforced by an on-device operator filter), never personal messages.</li>
+</ol>
+<p style="font-size:13px;color:var(--dim)">Requires Android 8.0+ (2017 or newer). The app runs quietly in the background and keeps working after a reboot.</p></div>
+<div class="card"><h3>What it does — and what it never does</h3>
+<ul>
+<li><b>Reads</b> the confirmation SMS your operator (Orange, M-Pesa, Airtel, Africell…) sends when you receive money, and forwards it to KODA over an encrypted connection.</li>
+<li><b>Ignores</b> every other SMS — personal messages never leave the phone (filtered on-device by sender).</li>
+<li><b>Never</b> reads contacts, sends SMS, or touches your money. KODA only <em>confirms</em> payments; funds stay on your mobile-money account.</li>
+</ul></div>
+<div class="card"><h3>Coming to Google Play</h3>
+<p>Because Sentinel reads payment SMS, Google Play requires a special permissions review before listing. We're completing that submission. In the meantime this direct download is the official, safe way to install — it's the same signed app that will appear on Play.</p></div>
+<p><a href="/how-it-works">How verification works →</a> · <a href="/app#signup">Create your KODA account →</a></p>`,
   }),
 
   'growth': page({
