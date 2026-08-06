@@ -55,8 +55,23 @@ function notifyOwners(merchant, eventKey, data) {
   });
 }
 
+// ownership proof: a network account is VERIFIED when a forwarded SMS carries
+// its one-time verify_ref (the merchant made a controlled test transfer).
+function checkOwnershipProof(merchantId, raw) {
+  try {
+    const up = String(raw || '').toUpperCase();
+    const pend = q.all(`SELECT id, verify_ref, device_id FROM merchant_network_accounts
+      WHERE merchant_id=? AND ownership_status='UNVERIFIED' AND verify_ref IS NOT NULL`, merchantId);
+    for (const p of pend) {
+      if (p.verify_ref && up.includes(String(p.verify_ref).toUpperCase()))
+        q.run(`UPDATE merchant_network_accounts SET ownership_status='VERIFIED' WHERE id=?`, p.id);
+    }
+  } catch { /* non-fatal */ }
+}
+
 // ingest an SMS (from Sentinel push, KODA Lite forward, or sandbox simulator)
 function ingestSms(merchant, { raw, operator, device_id }) {
+  checkOwnershipProof(merchant.id, raw);
   const parsed = parseSms(raw, operator);
   const smsId = id('sms');
   if (!parsed) {

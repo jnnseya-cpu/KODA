@@ -10,6 +10,7 @@ const notify = require('./comms/notify');
 
 const { PLANS } = require('../shared/plans');
 const VERSION = require('../shared/version');
+const networks = require('./lib/networks');
 
 // role gate: owners always pass, KODA staff always pass
 function needRole(user, roles) { return user.is_admin || user.role === 'owner' || roles.includes(user.role); }
@@ -405,6 +406,21 @@ module.exports = function registerRoutes(r) {
   r.post('/v1/sandbox/sms', apiKey((req, m) => engine.ingestSms(m, { raw: req.body.raw, operator: req.body.operator })));
   r.get('/v1/billing/balance', apiKey((req, m) => ({ acu_balance: m.acu_balance }), 'read:usage'));
 
+  // ---- Sentinel heartbeat: keeps device health fresh for the resolver (§9.3) ----
+  r.post('/v1/device/heartbeat', (req) => {
+    const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.headers['x-device-token'];
+    if (!tok || !/^dvk_/.test(tok)) return [401, { error: { code: 'device_unauthenticated' } }];
+    const dev = q.get(`SELECT * FROM devices WHERE device_token=? AND status='active'`, tok);
+    if (!dev) return [401, { error: { code: 'device_unauthenticated' } }];
+    const b = req.body || {};
+    q.run(`UPDATE devices SET last_seen=datetime('now'), battery=?, attested=?, parse_health=? WHERE id=?`,
+      Number.isFinite(+b.battery) ? Math.max(0, Math.min(100, +b.battery)) : dev.battery,
+      b.attested ? 1 : dev.attested,
+      Number.isFinite(+b.parse_health) ? Math.max(0, Math.min(1, +b.parse_health)) : dev.parse_health,
+      dev.id);
+    return { ok: true, device_id: dev.id, next_heartbeat_s: 45 };
+  });
+
   // ---- Sentinel phone-edge: the real SMS-forward door (device-token auth) ----
   // The Sentinel Android app posts every operator SMS it reads here. Authenticated
   // by the per-device token minted at enrollment — NOT an API key — so a merchant
@@ -425,6 +441,27 @@ module.exports = function registerRoutes(r) {
     const out = engine.ingestSms(m, { raw, operator: req.body.operator || dev.operator, device_id: dev.id });
     return { received: true, sms_id: out.id, parsed: !!out.parsed, quarantined: !!out.quarantined };
   });
+
+  // ---------- NETWORK INTELLIGENCE LAYER (merchant network accounts + resolver) ----------
+  // App/dashboard (JWT): connect, verify, activate, pause, preview resolution.
+  r.get('/app/network-accounts', auth((req, user, m) => q.all(
+    `SELECT id,network_code,masked,account_holder_name,ownership_status,activation_status,
+            enabled_manual,enabled_whatsapp,enabled_api,receive_currencies,priority,device_id,verify_ref
+     FROM merchant_network_accounts WHERE merchant_id=? AND submerchant_id IS NULL ORDER BY priority`, m.id)));
+  r.post('/app/network-accounts', auth((req, user, m) => networks.connect(m, req.body)));
+  r.post('/app/network-accounts/:id/activate', auth((req, user, m) => networks.activate(m, req.params.id)));
+  r.post('/app/network-accounts/:id/pause', auth((req, user, m) => networks.setState(m, req.params.id, { activation_status: 'PAUSED' })));
+  r.post('/app/network-accounts/:id/resume', auth((req, user, m) => networks.setState(m, req.params.id, { activation_status: 'ACTIVE' })));
+  r.post('/app/network-accounts/:id/link-device', auth((req, user, m) => networks.setState(m, req.params.id, { device_id: req.body.device_id || null })));
+  r.get('/app/payment-methods', auth((req, user, m) => networks.resolve(m, req.query)));
+
+  // Public API (key): connect + activate + resolve; and the public country catalogue.
+  r.post('/v1/merchant-network-accounts', apiKey((req, m) => networks.connect(m, req.body), 'write:intents'));
+  r.post('/v1/merchant-network-accounts/:id/activate', apiKey((req, m) => networks.activate(m, req.params.id)));
+  r.post('/v1/merchant-network-accounts/:id/pause', apiKey((req, m) => networks.setState(m, req.params.id, { activation_status: 'PAUSED' })));
+  r.get('/v1/merchants/me/payment-methods', apiKey((req, m) => networks.resolve(m, req.query)));
+  r.get('/v1/catalog/countries/:code/networks', (req) =>
+    networks.catalogue(String(req.params.code || '').toUpperCase(), { currency: req.query.currency, supportStatus: req.query.support_status }));
 
   // ---- operator coverage: the mobile-money landscape KODA recognises ----
   // Public (non-sensitive). `packed` = precise parser; the rest run on the
@@ -638,6 +675,14 @@ module.exports = function registerRoutes(r) {
     const i = q.get('SELECT * FROM intents WHERE id=? AND client_secret=?', id, cs);
     return i || null;
   }
+  // eligible networks for THIS intent (customer-facing; resolver output)
+  r.get('/checkout/:id/payment-methods', (req) => {
+    const i = checkoutIntent(req.params.id, req.query.cs);
+    if (!i) return [404, { error: { code: 'intent_not_found' } }];
+    const m = q.get('SELECT * FROM merchants WHERE id=?', i.merchant_id);
+    return networks.resolve(m, { country: m.country, currency: i.currency, amount: i.amount, door: 'API' });
+  });
+
   // public read: what the checkout page shows the customer
   r.get('/checkout/:id', (req) => {
     const i = checkoutIntent(req.params.id, req.query.cs);
@@ -729,10 +774,16 @@ function createIntent(m, body) {
     body.purpose === 'topup' ? 'topup' : 'sale', clientSecret, okUrl(body.success_url), okUrl(body.cancel_url),
     Math.min(3600, Number(body.expires_in) || 900));
   const intent = q.get('SELECT * FROM intents WHERE id=?', iid);
+  // Network Intelligence: the resolver returns only the merchant's active,
+  // verified, healthy networks for this country/currency/door. Falls back to the
+  // legacy operators list (pay_to) when no network accounts are configured yet.
+  const resolved = networks.resolve(m, { country: body.country || m.country, currency, amount, door: 'API' });
   return {
     intent_id: iid, status: intent.status,
     client_secret: clientSecret,
     checkout_url: `${SITE_BASE()}/pay/${iid}?cs=${clientSecret}`,
+    network_selection: ['AUTO', 'CUSTOMER', 'FIXED'].includes(body.network_selection) ? body.network_selection : 'CUSTOMER',
+    available_networks: resolved.available,
     pay_to: ops.map(o => ({ operator: o, number: m.msisdn || '+243 8XX XXX XXX', ussd_hint: o.startsWith('orange') ? '#144#' : '*1122#' })),
     expires_at: intent.expires_at,
   };

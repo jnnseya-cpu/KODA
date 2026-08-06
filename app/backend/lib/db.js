@@ -253,6 +253,30 @@ try { db.exec(`ALTER TABLE intents ADD COLUMN success_url TEXT`); } catch { /* e
 try { db.exec(`ALTER TABLE intents ADD COLUMN cancel_url TEXT`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE devices ADD COLUMN device_token TEXT`); } catch { /* exists */ }
 
+// merchant network accounts — a merchant proves + activates specific operator
+// deployments (registry network_code). The Payment Method Resolver reads these
+// to decide what a customer may see. (Network Intelligence Layer.)
+db.exec(`CREATE TABLE IF NOT EXISTS merchant_network_accounts (
+  id TEXT PRIMARY KEY,
+  merchant_id TEXT NOT NULL REFERENCES merchants(id),
+  submerchant_id TEXT,
+  network_code TEXT NOT NULL,                       -- registry operator id, e.g. orange_cd
+  account_identifier TEXT,                          -- receiving msisdn/till (masked in output)
+  masked TEXT,
+  account_holder_name TEXT,
+  ownership_status TEXT NOT NULL DEFAULT 'UNVERIFIED', -- UNVERIFIED|VERIFIED
+  activation_status TEXT NOT NULL DEFAULT 'DRAFT',     -- DRAFT|ACTIVE|PAUSED|SUSPENDED
+  enabled_manual INTEGER NOT NULL DEFAULT 1,
+  enabled_whatsapp INTEGER NOT NULL DEFAULT 1,
+  enabled_api INTEGER NOT NULL DEFAULT 1,
+  receive_currencies TEXT NOT NULL DEFAULT '[]',    -- JSON array
+  priority INTEGER NOT NULL DEFAULT 100,
+  device_id TEXT,                                   -- linked Sentinel device
+  verify_ref TEXT,                                  -- ownership micro-reference challenge
+  suspended_reason TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
 // hot verify path runs ~10 statements, so caching keeps the money path fast.
