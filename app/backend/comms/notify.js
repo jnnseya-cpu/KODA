@@ -10,11 +10,12 @@ const { renderEmail } = require('./email');
 
 const meta = require('./meta');
 
+const senders = require('./senders');
 const PROVIDERS = {
-  email: () => process.env.BREVO_API_KEY ? 'brevo' : 'sandbox',
+  email: () => process.env.KODA_SMTP_HOST ? 'smtp' : process.env.BREVO_API_KEY ? 'brevo' : 'sandbox',
   whatsapp: () => meta.configured() ? 'meta' : 'sandbox',
   push: () => process.env.FCM_KEY ? 'fcm' : 'sandbox',
-  sms: () => process.env.SMS_GATEWAY_KEY ? 'gateway' : 'sandbox',
+  sms: () => process.env.KODA_SMS_URL ? 'gateway' : 'sandbox',
   inapp: () => 'inapp',
 };
 
@@ -62,14 +63,22 @@ function fire(eventKey, opts = {}) {
       dlvId, merchant?.id || null, user?.id || null, ev.key, channel,
       recipient, subject, provider, status);
 
-    // live WhatsApp send via Meta Cloud API — async, never blocks the caller
+    // live sends — async, never block the caller; each updates its delivery row.
+    const mark = (p) => p
+      .then((r) => q.run(`UPDATE comm_deliveries SET status=? WHERE id=?`, r && r.ok ? 'sent' : 'logged', dlvId))
+      .catch(() => q.run(`UPDATE comm_deliveries SET status='failed' WHERE id=?`, dlvId));
     if (channel === 'whatsapp' && provider === 'meta' && recipient) {
       const tpl = meta.EVENT_TEMPLATES[ev.key];
       const to = String(recipient).replace(/[^\d]/g, '');
-      (tpl ? meta.sendTemplate(to, tpl, (merchant?.language || 'fr') === 'fr' ? 'fr' : 'en_US')
-           : meta.sendText(to, subject))
-        .then(() => q.run(`UPDATE comm_deliveries SET status='sent' WHERE id=?`, dlvId))
-        .catch(e => q.run(`UPDATE comm_deliveries SET status='failed' WHERE id=?`, dlvId));
+      mark(tpl ? meta.sendTemplate(to, tpl, (merchant?.language || 'fr') === 'fr' ? 'fr' : 'en_US').then(() => ({ ok: true }))
+              : meta.sendText(to, subject).then(() => ({ ok: true })));
+    } else if (channel === 'email' && provider !== 'sandbox' && recipient) {
+      const html = renderEmail({ subject, event: ev, merchant, user, data });
+      mark(senders.sendEmail(recipient, subject, html));
+    } else if (channel === 'sms' && provider !== 'sandbox' && recipient) {
+      mark(senders.sendSms(recipient, subject));
+    } else if (channel === 'push' && provider !== 'sandbox' && recipient) {
+      mark(senders.sendPush(recipient, subject, interpolate(ev.label, data)));
     }
     results.push({ channel, provider, status });
   }
