@@ -190,8 +190,9 @@
   .sec-sub strong{color:var(--text)}
 
   /* ---------- THREE DOORS ---------- */
-  .doors{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  @media(max-width:900px){.doors{grid-template-columns:1fr}}
+  .doors{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  @media(max-width:1100px){.doors{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:640px){.doors{grid-template-columns:1fr}}
   .door{
     border:1px solid var(--line);border-radius:14px;padding:30px 26px;
     background:linear-gradient(180deg, rgba(255,255,255,.025), transparent 55%);
@@ -264,6 +265,9 @@
   .fraud-panel .sec-kicker{color:var(--gold-deep)}
   .fraud-panel h2{color:var(--paper-ink)}
   .fraud-panel .sec-sub{color:rgba(36,31,20,.65)}
+  /* On the light fraud panel, emphasised phrases must stay dark — otherwise they
+     inherit the dark-theme --text (near-white) and wash out on the paper. */
+  .fraud-panel .sec-sub strong{color:var(--paper-ink);font-weight:700}
   .fraud-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:start}
   @media(max-width:900px){.fraud-grid{grid-template-columns:1fr}}
   .attacks{display:flex;flex-direction:column;gap:12px}
@@ -440,7 +444,7 @@
   <div class="wrap nav-in">
     <a class="logo" href="#"><span class="tick">✓</span>KODA</a>
     <div class="nav-links">
-      <a href="#doors">Three Doors</a>
+      <a href="#doors">The Doors</a>
       <a href="#how">How it works</a>
       <a href="#world">Coverage</a>
       <a href="#fraud">Fraud engine</a>
@@ -523,7 +527,7 @@
 <!-- ============ THREE DOORS ============ -->
 <section id="doors">
   <div class="wrap">
-    <div class="sec-kicker">One engine · three doors</div>
+    <div class="sec-kicker">One engine · four doors</div>
     <h2>A market trader and a 400-merchant platform use the exact same truth.</h2>
     <p class="sec-sub">
       Identical matching, fraud scoring, replay protection and audit trail — only the interface differs
@@ -568,6 +572,20 @@
           <li>Sub-merchant API: onboard whole merchant bases</li>
           <li>HMAC-signed webhooks, idempotency built in</li>
           <li>Wholesale from $0.010/verification</li>
+        </ul>
+      </div>
+      <div class="door">
+        <span class="badge">FEATURE PHONES</span>
+        <div class="door-num">DOOR 04</div>
+        <h3>USSD Mode</h3>
+        <span class="who">For any handset — no smartphone, no app, no data</span>
+        <p>Dial a KODA shortcode, key in the code, and get the verdict back on-screen and by SMS.
+        The same telco-anchored truth, on the most basic phone in the market.</p>
+        <ul>
+          <li>Works on every phone — no smartphone or internet needed</li>
+          <li>Dial a shortcode, confirm, done — verdict in seconds</li>
+          <li>Same replay lock, fraud scoring and ledger as every door</li>
+          <li>Rolling out with partner operators (telco shortcode required)</li>
         </ul>
       </div>
     </div>
@@ -655,7 +673,7 @@ risk 0.02 · &lt;10 s</div>
         <div class="attacks">
           <div class="attack">
             <div class="attack-name">Code replay</div>
-            <div class="attack-def">Global Replay Index — every code is <strong>single-use per merchant, forever</strong>, across all three doors. A code verified manually is dead to the API too.</div>
+            <div class="attack-def">Global Replay Index — every code is <strong>single-use per merchant, forever</strong>, across all four doors. A code verified manually is dead to the API too.</div>
           </div>
           <div class="attack">
             <div class="attack-name">Stolen code</div>
@@ -757,7 +775,7 @@ risk 0.02 · &lt;10 s</div>
 <!-- ============ PRICING ============ -->
 <section id="pricing" class="sec-alt">
   <div class="wrap">
-    <div class="sec-kicker">One ladder · all three doors</div>
+    <div class="sec-kicker">One ladder · all four doors</div>
     <h2>Free until your merchant actually gets paid.</h2>
     <p class="sec-sub">Every plan includes a <strong>monthly verification quota at no per-use cost</strong> — identical whether a human
     clicked Verify or a webhook fired. Failed matches, rejections, expired intents: <strong>free.</strong>
