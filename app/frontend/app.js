@@ -65,6 +65,8 @@ function toast(msg, ms = 3200) {
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = (n) => Number(n || 0).toLocaleString(lang() === 'fr' ? 'fr-FR' : 'en-US');
+// ACU balance display: admin-owned accounts are unlimited → show ∞
+const acuFmt = (n) => (ME && ME.acu_unlimited) ? '∞' : fmt(n);
 const when = (s) => s ? new Date(s.replace(' ', 'T') + (s.includes('Z') ? '' : 'Z')).toLocaleString(lang() === 'fr' ? 'fr-FR' : 'en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
 
 /* ---------------- state + router ---------------- */
@@ -167,7 +169,7 @@ function shell(active, title, sub, content) {
           <div><h1>${title}</h1>${sub ? `<div class="sub">${sub}</div>` : ''}</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center">
-          ${m ? `<span class="badge b-warn mono">${fmt(m.acu_balance)} ACU</span>` : ''}
+          ${m ? `<span class="badge b-warn mono">${acuFmt(m.acu_balance)} ACU</span>` : ''}
           <select class="lang-sel" onchange="setLang(this.value)">
             <option value="" ${!LANG ? 'selected' : ''}>${t('auto')}</option>
             <option value="fr" ${LANG === 'fr' ? 'selected' : ''}>Français</option>
@@ -243,7 +245,7 @@ VIEWS.dashboard = async () => {
     <div class="card stat"><b>${fmt(d.today.c)}</b><span>${t('verify')} ${t('today')} · ${fmt(d.today.s)} ${ME.merchant.currency}</span></div>
     <div class="card stat"><b>${fmt(d.month.c)}</b><span>${t('month')} · ${fmt(d.month.s)} ${ME.merchant.currency}</span></div>
     <div class="card stat"><b class="${d.unmatched.c ? '' : 'up'}">${fmt(d.unmatched.c)}</b><span>${t('unmatched')} · ${fmt(d.unmatched.s)} ${ME.merchant.currency}</span></div>
-    <div class="card stat"><b>${fmt(d.acu)}</b><span>${t('acu_balance')} · <a href="#billing" style="color:var(--gold)">${t('topup')}</a></span></div>
+    <div class="card stat"><b>${acuFmt(d.acu)}</b><span>${t('acu_balance')} · <a href="#billing" style="color:var(--gold)">${t('topup')}</a></span></div>
   </div>
   <div class="grid g2" style="margin-top:14px">
     <div class="card"><h3>14-day verifications</h3>
@@ -451,7 +453,7 @@ VIEWS.billing = async () => {
   const plans = ['marche', 'boutique', 'commerce', 'plateforme'];
   shell('billing', t('billing'), '"We only earn when the merchant gets paid."', `
   <div class="grid g3">
-    <div class="card stat"><b>${fmt(b.balance)}</b><span>${t('acu_balance')}</span></div>
+    <div class="card stat"><b>${acuFmt(b.balance)}</b><span>${t('acu_balance')}</span></div>
     <div class="card stat"><b>${esc(b.plan.label)}</b><span>${t('plan')} · ${b.plan.usd === null ? 'custom' : '$' + b.plan.usd + '/mo'} · ${b.plan.verifs || '∞'} verifs</span></div>
     <div class="card stat"><b>${fmt(b.usage.reduce((a, x) => a + (x.burned || 0), 0))}</b><span>ACU burned · 30 days</span></div>
   </div>

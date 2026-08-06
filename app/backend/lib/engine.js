@@ -13,7 +13,15 @@ const { ACU, TOPUP_PACKS, PLANS } = require('../../shared/plans');
 // Verifications within the plan's monthly quota are FREE — they consume no ACU.
 // ACU is spent only on AI features (Vision, agents, disputes) and on verifications
 // BEYOND the quota (overage). Unlimited plans (verifs=null) are always within quota.
+// A merchant owned by a KODA staff-admin is ACU-UNLIMITED: never charged, never
+// gated, always "within quota". This encodes the platform rule "admin has no ACU
+// limit" — the operator's own accounts are exempt from metering.
+function acuUnlimited(merchant) {
+  if (!merchant || !merchant.id) return false;
+  return !!q.get('SELECT 1 FROM users WHERE merchant_id=? AND is_admin=1 LIMIT 1', merchant.id);
+}
 function withinQuota(merchant) {
+  if (acuUnlimited(merchant)) return true;
   const plan = PLANS[merchant.plan] || PLANS.marche;
   if (plan.verifs == null) return true;
   const used = q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > date('now','start of month')`, merchant.id).c;
@@ -31,6 +39,7 @@ function getMerchant(mid) { return q.get('SELECT * FROM merchants WHERE id=?', m
 // synchronously with no interleaving, so a relative UPDATE + SELECT + INSERT is
 // atomic w.r.t. other requests and always self-consistent.
 function chargeAcu(merchant, amount, kind, ref) {
+  if (acuUnlimited(merchant)) return merchant.acu_balance; // admin-owned: never metered
   q.run('UPDATE merchants SET acu_balance = acu_balance - ? WHERE id=?', amount, merchant.id);
   const bal = q.get('SELECT acu_balance FROM merchants WHERE id=?', merchant.id).acu_balance;
   q.run(`INSERT INTO acu_transactions (id,merchant_id,delta,kind,ref,balance_after)
@@ -58,6 +67,7 @@ function gateAI(merchant, cost, label) {
   if (!Number.isFinite(c) || c < AI_MIN) {
     return [500, { error: { code: 'ai_action_not_metered', message: `AI action "${label}" has no valid ACU price` } }];
   }
+  if (acuUnlimited(merchant)) return { ok: true, cost: 0 }; // admin-owned: no limit
   if (!merchant || merchant.acu_balance < c) {
     return [402, { error: { code: 'insufficient_credit', required_acu: c, balance: merchant ? merchant.acu_balance : 0,
       message: 'Top up ACU to run this AI action.' } }];
@@ -258,4 +268,4 @@ function editDistance(a, b) {
 }
 function fmtAmt(n) { return Number(n || 0).toLocaleString('fr-FR'); }
 
-module.exports = { verify, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN };
+module.exports = { verify, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota };

@@ -58,6 +58,7 @@ module.exports = function registerRoutes(r) {
   r.get('/app/me', auth((req, user, merchant) => ({
     user: safeUser(user), merchant,
     plan: PLANS[merchant?.plan || 'marche'],
+    acu_unlimited: engine.acuUnlimited(merchant), // admin-owned merchants are never ACU-metered
     unread: q.get('SELECT COUNT(*) c FROM notifications WHERE user_id=? AND read=0', user.id).c,
   })));
 
