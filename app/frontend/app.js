@@ -772,11 +772,12 @@ window.inviteMember = async () => {
 VIEWS.developers = async () => {
   const keys = await api('/app/keys');
   const wh = await api('/app/webhooks');
-  shell('developers', t('developers'), 'Three endpoints. One coffee. — api.koda.africa/v1', `
+  shell('developers', t('developers'), 'Three endpoints. One coffee. — kodajnn.com/v1', `
   <div class="grid g2">
     <div class="card"><h3>API keys</h3>
+      <p style="font-size:12.5px;color:var(--dim);margin-bottom:8px">Tap a button below to create a key (shown once). For testing use <b>Create sk_test</b>.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        ${['sk_live', 'pk_live', 'sk_test', 'rk_live'].map(p => `<button class="btn btn-ghost btn-sm" onclick="createKey('${p}')">+ ${p}</button>`).join('')}
+        ${[['sk_test', 'Create sk_test (sandbox)'], ['sk_live', 'Create sk_live'], ['pk_live', 'Create pk_live'], ['rk_live', 'Create rk_live (read-only)']].map(([p, label]) => `<button class="btn ${p === 'sk_test' ? 'btn-gold' : 'btn-ghost'} btn-sm" onclick="createKey('${p}')">${esc(label)}</button>`).join('')}
       </div>
       <table class="tbl">${keys.map(k => `<tr>
         <td class="mono" style="font-size:12px">${esc(k.prefix)}_···${esc(k.last4)}</td>

@@ -1,7 +1,7 @@
 /* KODA drop-in checkout widget — zero dependencies.
  *
  * Load it from your KODA instance:
- *   <script src="https://pay.koda.africa/js/koda.js"></script>
+ *   <script src="https://kodajnn.com/js/koda.js"></script>
  *
  * Two ways to use it, both end with an automatic hand-off once the customer's
  * mobile-money code is verified:
