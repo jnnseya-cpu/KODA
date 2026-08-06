@@ -121,20 +121,18 @@ function ingestSms(merchant, { raw, operator, device_id }) {
     notifyOwners(merchant, 'fraud.chain_break', { operator: parsed.operator });
     return { id: smsId, parsed: true, quarantined: true, chain };
   }
-  // late-match: an awaiting intent watching for this reference?
-  const sms = q.get('SELECT * FROM sms_ledger WHERE id=?', smsId);
-  const waiting = q.all(
-    `SELECT * FROM intents WHERE merchant_id=? AND status='awaiting_payment' AND amount=?
-     ORDER BY created_at DESC`, merchant.id, parsed.amount);
-  for (const intent of waiting) {
-    const pendingRef = q.get(
-      `SELECT reference FROM replay_index WHERE merchant_id=? AND reference=? AND receipt_id IS NULL`,
-      merchant.id, parsed.ref);
-    if (pendingRef) { // a customer already submitted this code (not_found_yet) → convert now
-      verify(getMerchant(merchant.id), intent, parsed.ref, { mode: 'api', late: true });
-      break;
-    }
+  // DOOR 3 — FULLY AUTOMATIC online order. When the payment SMS lands, KODA matches
+  // it to an awaiting checkout intent and verifies the order itself — the customer
+  // types NOTHING. Match rules (safe against amount collisions):
+  //   · prefer an order whose known payer number matches the SMS payer suffix
+  //   · else, if exactly ONE order awaits this amount, it's unambiguous → match it
+  //   · else (several same-amount orders, no payer match) → HOLD for the code to disambiguate
+  const match = matchAwaitingIntent(merchant.id, parsed);
+  if (match.intent) {
+    const r = verify(getMerchant(merchant.id), match.intent, parsed.ref, { mode: 'api' });
+    return { id: smsId, parsed: true, quarantined: false, fields: parsed, auto: r };
   }
+
   // Distributor rail (System B): if this merchant is a KODA distributor, a verified
   // incoming payment may settle a pending merchant top-up — the engine IS the escrow.
   try { require('./billing').matchDistributorPayment(merchant.id, parsed.amount); } catch { /* billing optional */ }
@@ -142,23 +140,34 @@ function ingestSms(merchant, { raw, operator, device_id }) {
   // incoming payment auto-settles a matching pending plan/top-up (exact local amount).
   try { if (process.env.KODA_COLLECT_MERCHANT === merchant.id) require('./billing').matchKodaCollection(parsed.amount); } catch { /* billing optional */ }
 
-  // FULLY-AUTOMATIC verification — the merchant does NOTHING. A clean operator SMS
-  // captured on the merchant's own device that no pending intent has claimed is a
-  // walk-in sale: verify it immediately and issue the receipt. The fraud engine still
-  // gates — a generic/low-trust operator is left as pending_review for the fallback
-  // console, and quarantined SMS never reach here. Skipped for the KODA treasury SIM,
-  // whose incoming payments are collections settled above, not sales.
+  // FULLY-AUTOMATIC walk-in verification — the merchant does NOTHING. A clean operator
+  // SMS on the merchant's own device that no order is awaiting is a counter sale: verify
+  // it immediately and issue the receipt. The fraud engine still gates (generic → review,
+  // quarantine never reaches here). Skipped for the KODA treasury SIM (collections above)
+  // and when orders of this amount are awaiting but ambiguous (held for the code).
   let auto = null;
-  if (process.env.KODA_COLLECT_MERCHANT !== merchant.id) {
-    // Hold for an online sale: if a checkout intent is awaiting this exact amount,
-    // don't auto-verify as a walk-in — let the Door-3 flow claim it against the order.
-    const awaitingIntent = q.get(
-      `SELECT id FROM intents WHERE merchant_id=? AND status='awaiting_payment' AND amount=?`,
-      merchant.id, parsed.amount);
+  if (process.env.KODA_COLLECT_MERCHANT !== merchant.id && !match.ambiguous) {
     const still = q.get('SELECT matched_intent_id FROM sms_ledger WHERE id=?', smsId);
-    if (!awaitingIntent && still && !still.matched_intent_id) auto = confirmLedgerPayment(merchant, smsId, {});
+    if (still && !still.matched_intent_id) auto = confirmLedgerPayment(merchant, smsId, {});
   }
   return { id: smsId, parsed: true, quarantined: false, fields: parsed, auto };
+}
+
+// Match an incoming payment to an awaiting checkout order, safely (Door 3 auto).
+// Returns { intent } to auto-verify, { ambiguous:true } to hold for the code, or {} if none.
+function matchAwaitingIntent(merchantId, parsed) {
+  const waiting = q.all(
+    `SELECT * FROM intents WHERE merchant_id=? AND status='awaiting_payment' AND amount=?
+     ORDER BY created_at ASC`, merchantId, parsed.amount);
+  if (!waiting.length) return {};
+  if (parsed.suffix) {
+    const bySuffix = waiting.find(i => i.customer_msisdn && String(i.customer_msisdn).replace(/\D/g, '').slice(-4) === String(parsed.suffix));
+    if (bySuffix) return { intent: bySuffix };
+    // any order pins a payer number that does NOT match → don't guess; hold.
+    if (waiting.some(i => i.customer_msisdn)) return { ambiguous: true };
+  }
+  if (waiting.length === 1) return { intent: waiting[0] };  // unambiguous
+  return { ambiguous: true };                                // several same-amount orders → hold
 }
 
 // the core verify — one truth for all three doors

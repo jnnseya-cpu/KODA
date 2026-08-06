@@ -128,11 +128,13 @@ function shell(active, title, sub, content) {
   // role-based navigation: cashier = till work only · manager = + operations · owner = everything
   const role = u.is_admin ? 'admin' : (u.role || 'owner');
   // KODA verifies automatically — the merchant does nothing. The manual Verify
-  // console stays reachable at #verify as a fallback, but is not a primary tab.
+  // console stays available as an option, just not the primary tab (it sits after
+  // the auto-verified feed and receipts).
   const till = [
     ['dashboard', '◫', t('dashboard')],
     ['feed', '≋', t('feed')],
     ['receipts', '🧾', t('receipts')],
+    ['verify', '✓', t('verify')],
   ];
   const ops = [
     ['disputes', '⚖', t('disputes')],
