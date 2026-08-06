@@ -863,7 +863,7 @@ module.exports = function registerRoutes(r) {
       },
       config: {
         meta_wa_token: !!process.env.META_WA_TOKEN, meta_wa_phone_id: !!process.env.META_WA_PHONE_ID,
-        meta_wa_app_secret: !!process.env.META_WA_APP_SECRET, sms_gateway_key: !!process.env.SMS_GATEWAY_KEY,
+        meta_wa_app_secret: !!process.env.META_APP_SECRET, sms_gateway_key: !!process.env.SMS_GATEWAY_KEY,
       },
     };
   }));
