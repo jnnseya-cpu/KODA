@@ -238,6 +238,16 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- password reset tokens (forgot-password flow). token_hash = sha256(token); the
+-- raw token only ever lives in the emailed link. Single-use, short-lived.
+CREATE TABLE IF NOT EXISTS password_resets (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id),
+  expires_at TEXT NOT NULL,
+  used INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_sms_merchant ON sms_ledger(merchant_id, received_at);
 CREATE INDEX IF NOT EXISTS idx_sms_ref ON sms_ledger(merchant_id, ref_code);
 CREATE INDEX IF NOT EXISTS idx_receipts_merchant ON receipts(merchant_id, verified_at);

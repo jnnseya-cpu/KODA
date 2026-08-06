@@ -55,6 +55,49 @@ module.exports = function registerRoutes(r) {
     return { token: U.signJwt({ uid: user.id, mid: user.merchant_id, adm: !!user.is_admin }), user: safeUser(user), merchant };
   });
 
+  // ---- forgot password: email a single-use reset link ----
+  r.post('/app/auth/forgot', (req) => {
+    const email = String(req.body.email || '').toLowerCase().trim();
+    const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'ip';
+    if (bruteLimited('forgot:' + email + ':' + ip, 5, 60000)) return [429, { error: { code: 'too_many_attempts', retry_after: 60 } }];
+    // Always respond ok — never reveal whether an email is registered.
+    const user = email ? q.get('SELECT * FROM users WHERE email=?', email) : null;
+    if (user && user.status === 'active') {
+      const raw = U.token(24);
+      q.run(`INSERT INTO password_resets (token_hash,user_id,expires_at) VALUES (?,?,datetime('now','+1 hour'))`, U.sha256(raw), user.id);
+      const base = (process.env.KODA_PUBLIC_URL || 'https://kodajnn.com').replace(/\/$/, '');
+      const link = `${base}/app#reset?token=${raw}`;
+      const merchant = user.merchant_id ? q.get('SELECT * FROM merchants WHERE id=?', user.merchant_id) : null;
+      notify.fire('password.forgot', { user, merchant, data: {
+        body: 'We received a request to reset your KODA password. This link is valid for 1 hour and can be used once. If you didn\'t ask for this, you can safely ignore this email.',
+        cta: 'Reset password', cta_url: link,
+      } });
+      audit(user.merchant_id, user.id, 'password.forgot_requested', {});
+    }
+    return { ok: true, message: 'If that email is registered, a reset link is on its way.' };
+  });
+
+  // ---- reset password with the token from the email link ----
+  r.post('/app/auth/reset', (req) => {
+    const raw = String(req.body.token || '');
+    const password = String(req.body.password || '');
+    if (raw.length < 10) return [400, { error: { code: 'bad_token' } }];
+    if (password.length < 8) return [400, { error: { code: 'weak_password', message: 'Use at least 8 characters.' } }];
+    const row = q.get(`SELECT * FROM password_resets WHERE token_hash=? AND used=0 AND expires_at > datetime('now')`, U.sha256(raw));
+    if (!row) return [400, { error: { code: 'invalid_or_expired' } }];
+    const user = q.get('SELECT * FROM users WHERE id=?', row.user_id);
+    if (!user) return [400, { error: { code: 'invalid_or_expired' } }];
+    tx(() => {
+      q.run('UPDATE users SET pass_hash=? WHERE id=?', U.hashPassword(password), user.id);
+      q.run('UPDATE password_resets SET used=1 WHERE token_hash=?', U.sha256(raw));
+      q.run('UPDATE password_resets SET used=1 WHERE user_id=? AND used=0', user.id); // invalidate siblings
+    });
+    const merchant = user.merchant_id ? q.get('SELECT * FROM merchants WHERE id=?', user.merchant_id) : null;
+    notify.fire('password.reset.successful', { user, merchant, data: { body: 'Your KODA password was just reset. If this wasn\'t you, contact support immediately.' } });
+    audit(user.merchant_id, user.id, 'password.reset_completed', {});
+    return { ok: true };
+  });
+
   r.get('/app/me', auth((req, user, merchant) => ({
     user: safeUser(user), merchant,
     plan: PLANS[merchant?.plan || 'marche'],

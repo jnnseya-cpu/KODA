@@ -21,6 +21,10 @@ const I18N = {
     preview: 'Aperçu', send_test: "M'envoyer un test", mark_read: 'Tout marquer lu', save: 'Enregistrer',
     plan: 'Formule', change_plan: 'Changer de formule', language: 'Langue', auto: 'Auto (appareil)',
     growth: 'Moteur de croissance', generate: 'Générer', growth_sub: 'Outils marketing IA — développe ta portée et tes partenaires',
+    forgot_pw: 'Mot de passe oublié ?', forgot_sub: 'Entrez votre e-mail — nous vous enverrons un lien de réinitialisation.',
+    send_reset: 'Envoyer le lien', reset_pw: 'Réinitialiser le mot de passe',
+    reset_sub: 'Choisissez un nouveau mot de passe pour votre compte KODA.',
+    reset_done: 'Mot de passe mis à jour. Redirection vers la connexion…',
   },
   en: {
     dashboard: 'Dashboard', verify: 'Verify', feed: 'Live payments feed', receipts: 'Receipts',
@@ -40,6 +44,10 @@ const I18N = {
     preview: 'Preview', send_test: 'Send test to me', mark_read: 'Mark all read', save: 'Save',
     plan: 'Plan', change_plan: 'Change plan', language: 'Language', auto: 'Auto (device)',
     growth: 'AI Growth Engine', generate: 'Generate', growth_sub: 'AI marketing tools — maximise your reach and partners',
+    forgot_pw: 'Forgot password?', forgot_sub: 'Enter your email — we\'ll send you a reset link.',
+    send_reset: 'Send reset link', reset_pw: 'Reset password',
+    reset_sub: 'Choose a new password for your KODA account.',
+    reset_done: 'Password updated. Redirecting to sign in…',
   },
 };
 let LANG = localStorage.getItem('koda_lang') || '';
@@ -92,7 +100,7 @@ const GROWTH_TOOLS = [
 ];
 function route() {
   const hash = location.hash.replace(/^#\/?/, '') || (ME ? 'dashboard' : 'login');
-  if (!ME && !['login', 'signup'].includes(hash.split('?')[0])) { location.hash = '#login'; return; }
+  if (!ME && !['login', 'signup', 'forgot', 'reset'].includes(hash.split('?')[0])) { location.hash = '#login'; return; }
   const [view, qs] = hash.split('?');
   // staff-admin with no merchant of their own: oversight only — keep them on the control centre
   if (ME && ME.user.is_admin && !ME.merchant && view !== 'admin') {
@@ -191,7 +199,8 @@ VIEWS.login = () => {
   root.innerHTML = authCard(`
     <h1>${t('signin')}</h1><p>KODA — le code confirme le cash.</p>
     <div class="field"><label>Email</label><input id="em" type="email" placeholder="you@business.com" autocomplete="username"></div>
-    <div class="field"><label>Password</label><input id="pw" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    ${pwField('pw', '••••••••', 'current-password')}
+    <div style="text-align:right;margin:-6px 0 12px"><a href="#forgot" style="color:var(--gold);font-size:12.5px">${t('forgot_pw')}</a></div>
     <button class="btn btn-gold" style="width:100%" onclick="doLogin()">${t('signin')} →</button>
     <p style="margin-top:16px">No account? <a href="#signup" style="color:var(--gold)">${t('signup')}</a></p>`);
 };
@@ -202,9 +211,60 @@ VIEWS.signup = (params) => {
     <div class="field"><label>Your name</label><input id="nm"></div>
     <div class="field"><label>Email</label><input id="em" type="email"></div>
     <div class="field"><label>Mobile money number</label><input id="ph" placeholder="+243 ..."></div>
-    <div class="field"><label>Password</label><input id="pw" type="password"></div>
+    ${pwField('pw', 'Choose a password', 'new-password')}
     <button class="btn btn-gold" style="width:100%" onclick="doSignup('${esc(params.get('plan') || '')}')">${t('signup')} →</button>
     <p style="margin-top:16px"><a href="#login" style="color:var(--gold)">${t('signin')}</a></p>`);
+};
+// password input with a show/hide (eye) toggle
+function pwField(id, ph = '••••••••', ac = 'current-password') {
+  return `<div class="field"><label>Password</label>
+    <div style="position:relative">
+      <input id="${id}" type="password" placeholder="${ph}" autocomplete="${ac}" style="width:100%;padding-right:44px">
+      <button type="button" onclick="togglePw('${id}',this)" aria-label="Show password"
+        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;font-size:17px;line-height:1;color:var(--dim);padding:4px">👁</button>
+    </div></div>`;
+}
+window.togglePw = (id, btn) => {
+  const el = document.getElementById(id);
+  const show = el.type === 'password';
+  el.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+  btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+};
+// forgot-password: request a reset link
+VIEWS.forgot = () => {
+  root.innerHTML = authCard(`
+    <h1>${t('forgot_pw')}</h1><p>${t('forgot_sub')}</p>
+    <div class="field"><label>Email</label><input id="fem" type="email" placeholder="you@business.com" autocomplete="username"></div>
+    <button class="btn btn-gold" style="width:100%" onclick="doForgot()">${t('send_reset')}</button>
+    <div id="fg-out" style="margin-top:14px"></div>
+    <p style="margin-top:16px"><a href="#login" style="color:var(--gold)">← ${t('signin')}</a></p>`);
+};
+window.doForgot = async () => {
+  const out = document.getElementById('fg-out');
+  try {
+    const r = await api('/app/auth/forgot', { body: { email: v('fem') } });
+    out.innerHTML = `<div class="badge b-ok" style="line-height:1.5">✓ ${esc(r.message || 'If that email is registered, a reset link is on its way.')}</div>`;
+  } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
+// reset-password: consume the token from the email link (#reset?token=…)
+VIEWS.reset = (params) => {
+  const token = (params && params.get && params.get('token')) || '';
+  root.innerHTML = authCard(`
+    <h1>${t('reset_pw')}</h1><p>${t('reset_sub')}</p>
+    ${token ? '' : `<div class="badge b-bad" style="margin-bottom:12px">No reset token — open the link from your email.</div>`}
+    ${pwField('rpw', 'New password', 'new-password')}
+    <button class="btn btn-gold" style="width:100%" onclick="doReset('${esc(token)}')" ${token ? '' : 'disabled'}>${t('reset_pw')}</button>
+    <div id="rs-out" style="margin-top:14px"></div>
+    <p style="margin-top:16px"><a href="#login" style="color:var(--gold)">← ${t('signin')}</a></p>`);
+};
+window.doReset = async (token) => {
+  const out = document.getElementById('rs-out');
+  try {
+    await api('/app/auth/reset', { body: { token, password: v('rpw') } });
+    out.innerHTML = `<div class="badge b-ok">✓ ${esc(t('reset_done'))}</div>`;
+    setTimeout(() => { location.hash = '#login'; }, 1800);
+  } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
 function authCard(inner) {
   // Public-site menu so the app entry point is never a dead-end: from login you
