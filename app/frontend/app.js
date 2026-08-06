@@ -292,8 +292,14 @@ window.doSignup = async (plan) => {
   try {
     const r = await api('/app/auth/signup', { body: { business: v('biz'), name: v('nm'), email: v('em'), phone: v('ph'), password: v('pw') } });
     localStorage.setItem('koda_token', r.token); ME = await api('/app/me');
-    if (plan && plan !== 'marche') await api('/app/billing/plan', { body: { plan } }).catch(() => {});
-    ME = await api('/app/me'); location.hash = '#dashboard'; toast('✓ Welcome to KODA');
+    // Paid plan chosen on the pricing page → take them to Billing and open the
+    // payment picker (KODA mobile money / card). Free plan → straight to the app.
+    if (plan && plan !== 'marche' && plan !== 'enterprise') {
+      sessionStorage.setItem('koda_pending_plan', plan);
+      location.hash = '#billing'; toast('✓ Account created — now choose how to pay for ' + plan);
+    } else {
+      location.hash = '#dashboard'; toast('✓ Welcome to KODA');
+    }
   } catch (e) { toast('✗ ' + (e.message || 'signup failed')); }
 };
 const v = (id) => document.getElementById(id).value.trim();
@@ -603,7 +609,7 @@ VIEWS.billing = async () => {
   </div>
   <div class="card" style="margin-top:14px"><h3>${t('topup')} — prepaid via mobile money, verified by KODA itself</h3>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
-      ${b.packs.map(p => `<button class="btn btn-ghost" onclick="topup(${p.usd})">$${p.usd} → ${fmt(p.acu)} ACU</button>`).join('')}
+      ${b.packs.map(p => `<button class="btn btn-ghost" onclick="topupPay(${p.acu})">$${p.usd} → ${fmt(p.acu)} ACU</button>`).join('')}
     </div>
     <div id="topup-out" style="margin-top:14px"></div>
   </div>
@@ -633,6 +639,39 @@ VIEWS.billing = async () => {
         <td class="mono" style="font-size:11px;color:var(--dim)">${esc(i.period || '')}</td></tr>`).join('') || '<tr><td class="empty">None yet</td></tr>'}
     </table></div>
   </div>`);
+  // arriving from a paid-plan signup → auto-open the payment picker for that plan
+  const pending = sessionStorage.getItem('koda_pending_plan');
+  if (pending) { sessionStorage.removeItem('koda_pending_plan'); setTimeout(() => setPlan(pending), 200); }
+};
+// mesh top-up: pick an amount → choose how to pay (KODA mobile money / card)
+window.topupPay = async (acu) => {
+  const out = document.getElementById('topup-out');
+  out.innerHTML = '…';
+  try {
+    const m = await api('/app/billing/methods?amount_acu=' + acu);
+    out.innerHTML = `<div class="card" style="border-color:var(--gold)"><h3>Buy ${fmt(acu)} ACU — choose how to pay</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        ${m.methods.map(mth => `<button class="btn ${mth.available === false ? 'btn-ghost' : 'btn-gold'}" ${mth.available === false ? 'disabled' : ''} onclick="collectTopup(${acu},'${mth.rail}')">
+          ${esc(mth.label || mth.rail)}${mth.quote ? ` — $${fmt(mth.quote.total_usd)}` : ''}${mth.available === false ? ' (not set up)' : ''}</button>`).join('')}
+      </div><div id="collect-out" style="margin-top:10px"></div></div>`;
+  } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
+window.collectTopup = async (acu, rail) => {
+  const out = document.getElementById('collect-out');
+  out.innerHTML = '…';
+  try {
+    const r = await api('/app/billing/collect', { body: { amount_acu: acu, rail } });
+    const s = r.session || {};
+    if (s.flow === 'MOBILE_MONEY_TO_KODA_SIM') {
+      out.innerHTML = `<div class="card"><h3 class="ok">Pay by mobile money</h3>
+        <p style="font-size:14px">Send <b>$${fmt(s.amount_usd)}</b> (local equivalent) to <b class="mono">${esc(s.pay_to)}</b>, reference <span class="mono">${esc(s.reference || r.topup_id || '')}</span>.</p>
+        <p style="font-size:13px;color:var(--dim)">Your ${fmt(acu)} ACU are credited once KODA verifies the payment.</p></div>`;
+    } else if (s.checkout_url || s.url) {
+      out.innerHTML = `<a class="btn btn-gold" href="${esc(s.checkout_url || s.url)}" target="_blank" rel="noopener">Continue to secure checkout →</a>`;
+    } else {
+      out.innerHTML = `<div class="badge b-ok">✓ Top-up started (${esc(r.topup_id || '')}). Follow your provider's steps; ACU credit on confirmation.</div>`;
+    }
+  } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
 window.topup = async (usd) => {
   const r = await api('/app/billing/topup', { body: { usd } });

@@ -63,9 +63,14 @@ function methods(merchant, ctx = {}) {
   const country = (ctx.country || merchant.country || '').toUpperCase();
   const acu = Math.max(1, Math.round(Number(ctx.amount_acu) || 0));
   const ranked = B.routeProviders({ country, amount_acu: acu, recurring: !!ctx.recurring });
+  const subtotal = Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
+  // KODA self-collect (pay to our DRC SIM) — the first, no-fee option.
+  const koda = { rail: 'koda', label: 'KODA Mobile Money (pay to our number)', flow: 'MOBILE_MONEY_TO_KODA_SIM', fee_pct: 0,
+    available: !!process.env.KODA_COLLECT_MSISDN,
+    quote: { rail: 'koda', acu, subtotal_usd: subtotal, collection_fee_usd: 0, total_usd: subtotal, currency: ctx.currency || 'USD' } };
   return {
     country, amount_acu: acu,
-    methods: ranked.map(r => ({ ...r, quote: B.quote(acu, r.rail, { currency: ctx.currency }) })),
+    methods: [koda, ...ranked.map(r => ({ ...r, quote: B.quote(acu, r.rail, { currency: ctx.currency }) }))],
   };
 }
 
@@ -73,7 +78,23 @@ function methods(merchant, ctx = {}) {
 function createTopup(merchant, body = {}) {
   const acu = Math.round(Number(body.amount_acu) || 0);
   if (!(acu > 0)) return [400, { error: { code: 'invalid_amount', message: 'amount_acu must be a positive integer' } }];
-  const rail = String(body.rail || body.method || 'stripe');
+  const rail = String(body.rail || body.method || 'koda');
+  // KODA self-collect: pay by mobile money to KODA's own DRC SIM, verified by KODA.
+  if (rail === 'koda') {
+    const subtotal = Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
+    const idem = body.idempotency_key || null;
+    if (idem) { const dup = q.get('SELECT * FROM topups WHERE idempotency_key=?', idem); if (dup) return topupView(dup); }
+    const id = U.id('top');
+    q.run(`INSERT INTO topups (id,merchant_id,acu_amount,subtotal_usd,collection_fee_usd,tax_usd,total_usd,currency,rail,purpose,idempotency_key,routing_snapshot,status)
+           VALUES (?,?,?,?,?,?,?,?,?, 'acu', ?, ?, 'pending')`,
+      id, merchant.id, acu, subtotal, 0, 0, subtotal, 'USD', 'koda', idem, JSON.stringify({ rail: 'koda' }));
+    const num = process.env.KODA_COLLECT_MSISDN || '(KODA DRC number — set KODA_COLLECT_MSISDN)';
+    return {
+      ...topupView(q.get('SELECT * FROM topups WHERE id=?', id)),
+      session: { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, amount_usd: subtotal, reference: id,
+        instructions: `Pay ${subtotal} USD (local equivalent) by mobile money to KODA at ${num} with reference ${id}. Your ${acu} ACU are credited once KODA verifies the payment.` },
+    };
+  }
   if (!B.RAILS[rail] || B.RAILS[rail].live === false) return [422, { error: { code: 'rail_unavailable', message: `rail ${rail} not available` } }];
   const idem = body.idempotency_key || null;
   if (idem) {
