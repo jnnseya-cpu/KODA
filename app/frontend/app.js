@@ -13,6 +13,7 @@ const I18N = {
     vmeans_y: 'Vérifié = le SMS de confirmation de l’opérateur est bien arrivé sur votre téléphone, le code correspond (montant, référence, fenêtre), il n’a jamais servi, et il a passé les contrôles anti-fraude.',
     vmeans_n: 'Cela ne garantit pas que l’opérateur ne puisse pas annuler le paiement plus tard. KODA ne détient jamais votre argent — il arrive directement sur votre compte mobile money. Pour un gros montant ou un cas inhabituel, utilisez « à contrôler » avant de livrer.',
     verify_btn: 'Vérifier le paiement', confirm_pay: 'Confirmer', confirming: 'Confirmation…', verified: 'PAIEMENT VÉRIFIÉ', rejected: 'REJETÉ', pending: 'À CONTRÔLER',
+    paste_sms_t: 'Coller le SMS de l’opérateur', paste_sms_h: 'iPhone ou téléphone sans Sentinel ? Copiez TOUT le SMS de paiement de l’opérateur ici. KODA le vérifie — mieux qu’un code, car KODA voit le vrai SMS.', paste_sms_btn: 'Vérifier ce SMS',
     not_found: 'Pas encore trouvé — on surveille la fenêtre', amount: 'Montant', reference: 'Code de transaction',
     today: "aujourd'hui", month: 'ce mois', unmatched: 'paiements non rattachés', open_disputes: 'litiges ouverts',
     acu_balance: 'solde ACU', topup: 'Recharger', welcome: 'Bonjour', expected_amount: 'Montant attendu (optionnel)',
@@ -37,6 +38,7 @@ const I18N = {
     vmeans_y: "Verified = the operator's own confirmation SMS reached your phone, the code matches (amount, reference, window), it has never been used, and it passed the fraud checks.",
     vmeans_n: 'It does not guarantee the operator can\'t reverse the payment later. KODA never holds your money — it goes straight to your mobile-money account. For a large or unusual payment, use "needs review" before releasing goods.',
     verify_btn: 'Verify payment', confirm_pay: 'Confirm', confirming: 'Confirming…', verified: 'PAYMENT VERIFIED', rejected: 'REJECTED', pending: 'NEEDS REVIEW',
+    paste_sms_t: 'Paste the operator SMS', paste_sms_h: 'iPhone or a phone without Sentinel? Copy the WHOLE operator payment SMS here. KODA verifies it — better than a code, because KODA sees the real SMS.', paste_sms_btn: 'Verify this SMS',
     not_found: 'Not found yet — watching the window', amount: 'Amount', reference: 'Transaction code',
     today: 'today', month: 'this month', unmatched: 'unmatched payments', open_disputes: 'open disputes',
     acu_balance: 'ACU balance', topup: 'Top up', welcome: 'Hello', expected_amount: 'Expected amount (optional)',
@@ -365,6 +367,14 @@ VIEWS.verify = async () => {
     </div>
     <div class="verdict" id="verdict"></div>
   </div>
+  <div class="card" style="margin-top:14px">
+    <h3>📩 ${t('paste_sms_t')}</h3>
+    <div class="mono" style="font-size:12px;color:var(--dim);margin:6px 0 10px;line-height:1.5">${t('paste_sms_h')}</div>
+    <textarea id="smsraw" rows="3" placeholder="Vous avez recu 25 000 FC de Marie Kalala (0812345678). Ref: OM4F2K9. Solde: 312 500"
+      style="width:100%;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--mono);font-size:12px;resize:vertical"></textarea>
+    <div style="margin-top:10px"><button class="btn btn-gold" onclick="verifySms(this)">📩 ${t('paste_sms_btn')}</button></div>
+    <div class="verdict" id="smsverdict"></div>
+  </div>
   <div class="card" style="margin-top:14px"><h3>Sandbox magic references</h3>
     <div class="mono" style="font-size:12px;color:var(--dim);line-height:2">
       TEST-OK-25000 → instant verified · TEST-REPLAY → code_already_used · TEST-SUFFIX → challenge flow
@@ -395,6 +405,27 @@ window.consoleVerify = async (screenshot) => {
     el.className = 'verdict show bad';
     el.innerHTML = `<div class="big">✗ ${esc(e.message)}</div>`;
   }
+};
+// Paste-the-SMS verify — the universal iPhone / no-Sentinel path. Sends the WHOLE
+// operator SMS; KODA ingests it (real proof) and verifies in one step.
+window.verifySms = async (btn) => {
+  const el = document.getElementById('smsverdict');
+  if (btn) btn.disabled = true;
+  el.className = 'verdict'; el.textContent = '…';
+  try {
+    const r = await api('/app/verify-sms', { body: { raw: v('smsraw') } });
+    const cls = r.status === 'verified' ? 'ok' : r.status === 'pending_review' ? 'warn' : 'bad';
+    const icon = cls === 'ok' ? '✓' : cls === 'warn' ? '◔' : '✗';
+    const label = r.status === 'verified' ? t('verified') : r.status === 'pending_review' ? t('pending')
+      : r.status === 'unparseable' ? (lang() === 'fr' ? 'SMS non reconnu' : 'SMS not recognised') : t('rejected');
+    el.className = `verdict show ${cls}`;
+    el.innerHTML = `<div class="big">${icon} ${label}</div>
+      <div class="mono">${r.amount_confirmed ? `${t('amount')}: ${fmt(r.amount_confirmed)} · ` : ''}${r.auto ? '(auto-matched) · ' : ''}${r.receipt_id ? `receipt ${r.receipt_id} · ` : ''}${r.code ? r.code : ''}</div>`;
+    ME = await api('/app/me');
+  } catch (e) {
+    el.className = 'verdict show bad';
+    el.innerHTML = `<div class="big">✗ ${esc(e.message)}</div>`;
+  } finally { if (btn) btn.disabled = false; }
 };
 
 VIEWS.feed = async () => {

@@ -4,7 +4,7 @@
 const { q, tx } = require('./lib/db');
 const U = require('./lib/util');
 const engine = require('./lib/engine');
-const { OPERATORS } = require('../shared/parser');
+const { OPERATORS, parseSms } = require('../shared/parser');
 const { CATEGORIES, ALL, BY_KEY, CHANNELS } = require('../shared/events');
 const notify = require('./comms/notify');
 
@@ -210,6 +210,22 @@ module.exports = function registerRoutes(r) {
   r.post('/app/sandbox/sms', auth((req, user, m) => {
     const out = engine.ingestSms(m, { raw: req.body.raw, operator: req.body.operator });
     audit(m.id, user.id, 'sandbox_sms_injected', { operator: req.body.operator });
+    return out;
+  }));
+  // Paste-the-SMS verify: the universal path for merchants whose device can't run
+  // Sentinel (iPhone reads no SMS; feature phones run no app). The merchant copies the
+  // WHOLE operator SMS into the PWA — KODA ingests it (the real proof) and verifies in
+  // one step. Strictly better than typing a code: KODA gets the verifiable SMS, not digits.
+  r.post('/app/verify-sms', auth((req, user, m) => {
+    const raw = String((req.body || {}).raw || '').trim();
+    if (!raw) return [400, { error: 'empty_sms' }];
+    const ing = engine.ingestSms(m, { raw, operator: req.body.operator });
+    if (!ing.parsed) return { status: 'unparseable', code: 'not_an_operator_sms' };
+    if (ing.quarantined) return { status: 'rejected', code: 'sms_quarantined' };
+    const row = q.get('SELECT matched_intent_id FROM sms_ledger WHERE id=?', ing.id);
+    if (row && row.matched_intent_id) return { status: 'verified', auto: true }; // auto-matched a pending intent
+    const out = engine.confirmLedgerPayment(m, ing.id, { userId: user.id });
+    if (out.status === 'verified') audit(m.id, user.id, 'sms_pasted_verified', { receipt_id: out.receipt_id });
     return out;
   }));
   // One-tap confirm from the feed: issue a receipt for a Sentinel-captured payment
@@ -1194,8 +1210,10 @@ module.exports = function registerRoutes(r) {
     const cur = m.currency || 'CDF';
     if (res.status === 'verified' || res.status === 'verified_late')
       return `Paiement confirme: ${Number(res.amount_confirmed).toLocaleString('fr-FR')} ${cur}. Merci!`;
+    if (res.status === 'pending_review') return `Paiement en controle manuel. Ouvrez votre application KODA pour confirmer.`;
     if (res.status === 'not_found_yet') return `Paiement en route. Reessayez dans un instant.`;
     if (res.code === 'code_already_used') return `Code deja utilise. Verifiez la reference.`;
+    if (res.code === 'sms_quarantined') return `SMS suspect (chaine de solde rompue). Non confirme.`;
     return `Non confirme. Verifiez le code et le montant.`;
   }
 
@@ -1223,10 +1241,30 @@ module.exports = function registerRoutes(r) {
     const from = b.from || b.msisdn || '';
     const m = merchantByPhone(from);
     if (!m) return { received: true };
-    // a transaction code always contains a digit — so a greeting isn't mistaken for one
-    const code = (String(b.text || '').toUpperCase().match(/[A-Z0-9][A-Z0-9.\-]{4,}/g) || []).find(t => /\d/.test(t));
-    const reply = code ? verdictText(engine.verify(m, null, code, { mode: 'sms' }), m)
-                       : 'Envoyez le code de transaction pour verifier votre paiement.';
+    const text = String(b.text || '');
+    // The key path for non-Android (iPhone / feature-phone) merchants: they FORWARD
+    // the whole operator SMS to KODA's number. That forwarded SMS IS the merchant-side
+    // proof — so we INGEST it (exactly like a Sentinel forward), then confirm it. A
+    // bare code (from a merchant who already runs Sentinel) still works via verify().
+    const asSms = parseSms(text);
+    let res;
+    if (asSms && asSms.ref && asSms.amount != null) {
+      const ing = engine.ingestSms(m, { raw: text });
+      if (ing.quarantined) res = { status: 'rejected', code: 'sms_quarantined' };
+      else {
+        const row = q.get('SELECT matched_intent_id FROM sms_ledger WHERE id=?', ing.id);
+        // ingestSms auto-matches a pending intent (online sale); otherwise confirm the walk-in.
+        res = (row && row.matched_intent_id)
+          ? { status: 'verified', amount_confirmed: asSms.amount }
+          : engine.confirmLedgerPayment(m, ing.id, {});
+      }
+    } else {
+      const code = (text.toUpperCase().match(/[A-Z0-9][A-Z0-9.\-]{4,}/g) || []).find(t => /\d/.test(t));
+      res = code ? engine.verify(m, null, code, { mode: 'sms' }) : { status: 'help' };
+    }
+    const reply = res.status === 'help'
+      ? 'Transferez le SMS de paiement de l’operateur (ou envoyez le code) pour verifier.'
+      : verdictText(res, m);
     const gw = !!process.env.SMS_GATEWAY_KEY;
     q.run(`INSERT INTO comm_deliveries (id,merchant_id,user_id,event_key,channel,recipient,subject,provider,status)
            VALUES (?,?,NULL,'verify.sms_reply','sms',?,?,?,?)`,

@@ -82,7 +82,7 @@ async function j(method, path, body, headers) {
   const smsV = await j('POST', '/webhooks/sms', { from: PHONE, text: 'PAY ' + refS });
   ok(smsV.status === 200 && /confirme/i.test(smsV.d.reply || ''), 'inbound SMS verifies a real payment', smsV.d.reply);
   const smsNoCode = await j('POST', '/webhooks/sms', { from: PHONE, text: 'bonjour' });
-  ok(/code de transaction/i.test(smsNoCode.d.reply || ''), 'inbound SMS with no code asks for one');
+  ok(/transferez|code/i.test(smsNoCode.d.reply || ''), 'inbound SMS with no code asks to forward the SMS or send a code');
 
   console.log(`\n${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
