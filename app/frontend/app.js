@@ -192,8 +192,17 @@ VIEWS.signup = (params) => {
     <p style="margin-top:16px"><a href="#login" style="color:var(--gold)">${t('signin')}</a></p>`);
 };
 function authCard(inner) {
+  // Public-site menu so the app entry point is never a dead-end: from login you
+  // can reach everything on the marketing site (coverage, docs, blog…).
+  const site = [
+    ['/', 'Home'], ['/how-it-works', 'How it works'], ['/coverage', 'Coverage'],
+    ['/developers', 'Developers'], ['/industries', 'Industries'], ['/blog', 'Blog'],
+  ];
   return `<div class="auth-wrap"><div class="auth-card">
-    <div class="logo"><span class="tick">✓</span>KODA</div>${inner}</div></div>`;
+    <div class="logo"><span class="tick">✓</span>KODA</div>${inner}
+    <div class="auth-site">
+      ${site.map(([h, l]) => `<a href="${h}">${l}</a>`).join('<span>·</span>')}
+    </div></div></div>`;
 }
 window.doLogin = async () => {
   try {

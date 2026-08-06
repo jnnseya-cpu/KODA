@@ -23,6 +23,10 @@ input,select,textarea{font-family:inherit}
 .auth-card{width:100%;max-width:420px;background:var(--ink-2);border:1px solid var(--line);border-radius:16px;padding:36px}
 .auth-card h1{font-size:22px;font-weight:900;margin:18px 0 6px}
 .auth-card p{color:var(--dim);font-size:13.5px;margin-bottom:22px}
+.auth-site{margin-top:24px;padding-top:18px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center}
+.auth-site a{color:var(--dim);font-size:12px;font-weight:600;text-decoration:none}
+.auth-site a:hover{color:var(--gold)}
+.auth-site span{color:var(--line-strong,rgba(255,255,255,.2));font-size:11px}
 
 /* shell */
 .shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh}

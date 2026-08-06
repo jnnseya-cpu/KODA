@@ -47,6 +47,19 @@ if (fs.existsSync(landingSrc)) {
     .replace(/<a class="pbtn" href="#">Talk platforms<\/a>/, '<a class="pbtn" href="/app#signup?plan=plateforme">Talk platforms</a>')
     .replace(/<a class="pbtn" href="#">Contact sales<\/a>/, '<a class="pbtn" href="/contact">Contact sales</a>')
     .replace(/<a class="nav-cta" href="#pricing">Start free →<\/a>/, '<a class="nav-cta" href="/app#signup">Start free →</a>')
+    // mobile menu: the prototype hides .nav-links under 840px with no toggle — inject a
+    // pure-CSS hamburger + a Blog link so the homepage menu works on every screen.
+    .replace('<div class="nav-links">',
+      '<input type="checkbox" id="lnav" class="lnav-t"><label for="lnav" class="lnav-b" aria-label="Menu">☰</label><div class="nav-links">')
+    .replace('<a href="#pricing">Pricing</a>', '<a href="#pricing">Pricing</a><a href="/blog">Blog</a>')
+    .replace('</head>', `<style>
+.lnav-t{display:none}.lnav-b{display:none}
+@media(max-width:840px){
+  .lnav-b{display:block;cursor:pointer;font-size:22px;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:2px 11px;user-select:none;margin-left:auto}
+  .nav-in{flex-wrap:wrap}
+  .lnav-t:checked ~ .nav-links{display:flex !important;flex-basis:100%;flex-direction:column;gap:16px;margin-top:14px}
+}
+</style></head>`)
     .replace('<div class="wrap foot">', footerLinks() + '<div class="wrap foot">');
   fs.writeFileSync(path.join(OUT, 'index.html'), landing);
 }
@@ -76,12 +89,22 @@ function page({ title, kicker, lead, body }) {
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--ink);color:var(--text);font-family:var(--disp);line-height:1.65;font-size:16px}
 a{color:var(--gold);text-decoration:none}
-.nav{display:flex;align-items:center;gap:22px;padding:16px 28px;border-bottom:1px solid var(--line);background:rgba(8,24,19,.9);position:sticky;top:0;backdrop-filter:blur(10px);flex-wrap:wrap}
+.nav{display:flex;align-items:center;gap:22px;padding:16px 28px;border-bottom:1px solid var(--line);background:rgba(8,24,19,.9);position:sticky;top:0;z-index:50;backdrop-filter:blur(10px)}
 .logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:.12em;color:var(--text)}
 .logo i{width:24px;height:24px;border-radius:6px;background:var(--gold);display:grid;place-items:center;color:var(--ink);font-style:normal;font-family:var(--mono);font-weight:700;font-size:13px}
+.navlinks{margin-left:auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap}
 .nav a.lnk{color:var(--dim);font-size:13px;font-weight:600}
 .nav a.lnk:hover{color:var(--text)}
-.nav .cta{margin-left:auto;border:1px solid var(--gold);border-radius:8px;padding:8px 16px;font-family:var(--mono);font-size:12.5px}
+.nav .cta{border:1px solid var(--gold);border-radius:8px;padding:8px 16px;font-family:var(--mono);font-size:12.5px;color:var(--gold)}
+.navtoggle{display:none}
+.burger{display:none;margin-left:auto;cursor:pointer;font-size:20px;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:4px 11px;user-select:none}
+@media(max-width:820px){
+  .burger{display:block}
+  .navlinks{display:none;flex-basis:100%;flex-direction:column;align-items:flex-start;gap:14px;margin-top:14px}
+  .navtoggle:checked ~ .navlinks{display:flex}
+  .nav{flex-wrap:wrap}
+  .nav .cta{margin-top:4px}
+}
 .wrap{max-width:880px;margin:0 auto;padding:64px 24px}
 .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;font-weight:600}
 h1{font-size:clamp(32px,4.5vw,50px);font-weight:900;line-height:1.05;letter-spacing:-.01em;margin-bottom:16px}
@@ -104,7 +127,18 @@ footer a{color:var(--dim)}
 </style></head><body>
 <nav class="nav">
   <a class="logo" href="/"><i>✓</i>KODA</a>
-  <a class="cta" href="/app#signup">Get started →</a>
+  <input type="checkbox" id="navtoggle" class="navtoggle">
+  <label for="navtoggle" class="burger" aria-label="Menu">☰</label>
+  <div class="navlinks">
+    <a class="lnk" href="/how-it-works">How it works</a>
+    <a class="lnk" href="/coverage">Coverage</a>
+    <a class="lnk" href="/industries">Industries</a>
+    <a class="lnk" href="/developers">Developers</a>
+    <a class="lnk" href="/growth">Growth</a>
+    <a class="lnk" href="/blog">Blog</a>
+    <a class="lnk" href="/status">Status</a>
+    <a class="cta" href="/app#signup">Get started →</a>
+  </div>
 </nav>
 <div class="wrap">
   <div class="kicker">${kicker}</div>
