@@ -52,6 +52,11 @@ if (fs.existsSync(landingSrc)) {
     .replace('<div class="nav-links">',
       '<input type="checkbox" id="lnav" class="lnav-t"><label for="lnav" class="lnav-b" aria-label="Menu">☰</label><div class="nav-links">')
     .replace('<a href="#pricing">Pricing</a>', '<a href="#pricing">Pricing</a><a href="/blog">Blog</a>')
+    // point the homepage menu at the real, updated PAGES (not old on-page anchors),
+    // so "Coverage" opens /coverage (235 operators), not the inline #world section.
+    .replace('<a href="#how">How it works</a>', '<a href="/how-it-works">How it works</a>')
+    .replace('<a href="#world">Coverage</a>', '<a href="/coverage">Coverage</a>')
+    .replace('<a href="#dev">Developers</a>', '<a href="/developers">Developers</a>')
     .replace('</head>', `<style>
 .lnav-t{display:none}.lnav-b{display:none}
 @media(max-width:840px){
