@@ -909,7 +909,6 @@ window.adminAddUser = async (mid) => {
     setTimeout(route, 2500);
   } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
-};
 window.adminToggle = async (id) => { await api(`/app/admin/merchants/${id}/suspend`, { body: {} }); route(); };
 
 boot();
