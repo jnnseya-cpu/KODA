@@ -268,7 +268,7 @@ ${Object.entries(COV.byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
 
   'industries': page({
     title: 'Anywhere money meets a merchant.', kicker: 'Industries',
-    lead: 'One engine, three doors — deployed across commerce, education, transport, ticketing and field sales.',
+    lead: 'One engine, three doors — plus USSD and inbound-SMS for feature phones — deployed across commerce, education, transport, health, agriculture, ticketing, field sales and government.',
     body: `
 <div class="grid">
 <div class="card"><h3>🍽 Restaurants & delivery</h3><p>Orders verified before the kitchen fires. No more "I sent a screenshot" at the counter. Day-one reference: <b>Tunakula</b>.</p></div>
@@ -277,6 +277,15 @@ ${Object.entries(COV.byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
 <div class="card"><h3>🎫 Events & ticketing</h3><p>QR tickets issued only on verified payment; replay-locked codes kill duplicate-ticket fraud. Reference: <b>TicketRoyality</b>.</p></div>
 <div class="card"><h3>🛵 Marketplaces & platforms</h3><p>Sub-merchant API, scoped keys, trust scores and re-billing — one platform deal onboards thousands of merchants at wholesale rates.</p></div>
 <div class="card"><h3>🏛 Utilities, MFIs & Gov</h3><p>Bulk reconciliation, in-country residency, dedicated corridor models and audit-grade decision traces for every verification.</p></div>
+<div class="card"><h3>🚕 Transport & mobility</h3><p>Fares confirmed before the ride — taxis, boda-boda, minibus and inter-city. USSD and inbound-SMS doors serve drivers and riders on feature phones.</p></div>
+<div class="card"><h3>🏥 Health & pharmacies</h3><p>Consultation and prescription fees verified before dispensing; clean, disputable records for clinics, pharmacies and community health funds.</p></div>
+<div class="card"><h3>🌾 Agriculture & cooperatives</h3><p>Input sales, produce buying and member dues reconciled in the field — offline-capable over USSD where connectivity is thin.</p></div>
+<div class="card"><h3>🏨 Hospitality & lodging</h3><p>Bookings and deposits verified before check-in; no more no-show screenshots for guesthouses, lodges and tour operators.</p></div>
+<div class="card"><h3>⛽ Fuel, energy & PAYG</h3><p>Pump payments and pay-as-you-go solar / LPG / water top-ups confirmed instantly at the point of sale.</p></div>
+<div class="card"><h3>🙏 NGOs & humanitarian</h3><p>Cash-transfer disbursements and donations reconciled with audit-grade traces for every payment — reporting donors can trust.</p></div>
+<div class="card"><h3>🏠 Rent & real estate</h3><p>Rent, deposits and agency fees matched to the right tenant automatically, across an entire portfolio.</p></div>
+<div class="card"><h3>💇 Services & trades</h3><p>Deposit-before-work for salons, repairs, tailors and freelancers — the code confirms the cash before the job starts.</p></div>
+<div class="card"><h3>📲 Airtime & digital resellers</h3><p>The distributor tree: prepaid ACU, airtime and game-credit resellers whose own incoming top-ups are verified by the same engine.</p></div>
 </div>
 <p style="margin-top:20px"><a href="/contact">Talk to us about your industry →</a></p>`,
   }),
@@ -361,7 +370,7 @@ Koda.pay({ key: 'pk_live_…', amount: 25000, currency: 'CDF',
 <p>Behind the scenes the money path is unchanged: the code is matched against the Sentinel SIM ledger, scored by the fraud engine, checked for replay, and a signed <code>payment.verified</code> webhook fires to your server — the browser hand-off is a convenience on top, never the source of truth.</p>
 <h2>Limits & pricing</h2>
 <ul>
-<li>The billable atom is a <b>successful verification</b> — failed matches, rejections and expired intents are free.</li>
+<li>Your plan includes a <b>monthly verification quota at no per-use cost</b>; failed matches, rejections and expired intents are always free. <b>Prepaid ACU</b> is drawn only by AI features (Vision, agents, disputes) and by verifications beyond your quota (overage).</li>
 <li>Per-key rate limits (Free 2 rps · Boutique 10 · Commerce 25 · Plateforme 100); exceed and you get HTTP 429 with <code>Retry-After</code>.</li>
 <li>Agent runs (<code>run:agents</code>) consume prepaid ACU at the agent's published rate; an empty balance returns HTTP 402 — after a 72 h merchant-protective grace buffer.</li>
 <li>Keys are environment-scoped (test/live), scope-restricted where you want them, and revocable instantly.</li>
@@ -460,7 +469,7 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
     body: `
 <h2>1. The service</h2><p>KODA provides Payment Verification-as-a-Service: structuring merchant-side operator confirmations and matching customer-submitted references against them. KODA is not a payment processor, wallet, aggregator, escrow or money transmitter; funds move operator → merchant exactly as without KODA.</p>
 <h2>2. Accounts & keys</h2><p>You are responsible for your credentials, API keys and team seats. Keys can be rotated and revoked instantly; notify us of suspected compromise.</p>
-<h2>3. Billing</h2><p>The billable atom is a successful verification. Failed matches, rejections and expired intents are free. Prepaid ACU wallets are topped up via mobile money and verified by KODA's own engine; a 72-hour grace buffer applies at zero balance.</p>
+<h2>3. Billing</h2><p>Each plan includes a monthly verification quota at no per-use cost; failed matches, rejections and expired intents are free. Verifications beyond the quota, and AI features (Vision, agents, disputes), draw on prepaid ACU — topped up via mobile money and verified by KODA's own engine, with a 72-hour grace buffer at zero balance.</p>
 <h2>4. Acceptable use</h2><p>No use for money laundering, fraud, sanctioned activity or any unlawful commerce. FraudSentinel velocity rules apply to all tiers. We may suspend accounts pending investigation of abuse.</p>
 <h2>5. Honest limitations</h2><p>Verification latency floors are set by operator SMS delivery, not by KODA. KODA verifies payments, not business ethics, and cannot prevent operator-side reversals — it makes you first to know. See the full limitations list in the product documentation.</p>
 <h2>6. Liability</h2><p>Service provided "as is" within the SLA of your plan (Commerce+: 99.9% API availability, credited if missed). Aggregate liability is capped at fees paid in the preceding 12 months.</p>

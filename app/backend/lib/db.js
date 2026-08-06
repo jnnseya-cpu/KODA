@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS merchants (
   msisdn TEXT,
   brand_color TEXT DEFAULT '#E8A11F',
   logo_text TEXT,
-  acu_balance REAL NOT NULL DEFAULT 50,          -- Marché monthly grant
+  acu_balance REAL NOT NULL DEFAULT 50,          -- free AI/overage allowance (verifs within quota are free)
   language TEXT NOT NULL DEFAULT 'fr',
   is_platform INTEGER NOT NULL DEFAULT 0,
   parent_id TEXT,                                -- sub-merchants point at platform merchant

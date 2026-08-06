@@ -8,7 +8,17 @@ const { parseSms } = require('../../shared/parser');
 const webhooks = require('./webhooks');
 const notify = require('../comms/notify');
 
-const { ACU, TOPUP_PACKS } = require('../../shared/plans');
+const { ACU, TOPUP_PACKS, PLANS } = require('../../shared/plans');
+
+// Verifications within the plan's monthly quota are FREE — they consume no ACU.
+// ACU is spent only on AI features (Vision, agents, disputes) and on verifications
+// BEYOND the quota (overage). Unlimited plans (verifs=null) are always within quota.
+function withinQuota(merchant) {
+  const plan = PLANS[merchant.plan] || PLANS.marche;
+  if (plan.verifs == null) return true;
+  const used = q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > date('now','start of month')`, merchant.id).c;
+  return used < plan.verifs;
+}
 const VERSION = require('../../shared/version');
 
 function getMerchant(mid) { return q.get('SELECT * FROM merchants WHERE id=?', mid); }
@@ -170,7 +180,8 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
 
   // 4. verified — receipt, replay lock, billing, webhook, comms
   const rcp = id('rcp');
-  const acuCost = viaScreenshot ? ACU.vision : ACU.code;
+  // free within quota; Vision (AI) always metered; code-path overage charged.
+  const acuCost = viaScreenshot ? ACU.vision : (withinQuota(merchant) ? 0 : ACU.code);
   const masked = sms.counterparty_name
     ? sms.counterparty_name.split(' ').map((w, i) => i === 0 ? w[0] + '***' : w[0] + '.').join(' ') : null;
   q.run(`INSERT INTO receipts (id,merchant_id,intent_id,sms_id,reference,amount,currency,operator,
@@ -183,7 +194,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
     String(sms.ref_code || reference).toUpperCase(), merchant.id, rcp);
   q.run(`UPDATE sms_ledger SET matched_intent_id=? WHERE id=?`, intent ? intent.id : 'manual', sms.id);
   if (intent) q.run(`UPDATE intents SET status=? WHERE id=?`, late ? 'verified_late' : 'verified', intent.id);
-  chargeAcu(merchant, acuCost, viaScreenshot ? 'vision' : 'verification', rcp);
+  if (acuCost > 0) chargeAcu(merchant, acuCost, viaScreenshot ? 'vision' : 'verification', rcp);
 
   const event = late ? 'payment.verified.late' : 'payment.verified';
   const payload = {
