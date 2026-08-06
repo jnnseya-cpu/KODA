@@ -223,6 +223,22 @@ const pages = {
 <p>Coverage is a <b>parsing template, not a contract</b>. KODA already knows <b>${N} operators across ${NC} countries and ${NR} world regions</b> — M-Pesa, Orange Money, MTN MoMo, Airtel, Wave, bKash, JazzCash, GCash, EVC Plus and beyond. Because one brand shares one SMS grammar, <b>${NFAM} template families</b> unlock that whole map: pack a family once, and every country it operates in comes online together. Any operator that sends a merchant confirmation SMS can join the Community Template Program — send 5 sample SMS, get a live pack within days. <a href="/coverage">See full coverage →</a></p>
 <h2>You only ever see what's real</h2>
 <p>A network appears to your customer <em>only</em> when KODA supports it <b>and</b> you have an active, ownership-verified, healthy receiving account on it. KODA's <b>Network Intelligence layer</b> resolves every payment method down to exactly one account it can actually verify — no dead options, no "operator not available after you paid".</p>
+<h2>What "verified" means — and what it doesn't</h2>
+<p>We keep this honest so you can too:</p>
+<div class="grid">
+<div class="card"><h3 class="ok">✓ Verified means</h3><ul>
+<li>The operator's <b>own confirmation SMS</b> for this payment reached your phone.</li>
+<li>The customer's code <b>matches</b> it — amount, reference and window line up.</li>
+<li>The code has <b>never been used before</b> (single-use forever).</li>
+<li>It passed the <b>fraud checks</b> (balance-chain, sender, suffix).</li>
+</ul></div>
+<div class="card"><h3 class="warn">⚠ Verified does not mean</h3><ul>
+<li>A guarantee the payment <b>can never be reversed</b> by the operator — no one downstream of the operator can promise that.</li>
+<li>That KODA moved or holds your money — <b>it never touches funds</b>; they go straight to your mobile-money account.</li>
+<li>Proof of settlement. KODA confirms the operator <b>says</b> you were paid — instantly and fraud-checked — it doesn't replace the operator's rails.</li>
+</ul></div>
+</div>
+<p>For large or unusual payments, use the <b>“needs review”</b> band before releasing goods — KODA makes you <em>first to know</em>; you choose the risk you take. <b>The code confirms the cash — it doesn't guarantee the cash can't be clawed back.</b></p>
 <p><a href="/app#signup">Verify your first payment free →</a></p>`,
   }),
 

@@ -9,6 +9,9 @@ const I18N = {
     developers: 'Développeurs', comms: 'Communications', submerchants: 'Sous-marchands', settings: 'Paramètres',
     admin: 'Centre de contrôle', logout: 'Déconnexion', signin: 'Connexion', signup: 'Créer un compte',
     verify_title: 'Console de vérification', verify_hint: 'Collez le code de transaction du client — verdict ancré sur le SMS opérateur en ~3 secondes.',
+    vmeans_t: 'Ce que « vérifié » veut dire (et ne veut pas dire)',
+    vmeans_y: 'Vérifié = le SMS de confirmation de l’opérateur est bien arrivé sur votre téléphone, le code correspond (montant, référence, fenêtre), il n’a jamais servi, et il a passé les contrôles anti-fraude.',
+    vmeans_n: 'Cela ne garantit pas que l’opérateur ne puisse pas annuler le paiement plus tard. KODA ne détient jamais votre argent — il arrive directement sur votre compte mobile money. Pour un gros montant ou un cas inhabituel, utilisez « à contrôler » avant de livrer.',
     verify_btn: 'Vérifier le paiement', verified: 'PAIEMENT VÉRIFIÉ', rejected: 'REJETÉ', pending: 'À CONTRÔLER',
     not_found: 'Pas encore trouvé — on surveille la fenêtre', amount: 'Montant', reference: 'Code de transaction',
     today: "aujourd'hui", month: 'ce mois', unmatched: 'paiements non rattachés', open_disputes: 'litiges ouverts',
@@ -25,6 +28,9 @@ const I18N = {
     developers: 'Developers', comms: 'Communications', submerchants: 'Sub-merchants', settings: 'Settings',
     admin: 'Control centre', logout: 'Sign out', signin: 'Sign in', signup: 'Create account',
     verify_title: 'Verify Console', verify_hint: "Paste the customer's transaction code — operator-SMS-anchored verdict in ~3 seconds.",
+    vmeans_t: 'What "verified" means (and doesn\'t)',
+    vmeans_y: "Verified = the operator's own confirmation SMS reached your phone, the code matches (amount, reference, window), it has never been used, and it passed the fraud checks.",
+    vmeans_n: 'It does not guarantee the operator can\'t reverse the payment later. KODA never holds your money — it goes straight to your mobile-money account. For a large or unusual payment, use "needs review" before releasing goods.',
     verify_btn: 'Verify payment', verified: 'PAYMENT VERIFIED', rejected: 'REJECTED', pending: 'NEEDS REVIEW',
     not_found: 'Not found yet — watching the window', amount: 'Amount', reference: 'Transaction code',
     today: 'today', month: 'this month', unmatched: 'unmatched payments', open_disputes: 'open disputes',
@@ -284,7 +290,14 @@ VIEWS.verify = async () => {
   <div class="card" style="margin-top:14px"><h3>Sandbox magic references</h3>
     <div class="mono" style="font-size:12px;color:var(--dim);line-height:2">
       TEST-OK-25000 → instant verified · TEST-REPLAY → code_already_used · TEST-SUFFIX → challenge flow
-    </div></div>`);
+    </div></div>
+  <details class="card" style="margin-top:14px">
+    <summary style="cursor:pointer;font-weight:600">${t('vmeans_t')}</summary>
+    <div style="display:grid;gap:10px;margin-top:12px">
+      <div style="border-left:3px solid #1E9E6A;padding-left:12px"><strong style="color:#1E9E6A">✓</strong> ${esc(t('vmeans_y'))}</div>
+      <div style="border-left:3px solid #C99A2E;padding-left:12px"><strong style="color:#C99A2E">⚠</strong> ${esc(t('vmeans_n'))}</div>
+    </div>
+  </details>`);
 };
 window.consoleVerify = async (screenshot) => {
   const el = document.getElementById('verdict');
