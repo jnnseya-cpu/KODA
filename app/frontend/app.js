@@ -557,6 +557,7 @@ VIEWS.devices = async () => {
       <option value="mtn_momo">MTN MoMo</option><option value="wave">Wave</option></select>
     <button class="btn btn-gold btn-sm" onclick="enrollDevice()">${t('enroll_device')}</button>
   </div>
+  <div id="device-out"></div>
   <div class="grid g2" style="margin-top:14px">
     ${rows.map(d => `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -576,7 +577,17 @@ VIEWS.devices = async () => {
 };
 window.enrollDevice = async () => {
   const r = await api('/app/devices/enroll', { body: { label: v('dlabel') || 'Merchant phone', operator: v('dop') } });
-  toast(`✓ Enrolled — code ${r.enrol_code} (scan in Sentinel app)`); route();
+  const box = document.getElementById('device-out');
+  box.innerHTML = `<div class="card" style="margin-top:14px;border-color:var(--gold)">
+    <h3 class="ok">✓ Device enrolled — pair the phone now (shown once)</h3>
+    <p style="font-size:13px;color:var(--dim);margin:6px 0">In the KODA Sentinel app on that phone, paste this pairing token into "…or paste the pairing token", then tap <b>PAIR THIS PHONE</b>.</p>
+    <div style="font-size:12px;color:var(--dim);margin-top:8px">Pairing token</div>
+    <div class="codebox" style="border-color:var(--gold);word-break:break-all">${esc(r.device_token)}</div>
+    <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(r.device_token)}');toast('✓ token copied')">Copy token</button>
+    <div style="font-size:12px;color:var(--dim);margin-top:12px">Or scan/paste this QR link</div>
+    <div class="codebox" style="word-break:break-all">${esc(r.qr)}</div>
+    <p style="font-size:12px;color:var(--dim);margin-top:8px">Enrol code: <span class="mono" style="color:var(--gold)">${esc(r.enrol_code)}</span> · after pairing, grant the SMS permission when Android asks.</p></div>`;
+  box.scrollIntoView({ behavior: 'smooth' });
 };
 window.revokeDevice = async (id) => { await api(`/app/devices/${id}/revoke`, { body: {} }); toast('✓ Revoked'); route(); };
 
