@@ -1163,13 +1163,20 @@ async function adminCoverage() {
     <div class="card"><h3>By region</h3>${regions.map(([r, n]) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span class="mono">${esc(r)}</span><b>${fmt(n)}</b></div>`).join('')}</div>
     <div class="card"><h3>Top families (one grammar → many markets)</h3>${(d.families || []).slice(0, 12).map(f => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span class="mono">${esc(f.family)} <span class="badge b-info">${esc(f.tier)}</span></span><b>${fmt(f.deployments)} dep · ${fmt(f.countries)} co</b></div>`).join('')}</div>
   </div>
-  <div class="card" style="margin-top:14px"><h3>All operators (${fmt(d.operators.length)})</h3>
+  <div class="card" style="margin-top:14px">
+    <h3>What "verifiable" honestly means</h3>
+    <div style="font-size:13px;color:#C9C4B2;line-height:1.7">
+      <div><span class="badge b-ok">precise</span> hand-tuned parser — reliable today (${fmt(c.packed)}).</div>
+      <div style="margin-top:4px"><span class="badge b-info">generic · SMS</span> operator sends a confirmation SMS; the fallback parser usually reads it, at lower confidence + review. Becomes precise when we add its pack.</div>
+      <div style="margin-top:4px"><span class="badge b-bad">not SMS-verifiable</span> Tier-C app/QR/bank-rail wallet (UPI, GCash, GoPay, Kaspi, Mercado Pago, Nequi, Yape…). No operator SMS to the SIM — <b>KODA can't verify these</b>, and the system blocks connecting them.</div>
+    </div></div>
+  <div class="card" style="margin-top:14px"><h3>All operators (${fmt(d.operators.length)}) — ${fmt(d.operators.filter(o => o.tier !== 'C').length)} SMS-verifiable · ${fmt(d.operators.filter(o => o.tier === 'C').length)} app-rail (not verifiable)</h3>
     <input id="opq" placeholder="Filter by name / country / family…" oninput="adminFilterOps()" style="width:100%;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px;margin-bottom:10px">
-    <div class="tbl-wrap"><table class="tbl" id="optbl"><tr><th>Operator</th><th>Country</th><th>Region</th><th>Currency</th><th>Family</th><th>Tier</th><th>Parser</th></tr>
-    ${d.operators.map(o => `<tr class="oprow" data-s="${esc((o.name + ' ' + o.country + ' ' + o.family + ' ' + o.id).toLowerCase())}">
+    <div class="tbl-wrap"><table class="tbl" id="optbl"><tr><th>Operator</th><th>Country</th><th>Region</th><th>Currency</th><th>Family</th><th>Tier</th><th>Verification</th></tr>
+    ${d.operators.map(o => { const method = o.parser === 'precise' ? ['precise', 'b-ok'] : o.tier === 'C' ? ['not SMS-verifiable', 'b-bad'] : ['generic · SMS', 'b-info']; return `<tr class="oprow" data-s="${esc((o.name + ' ' + o.country + ' ' + o.family + ' ' + o.id).toLowerCase())}">
       <td>${esc(o.name)} <span class="mono" style="font-size:11px;color:var(--dim)">${esc(o.id)}</span></td><td class="mono">${esc(o.country)}</td><td class="mono" style="font-size:11px">${esc(o.region)}</td>
       <td class="mono">${esc(o.currency)}</td><td class="mono" style="font-size:11px">${esc(o.family)}</td><td><span class="badge ${o.tier === 'A' ? 'b-ok' : o.tier === 'B' ? 'b-info' : 'b-bad'}">${esc(o.tier)}</span></td>
-      <td>${o.parser === 'precise' ? '<span class="badge b-ok">precise</span>' : '<span class="badge b-info">generic</span>'}</td></tr>`).join('')}
+      <td><span class="badge ${method[1]}">${method[0]}</span></td></tr>`; }).join('')}
     </table></div></div>`);
 }
 window.adminFilterOps = () => {
