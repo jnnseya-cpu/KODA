@@ -1467,8 +1467,8 @@ const AGENTS = [
       verified_this_month: q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > date('now','start of month')`, m.id).c,
     }) },
   { type: 'trust', id: 'K-03', label: 'FraudSentinel trust lookup', acu: 0.5,
-    description: 'Trust score for a payer or sub-merchant (Plateforme+).',
-    run: (m, body) => ({ subject: body.subject || 'unknown', trust_score: 0.87, signals: ['no_replay_hits', 'stable_payer_graph'] }) },
+    description: 'Trust score for a payer, derived deterministically from this merchant’s own ledger history (verified payments, quarantines, disputes, tenure, velocity).',
+    run: (m, body) => trustLookup(m, body) },
   { type: 'dispute-evidence', id: 'K-06', label: 'DisputeAgent', acu: 3,
     description: 'Assemble an audit-grade evidence file for a contested reference.',
     run: (m, body) => ({
@@ -1478,9 +1478,108 @@ const AGENTS = [
       recommendation: 'request payer-number confirmation from customer',
     }) },
   { type: 'vision', id: 'K-04', label: 'VisionAgent', acu: 3,
-    description: 'Extract reference/amount from a payment screenshot + forgery forensics.',
-    run: (m, body) => ({ extracted_reference: body.screenshot_ref || null, forensics: { ela: 'clean', font_metrics: 'consistent' }, note: 'assistive evidence only — truth is the ledger' }) },
+    description: 'Cross-check a reference/amount read from a payment screenshot against the operator SMS on the merchant’s own device — the authoritative proof a screenshot can never be on its own.',
+    run: (m, body) => visionCrossCheck(m, body) },
 ];
+
+// ---- K-03 TrustAgent: deterministic trust score from the merchant's own ledger ----
+// No black-box ML: every point is traceable to a real row this merchant owns.
+function trustLookup(m, body) {
+  const raw = String(body.subject || body.payer || body.msisdn || '').trim();
+  if (!raw) return { subject: null, trust_score: null, confidence: 'none', signals: [], note: 'Provide `subject` — a payer number (or its last digits) to score.' };
+  // Match on the trailing digits we actually store (payer_suffix / counterparty_suffix).
+  const digits = raw.replace(/\D/g, '');
+  const suffix = digits.slice(-4) || digits;
+  const like = '%' + suffix;
+
+  const successes = q.get(`SELECT COUNT(*) c, MIN(verified_at) first_seen, MAX(verified_at) last_seen
+    FROM receipts WHERE merchant_id=? AND payer_suffix LIKE ?`, m.id, like);
+  const quarantined = q.get(`SELECT COUNT(*) c FROM sms_ledger
+    WHERE merchant_id=? AND quarantined=1 AND counterparty_suffix LIKE ?`, m.id, like).c;
+  const chainBreaks = q.get(`SELECT COUNT(*) c FROM sms_ledger
+    WHERE merchant_id=? AND chain_ok=0 AND counterparty_suffix LIKE ?`, m.id, like).c;
+  const disputes = q.get(`SELECT COUNT(*) c FROM disputes d
+    WHERE d.merchant_id=? AND UPPER(d.reference) IN
+      (SELECT UPPER(reference) FROM receipts WHERE merchant_id=? AND payer_suffix LIKE ?)`, m.id, m.id, like).c;
+  const recent24h = q.get(`SELECT COUNT(*) c FROM receipts
+    WHERE merchant_id=? AND payer_suffix LIKE ? AND verified_at > datetime('now','-1 day')`, m.id, like).c;
+
+  const sightings = successes.c + quarantined + disputes;
+  // Deterministic scoring — start neutral, reward clean history & tenure, punish fraud markers.
+  let score = 0.5;
+  score += Math.min(successes.c, 10) * 0.03;            // up to +0.30 for a track record
+  score -= quarantined * 0.15;                          // spoofed/quarantined SMS from this payer
+  score -= chainBreaks * 0.10;                          // balance-chain breaks
+  score -= disputes * 0.20;                             // disputes hurt most
+  score -= Math.max(0, recent24h - 5) * 0.05;           // velocity spike
+  if (successes.first_seen) {
+    const ageDays = (Date.now() - new Date(successes.first_seen + 'Z').getTime()) / 86400000;
+    if (ageDays > 30) score += 0.10; else if (ageDays > 7) score += 0.05;
+  }
+  score = Math.max(0, Math.min(1, score));
+
+  const confidence = sightings >= 5 ? 'high' : sightings >= 1 ? 'medium' : 'none';
+  return {
+    subject_suffix: suffix,
+    trust_score: sightings ? Math.round(score * 100) / 100 : null,
+    confidence,
+    signals: {
+      verified_payments: successes.c,
+      quarantined_sms: quarantined,
+      chain_breaks: chainBreaks,
+      disputes: disputes,
+      payments_last_24h: recent24h,
+      first_seen: successes.first_seen || null,
+      last_seen: successes.last_seen || null,
+    },
+    note: sightings
+      ? 'Score derived from this merchant’s own ledger — every signal is an auditable row count.'
+      : 'No prior history for this payer on your account — treat as a new counterparty (no score).',
+  };
+}
+
+// ---- K-04 VisionAgent: the honest forensic is the operator-SMS cross-check ----
+// A screenshot is never proof on its own; we verify the claimed reference/amount
+// against the operator SMS captured on the merchant's own device.
+function visionCrossCheck(m, body) {
+  const ref = String(body.screenshot_ref || body.reference || '').trim();
+  const claimedAmount = body.amount != null ? Number(body.amount) : null;
+  if (!ref) return { extracted_reference: null, verdict: 'no_reference', note: 'Provide `screenshot_ref` — the reference code read from the screenshot.' };
+
+  const sms = q.get(`SELECT amount, currency, operator, counterparty_suffix, balance_after,
+      chain_ok, quarantined, received_at FROM sms_ledger
+    WHERE merchant_id=? AND UPPER(ref_code)=UPPER(?) ORDER BY received_at DESC LIMIT 1`, m.id, ref);
+  const consumed = q.get('SELECT receipt_id, used_at FROM replay_index WHERE merchant_id=? AND reference=UPPER(?)', m.id, ref);
+
+  let verdict, ok = false;
+  if (!sms) {
+    verdict = 'no_operator_sms_backs_this_screenshot';   // the classic forged/edited screenshot
+  } else if (sms.quarantined || !sms.chain_ok) {
+    verdict = 'matching_sms_is_quarantined';              // spoof caught by the chain defence
+  } else if (claimedAmount != null && Number(sms.amount) !== claimedAmount) {
+    verdict = 'amount_mismatch';                          // edited amount on a real reference
+  } else if (consumed) {
+    verdict = 'code_already_used';                        // replay of a spent code
+  } else {
+    verdict = 'backed_by_operator_sms'; ok = true;        // real, unspent, chain-clean
+  }
+
+  return {
+    extracted_reference: ref,
+    claimed_amount: claimedAmount,
+    verdict,
+    backed_by_operator_sms: ok,
+    ledger_match: sms ? {
+      amount: sms.amount, currency: sms.currency, operator: sms.operator,
+      payer_suffix: sms.counterparty_suffix, received_at: sms.received_at,
+      quarantined: !!sms.quarantined, chain_ok: !!sms.chain_ok,
+    } : null,
+    replay_status: consumed ? { state: 'already_consumed', used_at: consumed.used_at } : { state: 'unused' },
+    image_forensics: { available: false,
+      note: 'Pixel-level forgery analysis (ELA / font metrics) is not enabled on this instance. The verdict above is derived from the operator-SMS ledger cross-check, which is authoritative — a screenshot with no matching operator SMS on your device cannot be trusted regardless of how clean the pixels look.' },
+    note: 'A screenshot is never proof on its own. KODA checks the claimed reference against the operator SMS captured on your own device — that is the truth.',
+  };
+}
 function safeUser(u) { const { pass_hash, ...rest } = u; return rest; }
 
 function openapi() {
@@ -1508,3 +1607,8 @@ function openapi() {
     components: { securitySchemes: { bearer: { type: 'http', scheme: 'bearer' } } },
   };
 }
+
+// Test-friendly exports for the deterministic AI agents (K-03 / K-04). These are
+// pure DB-derived functions; exposing them lets the test suite assert real values.
+module.exports.trustLookup = trustLookup;
+module.exports.visionCrossCheck = visionCrossCheck;
