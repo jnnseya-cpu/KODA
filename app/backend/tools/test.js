@@ -88,7 +88,9 @@ async function main() {
 
     console.log('— communications');
     const cat = (await j('/app/comms/catalogue', {}, tk)).d;
-    T('catalogue 128 events', cat.stats.total === 128, `mandatory=${cat.stats.mandatory}`);
+    const { ALL: CAT_ALL, CATEGORIES: CAT_CATS } = require('../../shared/events');
+    T('catalogue matches source of truth', cat.stats.total === CAT_ALL.length && cat.stats.categories === CAT_CATS.length && cat.stats.total >= 150,
+      `${cat.stats.total} events · ${cat.stats.categories} categories · mandatory=${cat.stats.mandatory}`);
     T('email preview branded', (await j('/app/comms/preview/payment.verified', {}, tk)).d.html.includes('Maison Kivu'));
     T('test fire', (await j('/app/comms/test/billing.low_balance', { body: {} }, tk)).d.deliveries.length > 0);
     T('prefs save', (await j('/app/comms/prefs', { body: { sms: false } }, tk)).d.ok === true);

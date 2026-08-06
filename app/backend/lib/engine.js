@@ -67,11 +67,14 @@ function notifyOwners(merchant, eventKey, data) {
 function checkOwnershipProof(merchantId, raw) {
   try {
     const up = String(raw || '').toUpperCase();
-    const pend = q.all(`SELECT id, verify_ref, device_id FROM merchant_network_accounts
+    const pend = q.all(`SELECT id, verify_ref, device_id, network_code FROM merchant_network_accounts
       WHERE merchant_id=? AND ownership_status='UNVERIFIED' AND verify_ref IS NOT NULL`, merchantId);
     for (const p of pend) {
-      if (p.verify_ref && up.includes(String(p.verify_ref).toUpperCase()))
+      if (p.verify_ref && up.includes(String(p.verify_ref).toUpperCase())) {
         q.run(`UPDATE merchant_network_accounts SET ownership_status='VERIFIED' WHERE id=?`, p.id);
+        const nm = (require('../../shared/operators').byId[p.network_code] || {}).name || p.network_code;
+        notifyOwners({ id: merchantId }, 'networks.ownership_verified', { network: nm });
+      }
     }
   } catch { /* non-fatal */ }
 }

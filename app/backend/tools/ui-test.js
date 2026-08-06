@@ -108,10 +108,11 @@ const ok = (name, cond, extra = '') => { results.push({ name, cond: !!cond, extr
   ok('12 API key created (shown once)', t.includes('shown once'));
   await shot('12-developers-key');
 
-  // communications: 128 events + branded preview
+  // communications: full catalogue + branded preview
   await go('#comms', 1300);
   t = await text();
-  ok('13 comms: 128 events / mandatory / channels', t.includes('128') && /mandatory/i.test(t));
+  const commsTotal = require('../../shared/events').ALL.length;
+  ok('13 comms: catalogue events / mandatory / channels', t.includes(String(commsTotal)) && /mandatory/i.test(t));
   await shot('13-comms-architecture');
   await pg.click('button.btn-gold.btn-sm'); await pg.waitForTimeout(900); // Preview
   ok('14 branded email preview', await pg.evaluate(() => !!document.querySelector('iframe.mailframe')));

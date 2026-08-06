@@ -475,8 +475,24 @@ module.exports = function registerRoutes(r) {
     `SELECT id,network_code,masked,account_holder_name,ownership_status,activation_status,
             enabled_manual,enabled_whatsapp,enabled_api,receive_currencies,priority,device_id,verify_ref
      FROM merchant_network_accounts WHERE merchant_id=? AND submerchant_id IS NULL ORDER BY priority`, m.id)));
-  r.post('/app/network-accounts', auth((req, user, m) => networks.connect(m, req.body)));
-  r.post('/app/network-accounts/:id/activate', auth((req, user, m) => networks.activate(m, req.params.id)));
+  // helper: friendly network name for comms templates
+  const netName = (code) => (require('../shared/operators').byId[code] || {}).name || code;
+  r.post('/app/network-accounts', auth((req, user, m) => {
+    const out = networks.connect(m, req.body);
+    if (!Array.isArray(out) && out.verify_ref) {                 // success (not an error tuple)
+      notify.fireMerchant('networks.account_connected', m, { network: netName(out.network_code) });
+      notify.fireMerchant('networks.ownership_proof_pending', m, { network: netName(out.network_code), verify_ref: out.verify_ref });
+    }
+    return out;
+  }));
+  r.post('/app/network-accounts/:id/activate', auth((req, user, m) => {
+    const out = networks.activate(m, req.params.id);
+    if (!Array.isArray(out) && out.ok) {
+      const a = q.get('SELECT network_code FROM merchant_network_accounts WHERE id=?', req.params.id);
+      notify.fireMerchant('networks.account_activated', m, { network: netName(a && a.network_code) });
+    }
+    return out;
+  }));
   r.post('/app/network-accounts/:id/pause', auth((req, user, m) => networks.setState(m, req.params.id, { activation_status: 'PAUSED' })));
   r.post('/app/network-accounts/:id/resume', auth((req, user, m) => networks.setState(m, req.params.id, { activation_status: 'ACTIVE' })));
   r.post('/app/network-accounts/:id/link-device', auth((req, user, m) => networks.setState(m, req.params.id, { device_id: req.body.device_id || null })));
