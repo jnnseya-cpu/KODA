@@ -318,7 +318,7 @@ Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per mark
 
 | Plan | Price | Door(s) | Includes | Overage |
 |---|---|---|---|---|
-| **Marché** | $0 | Manual + Chat | 50 verifications/mo, 1 Sentinel, Verify Console, Live Feed, replay protection, daily digest | — |
+| **Marché** | $0 | Manual + Chat | 20 verifications/mo, 1 Sentinel, Verify Console, Live Feed, replay protection, daily digest | — |
 | **Boutique** | $19/mo | Manual + Chat + API | 600 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.035 |
 | **Commerce** | $79/mo | All | 3,500 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.028 |
 | **Plateforme** | $399/mo | All + sub-merchants | 25,000 verifications, unlimited devices, sub-merchant API + scoped keys, trust-score API, re-billing endpoints | $0.020 |

@@ -334,7 +334,7 @@ Metered in **AI Compute Units**; verification is the billable atom.
 
 | Plan | Price | Includes | Overage |
 |---|---|---|---|
-| **Marché** (free) | $0 | 50 verifications/mo, 1 Sentinel device, WhatsApp Chat Mode | — |
+| **Marché** (free) | $0 | 20 verifications/mo, 1 Sentinel device, WhatsApp Chat Mode | — |
 | **Boutique** | $19/mo | 600 verifications, 2 devices, web widget, webhooks, reconciliation reports | $0.035/verif |
 | **Commerce** | $79/mo | 3,500 verifications, 5 devices, DisputeAgent, screenshot Vision, priority parsing | $0.028/verif |
 | **Plateforme** | $399/mo | 25,000 verifications, unlimited devices, marketplace trust-score API, sub-merchant onboarding API, SLA | $0.020/verif |

@@ -437,7 +437,7 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
     lead: 'Pick your door. Same engine, same account, same ledger — graduate whenever you want.',
     body: `
 <div class="card"><h3>Door 1 — Manual (no code, ever)</h3>
-<ol><li><a href="/app#signup">Create your free Marché account</a> (50 verifications/month).</li>
+<ol><li><a href="/app#signup">Create your free Marché account</a> (20 verifications/month).</li>
 <li>Install KODA Sentinel on the phone that receives your payments (enrol code in Devices).</li>
 <li>Customer pays → paste their code in the Verify Console → green card in ~3 seconds.</li></ol></div>
 <div class="card"><h3>Door 2 — WhatsApp</h3>

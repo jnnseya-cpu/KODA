@@ -204,7 +204,7 @@ Platforms may mark up to their merchants freely, absorb it as a feature, or use 
 
 ### 4.5 Anti-abuse of free tier
 
-Marché tier: 50 verifications/mo, 1 device, device-attestation required, one free account per attested device + KYB msisdn. FraudSentinel velocity rules apply identically. Free tier is a funnel, not a leak: conversion trigger messages fire from usage data ("You verified 48 payments this month — Boutique would have cost you $0.63 per day").
+Marché tier: 20 verifications/mo, 1 device, device-attestation required, one free account per attested device + KYB msisdn. FraudSentinel velocity rules apply identically. Free tier is a funnel, not a leak: conversion trigger messages fire from usage data ("You verified 48 payments this month — Boutique would have cost you $0.63 per day").
 
 ### 4.6 Unit economics (investor page)
 
