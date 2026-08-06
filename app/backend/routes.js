@@ -927,7 +927,14 @@ module.exports = function registerRoutes(r) {
     };
   }, 'read:usage'));
 
-  r.get('/v1/openapi.json', () => openapi());
+  // Machine-readable spec for tools. When a human opens it in a BROWSER
+  // (Accept: text/html), redirect to the rendered /api-reference page so nobody
+  // ever lands on raw JSON by navigating. curl/Postman/SDK gens still get JSON.
+  r.get('/v1/openapi.json', (req) => {
+    const accept = String(req.headers && req.headers['accept'] || '');
+    if (accept.includes('text/html')) return [302, '', { location: '/api-reference' }];
+    return openapi();
+  });
 
   // ---------- WhatsApp Cloud API webhook (Door 2 — Chat Mode) ----------
   // GET: Meta's verification handshake (echo hub.challenge when the verify token matches)
