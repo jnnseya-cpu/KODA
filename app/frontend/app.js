@@ -663,9 +663,10 @@ window.collectTopup = async (acu, rail) => {
     const r = await api('/app/billing/collect', { body: { amount_acu: acu, rail } });
     const s = r.session || {};
     if (s.flow === 'MOBILE_MONEY_TO_KODA_SIM') {
+      const amt = s.amount_local != null ? `<b>${fmt(s.amount_local)} ${esc(s.currency || '')}</b> (≈ $${fmt(s.amount_usd)})` : `<b>$${fmt(s.amount_usd)}</b>`;
       out.innerHTML = `<div class="card"><h3 class="ok">Pay by mobile money</h3>
-        <p style="font-size:14px">Send <b>$${fmt(s.amount_usd)}</b> (local equivalent) to <b class="mono">${esc(s.pay_to)}</b>, reference <span class="mono">${esc(s.reference || r.topup_id || '')}</span>.</p>
-        <p style="font-size:13px;color:var(--dim)">Your ${fmt(acu)} ACU are credited once KODA verifies the payment.</p></div>`;
+        <p style="font-size:14px">Send exactly ${amt} to <b class="mono">${esc(s.pay_to)}</b>.</p>
+        <p style="font-size:13px;color:var(--dim)">Your ${fmt(acu)} ACU are credited <b>automatically</b> once KODA sees the payment (usually seconds).</p></div>`;
     } else if (s.checkout_url || s.url) {
       out.innerHTML = `<a class="btn btn-gold" href="${esc(s.checkout_url || s.url)}" target="_blank" rel="noopener">Continue to secure checkout →</a>`;
     } else {
@@ -730,9 +731,10 @@ window.subscribePlan = async (plan, rail) => {
     const r = await api('/app/billing/subscribe', { body: { plan, rail } });
     const s = r.session || {};
     if (s.flow === 'MOBILE_MONEY_TO_KODA_SIM') {
+      const amt = s.amount_local != null ? `<b>${fmt(s.amount_local)} ${esc(s.currency || '')}</b> (≈ $${fmt(s.amount_usd)})` : `<b>$${fmt(s.amount_usd)}</b>`;
       out.innerHTML = `<div class="card"><h3 class="ok">Pay by mobile money</h3>
-        <p style="font-size:14px">Send <b>$${fmt(s.amount_usd)}</b> (local equivalent) to <b class="mono">${esc(s.pay_to)}</b> by mobile money.</p>
-        <p style="font-size:13px;color:var(--dim)">Reference: <span class="mono">${esc(s.reference || r.topup_id)}</span>. Keep your confirmation SMS. Your plan activates as soon as KODA verifies the payment.</p></div>`;
+        <p style="font-size:14px">Send exactly ${amt} to <b class="mono">${esc(s.pay_to)}</b> by mobile money.</p>
+        <p style="font-size:13px;color:var(--dim)">Your plan activates <b>automatically</b> once KODA sees the payment (usually seconds). Keep your confirmation SMS.</p></div>`;
     } else if (s.checkout_url || s.url) {
       out.innerHTML = `<a class="btn btn-gold" href="${esc(s.checkout_url || s.url)}" target="_blank" rel="noopener">Continue to secure checkout →</a>`;
     } else {

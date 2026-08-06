@@ -138,6 +138,9 @@ function ingestSms(merchant, { raw, operator, device_id }) {
   // Distributor rail (System B): if this merchant is a KODA distributor, a verified
   // incoming payment may settle a pending merchant top-up — the engine IS the escrow.
   try { require('./billing').matchDistributorPayment(merchant.id, parsed.amount); } catch { /* billing optional */ }
+  // KODA self-collection: if this SIM is KODA's own collection phone, a verified
+  // incoming payment auto-settles a matching pending plan/top-up (exact local amount).
+  try { if (process.env.KODA_COLLECT_MERCHANT === merchant.id) require('./billing').matchKodaCollection(parsed.amount); } catch { /* billing optional */ }
   return { id: smsId, parsed: true, quarantined: false, fields: parsed };
 }
 

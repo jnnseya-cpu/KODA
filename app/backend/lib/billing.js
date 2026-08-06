@@ -84,15 +84,17 @@ function createTopup(merchant, body = {}) {
     const subtotal = Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
     const idem = body.idempotency_key || null;
     if (idem) { const dup = q.get('SELECT * FROM topups WHERE idempotency_key=?', idem); if (dup) return topupView(dup); }
+    const expected = assignExpectedLocal(subtotal);
+    const cur = localCurrency();
     const id = U.id('top');
     q.run(`INSERT INTO topups (id,merchant_id,acu_amount,subtotal_usd,collection_fee_usd,tax_usd,total_usd,currency,rail,purpose,idempotency_key,routing_snapshot,status)
            VALUES (?,?,?,?,?,?,?,?,?, 'acu', ?, ?, 'pending')`,
-      id, merchant.id, acu, subtotal, 0, 0, subtotal, 'USD', 'koda', idem, JSON.stringify({ rail: 'koda' }));
+      id, merchant.id, acu, subtotal, 0, 0, subtotal, 'USD', 'koda', idem, JSON.stringify({ rail: 'koda', expected_local: expected }));
     const num = process.env.KODA_COLLECT_MSISDN || '(KODA DRC number — set KODA_COLLECT_MSISDN)';
     return {
       ...topupView(q.get('SELECT * FROM topups WHERE id=?', id)),
-      session: { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, amount_usd: subtotal, reference: id,
-        instructions: `Pay ${subtotal} USD (local equivalent) by mobile money to KODA at ${num} with reference ${id}. Your ${acu} ACU are credited once KODA verifies the payment.` },
+      session: { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, amount_usd: subtotal, amount_local: expected, currency: cur, reference: id,
+        instructions: `Pay EXACTLY ${expected} ${cur} (≈ $${subtotal}) by mobile money to KODA at ${num}. Your ${acu} ACU are credited automatically once KODA sees the payment.` },
     };
   }
   if (!B.RAILS[rail] || B.RAILS[rail].live === false) return [422, { error: { code: 'rail_unavailable', message: `rail ${rail} not available` } }];
@@ -320,15 +322,51 @@ function createPlanCheckout(merchant, planKey, rail = 'koda', opts = {}) {
 function sessionFor(topup, rail, quote) {
   if (rail === 'koda') {
     const num = process.env.KODA_COLLECT_MSISDN || '(KODA DRC number — set KODA_COLLECT_MSISDN)';
-    return { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, amount_usd: quote.total_usd, reference: topup.id,
-      instructions: `Pay ${quote.total_usd} USD (local equivalent) by mobile money to KODA at ${num}, then keep your confirmation SMS. Your ${quote.plan_label} plan activates as soon as KODA verifies the payment.` };
+    const cur = localCurrency();
+    // assign the exact local amount once, persist it for auto-matching
+    let expected;
+    try { expected = JSON.parse(topup.routing_snapshot || '{}').expected_local; } catch { expected = null; }
+    if (expected == null) {
+      expected = assignExpectedLocal(quote.total_usd);
+      q.run('UPDATE topups SET routing_snapshot=? WHERE id=?', JSON.stringify({ rail: 'koda', quote, expected_local: expected }), topup.id);
+    }
+    return { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, amount_usd: quote.total_usd, amount_local: expected, currency: cur, reference: topup.id,
+      instructions: `Pay EXACTLY ${expected} ${cur} (≈ $${quote.total_usd}) by mobile money to KODA at ${num}. Your ${quote.plan_label} plan activates automatically once KODA sees the payment.` };
   }
   if (PROVIDERS[rail]) return PROVIDERS[rail].createSession(topup);
   return { flow: quote.flow };
+}
+
+// ── KODA self-collection auto-settle ──────────────────────────────────────────
+// KODA's own DRC merchant SIM runs Sentinel. When a merchant pays a 'koda'-rail
+// plan/top-up by mobile money to that SIM, the confirmation SMS is forwarded to
+// KODA and this settles the matching pending collection automatically — no manual
+// admin confirm. Matching is by an EXACT unique local amount assigned at creation
+// (base from KODA_USD_TO_LOCAL, plus a small offset so two pending payments never
+// collide). Only runs for the collection merchant (KODA_COLLECT_MERCHANT), so a
+// normal merchant's customer SMS can never settle a KODA collection.
+function localRate() { return Number(process.env.KODA_USD_TO_LOCAL) || 2800; } // CDF pilot default
+function localCurrency() { return process.env.KODA_COLLECT_CURRENCY || 'CDF'; }
+function assignExpectedLocal(usd) {
+  const base = Math.round(Number(usd) * localRate());
+  const used = new Set(q.all(`SELECT routing_snapshot FROM topups WHERE rail='koda' AND status='pending'`)
+    .map(r => { try { return JSON.parse(r.routing_snapshot || '{}').expected_local; } catch { return null; } })
+    .filter(x => x != null));
+  for (let off = 0; off < 100; off++) if (!used.has(base + off)) return base + off;
+  return base;
+}
+function matchKodaCollection(amountLocal) {
+  const amt = Math.round(Number(amountLocal));
+  const rows = q.all(`SELECT * FROM topups WHERE rail='koda' AND status='pending' ORDER BY created_at ASC`);
+  const match = rows.find(t => { try { return JSON.parse(t.routing_snapshot || '{}').expected_local === amt; } catch { return false; } });
+  if (!match) return null;
+  const r = settleTopup(match.id);   // plan → activate · acu → credit
+  return Array.isArray(r) ? null : r;
 }
 
 module.exports = {
   methods, createTopup, settleTopup, topupView, reconcile, post, acctBalance, verifyWebhook,
   distributorFloat, wholesalePurchase, createDistributorTopup, settleDistributorTopup, matchDistributorPayment,
   planMethods, planQuote, createPlanCheckout,
+  matchKodaCollection, assignExpectedLocal, localCurrency,
 };
