@@ -423,7 +423,7 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
 <h2>Use it from any stack</h2>
 <p>Door 3 is plain HTTPS — it works in <b>any</b> website or app. Ready-made drop-ins and snippets:</p>
 <ul>
-<li><b>WooCommerce / WordPress</b> — <a href="/koda-woocommerce.zip"><b>download the KODA Payments plugin</b></a> and upload it in <em>Plugins → Add New → Upload</em> (no code).</li>
+<li><b>WooCommerce / WordPress</b> — <a href="/koda-woocommerce.zip"><b>download the KODA Payments plugin</b></a>, upload it in <em>Plugins → Add New → Upload</em>, then <b>Connect with KODA</b> in one click (no code, no secrets to paste). Dokan / WCFM multivendor supported.</li>
 <li><b>Flutter / Dart</b> — POST <code>/v1/intents</code> then open the <code>checkout_url</code> in a WebView.</li>
 <li><b>Native Android / iOS</b> — same REST call from your backend; open <code>checkout_url</code> in a Custom Tab / SFSafariViewController.</li>
 <li><b>Node / PHP / Python / Laravel</b> — one POST to create the intent, verify the signed webhook (<code>x-koda-signature</code> = HMAC-SHA256 of the raw body).</li>
@@ -437,7 +437,7 @@ TEST-SUFFIX     → msisdn_suffix_mismatch → challenge flow</pre>
     body: `
 <p>This page renders the <b>live</b> spec from <a href="/v1/openapi.json"><code>/v1/openapi.json</code></a> — the same contract your SDK generators and Postman consume, here made human-readable. <a href="/v1/openapi.json">Open the raw JSON →</a></p>
 <div class="card"><h3>WooCommerce store? One-click plugin</h3>
-<p>No code — <a href="/koda-woocommerce.zip"><b>Download the WooCommerce plugin →</b></a> then in WordPress: <em>Plugins → Add New → Upload Plugin</em>, activate, and paste your KODA API key + webhook secret.</p></div>
+<p>No code — <a href="/koda-woocommerce.zip"><b>Download the WooCommerce plugin →</b></a> then in WordPress: <em>Plugins → Add New → Upload Plugin</em> and activate. In <em>WooCommerce → Settings → Payments → KODA</em>, click <b>Connect with KODA</b> — a scoped, revocable key and webhook are provisioned automatically (no secrets to paste). Prefer manual? You can still enter your API key + webhook secret by hand. Works with multivendor stores (Dokan / WCFM).</p></div>
 <div class="card"><h3>Base URL &amp; authentication</h3>
 <pre>Base   https://kodajnn.com/v1
 Auth   Authorization: Bearer sk_live_xxx      (or)  X-API-Key: sk_live_xxx
