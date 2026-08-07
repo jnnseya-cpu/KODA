@@ -55,10 +55,134 @@ const I18N = {
     reset_done: 'Password updated. Redirecting to sign in…',
     accounts: 'Payment methods', redeem_voucher: 'Redeem voucher', kd_console: 'Distributor console',
   },
+  // Swahili (sw) — East/Central Africa. Full UI translation (machine-quality; pending native review).
+  sw: {
+    dashboard: 'Dashibodi', verify: 'Thibitisha', feed: 'Malipo ya moja kwa moja', receipts: 'Risiti',
+    disputes: 'Migogoro', devices: 'Vifaa vya Sentinel', billing: 'Bili na ACU', team: 'Timu',
+    developers: 'Wasanidi', comms: 'Mawasiliano', submerchants: 'Wafanyabiashara wadogo', settings: 'Mipangilio',
+    admin: 'Kituo cha udhibiti', logout: 'Toka', signin: 'Ingia', signup: 'Fungua akaunti',
+    verify_title: 'Konsoli ya Uthibitisho', verify_hint: 'Bandika msimbo wa muamala wa mteja — uamuzi unaotegemea SMS ya opereta kwa sekunde ~3.',
+    vmeans_t: 'Maana ya "imethibitishwa" (na isiyo)',
+    vmeans_y: 'Imethibitishwa = SMS ya uthibitisho ya opereta imefika kwenye simu yako, msimbo unalingana (kiasi, rejea, dirisha), haujawahi kutumika, na umepita ukaguzi wa udanganyifu.',
+    vmeans_n: 'Haihakikishi kwamba opereta hawezi kubatilisha malipo baadaye. KODA haishiki pesa yako kamwe — huenda moja kwa moja kwenye akaunti yako ya pesa za simu. Kwa malipo makubwa au yasiyo ya kawaida, tumia "yanahitaji ukaguzi" kabla ya kutoa bidhaa.',
+    verify_btn: 'Thibitisha malipo', confirm_pay: 'Thibitisha', confirming: 'Inathibitisha…', verified: 'MALIPO YAMETHIBITISHWA', rejected: 'YAMEKATALIWA', pending: 'YANAHITAJI UKAGUZI',
+    paste_sms_t: 'Bandika SMS ya opereta', paste_sms_h: 'iPhone au simu isiyo na Sentinel? Nakili SMS NZIMA ya malipo ya opereta hapa. KODA inaithibitisha — bora kuliko msimbo, kwa sababu KODA inaona SMS halisi.', paste_sms_btn: 'Thibitisha SMS hii',
+    auto_stream: 'Kila malipo yanathibitishwa kiotomatiki — hufanyi chochote.', manual_verify: 'Uthibitisho wa mikono (mbadala)',
+    not_found: 'Bado hayajapatikana — tunaangalia dirisha', amount: 'Kiasi', reference: 'Msimbo wa muamala',
+    today: 'leo', month: 'mwezi huu', unmatched: 'malipo yasiyolingana', open_disputes: 'migogoro iliyo wazi',
+    acu_balance: 'salio la ACU', topup: 'Ongeza', welcome: 'Habari', expected_amount: 'Kiasi kinachotarajiwa (hiari)',
+    live: 'MOJA KWA MOJA', quarantined: 'IMETENGWA', enroll_device: 'Sajili kifaa', revoke: 'Batilisha',
+    invite: 'Alika', create_key: 'Tengeneza ufunguo', add_webhook: 'Ongeza webhook', test: 'Jaribu',
+    preview: 'Onyesho', send_test: 'Nitumie jaribio', mark_read: 'Weka zote zimesomwa', save: 'Hifadhi',
+    plan: 'Mpango', change_plan: 'Badilisha mpango', language: 'Lugha', auto: 'Otomatiki (kifaa)',
+    growth: 'Injini ya Ukuaji ya AI', generate: 'Tengeneza', growth_sub: 'Zana za masoko za AI — ongeza ufikiaji na washirika wako',
+    forgot_pw: 'Umesahau nywila?', forgot_sub: 'Weka barua pepe yako — tutakutumia kiungo cha kuweka upya.',
+    send_reset: 'Tuma kiungo cha kuweka upya', reset_pw: 'Weka upya nywila',
+    reset_sub: 'Chagua nywila mpya kwa akaunti yako ya KODA.',
+    reset_done: 'Nywila imesasishwa. Inaelekeza kwenye kuingia…',
+    accounts: 'Njia za malipo', redeem_voucher: 'Tumia vocha', kd_console: 'Konsoli ya msambazaji',
+  },
+  // Lingala (ln) — DR Congo / Congo-Brazzaville. Core UI translated; longer legal/verification
+  // strings fall back to French (a language Lingala speakers read) — see LANG_FALLBACK.
+  ln: {
+    dashboard: 'Etando ya mosala', verify: 'Kotala', feed: 'Mafuteli ya mbongo na direct', receipts: 'Bareçu',
+    disputes: 'Matata', devices: 'Bisaleli Sentinel', billing: 'Fakture na ACU', team: 'Ekipe',
+    developers: 'Baye basalaka', comms: 'Basango', submerchants: 'Bato ya mombongo mike', settings: 'Bibongiseli',
+    admin: 'Esika ya bokambi', logout: 'Kobima', signin: 'Kokota', signup: 'Kofungola konti',
+    verify_title: 'Console ya kotala', verify_hint: 'Kotia code ya transaction ya kiliya — eyano euti na SMS ya opérateur na segonde ~3.',
+    verify_btn: 'Kotala mbongo', confirm_pay: 'Kondima', confirming: 'Ezali kondima…', verified: 'MBONGO ETALAMI', rejected: 'EPESAMI TE', pending: 'ESENGELI KOTALA',
+    paste_sms_t: 'Tia SMS ya opérateur', paste_sms_btn: 'Kotala SMS oyo',
+    auto_stream: 'Mbongo nyonso etalami yango moko — osala eloko te.', manual_verify: 'Kotala na maboko (lisungi)',
+    not_found: 'Emonani naino te — tozali kotala', amount: 'Motuya', reference: 'Code ya transaction',
+    today: 'lelo', month: 'sanza oyo', unmatched: 'mbongo esangani te', open_disputes: 'matata efungwami',
+    acu_balance: 'reste ya ACU', topup: 'Kobakisa', welcome: 'Mbote', expected_amount: 'Motuya ezelami (soki olingi)',
+    live: 'DIRECT', quarantined: 'EKANGAMI', enroll_device: 'Kokoma esaleli', revoke: 'Kolongola',
+    invite: 'Kobenga', create_key: 'Kosala fungola', add_webhook: 'Kobakisa webhook', test: 'Komeka',
+    preview: 'Kotala liboso', send_test: 'Tindela ngai test', mark_read: 'Tia nyonso etangami', save: 'Kobomba',
+    plan: 'Formule', change_plan: 'Kobongola formule', language: 'Monoko', auto: 'Yango moko (esaleli)',
+    growth: 'Motele ya bokoli AI', generate: 'Kosala', growth_sub: 'Bisaleli AI ya marketing — kokolisa bato oyo bayebi yo',
+    forgot_pw: 'Obosani mot de passe?', forgot_sub: 'Tia email na yo — tokotindela yo lien ya kobongisa.',
+    send_reset: 'Tinda lien', reset_pw: 'Bongisa mot de passe',
+    reset_sub: 'Pona mot de passe ya sika mpo na konti KODA na yo.',
+    reset_done: 'Mot de passe ebongisami. Ezali kozonga na kokota…',
+    accounts: 'Banzela ya kofuta', redeem_voucher: 'Salela bon', kd_console: 'Console ya mokaboli',
+  },
+  // Wolof (wo) — Senegal / Gambia. Core UI translated; longer strings fall back to French.
+  wo: {
+    dashboard: 'Tablo bu mag', verify: 'Seetlu', feed: 'Peyeman yu direct', receipts: 'Reçu',
+    disputes: 'Ñeexal', devices: 'Jumtukaay Sentinel', billing: 'Faktir ak ACU', team: 'Ekib',
+    developers: 'Développeurs', comms: 'Jokkoo', submerchants: 'Njaaykat yu ndaw', settings: 'Paramaetar',
+    admin: 'Barab bu konteroolal', logout: 'Génn', signin: 'Dugg', signup: 'Ubbi kont',
+    verify_title: 'Console bu seetlu', verify_hint: 'Bindal kode transaction bu kiliyaŋ bi — tontu bu jóge ci SMS opérateur ci ~3 segond.',
+    verify_btn: 'Seetlul peyeman', confirm_pay: 'Dëggal', confirming: 'Mu ngi dëggal…', verified: 'PEYEMAN BI DËGGAL NA', rejected: 'BAÑ NAÑU KO', pending: 'DAFA WARA SEETLU',
+    paste_sms_t: 'Bindal SMS opérateur', paste_sms_btn: 'Seetlul SMS bii',
+    auto_stream: 'Peyeman bu nekk seetlu nañu ko ci boppam — doo def dara.', manual_verify: 'Seetlu ci loxo (ndimbal)',
+    not_found: 'Gisagul — nu ngi xool', amount: 'Njëg', reference: 'Kode transaction',
+    today: 'tey', month: 'weer wii', unmatched: 'peyeman yu ñuul boole', open_disputes: 'ñeexal yu ubbeeku',
+    acu_balance: 'des bu ACU', topup: 'Yokk', welcome: 'Salaam', expected_amount: 'Njëg bi ñu xaar (soo bëggee)',
+    live: 'DIRECT', quarantined: 'TÉÉÑ', enroll_device: 'Bindal jumtukaay', revoke: 'Dindi',
+    invite: 'Woo', create_key: 'Sos caabi', add_webhook: 'Yokk webhook', test: 'Seet',
+    preview: 'Xoolal', send_test: 'Yónnee ma test', mark_read: 'Màrke lépp jàng', save: 'Denc',
+    plan: 'Plan', change_plan: 'Soppi plan', language: 'Làkk', auto: 'Ci boppam (jumtukaay)',
+    growth: 'Motër ngóob AI', generate: 'Sos', growth_sub: 'Jumtukaay marketing AI — yokk sa ëmb ak sa partenaires',
+    forgot_pw: 'Fàtte nga baatujàll?', forgot_sub: 'Bindal sa email — dinañu la yónnee lien ngir soppi.',
+    send_reset: 'Yónnee lien', reset_pw: 'Soppi baatujàll',
+    reset_sub: 'Tannal baatujàll bu bees ngir sa kont KODA.',
+    reset_done: 'Baatujàll soppiku na. Mu ngi dellu ci dugg…',
+    accounts: 'Anam yu peye', redeem_voucher: 'Jëfandikoo bon', kd_console: 'Console distributeur',
+  },
+  // Twi / Akan (ak) — Ghana. Core UI translated; longer strings fall back to English.
+  ak: {
+    dashboard: 'Dashboard', verify: 'Hwɛ ho', feed: 'Sika tua a ɛrekɔ so', receipts: 'Nkrataa',
+    disputes: 'Akasakasa', devices: 'Sentinel mfidie', billing: 'Ka ne ACU', team: 'Kuo',
+    developers: 'Adwumayɛfoɔ', comms: 'Nkitahodie', submerchants: 'Adwadifoɔ nketewa', settings: 'Nhyehyɛeɛ',
+    admin: 'Ɔhwɛ dwumadibea', logout: 'Firi mu', signin: 'Bra mu', signup: 'Bue akawnt',
+    verify_title: 'Hwɛ ho Console', verify_hint: 'Fa client no transaction code no to mu — mmuaeɛ a ɛgyina operator SMS so wɔ sekɛne ~3 mu.',
+    verify_btn: 'Hwɛ sika tua no ho', confirm_pay: 'Si so dua', confirming: 'Ɛresi so dua…', verified: 'SIKA TUA NO YƐ NOKORƐ', rejected: 'WƆAPO', pending: 'ƐHIA NHWEHWƐMU',
+    paste_sms_t: 'Fa operator SMS no to mu', paste_sms_btn: 'Hwɛ SMS yi ho',
+    auto_stream: 'Wɔhwɛ sika tua biara ho ankasa — wonyɛ hwee.', manual_verify: 'Nsa so nhwehwɛmu (mmoa)',
+    not_found: 'Wonhunuu bi ɛ — yɛrehwɛ', amount: 'Dodoɔ', reference: 'Transaction code',
+    today: 'ɛnnɛ', month: 'saa bosome yi', unmatched: 'sika tua a ɛmfata', open_disputes: 'akasakasa a ɛda hɔ',
+    acu_balance: 'ACU sika a aka', topup: 'Fa ka ho', welcome: 'Akwaaba', expected_amount: 'Dodoɔ a wɔhwɛ kwan (sɛ wopɛ a)',
+    live: 'ƐREKƆ SO', quarantined: 'WƆAYI ASI NKYƐN', enroll_device: 'Kyerɛw mfidie', revoke: 'Yi firi hɔ',
+    invite: 'To nsa frɛ', create_key: 'Yɛ safoa', add_webhook: 'Fa webhook ka ho', test: 'Sɔ hwɛ',
+    preview: 'Hwɛ kane', send_test: 'Fa test kɔma me', mark_read: 'Hyɛ ne nyinaa sɛ wɔakenkan', save: 'Kora so',
+    plan: 'Nhyehyɛeɛ', change_plan: 'Sesa nhyehyɛeɛ', language: 'Kasa', auto: 'Ankasa (mfidie)',
+    growth: 'AI Nkɔsoɔ Afidie', generate: 'Yɛ', growth_sub: 'AI marketing nnwuma — trɛ wo so ne wo ahokafoɔ mu',
+    forgot_pw: 'Wo werɛ afiri password?', forgot_sub: 'Fa wo email to mu — yɛbɛfa reset link akɔma wo.',
+    send_reset: 'Fa reset link kɔ', reset_pw: 'Sesa password',
+    reset_sub: 'Yi password foforɔ ma wo KODA akawnt.',
+    reset_done: 'Wɔasesa password. Ɛresan akɔ sign in…',
+    accounts: 'Sika tua akwan', redeem_voucher: 'Gye voucher', kd_console: 'Distributor console',
+  },
 };
+// A language that only partly covers the UI falls back to its regional lingua franca
+// (francophone → fr, anglophone → en) before the ultimate English fallback, so a
+// merchant always reads a correct sentence rather than a raw key.
+const LANG_FALLBACK = { ln: 'fr', wo: 'fr', sw: 'en', ak: 'en' };
+const SUPPORTED_LANGS = ['fr', 'en', 'sw', 'ln', 'wo', 'ak'];
+// [code, native label] for the language pickers (Auto is rendered separately).
+const LANG_OPTIONS = [['fr', 'Français'], ['en', 'English'], ['sw', 'Kiswahili'], ['ln', 'Lingála'], ['wo', 'Wolof'], ['ak', 'Twi']];
 let LANG = localStorage.getItem('koda_lang') || '';
-function lang() { return LANG || ((navigator.language || 'fr').slice(0, 2) === 'en' ? 'en' : 'fr'); }
-const t = (k) => (I18N[lang()] && I18N[lang()][k]) || I18N.en[k] || k;
+// Auto-detect from the device: map the browser locale to a supported language,
+// otherwise French (KODA's primary francophone-Africa market).
+function detectLang() {
+  const codes = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'fr']);
+  for (const c of codes) {
+    const p = String(c).toLowerCase().slice(0, 2);
+    if (SUPPORTED_LANGS.includes(p)) return p;
+    if (p === 'ak' || p === 'tw') return 'ak'; // Akan/Twi
+  }
+  return 'fr';
+}
+function lang() { return LANG || detectLang(); }
+const t = (k) => {
+  const L = lang();
+  if (I18N[L] && I18N[L][k] != null) return I18N[L][k];
+  const fb = LANG_FALLBACK[L];
+  if (fb && I18N[fb] && I18N[fb][k] != null) return I18N[fb][k];
+  return I18N.en[k] || k;
+};
 
 /* ---------------- api client ---------------- */
 const TOKEN = () => localStorage.getItem('koda_token');
@@ -78,10 +202,13 @@ function toast(msg, ms = 3200) {
   clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), ms);
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const fmt = (n) => Number(n || 0).toLocaleString(lang() === 'fr' ? 'fr-FR' : 'en-US');
+// Number/date locale per language (francophone langs group by fr, anglophone by en/sw).
+const NUM_LOCALE = { fr: 'fr-FR', en: 'en-US', sw: 'sw-KE', ln: 'fr-FR', wo: 'fr-FR', ak: 'en-GH' };
+const DATE_LOCALE = { fr: 'fr-FR', en: 'en-GB', sw: 'sw-KE', ln: 'fr-FR', wo: 'fr-FR', ak: 'en-GH' };
+const fmt = (n) => Number(n || 0).toLocaleString(NUM_LOCALE[lang()] || 'fr-FR');
 // ACU balance display: admin-owned accounts are unlimited → show ∞
 const acuFmt = (n) => (ME && ME.acu_unlimited) ? '∞' : fmt(n);
-const when = (s) => s ? new Date(s.replace(' ', 'T') + (s.includes('Z') ? '' : 'Z')).toLocaleString(lang() === 'fr' ? 'fr-FR' : 'en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+const when = (s) => s ? new Date(s.replace(' ', 'T') + (s.includes('Z') ? '' : 'Z')).toLocaleString(DATE_LOCALE[lang()] || 'fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
 
 /* ---------------- state + router ---------------- */
 let ME = null;
@@ -190,8 +317,7 @@ function shell(active, title, sub, content) {
           ${m ? `<span class="badge b-warn mono">${acuFmt(m.acu_balance)} ACU</span>` : ''}
           <select class="lang-sel" onchange="setLang(this.value)">
             <option value="" ${!LANG ? 'selected' : ''}>${t('auto')}</option>
-            <option value="fr" ${LANG === 'fr' ? 'selected' : ''}>Français</option>
-            <option value="en" ${LANG === 'en' ? 'selected' : ''}>English</option>
+            ${LANG_OPTIONS.map(([v, n]) => `<option value="${v}" ${LANG === v ? 'selected' : ''}>${n}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -1109,9 +1235,7 @@ VIEWS.settings = async () => {
     <p style="font-size:13px;color:var(--dim);margin-bottom:10px">The OS auto-detects your device language (LinguaAgent K-07). Override:</p>
     <div class="pill-row">
       <button class="pill ${!LANG ? 'on' : ''}" onclick="setLang('')">${t('auto')} — ${(navigator.language || 'fr')}</button>
-      <button class="pill ${LANG === 'fr' ? 'on' : ''}" onclick="setLang('fr')">Français</button>
-      <button class="pill ${LANG === 'en' ? 'on' : ''}" onclick="setLang('en')">English</button>
-      <button class="pill" disabled>Lingala · Swahili · Wolof — per wave</button>
+      ${LANG_OPTIONS.map(([v, n]) => `<button class="pill ${LANG === v ? 'on' : ''}" onclick="setLang('${v}')">${n}</button>`).join('')}
     </div></div>
   <div class="card" style="margin-top:14px"><h3>PWA</h3>
     <p style="font-size:13px;color:var(--dim)">Install KODA on your phone: browser menu → "Add to Home screen". Works offline for the console shell; verifications sync when back online.</p></div>

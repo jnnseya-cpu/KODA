@@ -6,6 +6,7 @@
 const { q } = require('../lib/db');
 const { id } = require('../lib/util');
 const { BY_KEY, CHANNELS } = require('../../shared/events');
+const { localizedSubject } = require('./subjects-i18n');
 const { renderEmail } = require('./email');
 
 const meta = require('./meta');
@@ -34,7 +35,10 @@ function fire(eventKey, opts = {}) {
   const ev = BY_KEY[eventKey];
   if (!ev) throw new Error(`unknown comm event: ${eventKey}`);
   const { user, merchant, data = {} } = opts;
-  const subject = interpolate(ev.subject, { merchant: merchant?.name, ...data });
+  // localise the subject to the merchant's language where we have a translation,
+  // else fall back to the catalogue's English subject.
+  const subjectTpl = localizedSubject(eventKey, merchant?.language) || ev.subject;
+  const subject = interpolate(subjectTpl, { merchant: merchant?.name, ...data });
   const channels = opts.channelsOverride || ev.channels;
   const results = [];
 
@@ -94,7 +98,10 @@ function fireMerchant(eventKey, merchant, data = {}) {
 function previewEmail(eventKey, merchant, user, data = {}) {
   const ev = BY_KEY[eventKey];
   if (!ev) return null;
-  const subject = interpolate(ev.subject, { merchant: merchant?.name, ...data });
+  // localise the subject to the merchant's language where we have a translation,
+  // else fall back to the catalogue's English subject.
+  const subjectTpl = localizedSubject(eventKey, merchant?.language) || ev.subject;
+  const subject = interpolate(subjectTpl, { merchant: merchant?.name, ...data });
   return renderEmail({ subject, event: ev, merchant, user, data });
 }
 

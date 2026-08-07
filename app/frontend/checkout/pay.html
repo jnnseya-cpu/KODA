@@ -75,7 +75,7 @@
 <script>
 (function(){
   'use strict';
-  // ── Device-language detection (FR/EN/ES/PT/AR/SW/PT) ──────────────────────
+  // ── Device-language detection (FR/EN/ES/PT/AR/SW/Lingala/Wolof/Twi) ───────
   // The customer never picks a language: KODA reads the device's own setting.
   // A ?lang= override wins for merchants who force a locale; otherwise we map
   // navigator.language to the nearest supported pack and fall back to English.
@@ -181,7 +181,58 @@
       no_conf:'Haijathibitishwa', no_conf_p:'Hatukuweza kuthibitisha malipo haya. Angalia msimbo, kiasi na namba.',
       err:'Hitilafu', err_p:'Jaribu tena baada ya muda mfupi.',
       ok:'Malipo yamethibitishwa', ok_p:'{amount} {cur} imethibitishwa. Asante!',
-      redir:'Inaelekeza…', done_close:'Unaweza kufunga ukurasa huu — oda imethibitishwa.', oops:'Samahani' }
+      redir:'Inaelekeza…', done_close:'Unaweza kufunga ukurasa huu — oda imethibitishwa.', oops:'Samahani' },
+    ln: { locale:'fr-FR', dir:'ltr',
+      secure:'🔒 Ebatelami · KODA', loading:'Ezali kofungwama…', foot:'Etalami na KODA · code endimisi mbongo',
+      bad_link:'Lien ya kofuta ezali mabe.', not_found:'Mbongo emonani te to esili ntango.', no_conn:'Kokangama elongi te.',
+      amount:'Motuya ya kofuta', order:'Commande {x}',
+      s1:'1 · Pona opérateur na yo', s2:'2 · Futa motuya oyo na numéro oyo', s3:'3 · Kotisa code ya ndimbola na yo',
+      copy:'Kopi', copied:'Ekopiami ✓',
+      ussd:'Benga <a href="tel:{tel}">{ussd}</a> to salela application na yo. Kopesa PIN na yo te.',
+      paid:'Nafuti — kotisa code na ngai', ref_ph:'ndakisa OM.260717.1432.A88213', verify_btn:'Kotala mbongo na ngai', verifying:'Ezali kotala…',
+      code_hint:'Ezali code na SMS oyo <b>yo</b> ozwaki epai ya {op} sima ya kofuta.',
+      en_route:'Mbongo ezali koya', en_route_p:'Réseau elakisi biso naino mbongo na yo te. Tozali kotala yango moko…',
+      still:'Tozali kozela', still_p:'Mbongo na yo emonani naino te. Meka code lisusu na miniti moko.',
+      review:'Ezali kotalama', review_p:'Mbongo na yo ezali kotalama. Ekoki kozwa mwa ntango.',
+      used:'Code esalelami', used_p:'Code oyo esalelami mpo na mbongo mosusu. Tala référence na yo.',
+      no_conf:'Endimami te', no_conf_p:'Tokoki kondima mbongo oyo te. Tala code, motuya na numéro.',
+      err:'Libunga', err_p:'Meka lisusu mwa moke.',
+      ok:'Mbongo endimami', ok_p:'{amount} {cur} etalami. Matondi!',
+      redir:'Ezali kozongisa…', done_close:'Okoki kokanga page oyo — commande endimami.', oops:'Eh!' },
+    wo: { locale:'fr-FR', dir:'ltr',
+      secure:'🔒 Wóor · KODA', loading:'Mu ngi yeg…', foot:'KODA moo ko seetlu · kode bi dafa dëggal peyeman',
+      bad_link:'Liin bu peyeman baaxul.', not_found:'Peyeman gisu ñu ko walla mu jóg.', no_conn:'Mënul a takk.',
+      amount:'Njëg bi ngay fey', order:'Komaand {x}',
+      s1:'1 · Tannal sa opérateur', s2:'2 · Feyal njëg bii ci nimero bii', s3:'3 · Bindal sa kode dëggal',
+      copy:'Kopye', copied:'Kopye nañu ✓',
+      ussd:'Wooye <a href="tel:{tel}">{ussd}</a> walla jëfandikoo sa app. Bul jox sa PIN.',
+      paid:'Fey naa — bindal sama kode', ref_ph:'ci misaal OM.260717.1432.A88213', verify_btn:'Seetlul sama peyeman', verifying:'Mu ngi seetlu…',
+      code_hint:'Kode bi nekk ci SMS bi <b>yaw</b> jot ci {op} bi nga feyee la.',
+      en_route:'Peyeman bi ñëw na', en_route_p:'Réseau bi wonwu ñu sa peyeman ba tey. Nu ngi seetlu ci boppam…',
+      still:'Nu ngi xaar', still_p:'Sa peyeman feeñagul. Jéemaatal kode bi ci benn simili.',
+      review:'Mu ngi ci seetlu', review_p:'Sa peyeman dañu koy seetlu. Man na yàgg tuuti.',
+      used:'Kode jëfandikoo nañu ko', used_p:'Kode bii jëfandikoo nañu ko ba noppi. Xoolal sa référence.',
+      no_conf:'Dëggalul', no_conf_p:'Mënunu dëggal peyeman bii. Xoolal kode bi, njëg bi ak nimero bi.',
+      err:'Njumte', err_p:'Jéemaatal ci kanam tuuti.',
+      ok:'Peyeman bi dëggal na', ok_p:'{amount} {cur} seetlu nañu ko. Jërëjëf!',
+      redir:'Mu ngi dellu…', done_close:'Man nga tëj xët wii — komaand bi dëggal na.', oops:'Amoul solo' },
+    ak: { locale:'en-GH', dir:'ltr',
+      secure:'🔒 Ahobammɔ · KODA', loading:'Ɛrehyɛ…', foot:'KODA na ɔhwɛ ho · code no si sika tua no so dua',
+      bad_link:'Sika tua link no nyɛ papa.', not_found:'Wonhunuu sika tua no anaa n\'aberɛ atwam.', no_conn:'Yɛantumi ankɔ so.',
+      amount:'Sika a wobɛtua', order:'Order {x}',
+      s1:'1 · Paw wo network', s2:'2 · Tua sika yi kɔ nɔma yi so', s3:'3 · Fa wo confirmation code no hyɛ mu',
+      copy:'Kopi', copied:'Wɔakopi ✓',
+      ussd:'Frɛ <a href="tel:{tel}">{ussd}</a> anaa fa wo app di dwuma. Nkyerɛ obiara wo PIN.',
+      paid:'Matua — fa me code hyɛ mu', ref_ph:'sɛ OM.260717.1432.A88213', verify_btn:'Hwɛ me sika tua no ho', verifying:'Ɛrehwɛ…',
+      code_hint:'Ɛyɛ code a ɛwɔ SMS a <b>wo</b> nsa kaa firi {op} hɔ wɔ akyi a woatua no.',
+      en_route:'Sika tua no reba', en_route_p:'Network no nkyerɛɛ yɛn wo sika tua no ɛ. Yɛrehwɛ ho ankasa…',
+      still:'Yɛda so retwɛn', still_p:'Wo sika tua no mmaa da so. Sɔ code no hwɛ bio wɔ simma baako mu.',
+      review:'Wɔrehwɛ mu', review_p:'Wɔrehwɛ wo sika tua no mu. Ebetumi agye bere kakra.',
+      used:'Wɔde code no adi dwuma dada', used_p:'Wɔde code yi adi dwuma ama sika tua bi dada. Hwɛ wo reference.',
+      no_conf:'Wɔansi so dua', no_conf_p:'Yɛantumi ansi sika tua yi so dua. Hwɛ code no, sika no ne nɔma no.',
+      err:'Mfomsoɔ', err_p:'Sɔ hwɛ bio kakra.',
+      ok:'Wɔasi sika tua no so dua', ok_p:'{amount} {cur} wɔahwɛ ho. Meda wo ase!',
+      redir:'Ɛresan de wo kɔ…', done_close:'Wubetumi ato krataafa yi mu — wɔasi order no so dua.', oops:'Aane' }
   };
   function pickLang(){
     var forced = new URLSearchParams(location.search).get('lang');
