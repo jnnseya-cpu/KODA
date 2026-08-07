@@ -107,6 +107,24 @@ async function hit(path, { method = 'GET', token, body, raw } = {}) {
   ok('revoke succeeds', revoke.status === 200 && revoke.data?.ok);
   ok('revoked install key is now rejected', (await hit('/v1/intents', { token: instKey, method: 'POST', body: { amount: 5000, currency: 'CDF', operators: ['orange_cd'] } })).status === 401);
 
+  // ── 5b. OAUTH-STYLE CONNECT (plugin one-click install) ────────────────────
+  console.log('— oauth connect (one-time code exchange)');
+  const authz = await hit('/app/oauth/authorize', { token, method: 'POST', body: {
+    platform: 'woocommerce', store_url: 'https://oauth-shop.example.com',
+    webhook_url: 'https://oauth-shop.example.com/wp-json/koda/v1/webhook',
+    redirect_uri: 'https://oauth-shop.example.com/wp-json/koda/v1/oauth/callback', state: 'nonce123' } });
+  const redir = authz.data?.redirect || '';
+  ok('authorize returns a redirect carrying a one-time code + state', authz.status === 200 && /[?&]code=kc_/.test(redir) && /[?&]state=nonce123/.test(redir), authz.data?.error);
+  const oauthCode = (redir.match(/[?&]code=(kc_[^&]+)/) || [])[1];
+  ok('authorize rejects a non-http redirect_uri', (await hit('/app/oauth/authorize', { token, method: 'POST', body: { redirect_uri: 'javascript:alert(1)' } })).status === 400);
+  const tok = await hit('/v1/oauth/token', { method: 'POST', body: { code: oauthCode, redirect_uri: 'https://oauth-shop.example.com/wp-json/koda/v1/oauth/callback' } });
+  ok('token exchange returns scoped access_token + webhook_secret', tok.status === 200 && /^rk_live_/.test(tok.data?.access_token || '') && !!tok.data?.webhook_secret, tok.data?.error);
+  ok('token exchange returns the scopes (write:intents, read:receipts, read:usage)', Array.isArray(tok.data?.scopes) && tok.data.scopes.includes('write:intents'));
+  const oauthKey = tok.data?.access_token;
+  ok('oauth-issued key can create an intent', (await hit('/v1/intents', { token: oauthKey, method: 'POST', body: { amount: 7000, currency: 'CDF', operators: ['orange_cd'] } })).status === 200);
+  ok('one-time code cannot be replayed', (await hit('/v1/oauth/token', { method: 'POST', body: { code: oauthCode } })).status === 400);
+  ok('unknown code is rejected', (await hit('/v1/oauth/token', { method: 'POST', body: { code: 'kc_nope' } })).status === 400);
+
   // ── 6. THE FIVE DOORS ─────────────────────────────────────────────────────
   console.log('— the five doors');
   // Door 1 manual + Door 5 auto-verify via sandbox inject

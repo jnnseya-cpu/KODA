@@ -385,11 +385,13 @@ module.exports = function registerRoutes(r) {
   // "Connect" in the KODA dashboard provisions an installation with its OWN scoped
   // restricted key + webhook secret (shown once), both revocable from KODA in one call.
   const INSTALL_SCOPES = ['write:intents', 'read:receipts', 'read:usage'];
-  r.post('/app/integrations', auth((req, user, m) => {
-    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
-    const platform = String((req.body || {}).platform || 'custom').slice(0, 32);
-    const storeUrl = String((req.body || {}).store_url || '').slice(0, 300) || null;
-    const webhookUrl = String((req.body || {}).webhook_url || '').slice(0, 300) || null;
+  // provision an installation: its own scoped key + (optional) webhook endpoint.
+  // Returns the plaintext credentials (shown once). Shared by the direct connect
+  // endpoint and the OAuth authorize flow.
+  function provisionInstall(m, userId, { platform, store_url, webhook_url }) {
+    platform = String(platform || 'custom').slice(0, 32);
+    const storeUrl = String(store_url || '').slice(0, 300) || null;
+    const webhookUrl = String(webhook_url || '').slice(0, 300) || null;
     const secret = `rk_live_${U.token(24)}`, kid = U.id('key');
     q.run(`INSERT INTO api_keys (id,merchant_id,prefix,key_hash,last4,label,scopes) VALUES (?,?,?,?,?,?,?)`,
       kid, m.id, 'rk_live', U.sha256(secret), secret.slice(-4), platform + ' installation', JSON.stringify(INSTALL_SCOPES));
@@ -402,14 +404,51 @@ module.exports = function registerRoutes(r) {
     const iid = U.id('ins');
     q.run(`INSERT INTO installations (id,merchant_id,platform,store_url,key_id,webhook_id) VALUES (?,?,?,?,?,?)`,
       iid, m.id, platform, storeUrl, kid, whId);
-    audit(m.id, user.id, 'integration_connected', { platform, store_url: storeUrl });
+    audit(m.id, userId, 'integration_connected', { platform, store_url: storeUrl });
     return {
       installation_id: iid, platform, store_url: storeUrl,
-      server_key: secret, scopes: INSTALL_SCOPES,
-      webhook_url: webhookUrl, webhook_secret: whSecret,
-      note: 'Scoped key + webhook secret shown once. Installation-specific and revocable from KODA.',
+      server_key: secret, scopes: INSTALL_SCOPES, webhook_url: webhookUrl, webhook_secret: whSecret,
+      merchant_id: m.id,
     };
+  }
+  r.post('/app/integrations', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    return { ...provisionInstall(m, user.id, req.body || {}),
+      note: 'Scoped key + webhook secret shown once. Installation-specific and revocable from KODA.' };
   }));
+  // OAuth-style connect: the merchant (logged into KODA) APPROVES a plugin connection.
+  // KODA provisions the install and hands back a one-time code the plugin exchanges
+  // server-to-server — the secret never travels in the browser redirect.
+  r.post('/app/oauth/authorize', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    const b = req.body || {};
+    const redirectUri = String(b.redirect_uri || '');
+    if (!/^https?:\/\//.test(redirectUri)) return [400, { error: { code: 'invalid_redirect_uri' } }];
+    const prov = provisionInstall(m, user.id, { platform: b.platform || 'woocommerce', store_url: b.store_url, webhook_url: b.webhook_url });
+    const code = 'kc_' + U.token(24);
+    q.run(`INSERT INTO oauth_codes (code,merchant_id,installation_id,redirect_uri,payload) VALUES (?,?,?,?,?)`,
+      code, m.id, prov.installation_id, redirectUri, JSON.stringify(prov));
+    audit(m.id, user.id, 'oauth_authorized', { installation_id: prov.installation_id, redirect_uri: redirectUri });
+    const sep = redirectUri.includes('?') ? '&' : '?';
+    return { redirect: `${redirectUri}${sep}code=${code}${b.state ? '&state=' + encodeURIComponent(b.state) : ''}`, installation_id: prov.installation_id };
+  }));
+  // Exchange the one-time code (server-to-server, public) for the scoped credentials.
+  r.post('/v1/oauth/token', (req) => {
+    const code = String((req.body || {}).code || '');
+    const row = q.get(`SELECT * FROM oauth_codes WHERE code=? AND used=0`, code);
+    if (!row) return [400, { error: { code: 'invalid_or_used_code' } }];
+    if (Date.now() - new Date(row.created_at + 'Z').getTime() > 10 * 60 * 1000) {
+      q.run(`UPDATE oauth_codes SET used=1 WHERE code=?`, code);
+      return [400, { error: { code: 'code_expired' } }];
+    }
+    q.run(`UPDATE oauth_codes SET used=1 WHERE code=?`, code); // single use
+    const p = JSON.parse(row.payload);
+    return {
+      access_token: p.server_key, token_type: 'bearer', scopes: p.scopes,
+      installation_id: p.installation_id, merchant_id: p.merchant_id,
+      webhook_url: p.webhook_url, webhook_secret: p.webhook_secret,
+    };
+  });
   r.get('/app/integrations', auth((req, user, m) =>
     q.all(`SELECT i.id, i.platform, i.store_url, i.created_at, i.revoked,
              k.last4 AS key_last4, k.revoked AS key_revoked, w.url AS webhook_url

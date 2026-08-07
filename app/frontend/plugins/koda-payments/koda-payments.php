@@ -5,7 +5,7 @@
  * Description: Accept mobile-money payments and verify them automatically with KODA — the SMS is the API. Customers pay by mobile money, KODA confirms the operator SMS, and the order completes with no human in the loop.
  * Author: KODA (Groupe Nseya Digital)
  * Author URI: https://kodajnn.com
- * Version: 1.1.0
+ * Version: 1.2.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * WC requires at least: 6.0
@@ -23,7 +23,18 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'KODA_WC_VERSION', '1.1.0' );
+define( 'KODA_WC_VERSION', '1.2.0' );
+
+/**
+ * One-click connect (OAuth-style install) + multivendor marketplace adapters.
+ * All additive: the manual key fields and single-vendor flow are unchanged.
+ */
+require_once __DIR__ . '/includes/class-koda-oauth.php';
+require_once __DIR__ . '/marketplace/class-koda-dokan.php';
+require_once __DIR__ . '/marketplace/class-koda-wcfm.php';
+KODA_OAuth::init();
+KODA_Dokan_Adapter::init();
+KODA_WCFM_Adapter::init();
 
 /**
  * Declare compatibility with WooCommerce High-Performance Order Storage (HPOS).

@@ -106,7 +106,7 @@ const GROWTH_TOOLS = [
 ];
 function route() {
   const hash = location.hash.replace(/^#\/?/, '') || (ME ? 'dashboard' : 'login');
-  if (!ME && !['login', 'signup', 'forgot', 'reset'].includes(hash.split('?')[0])) { location.hash = '#login'; return; }
+  if (!ME && !['login', 'signup', 'forgot', 'reset', 'authorize'].includes(hash.split('?')[0])) { location.hash = '#login'; return; }
   const [view, qs] = hash.split('?');
   // staff-admin with no merchant of their own: oversight only — keep them on the control centre
   if (ME && ME.user.is_admin && !ME.merchant && view !== 'admin') {
@@ -214,6 +214,37 @@ VIEWS.login = () => {
     <button class="btn btn-gold" style="width:100%" onclick="doLogin()">${t('signin')} →</button>
     <p style="margin-top:16px">No account? <a href="#signup" style="color:var(--gold)">${t('signup')}</a></p>`);
 };
+// OAuth-style connect landing: a plugin redirected the merchant here to APPROVE a
+// connection. On approve we mint a scoped install + a one-time code and bounce back.
+VIEWS.authorize = (params) => {
+  const platform = params.get('platform') || 'woocommerce';
+  const storeUrl = params.get('store_url') || '';
+  const redirect = params.get('redirect_uri') || '';
+  if (!ME) {
+    // remember the full approval request so we can resume it after sign-in
+    try { sessionStorage.setItem('koda_return', location.hash); } catch {}
+    root.innerHTML = authCard(`<h1>Connect to KODA</h1>
+      <p>Sign in to approve this connection from <b>${esc(storeUrl || 'a store')}</b>.</p>
+      <button class="btn btn-gold" style="width:100%" onclick="location.hash='#login'">${t('signin')} →</button>`);
+    return;
+  }
+  root.innerHTML = authCard(`<h1>Connect ${esc(platform)}</h1>
+    <p><b>${esc(storeUrl || 'A store')}</b> wants to connect to your KODA account${ME.merchant ? ' — <b>' + esc(ME.merchant.name) + '</b>' : ''}.</p>
+    <div class="mono" style="font-size:12px;color:var(--dim);margin:12px 0;line-height:1.6">It will be able to <b>create payment intents</b> and <b>read receipts &amp; usage</b>. A scoped, revocable key is issued — <b>no master secret is shared</b>. Revoke anytime in Settings → Integrations.</div>
+    <button class="btn btn-gold" style="width:100%" onclick="doAuthorize()">Approve &amp; connect →</button>
+    ${redirect ? `<p style="margin-top:12px;text-align:center"><a href="${esc(redirect)}" style="color:var(--dim);font-size:12px">Cancel</a></p>` : ''}`);
+};
+window.doAuthorize = async () => {
+  const p = new URLSearchParams((location.hash.split('?')[1]) || '');
+  try {
+    const r = await api('/app/oauth/authorize', { body: {
+      redirect_uri: p.get('redirect_uri'), store_url: p.get('store_url'),
+      webhook_url: p.get('webhook_url'), state: p.get('state'), platform: p.get('platform') || 'woocommerce',
+    } });
+    if (r.redirect) window.location.href = r.redirect;
+  } catch (e) { toast('✗ ' + e.message); }
+};
+
 VIEWS.signup = (params) => {
   root.innerHTML = authCard(`
     <h1>${t('signup')}</h1><p>Three doors, one engine. Start free on Marché.</p>
@@ -289,10 +320,19 @@ function authCard(inner) {
       ${site.map(([h, l]) => `<a href="${h}">${l}</a>`).join('<span>·</span>')}
     </div></div></div>`;
 }
+// resume a pending OAuth-connect approval after sign-in (set by VIEWS.authorize)
+function returnHash() {
+  try {
+    const h = sessionStorage.getItem('koda_return');
+    if (h && h.replace(/^#\/?/, '').split('?')[0] === 'authorize') { sessionStorage.removeItem('koda_return'); return h; }
+  } catch {}
+  return null;
+}
 window.doLogin = async () => {
   try {
     const r = await api('/app/auth/login', { body: { email: v('em'), password: v('pw') } });
-    localStorage.setItem('koda_token', r.token); ME = await api('/app/me'); location.hash = '#dashboard';
+    localStorage.setItem('koda_token', r.token); ME = await api('/app/me');
+    location.hash = returnHash() || '#dashboard';
   } catch (e) { toast('✗ ' + (e.message || 'login failed')); }
 };
 window.doSignup = async (plan) => {

@@ -4,7 +4,7 @@ Tags: woocommerce, payment gateway, mobile money, orange money, m-pesa, airtel m
 Requires at least: 5.8
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,12 +31,23 @@ This is **Door 3 (API mode)** of the KODA payment-verification platform, package
 * Idempotent — a replayed webhook never double-completes an order
 * Test/sandbox mode with magic references (e.g. `TEST-OK-25000`)
 * HPOS (High-Performance Order Storage) compatible
+* Cart & Checkout **Blocks** support
+* **One-click connect** — provision a scoped, revocable key + webhook without pasting secrets by hand (no master secret is shared)
+* Reliability reconciler (wp-cron) that catches any missed webhook from the server-of-record
+* **Multivendor** (Dokan / WCFM) aware — enforces KODA's one-intent-per-merchant rule; withdraws mobile-money on mixed-vendor carts so no ambiguous payment is ever created
 
 == Installation ==
 
 1. Upload the `koda-payments` folder to `/wp-content/plugins/`, or install the ZIP via **Plugins → Add New → Upload Plugin**.
 2. Activate the plugin through the **Plugins** menu in WordPress.
 3. Go to **WooCommerce → Settings → Payments → KODA (Mobile Money)** and click **Manage**.
+
+**Recommended — one-click connect:**
+
+4. Click **Connect with KODA**. You are taken to your KODA account to approve the connection, then returned automatically. A scoped, revocable API key and a webhook (with its signing secret) are provisioned for you — nothing to copy by hand, and no master secret is shared. Revoke anytime from your KODA dashboard.
+
+**Or connect manually:**
+
 4. Create API keys in your KODA dashboard (**Developers → Create key**) and paste the `sk_test_` and/or `sk_live_` key.
 5. In KODA (**Developers → Add webhook**) create a webhook pointing at:
    `https://YOUR-STORE.com/wp-json/koda/v1/webhook`
@@ -58,6 +69,14 @@ The order stays **On hold** until KODA verifies the payment, then completes auto
 The plugin sends the amount in minor units using your store's configured decimals (e.g. CDF with 0 decimals, USD with 2).
 
 == Changelog ==
+
+= 1.2.0 =
+* One-click connect (OAuth-style install): provisions a scoped, revocable key + webhook via a secure server-to-server code exchange — no master secret shared.
+* Multivendor adapters for Dokan and WCFM Marketplace: enforce one-intent-per-merchant; withdraw KODA on mixed-vendor carts.
+* Note: the one-click connect and marketplace adapters are lint-verified; validate against your live WordPress + marketplace plugins before go-live.
+
+= 1.1.0 =
+* Cart & Checkout Blocks support; wp-cron reliability reconciler; is_available() key check.
 
 = 1.0.0 =
 * Initial release: gateway, hosted checkout redirect, signed webhook receiver, HPOS support.

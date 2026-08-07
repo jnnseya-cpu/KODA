@@ -178,6 +178,20 @@ CREATE TABLE IF NOT EXISTS installations (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- OAuth-style one-time authorization codes. A merchant approves a plugin connection
+-- in the KODA dashboard; KODA redirects the plugin back with a short-lived single-use
+-- code; the plugin exchanges it SERVER-TO-SERVER for the install's scoped credentials
+-- (so the secret never rides in a browser redirect / history). Single-use + expiring.
+CREATE TABLE IF NOT EXISTS oauth_codes (
+  code TEXT PRIMARY KEY,
+  merchant_id TEXT NOT NULL REFERENCES merchants(id),
+  installation_id TEXT,
+  redirect_uri TEXT,
+  payload TEXT NOT NULL,                          -- JSON {server_key, webhook_secret, webhook_url, installation_id}
+  used INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS webhook_deliveries (
   id TEXT PRIMARY KEY,
   endpoint_id TEXT NOT NULL REFERENCES webhook_endpoints(id),
