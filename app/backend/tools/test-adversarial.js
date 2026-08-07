@@ -68,6 +68,13 @@ const signup = async (tag) => {
   // WhatsApp webhook with a WRONG verify token must be rejected.
   const waBad = await hit('/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=WRONG&hub.challenge=X');
   secure('WhatsApp handshake rejects a wrong verify token', waBad.status === 403, `status ${waBad.status}`);
+  // A forged PAYMENT-PROVIDER webhook must NEVER settle money — fail closed on a
+  // missing / bad signature (Gate 5). Settling ACU top-ups is real value movement.
+  const billNoSig = await hit('/webhooks/billing/stripe', { method: 'POST', body: { topup_id: 'top_forged', amount: 999999 } });
+  secure('billing webhook rejects an UNSIGNED callback (no settle)', billNoSig.status === 401, `status ${billNoSig.status}`);
+  const billBadSig = await hit('/webhooks/billing/stripe', { method: 'POST', body: { topup_id: 'top_forged' }, headers: { 'x-koda-signature': 'deadbeef'.repeat(8) } });
+  secure('billing webhook rejects a BAD signature (no settle)', billBadSig.status === 401, `status ${billBadSig.status}`);
+  secure('forged billing webhook never reports success/settled', !/"ok"\s*:\s*true|"status"\s*:\s*"settled"|"credited"/i.test(billNoSig.text + billBadSig.text));
 
   // ── PHASE 11 — INJECTION / MALFORMED INPUT: no 500s, no stack traces ───────
   console.log('— injection & malformed input');

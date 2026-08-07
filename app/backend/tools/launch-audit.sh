@@ -30,6 +30,7 @@ run "unit: full suite"        node app/backend/tools/test.js
 run "unit: agents"            node app/backend/tools/test-agents.js
 run "unit: doors"             env KODA_BASE="$B" node app/backend/tools/test-doors.js
 run "DR: backup-restore"      node app/backend/tools/test-backup-restore.js
+run "financial: webhook"      node app/backend/tools/test-billing-webhook.js
 run "functional: whole-OS"    env KODA_BASE="$B" node app/backend/tools/test-full-os.js
 run "security: adversarial"   env KODA_BASE="$B" node app/backend/tools/test-adversarial.js
 run "perf: load/soak"         env KODA_BASE="$B" LOAD_PID="$SRV" LOAD_TOTAL=8000 LOAD_CONCURRENCY=64 node app/backend/tools/test-load.js
