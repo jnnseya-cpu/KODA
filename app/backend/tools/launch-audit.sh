@@ -33,6 +33,11 @@ run "DR: backup-restore"      node app/backend/tools/test-backup-restore.js
 run "functional: whole-OS"    env KODA_BASE="$B" node app/backend/tools/test-full-os.js
 run "security: adversarial"   env KODA_BASE="$B" node app/backend/tools/test-adversarial.js
 run "perf: load/soak"         env KODA_BASE="$B" LOAD_PID="$SRV" LOAD_TOTAL=8000 LOAD_CONCURRENCY=64 node app/backend/tools/test-load.js
+if [ -x "${CHROME:-/opt/pw-browsers/chromium-1194/chrome-linux/chrome}" ]; then
+  run "browser: real Chromium"  env KODA_BASE="$B" node app/backend/tools/test-browser.js
+else
+  line "browser: real Chromium" "⏭  skipped (no chromium binary)"
+fi
 
 kill "$SRV" 2>/dev/null
 echo "═══════════════════════════════════════════════"
