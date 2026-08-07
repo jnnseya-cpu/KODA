@@ -20,6 +20,61 @@
 <script src="/app.js"></script>
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+
+// ── PWA install prompt ────────────────────────────────────────────────────────
+// Modern Chrome/Edge/Android no longer auto-pop the install banner: a site must
+// capture `beforeinstallprompt`, stash it, and call prompt() from a user gesture.
+// We stash the event and surface our own "Install app" button — a floating pill
+// here, plus Settings → PWA (via window.kodaInstall / window.kodaCanInstall).
+(function () {
+  var deferred = null;
+  var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  window.kodaCanInstall = function () { return !!deferred; };
+  window.kodaInstall = function () {
+    if (!deferred) return Promise.resolve('unavailable');
+    var p = deferred; deferred = null; hideBanner();
+    p.prompt();
+    return p.userChoice.then(function (c) { return c && c.outcome; }).catch(function () { return 'error'; });
+  };
+
+  function hideBanner() { var b = document.getElementById('koda-install'); if (b) b.remove(); }
+  function showBanner() {
+    if (standalone || document.getElementById('koda-install')) return;
+    if (localStorage.getItem('koda_install_dismissed') === '1') return;
+    var b = document.createElement('div');
+    b.id = 'koda-install';
+    b.setAttribute('role', 'dialog');
+    b.setAttribute('aria-label', 'Install KODA');
+    b.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;'
+      + 'display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);'
+      + 'background:#0C231C;color:#E9E4D5;border:1px solid rgba(233,228,213,.18);'
+      + 'border-radius:14px;padding:12px 14px;box-shadow:0 18px 50px rgba(0,0,0,.5);font-family:system-ui,sans-serif';
+    b.innerHTML = '<span style="width:34px;height:34px;border-radius:9px;background:#E8A11F;color:#081813;'
+      + 'display:grid;place-items:center;font-weight:800;font-family:ui-monospace,monospace;flex:0 0 auto">✓</span>'
+      + '<span style="font-size:13.5px;line-height:1.35;flex:1 1 auto">Install <b>KODA</b> on your device — works offline, opens like an app.</span>'
+      + '<button id="koda-install-go" style="flex:0 0 auto;background:#E8A11F;color:#081813;border:0;border-radius:9px;'
+      + 'padding:9px 14px;font-weight:800;font-size:13.5px;cursor:pointer">Install</button>'
+      + '<button id="koda-install-x" aria-label="Dismiss" style="flex:0 0 auto;background:transparent;border:0;'
+      + 'color:#9BA79B;font-size:20px;line-height:1;cursor:pointer;padding:4px">×</button>';
+    document.body.appendChild(b);
+    document.getElementById('koda-install-go').onclick = function () { window.kodaInstall(); };
+    document.getElementById('koda-install-x').onclick = function () {
+      localStorage.setItem('koda_install_dismissed', '1'); hideBanner();
+    };
+  }
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();        // stop the browser's own mini-infobar (we drive it)
+    deferred = e;
+    showBanner();
+    if (typeof window.route === 'function' && (location.hash || '').indexOf('settings') > -1) window.route();
+  });
+  window.addEventListener('appinstalled', function () {
+    deferred = null; hideBanner();
+    try { localStorage.removeItem('koda_install_dismissed'); } catch (e) {}
+  });
+})();
 </script>
 </body>
 </html>

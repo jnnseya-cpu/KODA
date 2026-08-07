@@ -1,7 +1,7 @@
 // KODA PWA service worker — NETWORK-FIRST shell so updates always reach clients
 // when online, with an offline cache fallback. (v1 was cache-first with a frozen
 // name, which froze the app on an old build until the cache was cleared.)
-const CACHE = 'koda-v3';
+const CACHE = 'koda-v4';
 const SHELL = ['/app.html', '/styles.css', '/app.js', '/icon.svg', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

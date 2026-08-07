@@ -1238,7 +1238,12 @@ VIEWS.settings = async () => {
       ${LANG_OPTIONS.map(([v, n]) => `<button class="pill ${LANG === v ? 'on' : ''}" onclick="setLang('${v}')">${n}</button>`).join('')}
     </div></div>
   <div class="card" style="margin-top:14px"><h3>PWA</h3>
-    <p style="font-size:13px;color:var(--dim)">Install KODA on your phone: browser menu → "Add to Home screen". Works offline for the console shell; verifications sync when back online.</p></div>
+    ${window.matchMedia && window.matchMedia('(display-mode: standalone)').matches
+      ? '<p style="font-size:13px;color:var(--verify)">✓ Installed — you\'re running KODA as an app.</p>'
+      : (window.kodaCanInstall && window.kodaCanInstall()
+        ? `<p style="font-size:13px;color:var(--dim);margin-bottom:10px">Install KODA as an app — works offline for the console shell; verifications sync when back online.</p>
+           <button class="btn btn-gold" style="width:auto;padding:10px 18px" onclick="window.kodaInstall()">Install KODA app</button>`
+        : '<p style="font-size:13px;color:var(--dim)">Install KODA on your phone: if no install button appears, use the browser menu → "Add to Home screen" / "Install app". Works offline for the console shell; verifications sync when back online.</p>')}</div>
   <div class="card" style="margin-top:14px"><h3>Your data &amp; privacy</h3>
     <p style="font-size:13px;color:var(--dim)">Download everything KODA holds for your business, or delete your account. ${ME.user.role === 'owner' || ME.user.is_admin ? '' : '(Deletion is owner-only.)'}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
