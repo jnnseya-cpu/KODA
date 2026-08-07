@@ -379,6 +379,54 @@ module.exports = function registerRoutes(r) {
     notify.fire('webhook.endpoint_added', { user, merchant: m });
     return { id: wid, secret };
   }));
+
+  // ---- Platform integrations: install-scoped, revocable credentials ----
+  // The spec's #1 security rule (§5): no master secret pasted into WordPress. Clicking
+  // "Connect" in the KODA dashboard provisions an installation with its OWN scoped
+  // restricted key + webhook secret (shown once), both revocable from KODA in one call.
+  const INSTALL_SCOPES = ['write:intents', 'read:receipts', 'read:usage'];
+  r.post('/app/integrations', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    const platform = String((req.body || {}).platform || 'custom').slice(0, 32);
+    const storeUrl = String((req.body || {}).store_url || '').slice(0, 300) || null;
+    const webhookUrl = String((req.body || {}).webhook_url || '').slice(0, 300) || null;
+    const secret = `rk_live_${U.token(24)}`, kid = U.id('key');
+    q.run(`INSERT INTO api_keys (id,merchant_id,prefix,key_hash,last4,label,scopes) VALUES (?,?,?,?,?,?,?)`,
+      kid, m.id, 'rk_live', U.sha256(secret), secret.slice(-4), platform + ' installation', JSON.stringify(INSTALL_SCOPES));
+    let whId = null, whSecret = null;
+    if (webhookUrl) {
+      whId = U.id('whe'); whSecret = `whsec_${U.token(24)}`;
+      q.run(`INSERT INTO webhook_endpoints (id,merchant_id,url,secret,events) VALUES (?,?,?,?,?)`,
+        whId, m.id, webhookUrl, whSecret, JSON.stringify(['payment.verified', 'payment.verified.late']));
+    }
+    const iid = U.id('ins');
+    q.run(`INSERT INTO installations (id,merchant_id,platform,store_url,key_id,webhook_id) VALUES (?,?,?,?,?,?)`,
+      iid, m.id, platform, storeUrl, kid, whId);
+    audit(m.id, user.id, 'integration_connected', { platform, store_url: storeUrl });
+    return {
+      installation_id: iid, platform, store_url: storeUrl,
+      server_key: secret, scopes: INSTALL_SCOPES,
+      webhook_url: webhookUrl, webhook_secret: whSecret,
+      note: 'Scoped key + webhook secret shown once. Installation-specific and revocable from KODA.',
+    };
+  }));
+  r.get('/app/integrations', auth((req, user, m) =>
+    q.all(`SELECT i.id, i.platform, i.store_url, i.created_at, i.revoked,
+             k.last4 AS key_last4, k.revoked AS key_revoked, w.url AS webhook_url
+           FROM installations i
+           LEFT JOIN api_keys k ON k.id = i.key_id
+           LEFT JOIN webhook_endpoints w ON w.id = i.webhook_id
+           WHERE i.merchant_id=? ORDER BY i.created_at DESC`, m.id)));
+  r.delete('/app/integrations/:id', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    const i = q.get('SELECT * FROM installations WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    if (!i) return [404, { error: { code: 'not_found' } }];
+    if (i.key_id) q.run('UPDATE api_keys SET revoked=1 WHERE id=?', i.key_id);      // scoped key dies
+    if (i.webhook_id) q.run('UPDATE webhook_endpoints SET active=0 WHERE id=?', i.webhook_id);
+    q.run('UPDATE installations SET revoked=1 WHERE id=?', i.id);
+    audit(m.id, user.id, 'integration_revoked', { installation_id: i.id });
+    return { ok: true, revoked: i.id };
+  }));
   r.post('/app/webhooks/:id/test', auth((req, user, m) => {
     require('./lib/webhooks').dispatch(m.id, 'payment.verified',
       { test: true, receipt_id: 'rcp_TEST', amount: 25000, currency: m.currency });

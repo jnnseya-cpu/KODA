@@ -35,6 +35,19 @@ Client events (redirects, polling, "I have paid") are display sugar — never pr
 | MSISDN-prefix → operator | operator registry (235 ops, no prefixes) | ADD a dial-prefix column to the registry to power detection |
 | Installations table | — | ADD if/when OAuth install flow is built |
 
+## Install-scoped credentials (built — the spec's #1 security rule)
+No master secret pasted into a plugin. From the KODA dashboard, `POST /app/integrations`
+provisions an **installation** with its own **scoped restricted key** (`rk_live_…`,
+scopes `write:intents, read:receipts, read:usage`) + a **webhook endpoint secret**
+(shown once), both **revocable in one call** (`DELETE /app/integrations/:id` kills the
+key and deactivates the webhook). `GET /app/integrations` lists them. Verified
+end-to-end: scoped key creates intents, is denied out-of-scope calls (403), and is
+rejected the instant the install is revoked. The manual `sk_`-key paste remains as the
+spec's enterprise fallback.
+
+**Genuinely still deferred (need a real WordPress + marketplace plugins to build/test):**
+the browser OAuth-redirect UI inside the plugin, and Dokan/WCFM marketplace adapters.
+
 ## Build order (from the specs' own phasing)
 1. **Detection + resolve** — the shared foundation (`/v1/payment-methods/resolve` +
    prefix→operator dataset). Unblocks widget, plain-PHP, WooCommerce and apps at once.

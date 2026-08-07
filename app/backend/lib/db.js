@@ -163,6 +163,21 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Platform installations (WooCommerce/custom/etc). Each carries its own SCOPED,
+-- REVOCABLE credentials instead of a pasted master secret (spec §5/§6/§7): a
+-- restricted api_key + a webhook endpoint, both bound to and revocable with the install.
+CREATE TABLE IF NOT EXISTS installations (
+  id TEXT PRIMARY KEY,
+  merchant_id TEXT NOT NULL REFERENCES merchants(id),
+  platform TEXT NOT NULL,                        -- woocommerce|custom|shopify|...
+  store_url TEXT,
+  key_id TEXT,                                   -- the scoped api_key issued to this install
+  webhook_id TEXT,                               -- the webhook endpoint created for this install
+  config_version INTEGER NOT NULL DEFAULT 1,
+  revoked INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS webhook_deliveries (
   id TEXT PRIMARY KEY,
   endpoint_id TEXT NOT NULL REFERENCES webhook_endpoints(id),

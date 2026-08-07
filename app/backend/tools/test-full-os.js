@@ -95,6 +95,18 @@ async function hit(path, { method = 'GET', token, body, raw } = {}) {
   const mo = await hit('/v1/merchant/operators', { token: key });
   ok('merchant/operators (key auth) responds', mo.status === 200 && Array.isArray(mo.data?.operators), `status ${mo.status}`);
 
+  // ── 5b. PLATFORM INTEGRATIONS (install-scoped, revocable credentials) ──────
+  console.log('— platform integrations (connect flow)');
+  const conn = await hit('/app/integrations', { token, method: 'POST', body: { platform: 'woocommerce', store_url: 'https://shop.example.com', webhook_url: 'https://shop.example.com/wp-json/koda/v1/webhook' } });
+  ok('connect issues a scoped key + webhook secret', conn.status === 200 && /^rk_live_/.test(conn.data?.server_key || '') && !!conn.data?.webhook_secret, conn.data?.error);
+  const instKey = conn.data?.server_key;
+  ok('install key can create an intent (write:intents)', (await hit('/v1/intents', { token: instKey, method: 'POST', body: { amount: 5000, currency: 'CDF', operators: ['orange_cd'] } })).status === 200);
+  ok('install key is SCOPED (cannot mint keys / read admin)', (await hit('/v1/agents/reconciler/run', { token: instKey, method: 'POST', body: {} })).status === 403);
+  ok('integrations list shows the install', (await hit('/app/integrations', { token })).data?.some?.(i => i.platform === 'woocommerce'));
+  const revoke = await hit('/app/integrations/' + conn.data?.installation_id, { token, method: 'DELETE' });
+  ok('revoke succeeds', revoke.status === 200 && revoke.data?.ok);
+  ok('revoked install key is now rejected', (await hit('/v1/intents', { token: instKey, method: 'POST', body: { amount: 5000, currency: 'CDF', operators: ['orange_cd'] } })).status === 401);
+
   // ── 6. THE FIVE DOORS ─────────────────────────────────────────────────────
   console.log('— the five doors');
   // Door 1 manual + Door 5 auto-verify via sandbox inject
