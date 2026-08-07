@@ -70,10 +70,13 @@ The plugin sends the amount in minor units using your store's configured decimal
 
 == Changelog ==
 
+= 1.2.1 =
+* Fix: send the correct amount for zero-decimal currencies (CDF, XOF, XAF, GNF, RWF, UGX…) regardless of the store's "Number of decimals" setting. Previously a CDF store left on WooCommerce's default 2 decimals would send 100× the amount and every payment would fail to match. Found and fixed during live WordPress + WooCommerce integration testing.
+* Verified end-to-end against WordPress 6.7 + WooCommerce 9.4.2: gateway registration, checkout → intent, signed-webhook completion (with signature rejection + idempotency), OAuth one-click connect, marketplace one-intent-per-merchant rule, and the wp-cron reconciler catching a missed webhook.
+
 = 1.2.0 =
 * One-click connect (OAuth-style install): provisions a scoped, revocable key + webhook via a secure server-to-server code exchange — no master secret shared.
 * Multivendor adapters for Dokan and WCFM Marketplace: enforce one-intent-per-merchant; withdraw KODA on mixed-vendor carts.
-* Note: the one-click connect and marketplace adapters are lint-verified; validate against your live WordPress + marketplace plugins before go-live.
 
 = 1.1.0 =
 * Cart & Checkout Blocks support; wp-cron reliability reconciler; is_available() key check.

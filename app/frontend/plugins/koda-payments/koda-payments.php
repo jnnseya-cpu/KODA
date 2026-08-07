@@ -5,7 +5,7 @@
  * Description: Accept mobile-money payments and verify them automatically with KODA — the SMS is the API. Customers pay by mobile money, KODA confirms the operator SMS, and the order completes with no human in the loop.
  * Author: KODA (Groupe Nseya Digital)
  * Author URI: https://kodajnn.com
- * Version: 1.2.0
+ * Version: 1.2.1
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * WC requires at least: 6.0
@@ -23,7 +23,26 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'KODA_WC_VERSION', '1.2.0' );
+define( 'KODA_WC_VERSION', '1.2.1' );
+
+/**
+ * Whether a currency is verified by KODA in whole units (no minor subunit shown in the
+ * operator SMS). Covers KODA's mobile-money currencies (CDF and the CFA-franc zone) plus
+ * the ISO-4217 zero-decimal currencies. Filterable so a deployment can add its own.
+ *
+ * @param string $currency ISO-4217 code.
+ * @return bool
+ */
+function koda_wc_is_zero_decimal_currency( $currency ) {
+	$zero = array(
+		// KODA mobile-money currencies (whole units in the operator SMS)
+		'CDF', 'XOF', 'XAF', 'XPF', 'GNF', 'KMF', 'RWF', 'UGX', 'BIF', 'DJF', 'MGA',
+		// ISO-4217 zero-decimal currencies
+		'CLP', 'JPY', 'KRW', 'PYG', 'VND', 'VUV', 'ISK',
+	);
+	$zero = apply_filters( 'koda_zero_decimal_currencies', $zero );
+	return in_array( strtoupper( (string) $currency ), $zero, true );
+}
 
 /**
  * One-click connect (OAuth-style install) + multivendor marketplace adapters.
@@ -181,13 +200,25 @@ function koda_wc_init_gateway() {
 				return array( 'result' => 'failure' );
 			}
 
-			// amount in minor units, honouring the store's currency decimals (e.g. CDF = 0).
-			$decimals = wc_get_price_decimals();
-			$amount   = (int) round( (float) $order->get_total() * pow( 10, $decimals ) );
+			// Amount KODA verifies against the operator SMS. KODA matches the amount the
+			// operator's confirmation SMS shows — for its mobile-money currencies that is
+			// whole units (CDF shows "40 000 FC", no centimes). A default WooCommerce store
+			// is configured with 2 decimals, so trusting the store's decimal setting would
+			// send 100× the real amount for a zero-decimal currency and every payment would
+			// mismatch. We therefore force whole units for KODA's zero-decimal currencies,
+			// regardless of the store's "Number of decimals" setting, and honour the store
+			// decimals only for genuinely fractional currencies.
+			$currency = $order->get_currency();
+			if ( koda_wc_is_zero_decimal_currency( $currency ) ) {
+				$amount = (int) round( (float) $order->get_total() );
+			} else {
+				$decimals = wc_get_price_decimals();
+				$amount   = (int) round( (float) $order->get_total() * pow( 10, $decimals ) );
+			}
 
 			$body = array(
 				'amount'      => $amount,
-				'currency'    => $order->get_currency(),
+				'currency'    => $currency,
 				'metadata'    => array(
 					'order_id' => (string) $order_id,
 					'source'   => 'woocommerce',
