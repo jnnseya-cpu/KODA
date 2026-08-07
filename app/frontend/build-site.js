@@ -633,15 +633,68 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
   }),
 
   'contact': page({
-    title: 'Talk to a human. On WhatsApp.', kicker: 'Contact',
-    lead: 'Support lives where you live — WhatsApp first, with response-time SLAs on paid tiers. Not email queues.',
+    title: 'Talk to a human.', kicker: 'Contact',
+    lead: 'WhatsApp first, or send us a message — it lands straight in our inbox. Commerce+ plans get SLA-backed response times.',
     body: `
 <div class="grid">
-<div class="card"><h3>💬 Merchants & support</h3><p>WhatsApp: <b>+243 8XX XXX XXX</b><br>FR · EN · Lingala · Swahili<br>Commerce+ plans: SLA-backed response times.</p></div>
-<div class="card"><h3>&lt;/&gt; Developers</h3><p>WhatsApp dev channel + Discord<br><code>devs@kodajnn.com</code><br>Docs: <a href="/developers">kodajnn.com/developers</a></p></div>
-<div class="card"><h3>🏢 Platforms & Enterprise</h3><p>Wholesale, sub-merchant API, white-label:<br><code>platforms@kodajnn.com</code></p></div>
-<div class="card"><h3>⚖ Legal & compliance</h3><p><code>legal@kodajnn.com</code><br>DPIA and per-market legal opinions available under NDA.</p></div>
+<div class="card"><h3>💬 WhatsApp — fastest</h3><p><a href="https://wa.me/243828139153" target="_blank" rel="noopener"><b>+243 828 139 153</b></a><br>FR · EN · Lingala · Swahili<br>Merchants, developers &amp; support.</p></div>
+<div class="card"><h3>✉ Email</h3><p><a href="mailto:koda@kodajnn.com"><code>koda@kodajnn.com</code></a><br>Sales, platforms, partnerships, legal &amp; compliance — one inbox, we route it.</p></div>
 </div>
+
+<div class="card" style="margin-top:16px">
+<h3>Send us a message</h3>
+<p style="color:var(--dim);font-size:14px;margin-bottom:14px">Fill this in and it goes to <code>koda@kodajnn.com</code>. We reply to the email you give us.</p>
+<form id="koda-contact" onsubmit="return kodaContactSubmit(event)" novalidate>
+  <div style="display:grid;gap:12px;max-width:560px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <label style="display:block">Your name
+        <input name="name" required maxlength="120" autocomplete="name" style="width:100%;margin-top:5px;padding:11px 12px;background:var(--ink2);border:1px solid var(--line);border-radius:9px;color:var(--text);font-size:14px">
+      </label>
+      <label style="display:block">Your email
+        <input name="email" type="email" required maxlength="160" autocomplete="email" style="width:100%;margin-top:5px;padding:11px 12px;background:var(--ink2);border:1px solid var(--line);border-radius:9px;color:var(--text);font-size:14px">
+      </label>
+    </div>
+    <label style="display:block">Topic
+      <select name="topic" style="width:100%;margin-top:5px;padding:11px 12px;background:var(--ink2);border:1px solid var(--line);border-radius:9px;color:var(--text);font-size:14px">
+        <option>Sales &amp; getting started</option>
+        <option>Developer / API &amp; plugins</option>
+        <option>Platforms &amp; enterprise</option>
+        <option>Partnerships &amp; influencers</option>
+        <option>Legal &amp; compliance</option>
+        <option>Support</option>
+        <option>Other</option>
+      </select>
+    </label>
+    <label style="display:block">Message
+      <textarea name="message" required maxlength="5000" rows="5" style="width:100%;margin-top:5px;padding:11px 12px;background:var(--ink2);border:1px solid var(--line);border-radius:9px;color:var(--text);font-size:14px;resize:vertical"></textarea>
+    </label>
+    <!-- honeypot: hidden from humans, catches bots -->
+    <input name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <button type="submit" id="koda-contact-btn" style="background:var(--gold);color:var(--ink);border:0;border-radius:9px;padding:12px 22px;font-weight:800;font-size:14px;cursor:pointer">Send message</button>
+      <span id="koda-contact-status" style="font-size:13.5px" aria-live="polite"></span>
+    </div>
+  </div>
+</form>
+</div>
+<script>
+function kodaContactSubmit(e){
+  e.preventDefault();
+  var f = e.target, btn = document.getElementById('koda-contact-btn'), st = document.getElementById('koda-contact-status');
+  var body = { name:f.name.value, email:f.email.value, topic:f.topic.value, message:f.message.value, company:f.company.value };
+  if(!body.name.trim() || !body.message.trim()){ st.style.color='#E0563B'; st.textContent='Please add your name and a message.'; return false; }
+  btn.disabled = true; var old = btn.textContent; btn.textContent = 'Sending…'; st.textContent='';
+  fetch('/v1/contact', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(body) })
+    .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
+    .then(function(res){
+      if(res.ok && res.d.ok){ f.reset(); st.style.color='#23B884'; st.textContent='✓ Sent — we\\'ll reply to your email shortly.'; }
+      else { st.style.color='#E0563B'; st.textContent = (res.d.error && (res.d.error.code||res.d.error)) ? 'Could not send: '+(res.d.error.code||res.d.error) : 'Could not send — please WhatsApp us instead.'; }
+    })
+    .catch(function(){ st.style.color='#E0563B'; st.textContent='Network error — please WhatsApp us at +243 828 139 153.'; })
+    .finally(function(){ btn.disabled=false; btn.textContent=old; });
+  return false;
+}
+</script>
 <p style="margin-top:18px">Groupe Nseya Digital / JNN Global Ltd · Kinshasa, DRC · <a href="/app#signup">or just start free — no card required</a>.</p>`,
   }),
 

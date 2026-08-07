@@ -449,6 +449,46 @@ module.exports = function registerRoutes(r) {
       webhook_url: p.webhook_url, webhook_secret: p.webhook_secret,
     };
   });
+
+  // Public contact form → delivers to the KODA inbox and is always stored (so a
+  // message survives even when no email transport is configured). Honeypot + IP
+  // rate limit for spam. No auth: it's the marketing site's "talk to us" form.
+  r.post('/v1/contact', (req) => {
+    const b = req.body || {};
+    const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'ip';
+    if (bruteLimited('contact:' + ip, 5, 10 * 60 * 1000))
+      return [429, { error: { code: 'too_many_messages', retry_after: 600 } }];
+    // honeypot: real users never fill a hidden field
+    if (String(b.company || '').trim() !== '') return { ok: true }; // silently drop bots
+    const name = String(b.name || '').trim().slice(0, 120);
+    const email = String(b.email || '').trim().slice(0, 160);
+    const topic = String(b.topic || '').trim().slice(0, 60) || 'General';
+    const message = String(b.message || '').trim().slice(0, 5000);
+    if (!name || !message) return [400, { error: { code: 'name_and_message_required' } }];
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return [400, { error: { code: 'valid_email_required' } }];
+
+    const cid = U.id('msg');
+    q.run(`INSERT INTO contact_messages (id,name,email,topic,message,source_ip,user_agent)
+           VALUES (?,?,?,?,?,?,?)`,
+      cid, name, email, topic, message, String(ip).slice(0, 60),
+      String(req.headers['user-agent'] || '').slice(0, 300));
+
+    const inbox = process.env.KODA_CONTACT_INBOX || 'koda@kodajnn.com';
+    const esc = (s) => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const html = `<h2>New contact message — ${esc(topic)}</h2>
+      <p><b>From:</b> ${esc(name)} &lt;${esc(email)}&gt;</p>
+      <p><b>Message:</b></p><p style="white-space:pre-wrap">${esc(message)}</p>
+      <hr><p style="color:#888;font-size:12px">Reply directly to ${esc(email)} · ref ${cid}</p>`;
+    // deliver off the response path; the message is already stored either way.
+    try {
+      const senders = require('./comms/senders');
+      Promise.resolve(senders.sendEmail(inbox, `KODA contact — ${topic}: ${name}`, html))
+        .then(r => { if (r && r.ok) { try { q.run(`UPDATE contact_messages SET delivered=1 WHERE id=?`, cid); } catch {} } })
+        .catch(() => { /* stored regardless; ops can read the table */ });
+    } catch { /* comms optional */ }
+    return { ok: true, id: cid };
+  });
+
   r.get('/app/integrations', auth((req, user, m) =>
     q.all(`SELECT i.id, i.platform, i.store_url, i.created_at, i.revoked,
              k.last4 AS key_last4, k.revoked AS key_revoked, w.url AS webhook_url

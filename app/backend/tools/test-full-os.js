@@ -154,6 +154,10 @@ async function hit(path, { method = 'GET', token, body, raw } = {}) {
   console.log('— ops endpoints');
   ok('/healthz', (await hit('/healthz')).status === 200);
   ok('/v1/operators coverage', (await hit('/v1/operators')).data?.coverage?.total > 0);
+  // public contact form
+  ok('contact form accepts a valid message', (await hit('/v1/contact', { method: 'POST', body: { name: 'Sweep', email: 'sweep@example.com', topic: 'Support', message: 'hello' } })).data?.ok === true);
+  ok('contact form rejects a missing message', (await hit('/v1/contact', { method: 'POST', body: { name: 'X', email: 'x@y.com' } })).status === 400);
+  ok('contact form drops honeypot bots', (await hit('/v1/contact', { method: 'POST', body: { name: 'Bot', email: 'b@b.com', message: 'spam', company: 'ACME' } })).data?.ok === true);
   const rate = await hit('/v1/rates?from=USD&to=CDF');
   ok('/v1/rates USD→CDF returns a positive pinned rate', rate.data?.rate > 0 && rate.data?.pinned_for_seconds >= 1800, JSON.stringify(rate.data));
   const met = await hit('/metrics');

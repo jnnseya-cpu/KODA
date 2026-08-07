@@ -409,6 +409,20 @@ db.exec(`CREATE TABLE IF NOT EXISTS vouchers (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
 
+// Public contact-form submissions. Stored regardless of email-transport config so a
+// message is never lost even when no SMTP/Brevo provider is set (sandbox).
+db.exec(`CREATE TABLE IF NOT EXISTS contact_messages (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  topic TEXT,
+  message TEXT NOT NULL,
+  source_ip TEXT,
+  user_agent TEXT,
+  delivered INTEGER NOT NULL DEFAULT 0,          -- 1 once emailed to the inbox
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
 // hot verify path runs ~10 statements, so caching keeps the money path fast.
