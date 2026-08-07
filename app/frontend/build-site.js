@@ -742,7 +742,7 @@ function kodaContactSubmit(e){
 <li>Customer msisdn is masked everywhere outside the fraud pipeline.</li>
 <li>Communications per the event catalogue; mandatory service notices bypass marketing opt-outs, never marketing.</li></ul>
 <h2>Where it lives</h2><p>GCP (europe-west default) with per-market in-country residency options where mandated. Append-only event store: every verification is replayable for disputes and regulators.</p>
-<h2>Your rights</h2><p>Access, export (machine-readable), correction and deletion via Settings or <code>privacy@kodajnn.com</code>. DPIA published. Consent copy written by humans, French first.</p>`,
+<h2>Your rights</h2><p>Access, export (machine-readable), correction and deletion via Settings or <code>koda@kodajnn.com</code>. DPIA published. Consent copy written by humans, French first.</p>`,
   }),
 
   'policies': page({
@@ -756,7 +756,7 @@ function kodaContactSubmit(e){
 <tr><td>Growth Partner Terms</td><td>Referral ladder, Verified Net Revenue, anti-fraud, payouts</td><td><a href="/growth">Read →</a></td></tr>
 <tr><td>SLA (Commerce+)</td><td>99.9% API availability · p95 &lt; 5 s KODA-side · credited if missed</td><td><a href="/terms">Read →</a></td></tr>
 <tr><td>Data Processing Addendum</td><td>Controller/processor roles, sub-processors, residency</td><td><a href="/contact">Request →</a></td></tr>
-<tr><td>Responsible Disclosure</td><td>Security reports: <code>security@kodajnn.com</code> — safe harbour for good-faith research</td><td><a href="/contact">Report →</a></td></tr>
+<tr><td>Responsible Disclosure</td><td>Security reports: <code>koda@kodajnn.com</code> — safe harbour for good-faith research</td><td><a href="/contact">Report →</a></td></tr>
 <tr><td>API Deprecation Policy</td><td>Versioned API, 12-month windows, no breaking changes inside a version</td><td><a href="/developers">Read →</a></td></tr>
 <tr><td>Platform Disclaimer</td><td>Not a bank or money transmitter; no fund custody; verification ≠ settlement; operator trademarks</td><td>Footer of every page</td></tr>
 </table>
