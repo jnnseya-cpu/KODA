@@ -5,11 +5,11 @@
  * Description: Accept mobile-money payments and verify them automatically with KODA — the SMS is the API. Customers pay by mobile money, KODA confirms the operator SMS, and the order completes with no human in the loop.
  * Author: KODA (Groupe Nseya Digital)
  * Author URI: https://kodajnn.com
- * Version: 1.0.0
+ * Version: 1.1.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * WC requires at least: 6.0
- * WC tested up to: 9.3
+ * WC tested up to: 9.5
  * Text Domain: koda-payments
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -23,7 +23,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'KODA_WC_VERSION', '1.0.0' );
+define( 'KODA_WC_VERSION', '1.1.0' );
 
 /**
  * Declare compatibility with WooCommerce High-Performance Order Storage (HPOS).
@@ -68,6 +68,20 @@ function koda_wc_init_gateway() {
 			$this->testmode    = 'yes' === $this->get_option( 'testmode' );
 
 			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+		}
+
+		/**
+		 * Only offer KODA when it is enabled AND has a usable API key for the current
+		 * mode — never show a gateway that would fail at process_payment().
+		 */
+		public function is_available() {
+			if ( 'yes' !== $this->enabled ) {
+				return false;
+			}
+			if ( '' === trim( (string) $this->api_key() ) ) {
+				return false;
+			}
+			return parent::is_available();
 		}
 
 		/**
@@ -292,3 +306,88 @@ function koda_wc_handle_webhook( WP_REST_Request $request ) {
 
 	return new WP_REST_Response( array( 'ok' => true ), 200 );
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * RELIABILITY: dual-path completion. The signed webhook above is authoritative,
+ * but webhooks can be missed (outage, transient 5xx). A wp-cron reconciler polls
+ * KODA for any order still awaiting payment and completes/expires it from the
+ * server-of-record status — never from a client event. Idempotent on is_paid().
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+add_filter( 'cron_schedules', function ( $s ) {
+	if ( ! isset( $s['koda_2min'] ) ) {
+		$s['koda_2min'] = array( 'interval' => 120, 'display' => 'Every 2 minutes (KODA)' );
+	}
+	return $s;
+} );
+
+register_activation_hook( __FILE__, function () {
+	if ( ! wp_next_scheduled( 'koda_reconcile_orders' ) ) {
+		wp_schedule_event( time() + 120, 'koda_2min', 'koda_reconcile_orders' );
+	}
+} );
+register_deactivation_hook( __FILE__, function () {
+	wp_clear_scheduled_hook( 'koda_reconcile_orders' );
+} );
+
+add_action( 'koda_reconcile_orders', 'koda_wc_reconcile_orders' );
+
+function koda_wc_reconcile_orders() {
+	$settings = get_option( 'woocommerce_koda_settings', array() );
+	if ( empty( $settings['enabled'] ) || 'yes' !== $settings['enabled'] ) { return; }
+	$testmode = isset( $settings['testmode'] ) && 'yes' === $settings['testmode'];
+	$key      = trim( $testmode ? ( $settings['test_api_key'] ?? '' ) : ( $settings['live_api_key'] ?? '' ) );
+	$base     = untrailingslashit( trim( $settings['api_base'] ?? 'https://kodajnn.com/v1' ) ?: 'https://kodajnn.com/v1' );
+	if ( empty( $key ) ) { return; }
+
+	// Orders still awaiting KODA verification (on-hold with an intent id), last 24h.
+	$orders = wc_get_orders( array(
+		'status'       => array( 'wc-on-hold' ),
+		'limit'        => 30,
+		'date_created' => '>' . ( time() - DAY_IN_SECONDS ),
+		'meta_key'     => '_koda_intent_id',
+		'meta_compare' => 'EXISTS',
+	) );
+	foreach ( $orders as $order ) {
+		if ( $order->is_paid() ) { continue; }
+		$intent = $order->get_meta( '_koda_intent_id' );
+		if ( ! $intent ) { continue; }
+		$res = wp_remote_get( $base . '/intents/' . rawurlencode( $intent ), array(
+			'timeout' => 15,
+			'headers' => array( 'Authorization' => 'Bearer ' . $key ),
+		) );
+		if ( is_wp_error( $res ) ) { continue; }
+		$data = json_decode( wp_remote_retrieve_body( $res ), true );
+		$status = is_array( $data ) ? ( $data['status'] ?? '' ) : '';
+		if ( 'verified' === $status || 'verified_late' === $status ) {
+			$order->add_order_note( __( 'KODA reconciler: payment verified (caught a missed webhook).', 'koda-payments' ) );
+			$order->payment_complete( isset( $data['reference'] ) ? sanitize_text_field( $data['reference'] ) : '' );
+		} elseif ( in_array( $status, array( 'expired', 'cancelled' ), true ) ) {
+			$order->update_status( 'cancelled', __( 'KODA reconciler: payment intent expired/cancelled.', 'koda-payments' ) );
+		} elseif ( 'rejected' === $status ) {
+			$order->update_status( 'failed', __( 'KODA reconciler: payment rejected.', 'koda-payments' ) );
+		}
+		// pending_review / awaiting_payment → leave on-hold (still in flight).
+	}
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * WooCommerce Cart & Checkout Blocks support. The classic gateway above handles
+ * the server side (process_payment); Blocks additionally needs a client-side
+ * payment-method registration. This registers it so KODA appears in the Blocks
+ * checkout too. The block simply selects the gateway; the redirect-to-KODA flow
+ * is identical to classic checkout.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+add_action( 'woocommerce_blocks_loaded', function () {
+	if ( ! class_exists( 'Automattic\\WooCommerce\\Blocks\\Payments\\Integrations\\AbstractPaymentMethodType' ) ) {
+		return;
+	}
+	require_once __DIR__ . '/blocks/class-koda-blocks.php';
+	add_action(
+		'woocommerce_blocks_payment_method_type_registration',
+		function ( $registry ) {
+			$registry->register( new KODA_Blocks_Support() );
+		}
+	);
+} );

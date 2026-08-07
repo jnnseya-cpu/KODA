@@ -1090,6 +1090,25 @@ module.exports = function registerRoutes(r) {
   r.get('/v1/catalog/countries/:code/networks', (req) =>
     networks.catalogue(String(req.params.code || '').toUpperCase(), { currency: req.query.currency, supportStatus: req.query.support_status }));
 
+  // ---- FX rate for exact-local-amount checkout (Web Integration Spec §I.2) ----
+  // A store selling in USD but receiving CDF must show the EXACT local amount to send,
+  // and the intent must be matched on that local amount — this kills ~90% of
+  // amount_mismatch failures. KODA is NOT an FX provider: the rate is a configured,
+  // pinned figure (KODA_USD_TO_LOCAL for USD↔CDF, or a KODA_RATES JSON map), returned
+  // with a pin window so the shown amount can't drift mid-checkout.
+  r.get('/v1/rates', (req) => {
+    const from = String(req.query.from || '').toUpperCase();
+    const to = String(req.query.to || '').toUpperCase();
+    if (!from || !to) return [400, { error: { code: 'from_and_to_required' } }];
+    let map = {}; try { map = JSON.parse(process.env.KODA_RATES || '{}'); } catch { /* ignore */ }
+    const usdLocal = Number(process.env.KODA_USD_TO_LOCAL) || 2800;
+    const localCur = (process.env.KODA_COLLECT_CURRENCY || 'CDF').toUpperCase();
+    const table = { [`USD:${localCur}`]: usdLocal, [`${localCur}:USD`]: +(1 / usdLocal).toFixed(8), ...map };
+    let rate = from === to ? 1 : table[`${from}:${to}`];
+    if (rate == null) return [422, { error: { code: 'rate_unavailable', message: `no configured rate ${from}→${to}` } }];
+    return { from, to, rate, pinned_for_seconds: 900, note: 'Configured rate, pinned for the checkout window. KODA does not perform FX.' };
+  });
+
   // ---- detection: country + probable operator from customer signals ----
   // Stateless classification (Web Integration Spec §III). Public — returns no
   // merchant data. Accepts ?msisdn=&country=&locale= (any subset).
