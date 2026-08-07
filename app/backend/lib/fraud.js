@@ -4,9 +4,18 @@
 'use strict';
 const { q } = require('./db');
 
-function scoreMatch({ merchant, intent, sms, reference, suffixProvided }) {
+function scoreMatch({ merchant, intent, sms, reference, suffixProvided, networkDelta }) {
   const reasons = [];
   let score = 0.02; // base
+
+  // ADD-ON B (optional): a cross-merchant network risk signal. Defaults to 0, so
+  // with the network scoring feed off (the default) scoring is byte-identical to
+  // before. Only a positive delta from proven network-wide adverse history nudges
+  // the score up — it can never lower risk or override the deterministic bands.
+  if (networkDelta && networkDelta.delta > 0) {
+    score += networkDelta.delta;
+    reasons.push('network:' + (networkDelta.reason || 'adverse_history'));
+  }
 
   // Velocity is a fraud signal only when it comes from ONE payer hammering —
   // a merchant taking many DIFFERENT legitimate payments is a healthy business,

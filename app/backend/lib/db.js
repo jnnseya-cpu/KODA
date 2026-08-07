@@ -423,6 +423,37 @@ db.exec(`CREATE TABLE IF NOT EXISTS contact_messages (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
 
+// ── ADD-ON A: operator-API cross-verification (dual-confirm) ─────────────────
+// Purely additive. Every receipt is 'sms_anchored' by default (exactly today's
+// behaviour). When an operator API adapter is configured, a receipt can be
+// enriched to 'dual_confirmed' — the SMS-anchored verdict is never changed, only
+// an extra trust label + trace line is layered on.
+try { db.exec(`ALTER TABLE receipts ADD COLUMN confirmation_level TEXT NOT NULL DEFAULT 'sms_anchored'`); } catch { /* exists */ }
+
+// ── ADD-ON B: cross-merchant trust / fraud network ──────────────────────────
+// Privacy-preserving: we store only a SALTED HASH of the payer's trailing digits
+// plus aggregate counts — never a raw number, name, or which merchant. A merchant
+// only ever reads the network aggregate (a signal), never another merchant's data.
+db.exec(`CREATE TABLE IF NOT EXISTS network_trust (
+  payer_hash TEXT PRIMARY KEY,                    -- HMAC(salt, payer suffix) — no raw PII
+  verified_count INTEGER NOT NULL DEFAULT 0,
+  quarantine_count INTEGER NOT NULL DEFAULT 0,
+  dispute_count INTEGER NOT NULL DEFAULT 0,
+  first_seen TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+// Explicit fraud flags contributed by any merchant (a chargeback, a confirmed
+// scam ref). Keyed by hash so it is portable across the network without leaking.
+db.exec(`CREATE TABLE IF NOT EXISTS network_flags (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,                             -- payer|reference
+  value_hash TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  merchant_id TEXT,                               -- contributor (never exposed to others)
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_network_flags_value ON network_flags(kind, value_hash);`);
+
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
 // hot verify path runs ~10 statements, so caching keeps the money path fast.

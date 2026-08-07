@@ -4,6 +4,7 @@
 const { q } = require('./db');
 const { id } = require('./util');
 const { scoreMatch, chainCheck } = require('./fraud');
+const trustNet = require('./trust_network'); // ADD-ON B: cross-merchant trust/fraud network
 const { parseSms } = require('../../shared/parser');
 const webhooks = require('./webhooks');
 const notify = require('../comms/notify');
@@ -121,6 +122,7 @@ function ingestSms(merchant, { raw, operator, device_id }) {
   if (!chain.ok) {
     notifyOwners(merchant, 'fraud.chain_break', { operator: parsed.operator });
     metric('quarantines');
+    recordNetwork({ counterparty_suffix: parsed.suffix }, 'quarantined'); // ADD-ON B
     return { id: smsId, parsed: true, quarantined: true, chain };
   }
   // DOOR 3 — FULLY AUTOMATIC online order. When the payment SMS lands, KODA matches
@@ -172,6 +174,17 @@ function matchAwaitingIntent(merchantId, parsed) {
   return { ambiguous: true };                                // several same-amount orders → hold
 }
 
+// ADD-ON B: fetch the optional cross-merchant network risk signal for this payer.
+// Safe + zero by default (scoring feed off) so it never changes today's decision.
+function netDelta(sms) {
+  try { return sms && sms.counterparty_suffix ? trustNet.riskDelta(sms.counterparty_suffix) : { delta: 0 }; }
+  catch { return { delta: 0 }; }
+}
+// ADD-ON B: after a verified receipt, contribute the (hashed) payer to the network.
+function recordNetwork(sms, kind) {
+  try { if (sms && sms.counterparty_suffix) trustNet.record({ subject: sms.counterparty_suffix, kind }); } catch { /* never break the money path */ }
+}
+
 // the core verify — one truth for all five doors
 function verify(merchant, intent, reference, { mode = 'api', userId = null, viaScreenshot = false, late = false } = {}) {
   reference = String(reference || '').trim().toUpperCase();
@@ -215,8 +228,8 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
     return { status: 'not_found_yet', code: 'code_not_found_yet', trace };
   }
 
-  // 3. fraud scoring
-  const risk = scoreMatch({ merchant, intent, sms, reference });
+  // 3. fraud scoring (+ optional cross-merchant network signal — 0 by default)
+  const risk = scoreMatch({ merchant, intent, sms, reference, networkDelta: netDelta(sms) });
   trace.steps.push(`fraud_score: ${risk.score} (${risk.band}) ${risk.reasons.join(',') || 'clean'}`);
   if (risk.band === 'reject') {
     notifyOwners(merchant, 'fraud.high_risk_blocked', { reference });
@@ -246,12 +259,13 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   if (intent) q.run(`UPDATE intents SET status=? WHERE id=?`, late ? 'verified_late' : 'verified', intent.id);
   if (acuCost > 0) chargeAcu(merchant, acuCost, viaScreenshot ? 'vision' : 'verification', rcp);
 
+  recordNetwork(sms, 'verified'); // ADD-ON B: contribute the hashed payer to the network
   const event = late ? 'payment.verified.late' : 'payment.verified';
   const payload = {
     intent_id: intent?.id || null, receipt_id: rcp, amount: sms.amount, currency: sms.currency,
     operator: sms.operator, reference: sms.ref_code || reference, payer_name_masked: masked,
     matched_msisdn_suffix: sms.counterparty_suffix ? `***${sms.counterparty_suffix}` : null,
-    risk_score: risk.score, mode,
+    risk_score: risk.score, mode, confirmation_level: 'sms_anchored', // ADD-ON A: default label
     metadata: intent?.metadata ? JSON.parse(intent.metadata) : {},
   };
   webhooks.dispatch(merchant.id, event, payload);
@@ -267,6 +281,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
 
   metric('verifications');
   return { status: late ? 'verified_late' : 'verified', receipt_id: rcp, risk, trace,
+           confirmation_level: 'sms_anchored',
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
 }
 
@@ -288,7 +303,7 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
     merchant.id, reference);
   if (used) { notifyOwners(merchant, 'replay.blocked', { reference }); return { status: 'rejected', code: 'code_already_used', trace }; }
 
-  const risk = scoreMatch({ merchant, intent: null, sms, reference });
+  const risk = scoreMatch({ merchant, intent: null, sms, reference, networkDelta: netDelta(sms) });
   trace.steps.push(`fraud_score: ${risk.score} (${risk.band}) ${risk.reasons.join(',') || 'clean'}`);
   if (risk.band === 'reject') { notifyOwners(merchant, 'fraud.high_risk_blocked', { reference }); return { status: 'rejected', code: 'high_risk', risk, trace }; }
   if (risk.band === 'challenge') { notifyOwners(merchant, 'payment.pending_review', { reference }); return { status: 'pending_review', code: 'needs_review', risk, trace }; }
@@ -306,15 +321,16 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
   q.run(`UPDATE sms_ledger SET matched_intent_id='manual' WHERE id=?`, sms.id);
   if (acuCost > 0) chargeAcu(merchant, acuCost, 'verification', rcp);
 
+  recordNetwork(sms, 'verified'); // ADD-ON B
   const payload = { intent_id: null, receipt_id: rcp, amount: sms.amount, currency: sms.currency,
     operator: sms.operator, reference: sms.ref_code, payer_name_masked: masked,
     matched_msisdn_suffix: sms.counterparty_suffix ? `***${sms.counterparty_suffix}` : null,
-    risk_score: risk.score, mode: 'manual', metadata: {} };
+    risk_score: risk.score, mode: 'manual', confirmation_level: 'sms_anchored', metadata: {} };
   webhooks.dispatch(merchant.id, 'payment.verified', payload);
   notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(sms.amount)} ${sms.currency}`, reference: sms.ref_code });
 
   metric('verifications'); metric('verifications_auto');
-  return { status: 'verified', receipt_id: rcp, risk, trace,
+  return { status: 'verified', receipt_id: rcp, risk, trace, confirmation_level: 'sms_anchored',
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
 }
 

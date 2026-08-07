@@ -6,6 +6,8 @@
 set -uo pipefail
 cd "$(dirname "$0")/../../.." || exit 2
 export KODA_DATA_DIR="$(mktemp -d)" KODA_ALLOW_DEV_SECRET=1 KODA_QUIET=1
+# ADD-ON A: a mock operator-API adapter so the dual-confirm path is exercised end-to-end.
+export KODA_OPAPI_ORANGE_CD="mock://confirm"
 PORT="${PORT:-4720}"; export PORT
 B="http://localhost:$PORT"
 FAILED=0
@@ -32,6 +34,7 @@ run "unit: doors"             env KODA_BASE="$B" node app/backend/tools/test-doo
 run "DR: backup-restore"      node app/backend/tools/test-backup-restore.js
 run "financial: webhook"      node app/backend/tools/test-billing-webhook.js
 run "functional: whole-OS"    env KODA_BASE="$B" node app/backend/tools/test-full-os.js
+run "add-ons: dual+network"   env KODA_BASE="$B" node app/backend/tools/test-addons.js
 run "security: adversarial"   env KODA_BASE="$B" node app/backend/tools/test-adversarial.js
 run "perf: load/soak"         env KODA_BASE="$B" LOAD_PID="$SRV" LOAD_TOTAL=8000 LOAD_CONCURRENCY=64 node app/backend/tools/test-load.js
 if [ -x "${CHROME:-/opt/pw-browsers/chromium-1194/chrome-linux/chrome}" ]; then

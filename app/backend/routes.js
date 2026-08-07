@@ -11,6 +11,8 @@ const notify = require('./comms/notify');
 const { PLANS } = require('../shared/plans');
 const VERSION = require('../shared/version');
 const networks = require('./lib/networks');
+const trustNet = require('./lib/trust_network');   // ADD-ON B: cross-merchant trust/fraud network
+const crosscheck = require('./lib/crosscheck');     // ADD-ON A: operator-API dual-confirm
 const billing = require('./lib/billing');
 const vouchers = require('./lib/vouchers');
 
@@ -277,6 +279,13 @@ module.exports = function registerRoutes(r) {
       JSON.stringify(evidence), evidence.recommendation);
     engine.chargeAcu(m, engine.ACU.dispute, 'dispute', did);
     notify.fireMerchant('dispute.opened', m, { reference: req.body.reference || did });
+    // ADD-ON B: a dispute on a reference contributes the payer's hashed identity to
+    // the network so other merchants inherit the signal (no raw value is stored).
+    try {
+      const rc = req.body.reference ? q.get('SELECT payer_suffix FROM receipts WHERE merchant_id=? AND UPPER(reference)=UPPER(?)', m.id, req.body.reference) : null;
+      if (rc && rc.payer_suffix) trustNet.record({ subject: rc.payer_suffix, kind: 'disputed' });
+      if (req.body.reference) trustNet.flag({ kind: 'reference', value: req.body.reference, reason: 'dispute_opened', merchantId: m.id });
+    } catch { /* network optional */ }
     return q.get('SELECT * FROM disputes WHERE id=?', did);
   }));
   r.post('/app/disputes/:id/resolve', auth((req, user, m) => {
@@ -1305,6 +1314,29 @@ module.exports = function registerRoutes(r) {
     return { agent: agent.type, acu_consumed: agent.acu, result };
   }, 'run:agents'));
 
+  // ADD-ON A — operator-API dual-confirm. Enrich a receipt: if an operator API
+  // adapter is configured for its operator and it independently confirms, upgrade
+  // the receipt to `dual_confirmed`. No adapter → stays `sms_anchored` (today's
+  // behaviour). The SMS-anchored verdict is never changed, only labelled.
+  r.post('/v1/receipts/:id/crosscheck', apiKey(async (req, m) => {
+    return await crosscheck.enrichReceipt(m, req.params.id);
+  }, 'read:receipts'));
+
+  // ADD-ON B — network trust score (the productised data asset). Merchant-local
+  // history + the privacy-preserving KODA-wide aggregate for a payer subject.
+  r.get('/v1/trust/:subject', apiKey((req, m) =>
+    trustLookup(m, { subject: req.params.subject }), 'read:agents'));
+  // Contribute an explicit network fraud flag (a chargeback / confirmed scam).
+  r.post('/v1/trust/flag', apiKey((req, m) => {
+    const b = req.body || {};
+    if (!b.subject && !b.reference) return [400, { error: { code: 'subject_or_reference_required' } }];
+    try {
+      if (b.subject) trustNet.flag({ kind: 'payer', value: b.subject, reason: b.reason, merchantId: m.id });
+      if (b.reference) trustNet.flag({ kind: 'reference', value: b.reference, reason: b.reason, merchantId: m.id });
+    } catch { /* network optional */ }
+    return { ok: true, contributed: true, note: 'Flag added to the KODA trust network (hashed; no raw value stored).' };
+  }, 'write:intents'));
+
   // ---- usage: monthly quota, consumption and ACU balance ----
   r.get('/v1/usage', apiKey((req, m) => {
     const plan = PLANS[m.plan] || PLANS.marche;
@@ -1749,6 +1781,10 @@ function trustLookup(m, body) {
   score = Math.max(0, Math.min(1, score));
 
   const confidence = sightings >= 5 ? 'high' : sightings >= 1 ? 'medium' : 'none';
+  // ADD-ON B: layer the cross-merchant network aggregate on top of the merchant's
+  // own view — counts only, no identities, no other merchant's data.
+  let network = null;
+  try { network = trustNet.lookup(raw); } catch { network = null; }
   return {
     subject_suffix: suffix,
     trust_score: sightings ? Math.round(score * 100) / 100 : null,
@@ -1762,9 +1798,10 @@ function trustLookup(m, body) {
       first_seen: successes.first_seen || null,
       last_seen: successes.last_seen || null,
     },
+    network,   // { available, seen, network_trust_score, signals:{ verified_across_network, ... } }
     note: sightings
-      ? 'Score derived from this merchant’s own ledger — every signal is an auditable row count.'
-      : 'No prior history for this payer on your account — treat as a new counterparty (no score).',
+      ? 'Score from this merchant’s own ledger; `network` adds the KODA-wide aggregate (no other merchant’s data is exposed).'
+      : 'No prior history for this payer on your account. See `network` for any KODA-wide signal.',
   };
 }
 
