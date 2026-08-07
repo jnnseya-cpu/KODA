@@ -271,6 +271,7 @@ function shell(active, title, sub, content) {
   ];
   const ownerOnly = [
     ['growth', '🚀', t('growth')],
+    ['pricing', '💳', 'Plans & pricing'],
     ['billing', '◈', t('billing')],
     ['team', '👥', t('team')],
     ['sec2', '', 'Platform'],
@@ -820,6 +821,51 @@ window.enrollDevice = async () => {
 };
 window.revokeDevice = async (id) => { await api(`/app/devices/${id}/revoke`, { body: {} }); toast('✓ Revoked'); route(); };
 
+// what each plan gives you — display copy keyed to the shared plan ladder
+const PLAN_FEATURES = {
+  marche:     ['All five doors (Manual, WhatsApp, API, USSD, SMS)', 'Automatic SMS-anchored verification', 'Live payments feed & receipts', '1 Sentinel device'],
+  boutique:   ['Everything in Marché', 'Higher throughput (10 req/s)', 'WhatsApp + API doors at scale', 'Disputes & multi-device', 'Overage $0.035 / extra verification'],
+  commerce:   ['Everything in Boutique', '25 req/s', 'Sub-merchant accounts', 'Priority support', 'Overage $0.028 / extra verification'],
+  plateforme: ['Everything in Commerce', '100 req/s', 'White-label & sub-merchant API', 'SLA-backed response times', 'Overage $0.020 / extra verification'],
+  enterprise: ['Everything in Plateforme', '1000 req/s', 'Custom volume & contracts', 'Dedicated onboarding', 'Talk to us for pricing'],
+};
+// Plans & Pricing — see the whole ladder and choose/upgrade from inside the app.
+VIEWS.pricing = async () => {
+  const b = await api('/app/billing');
+  const current = b.plan.id;
+  const order = ['marche', 'boutique', 'commerce', 'plateforme', 'enterprise'];
+  const rank = (id) => order.indexOf(id);
+  const card = (p) => {
+    const isCur = p.id === current;
+    const price = p.usd === null ? 'Custom' : (p.usd === 0 ? 'Free' : '$' + p.usd);
+    const per = p.usd === null ? '' : (p.usd === 0 ? '/forever' : '/mo');
+    const up = rank(p.id) > rank(current);
+    const cta = isCur ? `<button class="btn btn-ghost" style="width:100%" disabled>✓ Current plan</button>`
+      : p.id === 'enterprise' ? `<a class="btn btn-gold" style="width:100%" href="/contact" target="_blank" rel="noopener">Talk to us →</a>`
+      : `<button class="btn ${up ? 'btn-gold' : 'btn-ghost'}" style="width:100%" onclick="choosePlan('${p.id}')">${up ? 'Upgrade' : 'Switch'} to ${esc(p.label)} →</button>`;
+    return `<div class="card" style="${isCur ? 'border-color:var(--gold)' : ''};display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <h3 style="margin:0">${esc(p.label)}</h3>${isCur ? '<span class="badge b-ok">current</span>' : ''}</div>
+      <div><span style="font-size:30px;font-weight:900">${price}</span><span style="color:var(--dim);font-size:13px">${per}</span></div>
+      <div class="mono" style="font-size:12px;color:var(--dim)">${p.verifs === null ? 'Unlimited' : fmt(p.verifs) + ' verifications'} / mo · ${p.rps} req/s</div>
+      <ul style="list-style:none;padding:0;margin:4px 0;display:flex;flex-direction:column;gap:6px">
+        ${(PLAN_FEATURES[p.id] || []).map(f => `<li style="font-size:13px;display:flex;gap:8px"><span style="color:var(--verify)">✓</span><span>${esc(f)}</span></li>`).join('')}
+      </ul>
+      <div style="margin-top:auto">${cta}</div>
+    </div>`;
+  };
+  shell('pricing', 'Plans & pricing', 'One ladder, all five doors — upgrade or downgrade anytime, no lock-in', `
+    <div id="plan-pay"></div>
+    <div class="grid g3" style="align-items:stretch">${b.all_plans.map(card).join('')}</div>
+    <p style="margin-top:16px;font-size:13px;color:var(--dim)">Prices in USD. Paid plans are billed monthly and activate the moment KODA confirms your mobile-money payment. ACU top-ups (pay-as-you-go) are managed in <a href="#billing" style="color:var(--gold)">Billing</a>.</p>`);
+  // arriving here to complete a chosen plan → open its payment picker
+  const pending = sessionStorage.getItem('koda_pending_plan');
+  if (pending) { sessionStorage.removeItem('koda_pending_plan'); setTimeout(() => setPlan(pending), 200); }
+};
+// choose a plan from the Plans page: free/downgrade switches immediately; a paid
+// upgrade opens the payment picker inline (reuses setPlan's #plan-pay box).
+window.choosePlan = (p) => { setPlan(p); };
+
 VIEWS.billing = async () => {
   const b = await api('/app/billing');
   const plans = ['marche', 'boutique', 'commerce', 'plateforme'];
@@ -846,6 +892,7 @@ VIEWS.billing = async () => {
   <div class="card" style="margin-top:14px"><h3>${t('change_plan')}</h3>
     <div class="pill-row">${plans.map(p => `<button class="pill ${b.plan.label.toLowerCase() === p ? 'on' : ''}" onclick="setPlan('${p}')">${p}</button>`).join('')}</div>
     <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $19 · Commerce $79 · Plateforme $399 · Enterprise custom — one ladder, all five doors.</div>
+    <p style="margin-top:8px"><a href="#pricing" style="color:var(--gold);font-size:13px">See all plans & features →</a></p>
     <div id="plan-pay" style="margin-top:12px"></div>
   </div>
   <div class="grid g2" style="margin-top:14px">

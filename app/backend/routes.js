@@ -294,6 +294,7 @@ module.exports = function registerRoutes(r) {
   r.get('/app/billing', auth((req, user, m) => ({
     balance: m.acu_balance,
     plan: { id: m.plan, ...PLANS[m.plan] },
+    all_plans: Object.entries(PLANS).map(([id, p]) => ({ id, ...p })), // the full ladder for the Plans page
     packs: engine.TOPUP_PACKS,
     usage: q.all(`SELECT date(created_at) d, SUM(CASE WHEN delta<0 THEN -delta ELSE 0 END) burned
                   FROM acu_transactions WHERE merchant_id=? AND created_at > date('now','-30 days')
