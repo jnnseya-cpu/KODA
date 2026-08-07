@@ -30,6 +30,7 @@ function withinQuota(merchant) {
 const VERSION = require('../../shared/version');
 
 function getMerchant(mid) { return q.get('SELECT * FROM merchants WHERE id=?', mid); }
+function metric(k) { try { require('./metrics').inc(k); } catch { /* metrics optional */ } }
 
 // ACU mutations MUST be relative + read-back, never absolute from an in-memory
 // snapshot. A handler loads `merchant` early, then charges later; if two requests
@@ -119,6 +120,7 @@ function ingestSms(merchant, { raw, operator, device_id }) {
 
   if (!chain.ok) {
     notifyOwners(merchant, 'fraud.chain_break', { operator: parsed.operator });
+    metric('quarantines');
     return { id: smsId, parsed: true, quarantined: true, chain };
   }
   // DOOR 3 — FULLY AUTOMATIC online order. When the payment SMS lands, KODA matches
@@ -218,7 +220,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   trace.steps.push(`fraud_score: ${risk.score} (${risk.band}) ${risk.reasons.join(',') || 'clean'}`);
   if (risk.band === 'reject') {
     notifyOwners(merchant, 'fraud.high_risk_blocked', { reference });
-    return { status: 'rejected', code: 'high_risk', risk, trace };
+    metric('rejects');     return { status: 'rejected', code: 'high_risk', risk, trace };
   }
   if (risk.band === 'challenge') {
     if (intent) q.run(`UPDATE intents SET status='pending_review' WHERE id=?`, intent.id);
@@ -263,6 +265,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
     notifyOwners(merchant, 'billing.topup.verified', { acu: pack.acu });
   }
 
+  metric('verifications');
   return { status: late ? 'verified_late' : 'verified', receipt_id: rcp, risk, trace,
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
 }
@@ -310,6 +313,7 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
   webhooks.dispatch(merchant.id, 'payment.verified', payload);
   notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(sms.amount)} ${sms.currency}`, reference: sms.ref_code });
 
+  metric('verifications'); metric('verifications_auto');
   return { status: 'verified', receipt_id: rcp, risk, trace,
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
 }

@@ -27,6 +27,7 @@ function alert(severity, title, detail) {
     const last = _seen.get(key) || 0;
     if (now - last < WINDOW_MS) return Promise.resolve({ ok: true, deduped: true });
     _seen.set(key, now);
+    try { require('./metrics').inc('alerts_fired'); } catch { /* metrics optional */ }
     if (_seen.size > 500) for (const [k, t] of _seen) if (now - t > WINDOW_MS) _seen.delete(k);
     const emoji = severity === 'critical' ? '🔴' : severity === 'error' ? '🟠' : '🟡';
     const text = `${emoji} KODA ${severity.toUpperCase()}: ${title}` + (detail ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : '');

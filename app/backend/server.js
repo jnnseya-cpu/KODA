@@ -98,9 +98,17 @@ const server = http.createServer(async (req, res) => {
       ...headers,
     });
     res.end(data);
+    try { require('./lib/metrics').status(code); } catch { /* metrics must never break a response */ }
     if (!QUIET && (url.pathname.startsWith('/v1') || url.pathname.startsWith('/app/') || url.pathname.startsWith('/webhooks')))
       console.log(`${new Date().toISOString()} ${req.method} ${url.pathname} ${code} ${(performance.now() - t0).toFixed(1)}ms ${reqId}`);
   };
+
+  // observability: machine-readable metrics for an external uptime/APM probe.
+  if (url.pathname === '/metrics') {
+    const snap = require('./lib/metrics').snapshot();
+    let ledger = null; try { ledger = require('./lib/billing').reconcile(); } catch {}
+    return send(200, { ok: true, ...snap, ledger_balanced: ledger ? ledger.balanced : null });
+  }
 
   if (req.method === 'OPTIONS') {
     return send(204, '', { 'access-control-allow-methods': 'GET,POST,PUT,DELETE', 'access-control-allow-headers': 'authorization,content-type,x-api-key' });

@@ -124,6 +124,9 @@ async function hit(path, { method = 'GET', token, body, raw } = {}) {
   console.log('— ops endpoints');
   ok('/healthz', (await hit('/healthz')).status === 200);
   ok('/v1/operators coverage', (await hit('/v1/operators')).data?.coverage?.total > 0);
+  const met = await hit('/metrics');
+  ok('/metrics exposes live counters', met.status === 200 && typeof met.data?.requests === 'number' && met.data?.ledger_balanced !== false, `status ${met.status}`);
+  ok('/metrics counted the auto-verified payment', met.data?.verifications >= 1, `verifications=${met.data?.verifications}`);
 
   console.log(`\n═══ ${fail === 0 ? '✅ ALL GREEN' : '❌ FAILURES'} — ${pass} passed, ${fail} failed ═══`);
   if (fail) { console.log('\nFailed:'); fails.forEach(f => console.log('  · ' + f)); }
