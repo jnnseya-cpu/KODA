@@ -47,7 +47,7 @@ const N = COV.total, NC = COV.countries, NR = Object.keys(COV.byRegion).length, 
 
 // the 12 site pages, grouped for the footer (used by landing + every content page)
 const FOOT_GROUPS = [
-  ['Product', [['How it works', 'how-it-works'], ['Live demo', 'demo'], ['Coverage', 'coverage'], ['Sentinel app', 'sentinel'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
+  ['Product', [['How it works', 'how-it-works'], ['Pricing', 'pricing'], ['Live demo', 'demo'], ['Coverage', 'coverage'], ['Sentinel app', 'sentinel'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
   ['Company', [['About', 'about'], ['Blog', 'blog'], ['Growth & Influencers', 'growth'], ['Contact', 'contact']]],
   ['Developers', [['API documentation', 'developers'], ['API reference', 'api-reference'], ['OpenAPI (raw JSON)', 'v1/openapi.json'], ['Open the app', 'app']]],
   ['Legal', [['Terms of Service', 'terms'], ['Privacy Policy', 'privacy'], ['All policies', 'policies']]],
@@ -202,6 +202,43 @@ footer a{color:var(--dim)}
 }
 
 const pages = {
+  'pricing': page({
+    title: 'Free until your merchant actually gets paid.', kicker: 'Pricing',
+    lead: 'One ladder, all five doors. Every plan includes a monthly verification quota at no per-use cost — the same whether a human clicked Verify or a webhook fired. Failed matches, rejections, expired intents: free.',
+    body: `
+<style>
+.pl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:8px 0 20px}
+.pl{border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;background:var(--ink2)}
+.pl.hot{border-color:var(--gold)}
+.pl h3{margin:0;font-size:18px}
+.pl .price{font-size:30px;font-weight:900}
+.pl .price small{font-size:14px;color:var(--dim);font-weight:600}
+.pl .per{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.pl ul{list-style:none;padding:0;margin:2px 0;display:flex;flex-direction:column;gap:6px}
+.pl li{font-size:13px;display:flex;gap:8px}.pl li::before{content:'✓';color:var(--gold)}
+.pl .pbtn{margin-top:auto;text-align:center;border:1px solid var(--gold);border-radius:9px;padding:10px;font-weight:800;font-size:13.5px}
+.pl .pbtn.solid{background:var(--gold);color:var(--ink)}
+</style>
+<div class="pl-grid">
+  <div class="pl"><h3>Marché</h3><div class="price">$0</div><div class="per">forever · 20 verifs/mo</div>
+    <ul><li>All five doors</li><li>1 Sentinel device</li><li>Verify Console + Live Feed</li><li>Replay protection</li></ul>
+    <a class="pbtn solid" href="/app#signup?plan=marche">Start free</a></div>
+  <div class="pl"><h3>Boutique</h3><div class="price">$19<small>/mo</small></div><div class="per">600 verifs · $0.035 over</div>
+    <ul><li>Manual + WhatsApp + API</li><li>2 devices · 3 seats</li><li>Customer receipts</li><li>Web widget + webhooks</li></ul>
+    <a class="pbtn" href="/app#signup?plan=boutique">Choose Boutique</a></div>
+  <div class="pl hot"><h3>Commerce</h3><div class="price">$79<small>/mo</small></div><div class="per">3,500 verifs · $0.028 over</div>
+    <ul><li>Everything in Boutique</li><li>5 devices · 10 seats</li><li>Vision + screenshot forensics</li><li>DisputeAgent · WhatsApp SLA</li></ul>
+    <a class="pbtn solid" href="/app#signup?plan=commerce">Choose Commerce</a></div>
+  <div class="pl"><h3>Plateforme</h3><div class="price">$399<small>/mo</small></div><div class="per">25,000 verifs · $0.020 over</div>
+    <ul><li>Sub-merchant API + scoped keys</li><li>Unlimited devices</li><li>Trust-score API</li><li>Wholesale to $0.014</li></ul>
+    <a class="pbtn" href="/app#signup?plan=plateforme">Choose Plateforme</a></div>
+  <div class="pl"><h3>Enterprise / Gov</h3><div class="price">Custom</div><div class="per">committed volume</div>
+    <ul><li>In-country residency</li><li>Dedicated corridor models</li><li>White-label</li><li>99.9% SLA, credited if missed</li></ul>
+    <a class="pbtn" href="/contact">Talk to us</a></div>
+</div>
+<p><b>Pay-as-you-go:</b> prepaid ACU from $10 → 100 ACU, topped up via mobile money and verified by KODA's own engine. ACU is drawn only by AI features and by verifications beyond your plan quota. Wholesale floor $0.014 (2× fully-loaded cost).</p>
+<p style="color:var(--dim);font-size:13.5px">Prices in USD, billed monthly, and a paid plan activates the moment KODA confirms your mobile-money payment. Upgrade, downgrade or cancel anytime — no lock-in. Already have an account? Choose or change your plan in <a href="/app#pricing">the app → Plans &amp; pricing</a>.</p>`,
+  }),
   'about': page({
     title: 'The SMS was always the API.', kicker: 'About KODA',
     lead: 'KODA turns the confirmation SMS every mobile money operator already sends merchants into structured payment truth — with no telco contract, anywhere on Earth.',

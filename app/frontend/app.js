@@ -478,11 +478,35 @@ window.doSignup = async (plan) => {
 };
 const v = (id) => document.getElementById(id).value.trim();
 
+// A subtle, dismissible upgrade nudge — only for free-plan OWNERS (the people who
+// can actually change billing), and it firms up as they approach their monthly quota.
+function upgradeNudge(d) {
+  const isOwner = ME.user.role === 'owner' || ME.user.is_admin;
+  const free = d.plan && d.plan.usd === 0;
+  if (!isOwner || !free) return '';
+  if (sessionStorage.getItem('koda_upsell_dismissed') === '1') return '';
+  const quota = d.plan.verifs || 20, used = d.month?.c || 0;
+  const pct = quota ? Math.min(100, Math.round(100 * used / quota)) : 0;
+  const near = quota && used >= quota * 0.7;
+  const msg = near
+    ? `You've used <b>${fmt(used)}</b> of your <b>${fmt(quota)}</b> free verifications this month. Upgrade to keep verifying without interruption.`
+    : `You're on <b>Marché (free)</b>. Upgrade for higher volume, more devices and team seats — pay only when you get paid.`;
+  return `<div style="margin-bottom:14px;border:1px solid var(--gold);border-radius:11px;padding:11px 14px;
+      background:rgba(232,161,31,.06);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:18px">⬆</span>
+    <div style="flex:1;min-width:200px;font-size:13px;line-height:1.45">${msg}${near ? ` <span class="mono" style="color:var(--dim)">· ${pct}% used</span>` : ''}</div>
+    <a class="btn btn-gold" href="#pricing" style="width:auto;padding:8px 15px;font-size:13px">See plans →</a>
+    <button onclick="dismissUpsell(this)" aria-label="Dismiss" style="background:none;border:0;color:var(--dim);font-size:18px;line-height:1;cursor:pointer;padding:2px 4px">×</button>
+  </div>`;
+}
+window.dismissUpsell = (btn) => { try { sessionStorage.setItem('koda_upsell_dismissed', '1'); } catch {} const c = btn.closest('div'); if (c) c.remove(); };
+
 VIEWS.dashboard = async () => {
   if (ME.user.is_admin && !ME.merchant) { location.hash = '#admin'; return; } // KODA staff go straight to the control centre
   const d = await api('/app/dashboard');
   const max = Math.max(1, ...d.daily.map(x => x.c));
   shell('dashboard', `${t('welcome')}, ${esc(ME.user.name.split(' ')[0])}`, esc(ME.merchant.name) + ' · ' + d.plan.label, `
+  ${upgradeNudge(d)}
   <div class="grid g4">
     <div class="card stat"><b>${fmt(d.today.c)}</b><span>${t('verify')} ${t('today')} · ${fmt(d.today.s)} ${ME.merchant.currency}</span></div>
     <div class="card stat"><b>${fmt(d.month.c)}</b><span>${t('month')} · ${fmt(d.month.s)} ${ME.merchant.currency}</span></div>
