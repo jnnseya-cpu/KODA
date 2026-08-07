@@ -321,11 +321,19 @@ add_filter( 'cron_schedules', function ( $s ) {
 	return $s;
 } );
 
-register_activation_hook( __FILE__, function () {
+/**
+ * Ensure the reconciler is scheduled — idempotently, on every load. A plugin UPDATE
+ * (1.0.0 → 1.1.0) does NOT re-run the activation hook, so scheduling only there would
+ * leave upgraded sites without the reliability job. Registering on `init` guarantees
+ * the event exists on fresh installs and updates alike.
+ */
+function koda_wc_ensure_cron() {
 	if ( ! wp_next_scheduled( 'koda_reconcile_orders' ) ) {
 		wp_schedule_event( time() + 120, 'koda_2min', 'koda_reconcile_orders' );
 	}
-} );
+}
+add_action( 'init', 'koda_wc_ensure_cron' );
+register_activation_hook( __FILE__, 'koda_wc_ensure_cron' );
 register_deactivation_hook( __FILE__, function () {
 	wp_clear_scheduled_hook( 'koda_reconcile_orders' );
 } );

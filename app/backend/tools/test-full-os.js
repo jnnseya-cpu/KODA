@@ -124,6 +124,8 @@ async function hit(path, { method = 'GET', token, body, raw } = {}) {
   console.log('— ops endpoints');
   ok('/healthz', (await hit('/healthz')).status === 200);
   ok('/v1/operators coverage', (await hit('/v1/operators')).data?.coverage?.total > 0);
+  const rate = await hit('/v1/rates?from=USD&to=CDF');
+  ok('/v1/rates USD→CDF returns a positive pinned rate', rate.data?.rate > 0 && rate.data?.pinned_for_seconds >= 1800, JSON.stringify(rate.data));
   const met = await hit('/metrics');
   ok('/metrics exposes live counters', met.status === 200 && typeof met.data?.requests === 'number' && met.data?.ledger_balanced !== false, `status ${met.status}`);
   ok('/metrics counted the auto-verified payment', met.data?.verifications >= 1, `verifications=${met.data?.verifications}`);

@@ -909,7 +909,15 @@ module.exports = function registerRoutes(r) {
   r.post('/v1/intents', apiKey((req, m) => createIntent(m, req.body), 'write:intents'));
   r.get('/v1/intents/:id', apiKey((req, m) => {
     const i = q.get('SELECT * FROM intents WHERE id=? AND merchant_id=?', req.params.id, m.id);
-    return i || [404, { error: { code: 'not_found' } }];
+    if (!i) return [404, { error: { code: 'not_found' } }];
+    // Lazy expiry: an unpaid intent past its expires_at is reported (and flipped) to
+    // 'expired', so pollers/reconcilers can release a stuck order instead of waiting
+    // forever on an intent nothing will ever move off 'awaiting_payment'.
+    if (i.status === 'awaiting_payment' && i.expires_at && new Date(i.expires_at + 'Z').getTime() < Date.now()) {
+      q.run(`UPDATE intents SET status='expired' WHERE id=? AND status='awaiting_payment'`, i.id);
+      i.status = 'expired';
+    }
+    return i;
   }));
   r.post('/v1/intents/:id/verify', apiKey((req, m) => {
     const intent = q.get('SELECT * FROM intents WHERE id=? AND merchant_id=?', req.params.id, m.id);
@@ -1103,10 +1111,14 @@ module.exports = function registerRoutes(r) {
     let map = {}; try { map = JSON.parse(process.env.KODA_RATES || '{}'); } catch { /* ignore */ }
     const usdLocal = Number(process.env.KODA_USD_TO_LOCAL) || 2800;
     const localCur = (process.env.KODA_COLLECT_CURRENCY || 'CDF').toUpperCase();
-    const table = { [`USD:${localCur}`]: usdLocal, [`${localCur}:USD`]: +(1 / usdLocal).toFixed(8), ...map };
+    // full precision on the reverse rate — rounding is applied only at final amount
+    // computation, never baked into the rate (would drift the "exact amount").
+    const table = { [`USD:${localCur}`]: usdLocal, [`${localCur}:USD`]: 1 / usdLocal, ...map };
     let rate = from === to ? 1 : table[`${from}:${to}`];
     if (rate == null) return [422, { error: { code: 'rate_unavailable', message: `no configured rate ${from}→${to}` } }];
-    return { from, to, rate, pinned_for_seconds: 900, note: 'Configured rate, pinned for the checkout window. KODA does not perform FX.' };
+    // pin window must be >= the intent lifetime (createTopup/intents use 1800s) so the
+    // shown amount can't expire while the intent is still payable.
+    return { from, to, rate, pinned_for_seconds: 1800, note: 'Configured rate, pinned for the checkout window. KODA does not perform FX.' };
   });
 
   // ---- detection: country + probable operator from customer signals ----

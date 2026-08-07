@@ -19,7 +19,15 @@ final class KODA_Blocks_Support extends AbstractPaymentMethodType {
 	}
 
 	public function is_active() {
-		return ! empty( $this->settings['enabled'] ) && 'yes' === $this->settings['enabled'];
+		// Mirror WC_Gateway_KODA::is_available(): enabled AND a usable key for the
+		// current mode — never offer KODA in the Blocks checkout if process_payment()
+		// would fail with "missing API key".
+		if ( empty( $this->settings['enabled'] ) || 'yes' !== $this->settings['enabled'] ) {
+			return false;
+		}
+		$testmode = isset( $this->settings['testmode'] ) && 'yes' === $this->settings['testmode'];
+		$key = trim( (string) ( $testmode ? ( $this->settings['test_api_key'] ?? '' ) : ( $this->settings['live_api_key'] ?? '' ) ) );
+		return '' !== $key;
 	}
 
 	public function get_payment_method_script_handles() {
