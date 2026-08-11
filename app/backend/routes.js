@@ -521,6 +521,39 @@ module.exports = function registerRoutes(r) {
       { test: true, receipt_id: 'rcp_TEST', amount: 25000, currency: m.currency });
     return { ok: true, note: 'Signed test event dispatched.' };
   }));
+  // Enable/disable ONE endpoint (paused endpoints keep their url + secret; dispatch
+  // simply skips them). Owner-only, like adding one.
+  r.post('/app/webhooks/:id/toggle', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    const ep = q.get('SELECT * FROM webhook_endpoints WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    if (!ep) return [404, { error: 'endpoint_not_found' }];
+    const active = ep.active ? 0 : 1;
+    q.run('UPDATE webhook_endpoints SET active=? WHERE id=? AND merchant_id=?', active, ep.id, m.id);
+    audit(m.id, user.id, active ? 'webhook_enabled' : 'webhook_disabled', { endpoint_id: ep.id });
+    return { ok: true, id: ep.id, active };
+  }));
+  // Delete an endpoint and its delivery history (FK-safe, one transaction). Owner-only.
+  r.delete('/app/webhooks/:id', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    const ep = q.get('SELECT id FROM webhook_endpoints WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    if (!ep) return [404, { error: 'endpoint_not_found' }];
+    tx(() => {
+      q.run('DELETE FROM webhook_deliveries WHERE endpoint_id=? AND merchant_id=?', ep.id, m.id);
+      q.run('DELETE FROM webhook_endpoints WHERE id=? AND merchant_id=?', ep.id, m.id);
+    });
+    audit(m.id, user.id, 'webhook_deleted', { endpoint_id: ep.id });
+    return { ok: true };
+  }));
+  // Re-send a single delivery (the "Retry" button on a failed/dead delivery).
+  r.post('/app/webhooks/deliveries/:id/retry', auth((req, user, m) => {
+    if (!needRole(user, ['manager'])) return [403, { error: 'manager_or_owner_only' }];
+    const d = q.get('SELECT id FROM webhook_deliveries WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    if (!d) return [404, { error: 'delivery_not_found' }];
+    const res = require('./lib/webhooks').redeliver(d.id);
+    if (!res.ok) return [400, { error: res.error }];
+    audit(m.id, user.id, 'webhook_retried', { delivery_id: d.id });
+    return { ok: true, note: 'Delivery re-queued.' };
+  }));
 
   // ---------- team ----------
   r.get('/app/team', auth((req, user, m) => ({

@@ -1090,12 +1090,23 @@ VIEWS.developers = async () => {
         <button class="btn btn-gold btn-sm" onclick="addWebhook()">${t('add_webhook')}</button>
       </div>
       ${wh.endpoints.map(e => `<div class="feed-row"><div class="feed-ic ${e.active ? 'f-ok' : 'f-dim'}">⇄</div>
-        <div><div class="t mono" style="font-size:12.5px">${esc(e.url)}</div>
-        <div class="m">secret whsec_···${esc(e.secret.slice(-4))}</div></div>
-        <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="testWebhook('${e.id}')">${t('test')}</button></div>`).join('') || '<div class="empty">No endpoints yet.</div>'}
+        <div style="min-width:0"><div class="t mono" style="font-size:12.5px;word-break:break-all">${esc(e.url)}</div>
+        <div class="m">secret whsec_···${esc(e.secret.slice(-4))} · <span class="badge ${e.active ? 'b-ok' : 'b-warn'}">${e.active ? 'active' : 'disabled'}</span></div></div>
+        <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="testWebhook('${e.id}')">${t('test')}</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleWebhook('${e.id}')">${e.active ? 'Disable' : 'Enable'}</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteWebhook('${e.id}')">Delete</button>
+        </div></div>`).join('') || '<div class="empty">No endpoints yet.</div>'}
       <h3 style="margin-top:16px">Recent deliveries</h3>
-      ${wh.deliveries.slice(0, 8).map(d => `<div class="feed-row"><div class="feed-ic ${d.status === 'sent' ? 'f-ok' : d.status === 'pending' ? 'f-dim' : 'f-bad'}">${d.status === 'sent' ? '✓' : '·'}</div>
-        <div><div class="t mono" style="font-size:12px">${esc(d.event)}</div><div class="m">${esc(d.status)} · ${d.attempts} attempts · ${when(d.created_at)}</div></div></div>`).join('') || '<div class="empty">None yet.</div>'}
+      ${(wh.deliveries || []).slice(0, 12).map(d => {
+        const ep = (wh.endpoints || []).find(e => e.id === d.endpoint_id);
+        const urlTail = ep ? '…' + esc(ep.url.replace(/^https?:\/\//, '').slice(-24)) : '(deleted endpoint)';
+        const failed = d.status === 'failed' || d.status === 'dead';
+        return `<div class="feed-row"><div class="feed-ic ${d.status === 'sent' ? 'f-ok' : d.status === 'pending' ? 'f-dim' : 'f-bad'}">${d.status === 'sent' ? '✓' : failed ? '✗' : '·'}</div>
+        <div style="min-width:0"><div class="t mono" style="font-size:12px">${esc(d.event)} <span style="color:var(--dim)">→ ${urlTail}</span></div>
+        <div class="m">${esc(d.status)} · ${d.attempts} attempt${d.attempts === 1 ? '' : 's'} · ${when(d.created_at)}${d.last_error ? ' · <span style="color:var(--danger)">' + esc(String(d.last_error).slice(0, 40)) + '</span>' : ''}</div></div>
+        ${failed ? `<button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="retryDelivery('${d.id}')">Retry</button>` : ''}</div>`;
+      }).join('') || '<div class="empty">None yet.</div>'}
     </div>
   </div>
   <div class="card" style="margin-top:14px"><h3>Quickstart</h3>
@@ -1125,6 +1136,19 @@ window.addWebhook = async () => {
   catch (e) { toast('✗ ' + e.message); }
 };
 window.testWebhook = async (id) => { await api(`/app/webhooks/${id}/test`, { body: {} }); toast('✓ Signed test event dispatched'); route(); };
+window.toggleWebhook = async (id) => {
+  try { const r = await api(`/app/webhooks/${id}/toggle`, { body: {} }); toast(r.active ? '✓ Endpoint enabled' : '✓ Endpoint disabled'); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
+window.deleteWebhook = async (id) => {
+  if (!confirm('Delete this webhook endpoint and its delivery history? This cannot be undone.')) return;
+  try { await api(`/app/webhooks/${id}`, { method: 'DELETE' }); toast('✓ Endpoint deleted'); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
+window.retryDelivery = async (id) => {
+  try { await api(`/app/webhooks/deliveries/${id}/retry`, { body: {} }); toast('✓ Delivery re-queued'); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
 
 VIEWS.comms = async () => {
   const cat = await api('/app/comms/catalogue');

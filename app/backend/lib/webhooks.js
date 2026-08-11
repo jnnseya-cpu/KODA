@@ -47,4 +47,17 @@ function attempt(dlvId, url, body, signature, n) {
   });
 }
 
-module.exports = { dispatch };
+// Manually re-send a single delivery (from the dashboard "Retry" button). Reuses
+// the stored, already-signed body — the endpoint secret is unchanged — and starts
+// a fresh attempt cycle against the endpoint's CURRENT url.
+function redeliver(dlvId) {
+  const d = q.get('SELECT * FROM webhook_deliveries WHERE id=?', dlvId);
+  if (!d) return { ok: false, error: 'delivery_not_found' };
+  const ep = q.get('SELECT * FROM webhook_endpoints WHERE id=?', d.endpoint_id);
+  if (!ep) return { ok: false, error: 'endpoint_gone' };
+  q.run(`UPDATE webhook_deliveries SET status='pending', last_error=NULL WHERE id=?`, dlvId);
+  attempt(dlvId, ep.url, d.payload, d.signature, 1);
+  return { ok: true, delivery_id: dlvId, endpoint_id: ep.id, url: ep.url };
+}
+
+module.exports = { dispatch, redeliver };
