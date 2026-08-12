@@ -220,7 +220,7 @@ const pages = {
 .pl .pbtn.solid{background:var(--gold);color:var(--ink)}
 </style>
 <div class="pl-grid">
-  <div class="pl"><h3>Marché</h3><div class="price">$0</div><div class="per">forever · 20 verifs/mo</div>
+  <div class="pl"><h3>Marché</h3><div class="price">$0</div><div class="per">forever · 10 verifs/mo</div>
     <ul><li>All five doors</li><li>1 Sentinel device</li><li>Verify Console + Live Feed</li><li>Replay protection</li></ul>
     <a class="pbtn solid" href="/app#signup?plan=marche">Start free</a></div>
   <div class="pl"><h3>Boutique</h3><div class="price">$19<small>/mo</small></div><div class="per">600 verifs · $0.035 over</div>
@@ -740,7 +740,7 @@ function kodaContactSubmit(e){
     lead: 'Pick your door. Same engine, same account, same ledger — graduate whenever you want.',
     body: `
 <div class="card"><h3>Door 1 — Manual (no code, ever)</h3>
-<ol><li><a href="/app#signup">Create your free Marché account</a> (20 verifications/month).</li>
+<ol><li><a href="/app#signup">Create your free Marché account</a> (10 verifications/month).</li>
 <li>Install KODA Sentinel on the phone that receives your payments (enrol code in Devices).</li>
 <li>Customer pays → paste their code in the Verify Console → green card in ~3 seconds.</li></ol></div>
 <div class="card"><h3>Door 2 — WhatsApp</h3>
