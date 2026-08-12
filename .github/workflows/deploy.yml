@@ -1,0 +1,56 @@
+name: Deploy to Fly.io
+
+# One-click / one-tap production deploy. Trigger it from the GitHub UI:
+#   Actions → "Deploy to Fly.io" → Run workflow.
+# Works from a phone browser too — no laptop, no local flyctl, no step-by-step.
+#
+# ONE-TIME SETUP (do this once, from any browser):
+#   1. Create a deploy token:  Fly dashboard → Tokens, or `fly tokens create deploy`
+#   2. GitHub → repo Settings → Secrets and variables → Actions → New repository
+#      secret → name FLY_API_TOKEN, paste the token.
+# After that, every deploy is a single click here.
+#
+# (To also auto-deploy on every push, uncomment the `push:` block below — left off
+#  by default because KODA is single-writer SQLite and payment-adjacent, so manual
+#  is the safer cadence.)
+
+on:
+  workflow_dispatch: {}
+  # push:
+  #   branches: [ claude/koda-unified-spec-v2-vh5xtx ]
+
+# Never run two deploys at once — KODA is a single SQLite writer on one machine.
+concurrency:
+  group: deploy-koda
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: fly deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly (remote build)
+        working-directory: app
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if [ -z "$FLY_API_TOKEN" ]; then
+            echo "::error::FLY_API_TOKEN secret is not set. Add it in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          flyctl deploy --remote-only \
+            --build-arg KODA_BUILD_SHA="${GITHUB_SHA::7}" \
+            --build-arg KODA_BUILD_DATE="$(date -u +%FT%TZ)"
+
+      - name: Post-deploy status
+        if: always()
+        working-directory: app
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl status || true
