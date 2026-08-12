@@ -9,9 +9,9 @@
   // the unified plan ladder (spec §10) — one ladder, all five doors
   const PLANS = {
     marche:     { label: 'Marché',     usd: 0,    verifs: 10,    overage: null,  rps: 2 },
-    boutique:   { label: 'Boutique',   usd: 19,   verifs: 600,   overage: 0.035, rps: 10 },
-    commerce:   { label: 'Commerce',   usd: 79,   verifs: 3500,  overage: 0.028, rps: 25 },
-    plateforme: { label: 'Plateforme', usd: 399,  verifs: 25000, overage: 0.020, rps: 100 },
+    boutique:   { label: 'Boutique',   usd: 19,   verifs: 300,   overage: 0.035, rps: 10 },
+    commerce:   { label: 'Commerce',   usd: 79,   verifs: 1750,  overage: 0.028, rps: 25 },
+    plateforme: { label: 'Plateforme', usd: 399,  verifs: 12500, overage: 0.020, rps: 100 },
     enterprise: { label: 'Enterprise', usd: null, verifs: null,  overage: null,  rps: 1000 },
   };
 

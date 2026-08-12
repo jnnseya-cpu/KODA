@@ -223,13 +223,13 @@ const pages = {
   <div class="pl"><h3>Marché</h3><div class="price">$0</div><div class="per">forever · 10 verifs/mo</div>
     <ul><li>All five doors</li><li>1 Sentinel device</li><li>Verify Console + Live Feed</li><li>Replay protection</li></ul>
     <a class="pbtn solid" href="/app#signup?plan=marche">Start free</a></div>
-  <div class="pl"><h3>Boutique</h3><div class="price">$19<small>/mo</small></div><div class="per">600 verifs · $0.035 over</div>
+  <div class="pl"><h3>Boutique</h3><div class="price">$19<small>/mo</small></div><div class="per">300 verifs · $0.035 over</div>
     <ul><li>Manual + WhatsApp + API</li><li>2 devices · 3 seats</li><li>Customer receipts</li><li>Web widget + webhooks</li></ul>
     <a class="pbtn" href="/app#signup?plan=boutique">Choose Boutique</a></div>
-  <div class="pl hot"><h3>Commerce</h3><div class="price">$79<small>/mo</small></div><div class="per">3,500 verifs · $0.028 over</div>
+  <div class="pl hot"><h3>Commerce</h3><div class="price">$79<small>/mo</small></div><div class="per">1,750 verifs · $0.028 over</div>
     <ul><li>Everything in Boutique</li><li>5 devices · 10 seats</li><li>Vision + screenshot forensics</li><li>DisputeAgent · WhatsApp SLA</li></ul>
     <a class="pbtn solid" href="/app#signup?plan=commerce">Choose Commerce</a></div>
-  <div class="pl"><h3>Plateforme</h3><div class="price">$399<small>/mo</small></div><div class="per">25,000 verifs · $0.020 over</div>
+  <div class="pl"><h3>Plateforme</h3><div class="price">$399<small>/mo</small></div><div class="per">12,500 verifs · $0.020 over</div>
     <ul><li>Sub-merchant API + scoped keys</li><li>Unlimited devices</li><li>Trust-score API</li><li>Wholesale to $0.014</li></ul>
     <a class="pbtn" href="/app#signup?plan=plateforme">Choose Plateforme</a></div>
   <div class="pl"><h3>Enterprise / Gov</h3><div class="price">Custom</div><div class="per">committed volume</div>
