@@ -33,6 +33,7 @@ const I18N = {
     sub_devices: 'La flotte de terrain — chaque SIM est un point de vérification', sub_billing: '« On ne gagne que lorsque le marchand est payé. »',
     sub_team: 'Sièges avec audit par caissier', sub_pricing: 'Une seule échelle, les cinq portes — changez de formule à tout moment, sans engagement',
     title_pricing: 'Formules & tarifs', title_receipt: 'Reçu', sub_developers: 'Trois requêtes. Un café. — kodajnn.com/v1', sub_growth: 'Outils marketing IA · K-11',
+    dsp_claim: 'Réclamation / motif du client', dsp_open: 'Ouvrir un litige (3 ACU)', dsp_accept: 'Accepter', dsp_reject: 'Refuser', dsp_escalate: 'Escalader à KODA', dsp_none: 'Aucun litige — c\'est l\'objectif.', acc_add: 'Ajouter un compte de réception', acc_add_p: 'Saisissez l\'opérateur + le numéro/caisse où paient les clients. Nous vous donnons une référence unique ; faites un petit paiement test qui la porte, et dès que votre Sentinel le capte, le compte est vérifié.', acc_connect: 'Connecter le compte', acc_op_ph: 'Code opérateur (ex. orange_cd)', acc_num_ph: 'Votre numéro/caisse de paiement', acc_holder_ph: 'Nom du titulaire du compte', acc_yours: 'Vos comptes', acc_none: 'Aucun compte pour l\'instant. Connectez-en un ci-dessus.', acc_would_see: 'Ce que verraient les clients maintenant', acc_no_live: 'Aucun moyen de paiement actif — connectez et activez un compte (et gardez un Sentinel en ligne pour les portes auto).', th_operator: 'Opérateur', th_number: 'Numéro', th_ownership: 'Propriété', th_status: 'Statut', th_doors: 'Portes', dev_label_ph: 'Étiquette — ex. Caisse 2', dev_get_app: 'Obtenir l\'app Sentinel ↗', dev_none: 'Aucun appareil pour l\'instant.', tm_name_ph: 'Nom', tm_email_ph: 'E-mail', th_name: 'Nom', th_email: 'E-mail', th_role: 'Rôle', tm_audit: 'Piste d\'audit', tm_empty: 'Vide', bl_burned: 'ACU consommés · 30 jours', bl_topup_suffix: 'prépayé via mobile money, vérifié par KODA elle-même', bl_voucher_p: 'Vous avez acheté un bon KODA chez un revendeur ? Entrez le PIN pour créditer les ACU instantanément.', bl_distributor: 'Distributeur ?', bl_distributor_p: 'Si KODA vous a configuré comme distributeur (revendeur d\'ACU), gérez votre float et vos ventes ici.', bl_see_all: 'Voir toutes les formules et fonctions →', bl_acu_tx: 'Transactions ACU', bl_invoices: 'Factures', bl_none_yet: 'Aucune pour l\'instant', pr_custom: 'Sur mesure', pr_free: 'Gratuit', pr_forever: '/à vie', pr_permo: '/mois', pr_current: '✓ Formule actuelle', pr_talk: 'Parlez-nous →', pr_upgrade: 'Passer à', pr_switch: 'Basculer vers', pr_current_badge: 'actuelle', pr_unlimited: 'Illimité', pr_verifications: 'vérifications', pr_prices_note: 'Prix en USD. Les formules payantes sont facturées mensuellement et s\'activent dès que KODA confirme votre paiement mobile money. Les recharges ACU (à l\'usage) se gèrent dans', st_profile: 'Profil de l\'entreprise', st_lang_note: 'L\'OS détecte automatiquement la langue de votre appareil (LinguaAgent K-07). Remplacer :', st_data: 'Vos données et confidentialité', st_data_p: 'Téléchargez tout ce que KODA détient pour votre entreprise, ou supprimez votre compte.', st_deletion_owner: '(La suppression est réservée au propriétaire.)', st_download: 'Télécharger mes données (JSON)', st_delete: 'Supprimer le compte',
     d_14day: 'Vérifications sur 14 jours', d_nodata: 'Aucune donnée — vérifiez votre premier paiement.', d_doors: 'Portes utilisées', d_devices: 'Appareils', d_none: 'aucun', d_quick: 'Vérification rapide', v_screenshot: 'Capture d’écran (Vision ×3 ACU)', v_sandbox: 'Références magiques (bac à sable)', f_inject_label: 'SANDBOX — injecter un SMS opérateur :', f_inject: 'Injecter', f_unparsed: 'SMS non analysé', f_matched: 'rattaché', f_unmatched: 'non rattaché', f_empty: 'Aucun SMS — enrôlez un appareil Sentinel ou injectez un SMS de test.', r_payer: 'Payeur', r_mode: 'Mode', r_risk: 'Risque', r_when: 'Quand', r_verified_count: 'vérifiés', r_empty: 'Aucun reçu pour l’instant.', rc_trace: 'Trace de décision (qualité audit)',
   },
   en: {
@@ -65,6 +66,7 @@ const I18N = {
     sub_devices: 'The edge fleet — each SIM is a verification endpoint', sub_billing: '"We only earn when the merchant gets paid."',
     sub_team: 'Seats with per-cashier audit', sub_pricing: 'One ladder, all five doors — upgrade or downgrade anytime, no lock-in',
     title_pricing: 'Plans & pricing', title_receipt: 'Receipt', sub_developers: 'Three requests. One coffee. — kodajnn.com/v1', sub_growth: 'AI marketing tools · K-11',
+    dsp_claim: 'Customer claim / reason', dsp_open: 'Open dispute (3 ACU)', dsp_accept: 'Accept', dsp_reject: 'Reject', dsp_escalate: 'Escalate to KODA', dsp_none: 'No disputes — that is the goal.', acc_add: 'Add a receiving account', acc_add_p: 'Enter the operator + the number/till customers pay to. We give you a one-time reference; make a tiny test payment carrying it, and once your Sentinel captures it the account is verified.', acc_connect: 'Connect account', acc_op_ph: 'Operator code (e.g. orange_cd)', acc_num_ph: 'Your pay-to number / till', acc_holder_ph: 'Account holder name', acc_yours: 'Your accounts', acc_none: 'No accounts yet. Connect one above.', acc_would_see: 'What customers would see now', acc_no_live: 'No live payment methods yet — connect & activate an account (and keep a Sentinel online for auto doors).', th_operator: 'Operator', th_number: 'Number', th_ownership: 'Ownership', th_status: 'Status', th_doors: 'Doors', dev_label_ph: 'Label — e.g. Caisse 2', dev_get_app: 'Get the Sentinel app ↗', dev_none: 'No devices yet.', tm_name_ph: 'Name', tm_email_ph: 'Email', th_name: 'Name', th_email: 'Email', th_role: 'Role', tm_audit: 'Audit trail', tm_empty: 'Empty', bl_burned: 'ACU burned · 30 days', bl_topup_suffix: 'prepaid via mobile money, verified by KODA itself', bl_voucher_p: 'Bought a KODA voucher from a reseller? Enter the PIN to credit ACU instantly.', bl_distributor: 'Distributor?', bl_distributor_p: 'If KODA has set you up as a distributor (ACU reseller), manage your float and sales here.', bl_see_all: 'See all plans & features →', bl_acu_tx: 'ACU transactions', bl_invoices: 'Invoices', bl_none_yet: 'None yet', pr_custom: 'Custom', pr_free: 'Free', pr_forever: '/forever', pr_permo: '/mo', pr_current: '✓ Current plan', pr_talk: 'Talk to us →', pr_upgrade: 'Upgrade to', pr_switch: 'Switch to', pr_current_badge: 'current', pr_unlimited: 'Unlimited', pr_verifications: 'verifications', pr_prices_note: 'Prices in USD. Paid plans are billed monthly and activate the moment KODA confirms your mobile-money payment. ACU top-ups (pay-as-you-go) are managed in', st_profile: 'Business profile', st_lang_note: 'The OS auto-detects your device language (LinguaAgent K-07). Override:', st_data: 'Your data & privacy', st_data_p: 'Download everything KODA holds for your business, or delete your account.', st_deletion_owner: '(Deletion is owner-only.)', st_download: 'Download my data (JSON)', st_delete: 'Delete account',
     d_14day: '14-day verifications', d_nodata: 'No data yet — verify your first payment.', d_doors: 'Doors in use', d_devices: 'Devices', d_none: 'none', d_quick: 'Quick verify', v_screenshot: 'Screenshot (Vision ×3 ACU)', v_sandbox: 'Sandbox magic references', f_inject_label: 'SANDBOX — inject an operator SMS:', f_inject: 'Inject', f_unparsed: 'Unparsed SMS', f_matched: 'matched', f_unmatched: 'unmatched', f_empty: 'No SMS yet — enroll a Sentinel device or inject a sandbox SMS.', r_payer: 'Payer', r_mode: 'Mode', r_risk: 'Risk', r_when: 'When', r_verified_count: 'verified', r_empty: 'No receipts yet.', rc_trace: 'Decision trace (audit-grade)',
   },
   // Swahili (sw) — East/Central Africa. Full UI translation (machine-quality; pending native review).
@@ -98,6 +100,7 @@ const I18N = {
     sub_devices: 'Kundi la mbele — kila SIM ni kituo cha uthibitisho', sub_billing: '"Tunapata tu wakati mfanyabiashara analipwa."',
     sub_team: 'Viti vyenye ukaguzi kwa kila keshia', sub_pricing: 'Ngazi moja, milango yote mitano — panda au shuka wakati wowote, bila mkataba',
     title_pricing: 'Mipango na bei', title_receipt: 'Risiti', sub_developers: 'Maombi matatu. Kahawa moja. — kodajnn.com/v1', sub_growth: 'Zana za masoko za AI · K-11',
+    dsp_claim: 'Dai / sababu ya mteja', dsp_open: 'Fungua mzozo (3 ACU)', dsp_accept: 'Kubali', dsp_reject: 'Kataa', dsp_escalate: 'Panda kwa KODA', dsp_none: 'Hakuna mizozo — hilo ndilo lengo.', acc_add: 'Ongeza akaunti ya kupokea', acc_add_p: 'Weka opereta + nambari/till ambapo wateja hulipa. Tunakupa marejeleo ya mara moja; fanya malipo madogo ya jaribio yenye marejeleo hayo, na mara Sentinel yako inapoyanasa, akaunti inathibitishwa.', acc_connect: 'Unganisha akaunti', acc_op_ph: 'Msimbo wa opereta (mf. orange_cd)', acc_num_ph: 'Nambari/till yako ya kulipwa', acc_holder_ph: 'Jina la mmiliki wa akaunti', acc_yours: 'Akaunti zako', acc_none: 'Hakuna akaunti bado. Unganisha moja hapo juu.', acc_would_see: 'Kile wateja wangeona sasa', acc_no_live: 'Hakuna njia za malipo hai bado — unganisha na washa akaunti (na weka Sentinel mtandaoni kwa milango otomatiki).', th_operator: 'Opereta', th_number: 'Nambari', th_ownership: 'Umiliki', th_status: 'Hali', th_doors: 'Milango', dev_label_ph: 'Lebo — mf. Kaunta 2', dev_get_app: 'Pata programu ya Sentinel ↗', dev_none: 'Hakuna vifaa bado.', tm_name_ph: 'Jina', tm_email_ph: 'Barua pepe', th_name: 'Jina', th_email: 'Barua pepe', th_role: 'Jukumu', tm_audit: 'Njia ya ukaguzi', tm_empty: 'Tupu', bl_burned: 'ACU zilizotumika · siku 30', bl_topup_suffix: 'kulipwa mapema kupitia mobile money, imethibitishwa na KODA yenyewe', bl_voucher_p: 'Umenunua vocha ya KODA kutoka kwa muuzaji? Weka PIN ili kuongeza ACU papo hapo.', bl_distributor: 'Msambazaji?', bl_distributor_p: 'Ikiwa KODA imekuweka kama msambazaji (muuzaji wa ACU), simamia float na mauzo yako hapa.', bl_see_all: 'Ona mipango na vipengele vyote →', bl_acu_tx: 'Miamala ya ACU', bl_invoices: 'Ankara', bl_none_yet: 'Hakuna bado', pr_custom: 'Maalum', pr_free: 'Bure', pr_forever: '/milele', pr_permo: '/mwezi', pr_current: '✓ Mpango wa sasa', pr_talk: 'Ongea nasi →', pr_upgrade: 'Panda hadi', pr_switch: 'Badilisha hadi', pr_current_badge: 'sasa', pr_unlimited: 'Bila kikomo', pr_verifications: 'uthibitisho', pr_prices_note: 'Bei kwa USD. Mipango ya kulipia hutozwa kila mwezi na huwashwa mara KODA inapothibitisha malipo yako ya mobile money. Kuongeza ACU (lipa unavyotumia) hudhibitiwa katika', st_profile: 'Wasifu wa biashara', st_lang_note: 'OS hutambua lugha ya kifaa chako kiotomatiki (LinguaAgent K-07). Badilisha:', st_data: 'Data yako na faragha', st_data_p: 'Pakua kila kitu KODA inashikilia kwa biashara yako, au futa akaunti yako.', st_deletion_owner: '(Ufutaji ni wa mmiliki pekee.)', st_download: 'Pakua data yangu (JSON)', st_delete: 'Futa akaunti',
     d_14day: 'Uthibitisho wa siku 14', d_nodata: 'Hakuna data bado — thibitisha malipo yako ya kwanza.', d_doors: 'Milango inayotumika', d_devices: 'Vifaa', d_none: 'hakuna', d_quick: 'Uthibitisho wa haraka', v_screenshot: 'Picha ya skrini (Vision ×3 ACU)', v_sandbox: 'Marejeleo ya majaribio (sandbox)', f_inject_label: 'SANDBOX — ingiza SMS ya opereta:', f_inject: 'Ingiza', f_unparsed: 'SMS isiyochambuliwa', f_matched: 'imelingana', f_unmatched: 'haijalingana', f_empty: 'Hakuna SMS bado — sajili kifaa cha Sentinel au ingiza SMS ya majaribio.', r_payer: 'Mlipaji', r_mode: 'Hali', r_risk: 'Hatari', r_when: 'Lini', r_verified_count: 'zimethibitishwa', r_empty: 'Hakuna risiti bado.', rc_trace: 'Ufuatiliaji wa uamuzi (kiwango cha ukaguzi)',
   },
   // Lingala (ln) — DR Congo / Congo-Brazzaville. Core UI translated; longer legal/verification
@@ -129,6 +132,7 @@ const I18N = {
     sub_devices: 'Basaleli ya libanda — SIM nyonso ezali esika ya botali', sub_billing: '« Tozwaka mbongo kaka soki moto ya mombongo afutami. »',
     sub_team: 'Bakiti na audit ya caissier moko na moko', sub_pricing: 'Etape moko, baporte nyonso mitano — bongola formule ntango nyonso, engagement te',
     title_pricing: 'Baformule & ntalo', title_receipt: 'Reçu', sub_developers: 'Ba requêtes misato. Kafe moko. — kodajnn.com/v1', sub_growth: 'Bisaleli AI ya marketing · K-11',
+    dsp_claim: 'Molongi ya kliyã / ntína', dsp_open: 'Fungola litígo (3 ACU)', dsp_accept: 'Ndima', dsp_reject: 'Boya', dsp_escalate: 'Tómbola epái ya KODA', dsp_none: 'Litígo tɛ́ — yango nde tína.', acc_add: 'Bakísa kɔ́ntɛ ya koyamba', acc_add_p: 'Kótisá opérateur + nimero/kɛ́sɛ epái baklíya bafutaka. Topesí yo référence ya mbala moko; salá litindo moke ya komeka na yango, mpe soki Sentinel na yo ekangi yango, kɔ́ntɛ endimámí.', acc_connect: 'Kangisa kɔ́ntɛ', acc_op_ph: 'Kódɛ ya opérateur (ndakisa orange_cd)', acc_num_ph: 'Nimero/kɛ́sɛ na yo ya kofuta', acc_holder_ph: 'Nkómbó ya nkolo kɔ́ntɛ', acc_yours: 'Bakɔ́ntɛ na yo', acc_none: 'Kɔ́ntɛ tɛ́ naíno. Kangisa moko awa likoló.', acc_would_see: 'Óyo baklíya bakomóna sikóyo', acc_no_live: 'Nzelá ya kofuta ya bomoi tɛ́ naíno — kangisa mpe pelisa kɔ́ntɛ (mpe tíká Sentinel na ligne mpo na baporte ya auto).', th_operator: 'Opérateur', th_number: 'Nimero', th_ownership: 'Bonkoló', th_status: 'Ezalela', th_doors: 'Baporte', dev_label_ph: 'Etiké — ndakisa Kɛ́sɛ 2', dev_get_app: 'Zwá app Sentinel ↗', dev_none: 'Masíni tɛ́ naíno.', tm_name_ph: 'Nkómbó', tm_email_ph: 'E-mail', th_name: 'Nkómbó', th_email: 'E-mail', th_role: 'Mokumba', tm_audit: 'Nzelá ya botáli', tm_empty: 'Mpámba', bl_burned: 'ACU esílí · mikolo 30', bl_topup_suffix: 'kofuta libosó na mobile money, KODA yango moko endimí yango', bl_voucher_p: 'Osombí bon ya KODA epái ya moteki? Kótisá PIN mpo ACU ekóta mbala moko.', bl_distributor: 'Moddistribiteur?', bl_distributor_p: 'Soki KODA atíí yo mo distribiteur (moteki ACU), yángela float mpe boteki na yo awa.', bl_see_all: 'Talá baformule mpe basaleli nyɔnsɔ →', bl_acu_tx: 'Ba transaction ACU', bl_invoices: 'Bafaktir', bl_none_yet: 'Naíno tɛ́', pr_custom: 'Ya bomɛ́ní', pr_free: 'Ofele', pr_forever: '/libélá', pr_permo: '/sánzá', pr_current: '✓ Formule ya sikóyo', pr_talk: 'Solola na bísó →', pr_upgrade: 'Leká na', pr_switch: 'Balola na', pr_current_badge: 'ya sikóyo', pr_unlimited: 'Ndelo tɛ́', pr_verifications: 'ba vérification', pr_prices_note: 'Ntálo na USD. Baformule ya kofuta bafutisamaka sánzá na sánzá mpe efungwamaka ntángo KODA endimí paiement na yo ya mobile money. Ba recharge ACU (futa lokóla osáleli) eyángelamaka na', st_profile: 'Profil ya mombóngo', st_lang_note: 'OS eyébaka monɔ́kɔ ya masíni na yo yɔ́kɔmɛ́ (LinguaAgent K-07). Bóngola :', st_data: 'Ba données na yo mpe bonkútú', st_data_p: 'Kitisá nyɔnsɔ oyo KODA ebómbí mpo na mombóngo na yo, tǒ longola kɔ́ntɛ na yo.', st_deletion_owner: '(Kolongola ezali kaka mpo na nkolo.)', st_download: 'Kitisá ba données na ngáí (JSON)', st_delete: 'Longola kɔ́ntɛ',
     d_14day: 'Botali ya mikolo 14', d_nodata: 'Ata data te — talela lifuti na yo ya liboso.', d_doors: 'Baporte oyo ezali kosalema', d_devices: 'Bisaleli', d_none: 'ata moko te', d_quick: 'Botali ya mbangu', v_screenshot: 'Screenshot (Vision ×3 ACU)', v_sandbox: 'Ba références ya komeka (sandbox)', f_inject_label: 'SANDBOX — kotisa SMS ya opérateur:', f_inject: 'Kotisa', f_unparsed: 'SMS eanalisami te', f_matched: 'ekangami', f_unmatched: 'ekangami te', f_empty: 'Ata SMS te — kokoma esaleli Sentinel to kotisa SMS ya komeka.', r_payer: 'Mofuti', r_mode: 'Mode', r_risk: 'Likama', r_when: 'Tango', r_verified_count: 'etalami', r_empty: 'Ata reçu te.', rc_trace: 'Trace ya mokano (audit)',
   },
   // Wolof (wo) — Senegal / Gambia. Core UI translated; longer strings fall back to French.
@@ -159,6 +163,7 @@ const I18N = {
     sub_devices: 'Mbooloo mi — SIM bu nekk benn barab bu seetlu', sub_billing: '« Danuy am xaalis rekk bu njëkkkat bi feyee. »',
     sub_team: 'Toogu ak audit bu kees bu nekk', sub_pricing: 'Benn escalier, juróom buntu yépp — soppi plan saa yu nekk, amul engagement',
     title_pricing: 'Plan & njëg', title_receipt: 'Reçu', sub_developers: 'Ñetti requête. Benn kafe. — kodajnn.com/v1', sub_growth: 'Jumtukaay marketing AI · K-11',
+    dsp_claim: 'Njàng client / lu ko tax', dsp_open: 'Ubbi werante (3 ACU)', dsp_accept: 'Nangu', dsp_reject: 'Bañ', dsp_escalate: 'Yóbbu ci KODA', dsp_none: 'Amul werante — loolu mooy jubluwaay bi.', acc_add: 'Yokku ab kont bu ñuy jot', acc_add_p: 'Bindal operator bi + nimero/kes bi client yiy fey. Dañu la jox benn référence; defal ab payement bu ndaw bu ko ëmb, te su fi sa Sentinel jàppee ko, kont bi dañu koy dëggal.', acc_connect: 'Boole kont bi', acc_op_ph: 'Kódu operator (misaal orange_cd)', acc_num_ph: 'Sa nimero/kes bu payement', acc_holder_ph: 'Turandoo boroom kont bi', acc_yours: 'Sa i kont', acc_none: 'Amul kont ba léegi. Boole benn ci kaw.', acc_would_see: 'Li client yi war gis léegi', acc_no_live: 'Amul yoonu payement bu doxaan — boole te taxaw ab kont (te bàyyi Sentinel ci ligne ngir bunt yu auto).', th_operator: 'Operator', th_number: 'Nimero', th_ownership: 'Moomeel', th_status: 'Anam', th_doors: 'Bunt', dev_label_ph: 'Tag — misaal Kes 2', dev_get_app: 'Jël app Sentinel bi ↗', dev_none: 'Amul appareil ba léegi.', tm_name_ph: 'Turandoo', tm_email_ph: 'E-mail', th_name: 'Tur', th_email: 'E-mail', th_role: 'Warteef', tm_audit: 'Yoonu njël', tm_empty: 'Neen', bl_burned: 'ACU yu jëfandiku · 30 fan', bl_topup_suffix: 'fey ci kanam ci mobile money, KODA moom ci boppam dëggal ko', bl_voucher_p: 'Jëndoon nga vocha KODA ci jaaykat? Bindal PIN bi ngir yokk ACU ci saa si.', bl_distributor: 'Distributeur?', bl_distributor_p: 'Su KODA la defee distributeur (jaaykatu ACU), toppatoo sa float ak sa njaay fii.', bl_see_all: 'Gis plan yi ak feature yi yépp →', bl_acu_tx: 'Transaction ACU yi', bl_invoices: 'Faktiir', bl_none_yet: 'Amul ba léegi', pr_custom: 'Ci sa bopp', pr_free: 'Free', pr_forever: '/ba fàww', pr_permo: '/weer', pr_current: '✓ Plan bi fi mu', pr_talk: 'Waxal ak nun →', pr_upgrade: 'Yeeg ci', pr_switch: 'Soppi ci', pr_current_badge: 'fi mu', pr_unlimited: 'Amul dig', pr_verifications: 'vérification', pr_prices_note: 'Njëg ci USD. Plan yu ñuy fey ñuy leen fey weer wu nekk te ñuy tàmbali bu KODA dëggalee sa payement mobile money. Yokkute ACU (fey ni nga jëfandikoo) ñu koy toppatoo ci', st_profile: 'Profil bu liggéey bi', st_lang_note: 'OS bi day xàmm bopam làkku sa appareil (LinguaAgent K-07). Soppi :', st_data: 'Sa data ak sutura', st_data_p: 'Yebbi lépp lu KODA yor ci sa liggéey, walla far sa kont.', st_deletion_owner: '(Far bi boroom rekk moo ko man.)', st_download: 'Yebbi sama data (JSON)', st_delete: 'Far kont bi',
     d_14day: 'Seetlu ci 14 fan', d_nodata: 'Amul data — seetlul sa peyeman bu njëkk.', d_doors: 'Buntu yiy jëfandikoo', d_devices: 'Jumtukaay', d_none: 'benn amul', d_quick: 'Seetlu bu gaaw', v_screenshot: 'Screenshot (Vision ×3 ACU)', v_sandbox: 'Référence yu sandbox', f_inject_label: 'SANDBOX — dugal SMS opérateur:', f_inject: 'Dugal', f_unparsed: 'SMS bu ñu seetlu', f_matched: 'boole', f_unmatched: 'booleul', f_empty: 'Amul SMS — bindal jumtukaay Sentinel walla dugal SMS sandbox.', r_payer: 'Feykat', r_mode: 'Mode', r_risk: 'Risk', r_when: 'Kañ', r_verified_count: 'dëggal', r_empty: 'Amul reçu.', rc_trace: 'Trace bu décision (audit)',
   },
   // Twi / Akan (ak) — Ghana. Core UI translated; longer strings fall back to English.
@@ -189,6 +194,7 @@ const I18N = {
     sub_devices: 'Mfidie a ɛwɔ ano — SIM biara yɛ nhwehwɛmu beaeɛ', sub_billing: '"Yɛnya sika bere a wɔatua odwadini no nko ara."',
     sub_team: 'Nkonnwa a cashier biara wɔ audit', sub_pricing: 'Atwedeɛ baako, apon nnum no nyinaa — sesa plan bere biara, nhyehyɛeɛ biara nni ho',
     title_pricing: 'Nhyehyɛeɛ & bo', title_receipt: 'Nkrataa', sub_developers: 'Abisadeɛ mmiɛnsa. Kɔfe baako. — kodajnn.com/v1', sub_growth: 'AI marketing nnwuma · K-11',
+    dsp_claim: 'Adetɔfoɔ n\'asɛm / ntease', dsp_open: 'Bue akyinnyeɛ (3 ACU)', dsp_accept: 'Gye', dsp_reject: 'Po', dsp_escalate: 'Fa kɔ KODA', dsp_none: 'Akyinnyeɛ biara nni hɔ — ɛno ne botaeɛ.', acc_add: 'Fa akawnt a wɔde gye sika ka ho', acc_add_p: 'Fa opereta no + nɔma/till a adetɔfoɔ tua ka ho. Yɛma wo reference baako pɛ; tua sika kakraa a ɛkura reference no, na sɛ wo Sentinel kyere a, wobɛgye akawnt no atom.', acc_connect: 'Bata akawnt no', acc_op_ph: 'Opereta kɔɔd (bɛ. orange_cd)', acc_num_ph: 'Wo tua-so nɔma / till', acc_holder_ph: 'Akawnt wura din', acc_yours: 'Wo akawnt ahodoɔ', acc_none: 'Akawnt biara nni hɔ. Bata baako wɔ soro hɔ.', acc_would_see: 'Deɛ adetɔfoɔ bɛhunu seesei', acc_no_live: 'Tua-kwan biara nnyɛ adwuma — bata na hyɛ akawnt no den (na ma Sentinel ntena intanɛt so mma auto apono).', th_operator: 'Opereta', th_number: 'Nɔma', th_ownership: 'Ahodeɛ', th_status: 'Tebea', th_doors: 'Apono', dev_label_ph: 'Din — bɛ. Kaunta 2', dev_get_app: 'Nya Sentinel app no ↗', dev_none: 'Mfidie biara nni hɔ.', tm_name_ph: 'Din', tm_email_ph: 'Email', th_name: 'Din', th_email: 'Email', th_role: 'Dwuma', tm_audit: 'Nhwehwɛmu kwan', tm_empty: 'Hunu', bl_burned: 'ACU a wɔasɛe · nna 30', bl_topup_suffix: 'tua kan wɔ mobile money so, KODA ankasa asi so dua', bl_voucher_p: 'Wotɔɔ KODA voucher firii dwadifoɔ hɔ? Fa PIN no hyɛ mu na ACU aba ntɛm.', bl_distributor: 'Nkyekyɛfoɔ?', bl_distributor_p: 'Sɛ KODA de wo asi hɔ sɛ nkyekyɛfoɔ (ACU dwadifoɔ) a, hwɛ wo float ne wo adetɔn wɔ ha.', bl_see_all: 'Hwɛ nhyehyɛeɛ ne nneɛma nyinaa →', bl_acu_tx: 'ACU nsakraeɛ', bl_invoices: 'Sika nkrataa', bl_none_yet: 'Ebiara nni hɔ', pr_custom: 'Wo deɛ', pr_free: 'Fee', pr_forever: '/daa', pr_permo: '/bosome', pr_current: '✓ Nhyehyɛeɛ a ɛwɔ hɔ seesei', pr_talk: 'Ka kyerɛ yɛn →', pr_upgrade: 'Kɔ soro kɔ', pr_switch: 'Sesa kɔ', pr_current_badge: 'seesei', pr_unlimited: 'Ɛnni ano', pr_verifications: 'nhwehwɛmu', pr_prices_note: 'Boɔ wɔ USD mu. Nhyehyɛeɛ a wɔtua ka no, wɔtua no bosome biara na ɛhyɛ ase bere a KODA si wo mobile money tuo so dua. ACU top-up (tua sɛdeɛ wode di dwuma) no, wɔhwɛ so wɔ', st_profile: 'Adwuma ho nsɛm', st_lang_note: 'OS no ankasa hunu wo mfidie kasa (LinguaAgent K-07). Sesa:', st_data: 'Wo data ne kokoamsɛm', st_data_p: 'Twe biribiara a KODA kura ma wo adwuma, anaa yi wo akawnt no.', st_deletion_owner: '(Wura nko na ɔtumi yi.)', st_download: 'Twe me data (JSON)', st_delete: 'Yi akawnt no',
     d_14day: 'Nhwɛmu nnansa 14', d_nodata: 'Data biara nni hɔ — hwɛ wo sika tua a edi kan no ho.', d_doors: 'Apon a wɔde di dwuma', d_devices: 'Mfidie', d_none: 'ebiara nni hɔ', d_quick: 'Nhwɛ ntɛm', v_screenshot: 'Screenshot (Vision ×3 ACU)', v_sandbox: 'Sandbox magic references', f_inject_label: 'SANDBOX — fa operator SMS hyɛ mu:', f_inject: 'Fa hyɛ mu', f_unparsed: 'SMS a wɔnyaa mu', f_matched: 'ahyia', f_unmatched: 'anhyia', f_empty: 'SMS biara nni hɔ — kyerɛw Sentinel mfidie anaa fa sandbox SMS hyɛ mu.', r_payer: 'Otuafoɔ', r_mode: 'Ɛkwan', r_risk: 'Asiane', r_when: 'Bere', r_verified_count: 'wɔahwɛ ho', r_empty: 'Nkrataa biara nni hɔ.', rc_trace: 'Gyinaesie akwan (audit)',
   },
 };
@@ -761,8 +767,8 @@ VIEWS.disputes = async () => {
   shell('disputes', t('disputes'), t('sub_disputes'), `
   <div class="card" style="display:flex;gap:10px;flex-wrap:wrap">
     <input id="dref" placeholder="${t('reference')}" style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--mono);font-size:12.5px">
-    <input id="dwhy" placeholder="Customer claim / reason" style="flex:2;min-width:220px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
-    <button class="btn btn-gold btn-sm" onclick="openDispute()">Open dispute (3 ACU)</button>
+    <input id="dwhy" placeholder="${t('dsp_claim')}" style="flex:2;min-width:220px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
+    <button class="btn btn-gold btn-sm" onclick="openDispute()">${t('dsp_open')}</button>
   </div>
   ${rows.map(d => `<div class="card" style="margin-top:12px">
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -773,10 +779,10 @@ VIEWS.disputes = async () => {
     </div>
     <div class="codebox" style="margin-top:10px">${esc(JSON.stringify(JSON.parse(d.evidence || '{}'), null, 2))}</div>
     ${d.status === 'open' ? `<div style="display:flex;gap:8px;margin-top:12px">
-      <button class="btn btn-gold btn-sm" onclick="resolveDispute('${d.id}','accepted')">Accept</button>
-      <button class="btn btn-danger btn-sm" onclick="resolveDispute('${d.id}','rejected')">Reject</button>
-      <button class="btn btn-ghost btn-sm" onclick="resolveDispute('${d.id}','escalated')">Escalate to KODA</button></div>` : ''}
-  </div>`).join('') || '<div class="empty">No disputes — that is the goal.</div>'}`);
+      <button class="btn btn-gold btn-sm" onclick="resolveDispute('${d.id}','accepted')">${t('dsp_accept')}</button>
+      <button class="btn btn-danger btn-sm" onclick="resolveDispute('${d.id}','rejected')">${t('dsp_reject')}</button>
+      <button class="btn btn-ghost btn-sm" onclick="resolveDispute('${d.id}','escalated')">${t('dsp_escalate')}</button></div>` : ''}
+  </div>`).join('') || '<div class="empty">'+t('dsp_none')+'</div>'}`);
 };
 window.openDispute = async () => {
   try { await api('/app/disputes', { body: { reference: v('dref'), reason: v('dwhy') } }); toast('✓ Dispute opened — evidence assembled'); route(); }
@@ -792,26 +798,26 @@ VIEWS.accounts = async () => {
   const resolved = await api('/app/payment-methods').catch(() => ({ available: [], excluded: [] }));
   const devices = await api('/app/devices').catch(() => []);
   shell('accounts', t('accounts'), t('sub_accounts'), `
-  <div class="card"><h3>Add a receiving account</h3>
-    <p style="font-size:13px;color:var(--dim)">Enter the operator + the number/till customers pay to. We give you a one-time reference; make a tiny test payment carrying it, and once your Sentinel captures it the account is verified.</p>
+  <div class="card"><h3>${t('acc_add')}</h3>
+    <p style="font-size:13px;color:var(--dim)">${t('acc_add_p')}</p>
     <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:680px">
-      <input id="na-code" placeholder="Operator code (e.g. orange_cd)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
-      <input id="na-ident" placeholder="Your pay-to number / till" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
-      <input id="na-name" placeholder="Account holder name" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
-      <button class="btn btn-gold" onclick="connectAccount()">Connect account</button>
+      <input id="na-code" placeholder="${t('acc_op_ph')}" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="na-ident" placeholder="${t('acc_num_ph')}" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="na-name" placeholder="${t('acc_holder_ph')}" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <button class="btn btn-gold" onclick="connectAccount()">${t('acc_connect')}</button>
     </div><div id="na-out" style="margin-top:10px"></div>
     <p style="font-size:12px;color:var(--dim);margin-top:8px">Operator codes: see <a href="#admin?tab=coverage" style="color:var(--gold)">Coverage</a> or the public <a href="/coverage" target="_blank">coverage page</a>. Tier-C (bank/app-rail) networks aren't SMS-verifiable.</p></div>
-  <div class="card tbl-wrap" style="margin-top:14px"><h3>Your accounts (${fmt(accts.length)})</h3>
-    ${accts.length ? `<table class="tbl"><tr><th>Operator</th><th>Number</th><th>Ownership</th><th>Status</th><th>Doors</th><th></th></tr>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>${t('acc_yours')} (${fmt(accts.length)})</h3>
+    ${accts.length ? `<table class="tbl"><tr><th>${t('th_operator')}</th><th>${t('th_number')}</th><th>${t('th_ownership')}</th><th>${t('th_status')}</th><th>${t('th_doors')}</th><th></th></tr>
     ${accts.map(a => `<tr><td class="mono">${esc(a.network_code)}</td><td class="mono">${esc(a.masked || '—')}</td>
       <td><span class="badge ${a.ownership_status === 'VERIFIED' ? 'b-ok' : 'b-info'}">${esc(a.ownership_status)}</span>${a.ownership_status !== 'VERIFIED' && a.verify_ref ? `<div class="mono" style="font-size:10px;color:var(--dim)">ref ${esc(a.verify_ref)}</div>` : ''}</td>
       <td><span class="badge ${a.activation_status === 'ACTIVE' ? 'b-ok' : a.activation_status === 'PAUSED' ? 'b-bad' : 'b-info'}">${esc(a.activation_status)}</span></td>
       <td style="font-size:11px" class="mono">${a.enabled_manual ? 'M' : '·'}${a.enabled_whatsapp ? 'W' : '·'}${a.enabled_api ? 'A' : '·'}</td>
       <td style="white-space:nowrap">${a.activation_status === 'DRAFT' || a.ownership_status === 'VERIFIED' && a.activation_status !== 'ACTIVE' ? `<button class="btn btn-gold btn-sm" onclick="activateAccount('${a.id}')">activate</button>` : ''}
         ${a.activation_status === 'ACTIVE' ? `<button class="btn btn-ghost btn-sm" onclick="pauseAccount('${a.id}')">pause</button>` : a.activation_status === 'PAUSED' ? `<button class="btn btn-gold btn-sm" onclick="resumeAccount('${a.id}')">resume</button>` : ''}</td></tr>`).join('')}
-    </table>` : '<p style="color:var(--dim);font-size:13px">No accounts yet. Connect one above.</p>'}</div>
-  <div class="card" style="margin-top:14px"><h3>What customers would see now</h3>
-    ${(resolved.available || []).length ? (resolved.available || []).map(mth => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span class="mono">${esc(mth.network_code || mth.network || '')}</span><span class="badge b-ok">${esc(mth.health || 'live')}</span></div>`).join('') : '<p style="color:var(--dim);font-size:13px">No live payment methods yet — connect &amp; activate an account (and keep a Sentinel online for auto doors).</p>'}
+    </table>` : '<p style="color:var(--dim);font-size:13px">'+t('acc_none')+'</p>'}</div>
+  <div class="card" style="margin-top:14px"><h3>${t('acc_would_see')}</h3>
+    ${(resolved.available || []).length ? (resolved.available || []).map(mth => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span class="mono">${esc(mth.network_code || mth.network || '')}</span><span class="badge b-ok">${esc(mth.health || 'live')}</span></div>`).join('') : '<p style="color:var(--dim);font-size:13px">'+t('acc_no_live')+'</p>'}
     ${(resolved.excluded || []).length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--dim)">Why some are hidden (${resolved.excluded.length})</summary>${resolved.excluded.map(e => `<div class="mono" style="font-size:11px;color:var(--dim);padding:2px 0">${esc(e.network_code || e.network || '')} — ${esc(e.reason || '')}</div>`).join('')}</details>` : ''}</div>`);
 };
 window.connectAccount = async () => {
@@ -860,13 +866,13 @@ VIEWS.devices = async () => {
   const rows = await api('/app/devices');
   shell('devices', t('devices'), t('sub_devices'), `
   <div class="card" style="display:flex;gap:10px;flex-wrap:wrap">
-    <input id="dlabel" placeholder="Label — e.g. Caisse 2" style="flex:1;min-width:180px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
+    <input id="dlabel" placeholder="${t('dev_label_ph')}" style="flex:1;min-width:180px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
     <select id="dop" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px">
       <option value="orange_cd">Orange Money</option><option value="mpesa_cd">M-Pesa</option>
       <option value="airtel_cd">Airtel Money</option><option value="africell_cd">Africell Money</option>
       <option value="mtn_momo">MTN MoMo</option><option value="wave">Wave</option></select>
     <button class="btn btn-gold btn-sm" onclick="enrollDevice()">${t('enroll_device')}</button>
-    <a class="btn btn-ghost btn-sm" href="/sentinel" target="_blank" rel="noopener">Get the Sentinel app ↗</a>
+    <a class="btn btn-ghost btn-sm" href="/sentinel" target="_blank" rel="noopener">${t('dev_get_app')}</a>
   </div>
   <div id="device-out"></div>
   <div class="grid g2" style="margin-top:14px">
@@ -883,7 +889,7 @@ VIEWS.devices = async () => {
         ${d.enrol_code ? `<dt>enrol code</dt><dd class="mono" style="color:var(--gold)">${esc(d.enrol_code)}</dd>` : ''}
       </dl>
       ${d.status !== 'revoked' ? `<button class="btn btn-danger btn-sm" style="margin-top:12px" onclick="revokeDevice('${d.id}')">${t('revoke')}</button>` : ''}
-    </div>`).join('') || '<div class="empty">No devices yet.</div>'}
+    </div>`).join('') || '<div class="empty">'+t('dev_none')+'</div>'}
   </div>`);
 };
 window.enrollDevice = async () => {
@@ -918,17 +924,17 @@ VIEWS.pricing = async () => {
   const rank = (id) => order.indexOf(id);
   const card = (p) => {
     const isCur = p.id === current;
-    const price = p.usd === null ? 'Custom' : (p.usd === 0 ? 'Free' : '$' + p.usd);
-    const per = p.usd === null ? '' : (p.usd === 0 ? '/forever' : '/mo');
+    const price = p.usd === null ? t('pr_custom') : (p.usd === 0 ? t('pr_free') : '$' + p.usd);
+    const per = p.usd === null ? '' : (p.usd === 0 ? t('pr_forever') : t('pr_permo'));
     const up = rank(p.id) > rank(current);
-    const cta = isCur ? `<button class="btn btn-ghost" style="width:100%" disabled>✓ Current plan</button>`
-      : p.id === 'enterprise' ? `<a class="btn btn-gold" style="width:100%" href="/contact" target="_blank" rel="noopener">Talk to us →</a>`
-      : `<button class="btn ${up ? 'btn-gold' : 'btn-ghost'}" style="width:100%" onclick="choosePlan('${p.id}')">${up ? 'Upgrade' : 'Switch'} to ${esc(p.label)} →</button>`;
+    const cta = isCur ? `<button class="btn btn-ghost" style="width:100%" disabled>${t('pr_current')}</button>`
+      : p.id === 'enterprise' ? `<a class="btn btn-gold" style="width:100%" href="/contact" target="_blank" rel="noopener">${t('pr_talk')}</a>`
+      : `<button class="btn ${up ? 'btn-gold' : 'btn-ghost'}" style="width:100%" onclick="choosePlan('${p.id}')">${up ? t('pr_upgrade') : t('pr_switch')} ${esc(p.label)} →</button>`;
     return `<div class="card" style="${isCur ? 'border-color:var(--gold)' : ''};display:flex;flex-direction:column;gap:10px">
       <div style="display:flex;align-items:baseline;justify-content:space-between">
-        <h3 style="margin:0">${esc(p.label)}</h3>${isCur ? '<span class="badge b-ok">current</span>' : ''}</div>
+        <h3 style="margin:0">${esc(p.label)}</h3>${isCur ? '<span class="badge b-ok">'+t('pr_current_badge')+'</span>' : ''}</div>
       <div><span style="font-size:30px;font-weight:900">${price}</span><span style="color:var(--dim);font-size:13px">${per}</span></div>
-      <div class="mono" style="font-size:12px;color:var(--dim)">${p.verifs === null ? 'Unlimited' : fmt(p.verifs) + ' verifications'} / mo · ${p.rps} req/s</div>
+      <div class="mono" style="font-size:12px;color:var(--dim)">${p.verifs === null ? t('pr_unlimited') : fmt(p.verifs) + ' ' + t('pr_verifications')} / mo · ${p.rps} req/s</div>
       <ul style="list-style:none;padding:0;margin:4px 0;display:flex;flex-direction:column;gap:6px">
         ${(PLAN_FEATURES[p.id] || []).map(f => `<li style="font-size:13px;display:flex;gap:8px"><span style="color:var(--verify)">✓</span><span>${esc(f)}</span></li>`).join('')}
       </ul>
@@ -938,7 +944,7 @@ VIEWS.pricing = async () => {
   shell('pricing', t('title_pricing'), t('sub_pricing'), `
     <div id="plan-pay"></div>
     <div class="grid g3" style="align-items:stretch">${b.all_plans.map(card).join('')}</div>
-    <p style="margin-top:16px;font-size:13px;color:var(--dim)">Prices in USD. Paid plans are billed monthly and activate the moment KODA confirms your mobile-money payment. ACU top-ups (pay-as-you-go) are managed in <a href="#billing" style="color:var(--gold)">Billing</a>.</p>`);
+    <p style="margin-top:16px;font-size:13px;color:var(--dim)">${t('pr_prices_note')} <a href="#billing" style="color:var(--gold)">${t('billing')}</a>.</p>`);
   // arriving here to complete a chosen plan → open its payment picker
   const pending = sessionStorage.getItem('koda_pending_plan');
   if (pending) { sessionStorage.removeItem('koda_pending_plan'); setTimeout(() => setPlan(pending), 200); }
@@ -954,39 +960,39 @@ VIEWS.billing = async () => {
   <div class="grid g3">
     <div class="card stat"><b>${acuFmt(b.balance)}</b><span>${t('acu_balance')}</span></div>
     <div class="card stat"><b>${esc(b.plan.label)}</b><span>${t('plan')} · ${b.plan.usd === null ? 'custom' : '$' + b.plan.usd + '/mo'} · ${b.plan.verifs || '∞'} verifs</span></div>
-    <div class="card stat"><b>${fmt(b.usage.reduce((a, x) => a + (x.burned || 0), 0))}</b><span>ACU burned · 30 days</span></div>
+    <div class="card stat"><b>${fmt(b.usage.reduce((a, x) => a + (x.burned || 0), 0))}</b><span>${t('bl_burned')}</span></div>
   </div>
-  <div class="card" style="margin-top:14px"><h3>${t('topup')} — prepaid via mobile money, verified by KODA itself</h3>
+  <div class="card" style="margin-top:14px"><h3>${t('topup')} — ${t('bl_topup_suffix')}</h3>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       ${b.packs.map(p => `<button class="btn btn-ghost" onclick="topupPay(${p.acu},${p.usd})">$${p.usd} → ${fmt(p.acu)} ACU</button>`).join('')}
     </div>
     <div id="topup-out" style="margin-top:14px"></div>
   </div>
   <div class="card" style="margin-top:14px"><h3>${t('redeem_voucher')}</h3>
-    <p style="font-size:13px;color:var(--dim)">Bought a KODA voucher from a reseller? Enter the PIN to credit ACU instantly.</p>
+    <p style="font-size:13px;color:var(--dim)">${t('bl_voucher_p')}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="vpin" placeholder="KODA-CD-XXXX-XXXX-XXXX" style="flex:1;min-width:220px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px" class="mono">
       <button class="btn btn-gold" onclick="redeemVoucher()">${t('redeem_voucher')}</button></div>
     <div id="voucher-out" style="margin-top:10px"></div></div>
-  <div class="card" style="margin-top:14px"><h3>Distributor?</h3>
-    <p style="font-size:13px;color:var(--dim)">If KODA has set you up as a distributor (ACU reseller), manage your float and sales here.</p>
+  <div class="card" style="margin-top:14px"><h3>${t('bl_distributor')}</h3>
+    <p style="font-size:13px;color:var(--dim)">${t('bl_distributor_p')}</p>
     <a class="btn btn-ghost" href="#kd">${t('kd_console')} →</a></div>
   <div class="card" style="margin-top:14px"><h3>${t('change_plan')}</h3>
     <div class="pill-row">${plans.map(p => `<button class="pill ${b.plan.label.toLowerCase() === p ? 'on' : ''}" onclick="setPlan('${p}')">${p}</button>`).join('')}</div>
     <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $19 · Commerce $79 · Plateforme $399 · Enterprise custom — one ladder, all five doors.</div>
-    <p style="margin-top:8px"><a href="#pricing" style="color:var(--gold);font-size:13px">See all plans & features →</a></p>
+    <p style="margin-top:8px"><a href="#pricing" style="color:var(--gold);font-size:13px">${t('bl_see_all')}</a></p>
     <div id="plan-pay" style="margin-top:12px"></div>
   </div>
   <div class="grid g2" style="margin-top:14px">
-    <div class="card tbl-wrap"><h3>ACU transactions</h3><table class="tbl">
+    <div class="card tbl-wrap"><h3>${t('bl_acu_tx')}</h3><table class="tbl">
       ${b.transactions.slice(0, 12).map(x => `<tr><td class="mono" style="font-size:11.5px">${esc(x.kind)}</td>
         <td class="num" style="color:${x.delta > 0 ? 'var(--verify)' : 'var(--dim)'}">${x.delta > 0 ? '+' : ''}${fmt(x.delta)}</td>
         <td class="num" style="color:var(--dim)">${fmt(x.balance_after)}</td>
         <td class="mono" style="font-size:11px;color:var(--dim)">${when(x.created_at)}</td></tr>`).join('')}
     </table></div>
-    <div class="card tbl-wrap"><h3>Invoices</h3><table class="tbl">
+    <div class="card tbl-wrap"><h3>${t('bl_invoices')}</h3><table class="tbl">
       ${b.invoices.map(i => `<tr><td class="mono">${esc(i.number)}</td><td class="num">$${i.amount_usd}</td>
         <td><span class="badge ${i.status === 'paid' ? 'b-ok' : 'b-warn'}">${i.status}</span></td>
-        <td class="mono" style="font-size:11px;color:var(--dim)">${esc(i.period || '')}</td></tr>`).join('') || '<tr><td class="empty">None yet</td></tr>'}
+        <td class="mono" style="font-size:11px;color:var(--dim)">${esc(i.period || '')}</td></tr>`).join('') || '<tr><td class="empty">'+t('bl_none_yet')+'</td></tr>'}
     </table></div>
   </div>`);
   // arriving from a paid-plan signup → auto-open the payment picker for that plan
@@ -1099,22 +1105,22 @@ VIEWS.team = async () => {
   const d = await api('/app/team');
   shell('team', t('team'), t('sub_team'), `
   <div class="card" style="display:flex;gap:10px;flex-wrap:wrap">
-    <input id="tname" placeholder="Name" style="flex:1;min-width:140px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
-    <input id="temail" placeholder="Email" style="flex:1;min-width:180px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
+    <input id="tname" placeholder="${t('tm_name_ph')}" style="flex:1;min-width:140px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
+    <input id="temail" placeholder="${t('tm_email_ph')}" style="flex:1;min-width:180px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
     <select id="trole" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px">
       <option value="cashier">cashier</option><option value="manager">manager</option></select>
     <button class="btn btn-gold btn-sm" onclick="inviteMember()">${t('invite')}</button>
   </div>
   <div class="card tbl-wrap" style="margin-top:14px"><table class="tbl">
-    <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
+    <tr><th>${t('th_name')}</th><th>${t('th_email')}</th><th>${t('th_role')}</th><th>${t('th_status')}</th></tr>
     ${d.members.map(u => `<tr><td>${esc(u.name)}</td><td class="mono" style="font-size:12px">${esc(u.email)}</td>
       <td>${(ME.user.role === 'owner' || ME.user.is_admin) && u.id !== ME.user.id ? `<select onchange="setMemberRole('${u.id}',this.value)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:6px;color:var(--text);padding:5px">${['cashier', 'manager', 'owner'].map(r => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${r}</option>`).join('')}</select>` : `<span class="badge b-info">${esc(u.role)}</span>`}</td>
       <td><span class="badge ${u.status === 'active' ? 'b-ok' : 'b-bad'}">${esc(u.status)}</span></td></tr>`).join('')}
   </table></div>
-  <div class="card" style="margin-top:14px"><h3>Audit trail</h3>
+  <div class="card" style="margin-top:14px"><h3>${t('tm_audit')}</h3>
     ${d.audit.slice(0, 15).map(a => `<div class="feed-row"><div class="feed-ic f-dim">·</div>
       <div><div class="t">${esc(a.action)} <span style="color:var(--dim)">· ${esc(a.name || 'system')}</span></div>
-      <div class="m">${esc(a.detail || '')} · ${when(a.created_at)}</div></div></div>`).join('') || '<div class="empty">Empty</div>'}
+      <div class="m">${esc(a.detail || '')} · ${when(a.created_at)}</div></div></div>`).join('') || '<div class="empty">'+t('tm_empty')+'</div>'}
   </div>`);
 };
 window.setMemberRole = async (id, role) => { try { await api(`/app/team/${id}/role`, { body: { role } }); toast('✓ role → ' + role); } catch (e) { toast('✗ ' + e.message); route(); } };
@@ -1377,14 +1383,14 @@ window.copyGrowth = (btn) => {
 VIEWS.settings = async () => {
   const m = ME.merchant;
   shell('settings', t('settings'), esc(m.name), `
-  <div class="card"><h3>Business profile</h3>
+  <div class="card"><h3>${t('st_profile')}</h3>
     <dl class="kv">
       <dt>name</dt><dd>${esc(m.name)}</dd><dt>country</dt><dd>${esc(m.country)}</dd>
       <dt>currency</dt><dd>${esc(m.currency)}</dd><dt>msisdn</dt><dd class="mono">${esc(m.msisdn || '—')}</dd>
       <dt>plan</dt><dd>${esc(m.plan)}</dd><dt>brand colour</dt><dd><span style="display:inline-block;width:14px;height:14px;background:${esc(m.brand_color)};border-radius:4px;vertical-align:-2px"></span> ${esc(m.brand_color)} (used on customer receipts & emails)</dd>
     </dl></div>
   <div class="card" style="margin-top:14px"><h3>${t('language')}</h3>
-    <p style="font-size:13px;color:var(--dim);margin-bottom:10px">The OS auto-detects your device language (LinguaAgent K-07). Override:</p>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:10px">${t('st_lang_note')}</p>
     <div class="pill-row">
       <button class="pill ${!LANG ? 'on' : ''}" onclick="setLang('')">${t('auto')} — ${(navigator.language || 'fr')}</button>
       ${LANG_OPTIONS.map(([v, n]) => `<button class="pill ${LANG === v ? 'on' : ''}" onclick="setLang('${v}')">${n}</button>`).join('')}
@@ -1396,11 +1402,11 @@ VIEWS.settings = async () => {
         ? `<p style="font-size:13px;color:var(--dim);margin-bottom:10px">Install KODA as an app — works offline for the console shell; verifications sync when back online.</p>
            <button class="btn btn-gold" style="width:auto;padding:10px 18px" onclick="window.kodaInstall()">Install KODA app</button>`
         : '<p style="font-size:13px;color:var(--dim)">Install KODA on your phone: if no install button appears, use the browser menu → "Add to Home screen" / "Install app". Works offline for the console shell; verifications sync when back online.</p>')}</div>
-  <div class="card" style="margin-top:14px"><h3>Your data &amp; privacy</h3>
-    <p style="font-size:13px;color:var(--dim)">Download everything KODA holds for your business, or delete your account. ${ME.user.role === 'owner' || ME.user.is_admin ? '' : '(Deletion is owner-only.)'}</p>
+  <div class="card" style="margin-top:14px"><h3>${t('st_data')}</h3>
+    <p style="font-size:13px;color:var(--dim)">${t('st_data_p')} ${ME.user.role === 'owner' || ME.user.is_admin ? '' : t('st_deletion_owner')}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-ghost" onclick="exportMyData()">Download my data (JSON)</button>
-      ${ME.user.role === 'owner' || ME.user.is_admin ? `<button class="btn btn-danger" onclick="deleteMyAccount()">Delete account</button>` : ''}
+      <button class="btn btn-ghost" onclick="exportMyData()">${t('st_download')}</button>
+      ${ME.user.role === 'owner' || ME.user.is_admin ? `<button class="btn btn-danger" onclick="deleteMyAccount()">${t('st_delete')}</button>` : ''}
     </div></div>`);
 };
 window.exportMyData = async () => {
