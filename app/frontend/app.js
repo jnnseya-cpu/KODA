@@ -296,7 +296,7 @@ function shell(active, title, sub, content) {
   root.innerHTML = `
   <div class="shell">
     <aside class="side" id="side">
-      <div class="logo"><span class="tick">✓</span>KODA</div>
+      <div class="logo" style="cursor:pointer" title="Dashboard" onclick="location.hash='#dashboard'"><span class="tick">✓</span>KODA</div>
       ${nav.map(([id, ic, label]) => id.startsWith('sec')
         ? `<div class="nav-sec">${label}</div>`
         : `<button class="nav-item ${active === id ? 'on' : ''}" onclick="location.hash='#${id}'">
@@ -442,7 +442,7 @@ function authCard(inner) {
     ['/developers', 'Developers'], ['/industries', 'Industries'], ['/blog', 'Blog'],
   ];
   return `<div class="auth-wrap"><div class="auth-card">
-    <div class="logo"><span class="tick">✓</span>KODA</div>${inner}
+    <a class="logo" href="/" style="text-decoration:none;color:inherit" title="Home"><span class="tick">✓</span>KODA</a>${inner}
     <div class="auth-site">
       ${site.map(([h, l]) => `<a href="${h}">${l}</a>`).join('<span>·</span>')}
     </div></div></div>`;

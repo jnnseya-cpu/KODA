@@ -95,7 +95,7 @@
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <div class="logo">KO<b>D</b>A · <span id="t-demo">Démo</span></div>
+  <div class="logo"><a href="/" style="color:inherit;text-decoration:none">KO<b>D</b>A</a> · <span id="t-demo">Démo</span></div>
   <div class="langsw" id="langsw"></div>
 </div></header>
 
@@ -148,7 +148,7 @@
       wa_h:'Porte 2 — WhatsApp', wa_l:'Le client dépose son code dans la conversation. KODA répond dans le fil.',
       wa_send:'Envoyer le code', wa_status:'en ligne', wa_reply:'✅ Paiement confirmé — 25 000 FC reçus de Marie Kalala. Réf OM4F2K9.',
       api_h:'Porte 3 — API', api_l:'Pour les plateformes : intention → paiement → vérification, sans humain. Exemple d’échange :',
-      api_run:'Rejouer l’appel', api_verified:'Statut : vérifié — commande débloquée.',
+      api_run:'Lancer la requête', api_verified:'Statut : vérifié — commande débloquée.',
       ussd_h:'Porte 4 — USSD', ussd_l:'Pour tout téléphone, sans smartphone ni internet. Composez le code court.',
       ussd_dial:'Composer *789#', ussd_next:'Suivant',
       smsdoor_h:'Porte 5 — SMS entrant (Sentinel)', smsdoor_l:'Sentinel transfère le SMS opérateur ; KODA vérifie automatiquement, sans intervention.',
@@ -174,7 +174,7 @@
       wa_h:'Door 2 — WhatsApp', wa_l:'The customer drops their code in the chat. KODA replies in the thread.',
       wa_send:'Send the code', wa_status:'online', wa_reply:'✅ Payment confirmed — 25,000 FC received from Marie Kalala. Ref OM4F2K9.',
       api_h:'Door 3 — API', api_l:'For platforms: intent → pay → verify, no human. Example exchange:',
-      api_run:'Replay the call', api_verified:'Status: verified — order unlocked.',
+      api_run:'Run the request', api_verified:'Status: verified — order unlocked.',
       ussd_h:'Door 4 — USSD', ussd_l:'For any phone — no smartphone, no internet. Dial the shortcode.',
       ussd_dial:'Dial *789#', ussd_next:'Next',
       smsdoor_h:'Door 5 — Inbound SMS (Sentinel)', smsdoor_l:'Sentinel forwards the operator SMS; KODA verifies automatically, hands-free.',
@@ -212,9 +212,11 @@
     }
     if (opts.expectAmount != null && f.amount !== opts.expectAmount){ score += 0.45; reasons.push('amount_mismatch'); }
     if (f.generic){ score += 0.2; reasons.push('generic_low_trust'); }
-    // replay: a reference already consumed in this session is dead
+    // replay: a reference already consumed in this session is dead. Skipped for
+    // the happy-path door demos (noConsume) so each door shows its OWN clean
+    // verification — replay is demonstrated on purpose in the Fraud Lab.
     var refKey = String(f.ref||'').toUpperCase();
-    if (used[refKey]){ return { band:'reject', score:0.99, parsed:f, reasons:['replay'] }; }
+    if (!opts.noConsume && used[refKey]){ return { band:'reject', score:0.99, parsed:f, reasons:['replay'] }; }
     score = Math.min(0.99, score);
     var band = score < 0.15 ? 'confirm' : score <= 0.6 ? 'challenge' : 'reject';
     if (band==='confirm'){ reasons.unshift('parsed_ok'); if(!opts.noConsume){ used[refKey]=true; } }
@@ -299,7 +301,7 @@
       th.innerHTML+='<div class="bub me">'+GOOD_REF+'<span class="t">14:02</span></div><div class="clr"></div>';
       var typing=document.createElement('div'); typing.innerHTML='<div class="bub them" style="opacity:.7">'+t.typing+'</div><div class="clr"></div>';
       th.appendChild(typing);
-      var res=evaluate(GOOD_SMS,{});
+      var res=evaluate(GOOD_SMS,{noConsume:true});
       setTimeout(function(){
         typing.remove();
         var reply = res.band==='confirm'? t.wa_reply : (res.band==='challenge'? '⏳ '+t.v_warn : '⛔ '+t.v_bad);
@@ -317,7 +319,7 @@
       '<pre class="code">'+req1+'\n\n'+res1+'\n\n'+req2+'</pre>'+
       '<div style="margin-top:12px"><button class="btn" id="api-go">'+t.api_run+'</button><div id="api-out"></div></div>';
     document.getElementById('api-go').onclick=function(){
-      var res=evaluate(GOOD_SMS,{});
+      var res=evaluate(GOOD_SMS,{noConsume:true});
       var out='<pre class="code"><span class="c">// → 200</span>\n{ "status": <span class="s">"verified"</span>, "receipt_id": <span class="s">"rcp_7c1"</span>,\n  "amount": <span class="s">25000</span>, "reference": <span class="s">"OM4F2K9"</span> }</pre>';
       document.getElementById('api-out').innerHTML=out+verdictHtml(res);
       logLedger('API', res);
@@ -343,7 +345,7 @@
     document.getElementById('u-go').onclick=function(){
       var scr=document.getElementById('u-scr'), btn=document.getElementById('u-go');
       scr.textContent=steps[i]; i++;
-      if (i>=steps.length){ btn.textContent=t.ussd_dial; i=0; var res=evaluate(GOOD_SMS,{}); logLedger('USSD',res); }
+      if (i>=steps.length){ btn.textContent=t.ussd_dial; i=0; var res=evaluate(GOOD_SMS,{noConsume:true}); logLedger('USSD',res); }
       else btn.textContent=t.ussd_next;
     };
   }
@@ -356,7 +358,7 @@
     document.getElementById('sd-go').onclick=function(){
       var sms=document.getElementById('sd-sms'), flow=document.getElementById('sd-flow');
       sms.style.opacity='1'; flow.textContent='📡 '+t.smsdoor_fwd;
-      var res=evaluate(GOOD_SMS,{});
+      var res=evaluate(GOOD_SMS,{noConsume:true});
       setTimeout(function(){
         flow.textContent='✓ '+t.smsdoor_auto;
         document.getElementById('sd-out').innerHTML=verdictHtml(res);
