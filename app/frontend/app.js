@@ -28,6 +28,11 @@ const I18N = {
     reset_sub: 'Choisissez un nouveau mot de passe pour votre compte KODA.',
     reset_done: 'Mot de passe mis à jour. Redirection vers la connexion…',
     accounts: 'Comptes de paiement', redeem_voucher: 'Utiliser un bon', kd_console: 'Console distributeur',
+    sub_verify: 'Porte 1 — Mode manuel · même moteur que l’API', sub_disputes: 'DisputeAgent K-06 assemble les preuves — vous décidez',
+    sub_accounts: 'Connectez les comptes mobile money où vos clients paient — vérifiez la propriété, puis activez',
+    sub_devices: 'La flotte de terrain — chaque SIM est un point de vérification', sub_billing: '« On ne gagne que lorsque le marchand est payé. »',
+    sub_team: 'Sièges avec audit par caissier', sub_pricing: 'Une seule échelle, les cinq portes — changez de formule à tout moment, sans engagement',
+    title_pricing: 'Formules & tarifs', title_receipt: 'Reçu', sub_developers: 'Trois requêtes. Un café. — kodajnn.com/v1', sub_growth: 'Outils marketing IA · K-11',
   },
   en: {
     dashboard: 'Dashboard', verify: 'Verify', feed: 'Live payments feed', receipts: 'Receipts',
@@ -54,6 +59,11 @@ const I18N = {
     reset_sub: 'Choose a new password for your KODA account.',
     reset_done: 'Password updated. Redirecting to sign in…',
     accounts: 'Payment methods', redeem_voucher: 'Redeem voucher', kd_console: 'Distributor console',
+    sub_verify: 'Door 1 — Manual mode · same engine as the API', sub_disputes: 'DisputeAgent K-06 assembles the evidence — you decide',
+    sub_accounts: 'Connect the mobile-money accounts customers pay you on — verify ownership, then activate',
+    sub_devices: 'The edge fleet — each SIM is a verification endpoint', sub_billing: '"We only earn when the merchant gets paid."',
+    sub_team: 'Seats with per-cashier audit', sub_pricing: 'One ladder, all five doors — upgrade or downgrade anytime, no lock-in',
+    title_pricing: 'Plans & pricing', title_receipt: 'Receipt', sub_developers: 'Three requests. One coffee. — kodajnn.com/v1', sub_growth: 'AI marketing tools · K-11',
   },
   // Swahili (sw) — East/Central Africa. Full UI translation (machine-quality; pending native review).
   sw: {
@@ -81,6 +91,11 @@ const I18N = {
     reset_sub: 'Chagua nywila mpya kwa akaunti yako ya KODA.',
     reset_done: 'Nywila imesasishwa. Inaelekeza kwenye kuingia…',
     accounts: 'Njia za malipo', redeem_voucher: 'Tumia vocha', kd_console: 'Konsoli ya msambazaji',
+    sub_verify: 'Mlango 1 — Hali ya mikono · injini ile ile kama API', sub_disputes: 'DisputeAgent K-06 hukusanya ushahidi — wewe unaamua',
+    sub_accounts: 'Unganisha akaunti za pesa za simu ambapo wateja hukulipa — thibitisha umiliki, kisha washa',
+    sub_devices: 'Kundi la mbele — kila SIM ni kituo cha uthibitisho', sub_billing: '"Tunapata tu wakati mfanyabiashara analipwa."',
+    sub_team: 'Viti vyenye ukaguzi kwa kila keshia', sub_pricing: 'Ngazi moja, milango yote mitano — panda au shuka wakati wowote, bila mkataba',
+    title_pricing: 'Mipango na bei', title_receipt: 'Risiti', sub_developers: 'Maombi matatu. Kahawa moja. — kodajnn.com/v1', sub_growth: 'Zana za masoko za AI · K-11',
   },
   // Lingala (ln) — DR Congo / Congo-Brazzaville. Core UI translated; longer legal/verification
   // strings fall back to French (a language Lingala speakers read) — see LANG_FALLBACK.
@@ -106,6 +121,11 @@ const I18N = {
     reset_sub: 'Pona mot de passe ya sika mpo na konti KODA na yo.',
     reset_done: 'Mot de passe ebongisami. Ezali kozonga na kokota…',
     accounts: 'Banzela ya kofuta', redeem_voucher: 'Salela bon', kd_console: 'Console ya mokaboli',
+    sub_verify: 'Porte 1 — Mode manuel · moteur moko na API', sub_disputes: 'DisputeAgent K-06 asangisi bilembo — yo nde okokata',
+    sub_accounts: 'Kangisa bakonti ya mobile money oyo baclients bafutaka yo — talela bonkolo, sima fungola',
+    sub_devices: 'Basaleli ya libanda — SIM nyonso ezali esika ya botali', sub_billing: '« Tozwaka mbongo kaka soki moto ya mombongo afutami. »',
+    sub_team: 'Bakiti na audit ya caissier moko na moko', sub_pricing: 'Etape moko, baporte nyonso mitano — bongola formule ntango nyonso, engagement te',
+    title_pricing: 'Baformule & ntalo', title_receipt: 'Reçu', sub_developers: 'Ba requêtes misato. Kafe moko. — kodajnn.com/v1', sub_growth: 'Bisaleli AI ya marketing · K-11',
   },
   // Wolof (wo) — Senegal / Gambia. Core UI translated; longer strings fall back to French.
   wo: {
@@ -130,6 +150,11 @@ const I18N = {
     reset_sub: 'Tannal baatujàll bu bees ngir sa kont KODA.',
     reset_done: 'Baatujàll soppiku na. Mu ngi dellu ci dugg…',
     accounts: 'Anam yu peye', redeem_voucher: 'Jëfandikoo bon', kd_console: 'Console distributeur',
+    sub_verify: 'Buntu 1 — Mode manuel · moteur bu API bi', sub_disputes: 'DisputeAgent K-06 dafay dajale firnde yi — yaw ngay dogal',
+    sub_accounts: 'Boole komptu mobile money yi kiliyaan yi di feye — seetlul moom, ba noppi taxawal',
+    sub_devices: 'Mbooloo mi — SIM bu nekk benn barab bu seetlu', sub_billing: '« Danuy am xaalis rekk bu njëkkkat bi feyee. »',
+    sub_team: 'Toogu ak audit bu kees bu nekk', sub_pricing: 'Benn escalier, juróom buntu yépp — soppi plan saa yu nekk, amul engagement',
+    title_pricing: 'Plan & njëg', title_receipt: 'Reçu', sub_developers: 'Ñetti requête. Benn kafe. — kodajnn.com/v1', sub_growth: 'Jumtukaay marketing AI · K-11',
   },
   // Twi / Akan (ak) — Ghana. Core UI translated; longer strings fall back to English.
   ak: {
@@ -154,6 +179,11 @@ const I18N = {
     reset_sub: 'Yi password foforɔ ma wo KODA akawnt.',
     reset_done: 'Wɔasesa password. Ɛresan akɔ sign in…',
     accounts: 'Sika tua akwan', redeem_voucher: 'Gye voucher', kd_console: 'Distributor console',
+    sub_verify: 'Ɔpon 1 — Nsa so kwan · engine korɔ no ara sɛ API', sub_disputes: 'DisputeAgent K-06 boaboa adanseɛ ano — wo na wobɛsi gyinae',
+    sub_accounts: 'Fa mobile money akawnt a wo customers tua wɔ so ka ho — hwɛ sɛ wo dea, na yi no adwuma',
+    sub_devices: 'Mfidie a ɛwɔ ano — SIM biara yɛ nhwehwɛmu beaeɛ', sub_billing: '"Yɛnya sika bere a wɔatua odwadini no nko ara."',
+    sub_team: 'Nkonnwa a cashier biara wɔ audit', sub_pricing: 'Atwedeɛ baako, apon nnum no nyinaa — sesa plan bere biara, nhyehyɛeɛ biara nni ho',
+    title_pricing: 'Nhyehyɛeɛ & bo', title_receipt: 'Nkrataa', sub_developers: 'Abisadeɛ mmiɛnsa. Kɔfe baako. — kodajnn.com/v1', sub_growth: 'AI marketing nnwuma · K-11',
   },
 };
 // A language that only partly covers the UI falls back to its regional lingua franca
@@ -549,7 +579,7 @@ function verdictMsg(r) {
 }
 
 VIEWS.verify = async () => {
-  shell('verify', t('verify_title'), 'Door 1 — Manual mode · same engine as the API', `
+  shell('verify', t('verify_title'), t('sub_verify'), `
   <div class="console">
     <h2>${t('verify_title')}</h2>
     <div class="hint">${t('verify_hint')}</div>
@@ -686,7 +716,7 @@ VIEWS.receipts = async () => {
 };
 VIEWS.receipt = async (params) => {
   const r = await api('/app/receipts/' + params.get('id'));
-  shell('receipts', 'Receipt', r.id, `
+  shell('receipts', t('title_receipt'), r.id, `
   <div class="card"><dl class="kv">
     <dt>reference</dt><dd class="mono">${esc(r.reference)}</dd>
     <dt>amount</dt><dd>${fmt(r.amount)} ${esc(r.currency)}</dd>
@@ -701,7 +731,7 @@ VIEWS.receipt = async (params) => {
 
 VIEWS.disputes = async () => {
   const rows = await api('/app/disputes');
-  shell('disputes', t('disputes'), 'DisputeAgent K-06 assembles the evidence — you decide', `
+  shell('disputes', t('disputes'), t('sub_disputes'), `
   <div class="card" style="display:flex;gap:10px;flex-wrap:wrap">
     <input id="dref" placeholder="${t('reference')}" style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--mono);font-size:12.5px">
     <input id="dwhy" placeholder="Customer claim / reason" style="flex:2;min-width:220px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
@@ -734,7 +764,7 @@ VIEWS.accounts = async () => {
   const accts = await api('/app/network-accounts');
   const resolved = await api('/app/payment-methods').catch(() => ({ available: [], excluded: [] }));
   const devices = await api('/app/devices').catch(() => []);
-  shell('accounts', t('accounts'), 'Connect the mobile-money accounts customers pay you on — verify ownership, then activate', `
+  shell('accounts', t('accounts'), t('sub_accounts'), `
   <div class="card"><h3>Add a receiving account</h3>
     <p style="font-size:13px;color:var(--dim)">Enter the operator + the number/till customers pay to. We give you a one-time reference; make a tiny test payment carrying it, and once your Sentinel captures it the account is verified.</p>
     <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:680px">
@@ -801,7 +831,7 @@ window.kdBuy = async () => {
 
 VIEWS.devices = async () => {
   const rows = await api('/app/devices');
-  shell('devices', t('devices'), 'The edge fleet — each SIM is a verification endpoint', `
+  shell('devices', t('devices'), t('sub_devices'), `
   <div class="card" style="display:flex;gap:10px;flex-wrap:wrap">
     <input id="dlabel" placeholder="Label — e.g. Caisse 2" style="flex:1;min-width:180px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
     <select id="dop" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px">
@@ -878,7 +908,7 @@ VIEWS.pricing = async () => {
       <div style="margin-top:auto">${cta}</div>
     </div>`;
   };
-  shell('pricing', 'Plans & pricing', 'One ladder, all five doors — upgrade or downgrade anytime, no lock-in', `
+  shell('pricing', t('title_pricing'), t('sub_pricing'), `
     <div id="plan-pay"></div>
     <div class="grid g3" style="align-items:stretch">${b.all_plans.map(card).join('')}</div>
     <p style="margin-top:16px;font-size:13px;color:var(--dim)">Prices in USD. Paid plans are billed monthly and activate the moment KODA confirms your mobile-money payment. ACU top-ups (pay-as-you-go) are managed in <a href="#billing" style="color:var(--gold)">Billing</a>.</p>`);
@@ -893,7 +923,7 @@ window.choosePlan = (p) => { setPlan(p); };
 VIEWS.billing = async () => {
   const b = await api('/app/billing');
   const plans = ['marche', 'boutique', 'commerce', 'plateforme'];
-  shell('billing', t('billing'), '"We only earn when the merchant gets paid."', `
+  shell('billing', t('billing'), t('sub_billing'), `
   <div class="grid g3">
     <div class="card stat"><b>${acuFmt(b.balance)}</b><span>${t('acu_balance')}</span></div>
     <div class="card stat"><b>${esc(b.plan.label)}</b><span>${t('plan')} · ${b.plan.usd === null ? 'custom' : '$' + b.plan.usd + '/mo'} · ${b.plan.verifs || '∞'} verifs</span></div>
@@ -1040,7 +1070,7 @@ window.subscribePlan = async (plan, rail) => {
 
 VIEWS.team = async () => {
   const d = await api('/app/team');
-  shell('team', t('team'), 'Seats with per-cashier audit', `
+  shell('team', t('team'), t('sub_team'), `
   <div class="card" style="display:flex;gap:10px;flex-wrap:wrap">
     <input id="tname" placeholder="Name" style="flex:1;min-width:140px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
     <input id="temail" placeholder="Email" style="flex:1;min-width:180px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-size:13px">
@@ -1069,7 +1099,7 @@ window.inviteMember = async () => {
 VIEWS.developers = async () => {
   const keys = await api('/app/keys');
   const wh = await api('/app/webhooks');
-  shell('developers', t('developers'), 'Three endpoints. One coffee. — kodajnn.com/v1', `
+  shell('developers', t('developers'), t('sub_developers'), `
   <div class="grid g2">
     <div class="card"><h3>API keys</h3>
       <p style="font-size:12.5px;color:var(--dim);margin-bottom:8px">Tap a button below to create a key (shown once). For testing use <b>Create sk_test</b>.</p>
