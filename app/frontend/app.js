@@ -33,6 +33,7 @@ const I18N = {
     sub_devices: 'La flotte de terrain — chaque SIM est un point de vérification', sub_billing: '« On ne gagne que lorsque le marchand est payé. »',
     sub_team: 'Sièges avec audit par caissier', sub_pricing: 'Une seule échelle, les cinq portes — changez de formule à tout moment, sans engagement',
     title_pricing: 'Formules & tarifs', title_receipt: 'Reçu', sub_developers: 'Trois requêtes. Un café. — kodajnn.com/v1', sub_growth: 'Outils marketing IA · K-11',
+    d_14day: 'Vérifications sur 14 jours', d_nodata: 'Aucune donnée — vérifiez votre premier paiement.', d_doors: 'Portes utilisées', d_devices: 'Appareils', d_none: 'aucun', d_quick: 'Vérification rapide', v_screenshot: 'Capture d’écran (Vision ×3 ACU)', v_sandbox: 'Références magiques (bac à sable)', f_inject_label: 'SANDBOX — injecter un SMS opérateur :', f_inject: 'Injecter', f_unparsed: 'SMS non analysé', f_matched: 'rattaché', f_unmatched: 'non rattaché', f_empty: 'Aucun SMS — enrôlez un appareil Sentinel ou injectez un SMS de test.', r_payer: 'Payeur', r_mode: 'Mode', r_risk: 'Risque', r_when: 'Quand', r_verified_count: 'vérifiés', r_empty: 'Aucun reçu pour l’instant.', rc_trace: 'Trace de décision (qualité audit)',
   },
   en: {
     dashboard: 'Dashboard', verify: 'Verify', feed: 'Live payments feed', receipts: 'Receipts',
@@ -64,6 +65,7 @@ const I18N = {
     sub_devices: 'The edge fleet — each SIM is a verification endpoint', sub_billing: '"We only earn when the merchant gets paid."',
     sub_team: 'Seats with per-cashier audit', sub_pricing: 'One ladder, all five doors — upgrade or downgrade anytime, no lock-in',
     title_pricing: 'Plans & pricing', title_receipt: 'Receipt', sub_developers: 'Three requests. One coffee. — kodajnn.com/v1', sub_growth: 'AI marketing tools · K-11',
+    d_14day: '14-day verifications', d_nodata: 'No data yet — verify your first payment.', d_doors: 'Doors in use', d_devices: 'Devices', d_none: 'none', d_quick: 'Quick verify', v_screenshot: 'Screenshot (Vision ×3 ACU)', v_sandbox: 'Sandbox magic references', f_inject_label: 'SANDBOX — inject an operator SMS:', f_inject: 'Inject', f_unparsed: 'Unparsed SMS', f_matched: 'matched', f_unmatched: 'unmatched', f_empty: 'No SMS yet — enroll a Sentinel device or inject a sandbox SMS.', r_payer: 'Payer', r_mode: 'Mode', r_risk: 'Risk', r_when: 'When', r_verified_count: 'verified', r_empty: 'No receipts yet.', rc_trace: 'Decision trace (audit-grade)',
   },
   // Swahili (sw) — East/Central Africa. Full UI translation (machine-quality; pending native review).
   sw: {
@@ -96,6 +98,7 @@ const I18N = {
     sub_devices: 'Kundi la mbele — kila SIM ni kituo cha uthibitisho', sub_billing: '"Tunapata tu wakati mfanyabiashara analipwa."',
     sub_team: 'Viti vyenye ukaguzi kwa kila keshia', sub_pricing: 'Ngazi moja, milango yote mitano — panda au shuka wakati wowote, bila mkataba',
     title_pricing: 'Mipango na bei', title_receipt: 'Risiti', sub_developers: 'Maombi matatu. Kahawa moja. — kodajnn.com/v1', sub_growth: 'Zana za masoko za AI · K-11',
+    d_14day: 'Uthibitisho wa siku 14', d_nodata: 'Hakuna data bado — thibitisha malipo yako ya kwanza.', d_doors: 'Milango inayotumika', d_devices: 'Vifaa', d_none: 'hakuna', d_quick: 'Uthibitisho wa haraka', v_screenshot: 'Picha ya skrini (Vision ×3 ACU)', v_sandbox: 'Marejeleo ya majaribio (sandbox)', f_inject_label: 'SANDBOX — ingiza SMS ya opereta:', f_inject: 'Ingiza', f_unparsed: 'SMS isiyochambuliwa', f_matched: 'imelingana', f_unmatched: 'haijalingana', f_empty: 'Hakuna SMS bado — sajili kifaa cha Sentinel au ingiza SMS ya majaribio.', r_payer: 'Mlipaji', r_mode: 'Hali', r_risk: 'Hatari', r_when: 'Lini', r_verified_count: 'zimethibitishwa', r_empty: 'Hakuna risiti bado.', rc_trace: 'Ufuatiliaji wa uamuzi (kiwango cha ukaguzi)',
   },
   // Lingala (ln) — DR Congo / Congo-Brazzaville. Core UI translated; longer legal/verification
   // strings fall back to French (a language Lingala speakers read) — see LANG_FALLBACK.
@@ -126,6 +129,7 @@ const I18N = {
     sub_devices: 'Basaleli ya libanda — SIM nyonso ezali esika ya botali', sub_billing: '« Tozwaka mbongo kaka soki moto ya mombongo afutami. »',
     sub_team: 'Bakiti na audit ya caissier moko na moko', sub_pricing: 'Etape moko, baporte nyonso mitano — bongola formule ntango nyonso, engagement te',
     title_pricing: 'Baformule & ntalo', title_receipt: 'Reçu', sub_developers: 'Ba requêtes misato. Kafe moko. — kodajnn.com/v1', sub_growth: 'Bisaleli AI ya marketing · K-11',
+    d_14day: 'Botali ya mikolo 14', d_nodata: 'Ata data te — talela lifuti na yo ya liboso.', d_doors: 'Baporte oyo ezali kosalema', d_devices: 'Bisaleli', d_none: 'ata moko te', d_quick: 'Botali ya mbangu', v_screenshot: 'Screenshot (Vision ×3 ACU)', v_sandbox: 'Ba références ya komeka (sandbox)', f_inject_label: 'SANDBOX — kotisa SMS ya opérateur:', f_inject: 'Kotisa', f_unparsed: 'SMS eanalisami te', f_matched: 'ekangami', f_unmatched: 'ekangami te', f_empty: 'Ata SMS te — kokoma esaleli Sentinel to kotisa SMS ya komeka.', r_payer: 'Mofuti', r_mode: 'Mode', r_risk: 'Likama', r_when: 'Tango', r_verified_count: 'etalami', r_empty: 'Ata reçu te.', rc_trace: 'Trace ya mokano (audit)',
   },
   // Wolof (wo) — Senegal / Gambia. Core UI translated; longer strings fall back to French.
   wo: {
@@ -155,6 +159,7 @@ const I18N = {
     sub_devices: 'Mbooloo mi — SIM bu nekk benn barab bu seetlu', sub_billing: '« Danuy am xaalis rekk bu njëkkkat bi feyee. »',
     sub_team: 'Toogu ak audit bu kees bu nekk', sub_pricing: 'Benn escalier, juróom buntu yépp — soppi plan saa yu nekk, amul engagement',
     title_pricing: 'Plan & njëg', title_receipt: 'Reçu', sub_developers: 'Ñetti requête. Benn kafe. — kodajnn.com/v1', sub_growth: 'Jumtukaay marketing AI · K-11',
+    d_14day: 'Seetlu ci 14 fan', d_nodata: 'Amul data — seetlul sa peyeman bu njëkk.', d_doors: 'Buntu yiy jëfandikoo', d_devices: 'Jumtukaay', d_none: 'benn amul', d_quick: 'Seetlu bu gaaw', v_screenshot: 'Screenshot (Vision ×3 ACU)', v_sandbox: 'Référence yu sandbox', f_inject_label: 'SANDBOX — dugal SMS opérateur:', f_inject: 'Dugal', f_unparsed: 'SMS bu ñu seetlu', f_matched: 'boole', f_unmatched: 'booleul', f_empty: 'Amul SMS — bindal jumtukaay Sentinel walla dugal SMS sandbox.', r_payer: 'Feykat', r_mode: 'Mode', r_risk: 'Risk', r_when: 'Kañ', r_verified_count: 'dëggal', r_empty: 'Amul reçu.', rc_trace: 'Trace bu décision (audit)',
   },
   // Twi / Akan (ak) — Ghana. Core UI translated; longer strings fall back to English.
   ak: {
@@ -184,6 +189,7 @@ const I18N = {
     sub_devices: 'Mfidie a ɛwɔ ano — SIM biara yɛ nhwehwɛmu beaeɛ', sub_billing: '"Yɛnya sika bere a wɔatua odwadini no nko ara."',
     sub_team: 'Nkonnwa a cashier biara wɔ audit', sub_pricing: 'Atwedeɛ baako, apon nnum no nyinaa — sesa plan bere biara, nhyehyɛeɛ biara nni ho',
     title_pricing: 'Nhyehyɛeɛ & bo', title_receipt: 'Nkrataa', sub_developers: 'Abisadeɛ mmiɛnsa. Kɔfe baako. — kodajnn.com/v1', sub_growth: 'AI marketing nnwuma · K-11',
+    d_14day: 'Nhwɛmu nnansa 14', d_nodata: 'Data biara nni hɔ — hwɛ wo sika tua a edi kan no ho.', d_doors: 'Apon a wɔde di dwuma', d_devices: 'Mfidie', d_none: 'ebiara nni hɔ', d_quick: 'Nhwɛ ntɛm', v_screenshot: 'Screenshot (Vision ×3 ACU)', v_sandbox: 'Sandbox magic references', f_inject_label: 'SANDBOX — fa operator SMS hyɛ mu:', f_inject: 'Fa hyɛ mu', f_unparsed: 'SMS a wɔnyaa mu', f_matched: 'ahyia', f_unmatched: 'anhyia', f_empty: 'SMS biara nni hɔ — kyerɛw Sentinel mfidie anaa fa sandbox SMS hyɛ mu.', r_payer: 'Otuafoɔ', r_mode: 'Ɛkwan', r_risk: 'Asiane', r_when: 'Bere', r_verified_count: 'wɔahwɛ ho', r_empty: 'Nkrataa biara nni hɔ.', rc_trace: 'Gyinaesie akwan (audit)',
   },
 };
 // A language that only partly covers the UI falls back to its regional lingua franca
@@ -544,10 +550,10 @@ VIEWS.dashboard = async () => {
     <div class="card stat"><b>${acuFmt(d.acu)}</b><span>${t('acu_balance')} · <a href="#billing" style="color:var(--gold)">${t('topup')}</a></span></div>
   </div>
   <div class="grid g2" style="margin-top:14px">
-    <div class="card"><h3>14-day verifications</h3>
-      <div class="bars">${d.daily.map(x => `<i style="height:${Math.round(100 * x.c / max)}%" title="${x.d}: ${x.c}"></i>`).join('') || '<div class="empty">No data yet — verify your first payment.</div>'}</div>
+    <div class="card"><h3>${t('d_14day')}</h3>
+      <div class="bars">${d.daily.map(x => `<i style="height:${Math.round(100 * x.c / max)}%" title="${x.d}: ${x.c}"></i>`).join('') || '<div class="empty">'+t('d_nodata')+'</div>'}</div>
     </div>
-    <div class="card"><h3>Doors in use</h3>
+    <div class="card"><h3>${t('d_doors')}</h3>
       ${['manual', 'chat', 'api'].map(mode => {
         const c = (d.byMode.find(x => x.mode === mode) || {}).c || 0;
         const tot = d.byMode.reduce((a, x) => a + x.c, 0) || 1;
@@ -555,12 +561,12 @@ VIEWS.dashboard = async () => {
           <span class="mono">${mode.toUpperCase()}</span><span class="mono" style="color:var(--dim)">${c}</span></div>
           <div class="progress"><i style="width:${Math.round(100 * c / tot)}%"></i></div></div>`;
       }).join('')}
-      <div style="margin-top:14px;font-size:12.5px;color:var(--dim)">Devices: ${d.devices.map(x =>
-        `<span class="badge ${x.status === 'active' ? 'b-ok' : 'b-bad'}">${esc(x.label.split('—')[0])}</span>`).join(' ') || 'none'}
+      <div style="margin-top:14px;font-size:12.5px;color:var(--dim)">${t('d_devices')}: ${d.devices.map(x =>
+        `<span class="badge ${x.status === 'active' ? 'b-ok' : 'b-bad'}">${esc(x.label.split('—')[0])}</span>`).join(' ') || t('d_none')}
         · ${t('open_disputes')}: ${d.disputes}</div>
     </div>
   </div>
-  <div class="card" style="margin-top:14px"><h3>Quick verify</h3>
+  <div class="card" style="margin-top:14px"><h3>${t('d_quick')}</h3>
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <input id="qref" placeholder="${t('reference')} — e.g. OM.260717.1402.G34410" style="flex:1;min-width:240px;background:var(--ink);border:1px solid var(--line-strong);border-radius:9px;color:var(--text);padding:11px 13px;font-family:var(--mono)">
       <button class="btn btn-gold" onclick="quickVerify()">${t('verify_btn')}</button>
@@ -588,7 +594,7 @@ VIEWS.verify = async () => {
       <input id="amt" placeholder="${t('expected_amount')}" inputmode="numeric">
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-gold" onclick="consoleVerify(false)">✓ ${t('verify_btn')}</button>
-        <button class="btn btn-ghost" style="color:var(--paper-ink);border-color:rgba(36,31,20,.25)" onclick="consoleVerify(true)">📷 Screenshot (Vision ×3 ACU)</button>
+        <button class="btn btn-ghost" style="color:var(--paper-ink);border-color:rgba(36,31,20,.25)" onclick="consoleVerify(true)">📷 ${t('v_screenshot')}</button>
       </div>
     </div>
     <div class="verdict" id="verdict"></div>
@@ -601,7 +607,7 @@ VIEWS.verify = async () => {
     <div style="margin-top:10px"><button class="btn btn-gold" onclick="verifySms(this)">📩 ${t('paste_sms_btn')}</button></div>
     <div class="verdict" id="smsverdict"></div>
   </div>
-  <div class="card" style="margin-top:14px"><h3>Sandbox magic references</h3>
+  <div class="card" style="margin-top:14px"><h3>${t('v_sandbox')}</h3>
     <div class="mono" style="font-size:12px;color:var(--dim);line-height:2">
       TEST-OK-25000 → instant verified · TEST-REPLAY → code_already_used · TEST-SUFFIX → challenge flow
     </div></div>
@@ -658,22 +664,22 @@ VIEWS.feed = async () => {
   const rows = await api('/app/feed');
   shell('feed', t('feed'), t('auto_stream'), `
   <div class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-    <span class="mono" style="font-size:11px;color:var(--dim)">SANDBOX — inject an operator SMS:</span>
+    <span class="mono" style="font-size:11px;color:var(--dim)">${t('f_inject_label')}</span>
     <input id="raw" placeholder='Vous avez recu 25 000 FC de ALICE K (+243897721). Ref: OM.260717.1500.H12345. Solde: 400 500'
       style="flex:1;min-width:260px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:9px 12px;font-family:var(--mono);font-size:12px">
-    <button class="btn btn-gold btn-sm" onclick="injectSms()">Inject</button>
+    <button class="btn btn-gold btn-sm" onclick="injectSms()">${t('f_inject')}</button>
   </div>
   <div class="card" style="margin-top:14px">
     ${rows.map(s => `
       <div class="feed-row">
         <div class="feed-ic ${s.quarantined ? 'f-bad' : s.matched_intent_id ? 'f-ok' : 'f-dim'}">${s.quarantined ? '✗' : s.matched_intent_id ? '✓' : '·'}</div>
-        <div><div class="t">${esc(s.counterparty_name || 'Unparsed SMS')} <span class="mono" style="color:var(--dim)">${s.counterparty_suffix ? '···' + s.counterparty_suffix : ''}</span>
-          ${s.quarantined ? `<span class="badge b-bad">${t('quarantined')}</span>` : s.matched_intent_id ? '<span class="badge b-ok">matched</span>' : '<span class="badge b-dim">unmatched</span>'}</div>
+        <div><div class="t">${esc(s.counterparty_name || t('f_unparsed'))} <span class="mono" style="color:var(--dim)">${s.counterparty_suffix ? '···' + s.counterparty_suffix : ''}</span>
+          ${s.quarantined ? `<span class="badge b-bad">${t('quarantined')}</span>` : s.matched_intent_id ? ('<span class="badge b-ok">'+t('f_matched')+'</span>') : ('<span class="badge b-dim">'+t('f_unmatched')+'</span>')}</div>
         <div class="m">${esc(s.ref_code || '—')} · ${esc(s.operator)} · ${when(s.received_at)}${s.balance_after ? ` · bal ${fmt(s.balance_after)}` : ''}</div></div>
         <div class="amt">${s.amount ? '+' + fmt(s.amount) : ''}</div>
         ${(!s.quarantined && !s.matched_intent_id && s.ref_code && s.amount != null)
           ? `<button class="btn btn-gold btn-sm" style="margin-left:10px" onclick="confirmFeed('${s.id}', this)">${t('confirm_pay')}</button>` : ''}
-      </div>`).join('') || '<div class="empty">No SMS yet — enroll a Sentinel device or inject a sandbox SMS.</div>'}
+      </div>`).join('') || '<div class="empty">'+t('f_empty')+'</div>'}
   </div>
   <div style="text-align:center;margin-top:14px">
     <a href="#verify" class="mono" style="font-size:12px;color:var(--dim)">${t('manual_verify')} →</a>
@@ -702,9 +708,9 @@ window.confirmFeed = async (id, btn) => {
 
 VIEWS.receipts = async () => {
   const rows = await api('/app/receipts');
-  shell('receipts', t('receipts'), `${rows.length} verified`, `
+  shell('receipts', t('receipts'), `${rows.length} ${t('r_verified_count')}`, `
   <div class="card tbl-wrap"><table class="tbl">
-    <tr><th>${t('reference')}</th><th>Payer</th><th class="num">${t('amount')}</th><th>Mode</th><th>Risk</th><th>When</th></tr>
+    <tr><th>${t('reference')}</th><th>${t('r_payer')}</th><th class="num">${t('amount')}</th><th>${t('r_mode')}</th><th>${t('r_risk')}</th><th>${t('r_when')}</th></tr>
     ${rows.map(r => `<tr>
       <td class="mono" style="font-size:12px"><a href="#receipt?id=${r.id}" style="color:var(--gold)">${esc(r.reference)}</a></td>
       <td>${esc(r.payer_name_masked || '—')}</td>
@@ -712,7 +718,7 @@ VIEWS.receipts = async () => {
       <td><span class="badge b-info">${esc(r.mode)}</span></td>
       <td class="mono" style="font-size:12px">${r.risk_score}</td>
       <td class="mono" style="font-size:11.5px;color:var(--dim)">${when(r.verified_at)}</td></tr>`).join('')}
-  </table>${rows.length ? '' : '<div class="empty">No receipts yet.</div>'}</div>`);
+  </table>${rows.length ? '' : '<div class="empty">'+t('r_empty')+'</div>'}</div>`);
 };
 VIEWS.receipt = async (params) => {
   const r = await api('/app/receipts/' + params.get('id'));
@@ -725,7 +731,7 @@ VIEWS.receipt = async (params) => {
     <dt>mode</dt><dd>${esc(r.mode)}</dd><dt>risk score</dt><dd>${r.risk_score}</dd>
     <dt>ACU</dt><dd>${r.acu_cost}</dd><dt>verified</dt><dd>${when(r.verified_at)}</dd>
   </dl>
-  <h3 style="margin:18px 0 8px">Decision trace (audit-grade)</h3>
+  <h3 style="margin:18px 0 8px">${t('rc_trace')}</h3>
   <div class="codebox">${(r.decision_trace.steps || []).map(esc).join('\n') || 'sandbox'}</div></div>`);
 };
 
