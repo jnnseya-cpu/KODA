@@ -454,6 +454,22 @@ db.exec(`CREATE TABLE IF NOT EXISTS network_flags (
 );`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_network_flags_value ON network_flags(kind, value_hash);`);
 
+// SecurityAgent: abuse/attack event log + auto-block list (built-in, zero-dep).
+db.exec(`CREATE TABLE IF NOT EXISTS security_events (
+  id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,                              -- pow_fail|honeypot|bad_login|injection|scan|...
+  ip TEXT,
+  detail TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_secev_ip ON security_events(ip, created_at);`);
+db.exec(`CREATE TABLE IF NOT EXISTS blocked_ips (
+  ip TEXT PRIMARY KEY,
+  reason TEXT,
+  until TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
 // hot verify path runs ~10 statements, so caching keeps the money path fast.

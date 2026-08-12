@@ -13,6 +13,7 @@ const VERSION = require('../shared/version');
 const networks = require('./lib/networks');
 const trustNet = require('./lib/trust_network');   // ADD-ON B: cross-merchant trust/fraud network
 const crosscheck = require('./lib/crosscheck');     // ADD-ON A: operator-API dual-confirm
+const security = require('./lib/security');         // SecurityAgent: human gate + anti-abuse
 const billing = require('./lib/billing');
 const vouchers = require('./lib/vouchers');
 
@@ -26,7 +27,13 @@ function audit(mid, uid, action, detail) {
 
 module.exports = function registerRoutes(r) {
   // ---------- auth ----------
+  // SecurityAgent: a signed proof-of-work challenge the signup/login forms solve
+  // to prove a human (not a bot) is on the other end. Stateless + public.
+  r.get('/app/auth/challenge', () => security.issueChallenge());
+
   r.post('/app/auth/signup', (req) => {
+    const ip = security.clientIp(req.headers);
+    const gate = security.humanCheck(req.body, ip); if (gate.ok !== true) return gate; // honeypot + proof-of-work
     const { business, name, email, phone, password, country = 'CD', currency = 'CDF' } = req.body;
     if (!business || !email || !password || !name) return [400, { error: 'missing_fields' }];
     if (q.get('SELECT id FROM users WHERE email=?', email)) return [409, { error: 'email_taken' }];
@@ -47,10 +54,11 @@ module.exports = function registerRoutes(r) {
     const { email, password } = req.body;
     // brute-force / credential-stuffing throttle: 10 attempts / 60s per email+IP
     const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'ip';
+    const gate = security.humanCheck(req.body, security.clientIp(req.headers)); if (gate.ok !== true) return gate; // honeypot + proof-of-work
     if (bruteLimited('login:' + String(email || '').toLowerCase() + ':' + ip))
       return [429, { error: { code: 'too_many_attempts', retry_after: 60 } }];
     const user = q.get('SELECT * FROM users WHERE email=?', String(email || '').toLowerCase());
-    if (!user || !U.verifyPassword(password || '', user.pass_hash)) return [401, { error: 'invalid_credentials' }];
+    if (!user || !U.verifyPassword(password || '', user.pass_hash)) { security.record('bad_login', security.clientIp(req.headers), { email: String(email || '').slice(0, 60) }); return [401, { error: 'invalid_credentials' }]; }
     if (user.status !== 'active') return [403, { error: 'account_suspended' }];
     const merchant = user.merchant_id ? q.get('SELECT * FROM merchants WHERE id=?', user.merchant_id) : null;
     notify.fire('auth.login.success', { user, merchant });
@@ -655,6 +663,14 @@ module.exports = function registerRoutes(r) {
   }));
 
   // ---------- admin control centre ----------
+  // SecurityAgent dashboard: human-gate status, event breakdown, blocked IPs.
+  r.get('/app/admin/security', admin(() => security.summary()));
+  // let an admin manually unblock (or block) an IP.
+  r.post('/app/admin/security/unblock', admin((req) => {
+    try { q.run('DELETE FROM blocked_ips WHERE ip=?', String((req.body || {}).ip || '')); } catch {}
+    return { ok: true };
+  }));
+
   r.get('/app/admin/overview', admin(() => {
     const ops = require('../shared/operators');
     return {

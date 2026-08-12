@@ -117,6 +117,10 @@ const server = http.createServer(async (req, res) => {
   // API routes
   const match = routes.find(r => r.m === req.method && r.p.re.test(url.pathname));
   if (match) {
+    // SecurityAgent edge gate: turn away an auto-blocked source early.
+    const security = require('./lib/security');
+    const _ip = security.clientIp(req.headers) || req.socket.remoteAddress || '';
+    if (security.isBlocked(_ip)) return send(403, { error: { code: 'blocked', message: 'Access temporarily blocked by KODA SecurityAgent.' } });
     let body = {};
     let rawBody = Buffer.alloc(0);
     if (req.method !== 'GET') {
@@ -126,6 +130,8 @@ const server = http.createServer(async (req, res) => {
       try { body = rawBody.length ? JSON.parse(rawBody.toString()) : {}; }
       catch { return send(400, { error: 'invalid_json' }); }
     }
+    // passive injection scan — records (and may auto-block on repeats); never alters the response.
+    if (security.scanInput(body)) security.record('injection', _ip, { path: url.pathname });
     const m = url.pathname.match(match.p.re);
     const params = Object.fromEntries(match.p.keys.map((k, i) => [k, m[i + 1]]));
     try {

@@ -371,6 +371,7 @@ const VIEWS = {};
 VIEWS.login = () => {
   root.innerHTML = authCard(`
     <h1>${t('signin')}</h1><p>KODA — le code confirme le cash.</p>
+    <input id="hp" name="hp_field" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
     <div class="field"><label>Email</label><input id="em" type="email" placeholder="you@business.com" autocomplete="username"></div>
     ${pwField('pw', '••••••••', 'current-password')}
     <div style="text-align:right;margin:-6px 0 12px"><a href="#forgot" style="color:var(--gold);font-size:12.5px">${t('forgot_pw')}</a></div>
@@ -411,6 +412,7 @@ window.doAuthorize = async () => {
 VIEWS.signup = (params) => {
   root.innerHTML = authCard(`
     <h1>${t('signup')}</h1><p>Three doors, one engine. Start free on Marché.</p>
+    <input id="hp" name="hp_field" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
     <div class="field"><label>Business name</label><input id="biz" placeholder="Maison Kivu"></div>
     <div class="field"><label>Your name</label><input id="nm"></div>
     <div class="field"><label>Email</label><input id="em" type="email"></div>
@@ -491,16 +493,35 @@ function returnHash() {
   } catch {}
   return null;
 }
+// SecurityAgent human check: fetch a signed challenge and solve its proof-of-work
+// (a few thousand hashes — instant for a person, costly for a bot at scale), and
+// read the honeypot field. Returned fields ride along with signup/login.
+async function humanToken() {
+  try {
+    const ch = await api('/app/auth/challenge');
+    const enc = new TextEncoder(), target = '0'.repeat(ch.difficulty || 3);
+    let pow = '0';
+    for (let n = 0; n < 8e6; n++) {
+      const buf = await crypto.subtle.digest('SHA-256', enc.encode(ch.challenge + ':' + n));
+      const hex = Array.from(new Uint8Array(buf), b => b.toString(16).padStart(2, '0')).join('');
+      if (hex.startsWith(target)) { pow = String(n); break; }
+    }
+    const hpEl = document.getElementById('hp');
+    return { challenge: ch, pow, hp_field: hpEl ? hpEl.value : '' };
+  } catch { return {}; }
+}
 window.doLogin = async () => {
   try {
-    const r = await api('/app/auth/login', { body: { email: v('em'), password: v('pw') } });
+    const h = await humanToken();
+    const r = await api('/app/auth/login', { body: { email: v('em'), password: v('pw'), ...h } });
     localStorage.setItem('koda_token', r.token); ME = await api('/app/me');
     location.hash = returnHash() || '#dashboard';
   } catch (e) { toast('✗ ' + (e.message || 'login failed')); }
 };
 window.doSignup = async (plan) => {
   try {
-    const r = await api('/app/auth/signup', { body: { business: v('biz'), name: v('nm'), email: v('em'), phone: v('ph'), password: v('pw') } });
+    const h = await humanToken();
+    const r = await api('/app/auth/signup', { body: { business: v('biz'), name: v('nm'), email: v('em'), phone: v('ph'), password: v('pw'), ...h } });
     localStorage.setItem('koda_token', r.token); ME = await api('/app/me');
     // Paid plan chosen on the pricing page → take them to Billing and open the
     // payment picker (KODA mobile money / card). Free plan → straight to the app.

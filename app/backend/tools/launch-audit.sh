@@ -36,6 +36,7 @@ run "financial: webhook"      node app/backend/tools/test-billing-webhook.js
 run "functional: whole-OS"    env KODA_BASE="$B" node app/backend/tools/test-full-os.js
 run "add-ons: dual+network"   env KODA_BASE="$B" node app/backend/tools/test-addons.js
 run "security: adversarial"   env KODA_BASE="$B" node app/backend/tools/test-adversarial.js
+run "security: human+block"   env KODA_BASE="$B" node app/backend/tools/test-security.js
 run "perf: load/soak"         env KODA_BASE="$B" LOAD_PID="$SRV" LOAD_TOTAL=8000 LOAD_CONCURRENCY=64 node app/backend/tools/test-load.js
 if [ -x "${CHROME:-/opt/pw-browsers/chromium-1194/chrome-linux/chrome}" ]; then
   run "browser: real Chromium"  env KODA_BASE="$B" node app/backend/tools/test-browser.js
