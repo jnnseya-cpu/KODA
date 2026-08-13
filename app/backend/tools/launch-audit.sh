@@ -33,6 +33,8 @@ run "unit: agents"            node app/backend/tools/test-agents.js
 run "unit: doors"             env KODA_BASE="$B" node app/backend/tools/test-doors.js
 run "DR: backup-restore"      node app/backend/tools/test-backup-restore.js
 run "financial: webhook"      node app/backend/tools/test-billing-webhook.js
+run "financial: billing mesh" node app/backend/tools/test-billing.js
+run "financial: real rails"   node app/backend/tools/test-rails.js
 run "functional: whole-OS"    env KODA_BASE="$B" node app/backend/tools/test-full-os.js
 run "add-ons: dual+network"   env KODA_BASE="$B" node app/backend/tools/test-addons.js
 run "security: adversarial"   env KODA_BASE="$B" node app/backend/tools/test-adversarial.js

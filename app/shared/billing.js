@@ -20,7 +20,8 @@
   const RAILS = {
     paddle_mor:    { label: 'Card / global (Merchant of Record)', fee_pct: 0.050, flow: 'HOSTED_CHECKOUT',    recurring: true,  tax: 'MOR',  live: true,  rank: 2 },
     stripe:        { label: 'Card',                               fee_pct: 0.029, flow: 'HOSTED_CHECKOUT',    recurring: true,  tax: null,   live: true,  rank: 2 },
-    flutterwave:   { label: 'Mobile money',                       fee_pct: 0.038, flow: 'MOBILE_MONEY_PUSH',  recurring: false, tax: null,   live: true,  rank: 3 },
+    paystack:      { label: 'Card / bank / MoMo (Paystack)',      fee_pct: 0.039, flow: 'HOSTED_CHECKOUT',    recurring: true,  tax: null,   live: true,  rank: 2 },
+    flutterwave:   { label: 'Card / mobile money (Flutterwave)',  fee_pct: 0.038, flow: 'HOSTED_CHECKOUT',    recurring: false, tax: null,   live: true,  rank: 3 },
     dlocal:        { label: 'Mobile money / local',               fee_pct: 0.055, flow: 'MOBILE_MONEY_PUSH',  recurring: false, tax: 'MOR',  live: true,  rank: 3 },
     bitripay:      { label: 'BitriPay',                           fee_pct: 0.020, flow: 'MOBILE_MONEY_PUSH',  recurring: true,  tax: null,   live: false, rank: 4 },
     distributor:   { label: 'Pay an agent near you',              fee_pct: 0.150, flow: 'AGENT',             recurring: false, tax: null,   live: true,  rank: 5 },

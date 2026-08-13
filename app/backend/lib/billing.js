@@ -13,14 +13,59 @@ const B = require('../../shared/billing');
 // itself. FAIL CLOSED: no configured secret or a bad/absent signature ⇒ reject and
 // settle nothing. Real adapters map their own header/scheme onto this HMAC check.
 function verifyWebhook(provider, req) {
-  const secret = process.env['KODA_WEBHOOK_SECRET_' + String(provider || '').toUpperCase()] || process.env.KODA_WEBHOOK_SECRET;
+  provider = String(provider || '').toLowerCase();
+  const raw = req.rawBody != null ? req.rawBody : Buffer.from(JSON.stringify(req.body || {}));
+  const body = req.body || safeJson(raw);
+  // Real provider schemes: each activates ONLY when that provider's own secret is set,
+  // so an environment configured for real Stripe/Paystack/Flutterwave verifies natively.
+  if (provider === 'stripe' && process.env.STRIPE_WEBHOOK_SECRET) return verifyStripe(req, raw, body);
+  if (provider === 'paystack' && process.env.PAYSTACK_KEY) return verifyPaystack(req, raw, body);
+  if (provider === 'flutterwave' && process.env.FLUTTERWAVE_WEBHOOK_HASH) return verifyFlutterwave(req, body);
+  // Generic KODA-signed scheme (sandbox, tests, bank_transfer, admin tools). FAIL CLOSED.
+  const secret = process.env['KODA_WEBHOOK_SECRET_' + provider.toUpperCase()] || process.env.KODA_WEBHOOK_SECRET;
   if (!secret) return { ok: false, reason: 'no_secret_configured' };   // never settle from an unsigned/unconfigured webhook
   const sig = String(req.headers['x-koda-signature'] || req.headers['x-webhook-signature'] || '');
-  const raw = req.rawBody != null ? req.rawBody : Buffer.from(JSON.stringify(req.body || {}));
   const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
   const a = Buffer.from(sig), e = Buffer.from(expected);
   const ok = a.length === e.length && crypto.timingSafeEqual(a, e);
-  return { ok };
+  return { ok, topup_id: (body && body.topup_id) || null };
+}
+function safeJson(raw) { try { return JSON.parse(raw.toString()); } catch { return {}; } }
+function timingEqHex(aHex, bHex) {
+  const a = Buffer.from(String(aHex)), b = Buffer.from(String(bHex));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+// Stripe: header `Stripe-Signature: t=<ts>,v1=<hmac>`; HMAC-SHA256 of `${t}.${rawBody}`
+// with the endpoint's whsec. Settle only on checkout.session.completed (paid).
+function verifyStripe(req, raw, body) {
+  const header = String(req.headers['stripe-signature'] || '');
+  const parts = Object.fromEntries(header.split(',').map(kv => kv.split('=').map(s => s.trim())));
+  if (!parts.t || !parts.v1) return { ok: false, reason: 'bad_signature_header' };
+  const expected = crypto.createHmac('sha256', process.env.STRIPE_WEBHOOK_SECRET).update(`${parts.t}.${raw.toString()}`).digest('hex');
+  if (!timingEqHex(parts.v1, expected)) return { ok: false, reason: 'bad_signature' };
+  const obj = (body && body.data && body.data.object) || {};
+  const tid = obj.client_reference_id || (obj.metadata && obj.metadata.topup_id) || null;
+  const paid = body.type === 'checkout.session.completed' && (obj.payment_status ? obj.payment_status === 'paid' : true);
+  return { ok: true, topup_id: tid, paid, event: body.type };
+}
+// Paystack: header `x-paystack-signature` = HMAC-SHA512 of the raw body with the secret key.
+function verifyPaystack(req, raw, body) {
+  const sig = String(req.headers['x-paystack-signature'] || '');
+  const expected = crypto.createHmac('sha512', process.env.PAYSTACK_KEY).update(raw).digest('hex');
+  if (!timingEqHex(sig, expected)) return { ok: false, reason: 'bad_signature' };
+  const data = (body && body.data) || {};
+  const tid = data.reference || (data.metadata && data.metadata.topup_id) || null;
+  const paid = body.event === 'charge.success' && (data.status ? data.status === 'success' : true);
+  return { ok: true, topup_id: tid, paid, event: body.event };
+}
+// Flutterwave: header `verif-hash` must equal the configured secret hash (constant compare).
+function verifyFlutterwave(req, body) {
+  const sig = String(req.headers['verif-hash'] || '');
+  if (!timingEqHex(sig, process.env.FLUTTERWAVE_WEBHOOK_HASH)) return { ok: false, reason: 'bad_signature' };
+  const data = (body && body.data) || {};
+  const tid = data.tx_ref || (data.meta && data.meta.topup_id) || null;
+  const paid = (data.status || '').toLowerCase() === 'successful';
+  return { ok: true, topup_id: tid, paid, event: body.event || 'charge.completed' };
 }
 
 // ── ledger: append-only, double-entry, balance_after chained per account ──────
@@ -45,18 +90,48 @@ function post(entries, { topupId, idempotencyKey, ref } = {}) {
   return { idempotent: false };
 }
 
-// ── provider registry (sandbox adapters — real keys swap the send, not the shape) ──
+// ── provider registry ────────────────────────────────────────────────────────
+// createSession stays SYNCHRONOUS (the money-path and its tests call it inline).
+// When a provider's API key is configured, we return a KODA redirect URL
+// (/billing/go/:id); clicking it mints the REAL hosted checkout in the async
+// startProviderSession() below. When no key is set we keep the sandbox URL, so
+// tests and un-configured environments behave exactly as before.
+const PROVIDER_KEY_ENV = { stripe: 'STRIPE_KEY', paddle_mor: 'PADDLE_KEY', flutterwave: 'FLUTTERWAVE_KEY', dlocal: 'DLOCAL_KEY', bitripay: 'BITRIPAY_KEY', paystack: 'PAYSTACK_KEY' };
+function publicBase() { return (process.env.KODA_PUBLIC_URL || 'http://localhost:4600').replace(/\/$/, ''); }
+const LIVE_ADAPTER = new Set(['stripe', 'paystack', 'flutterwave']); // rails with a real REST adapter
 const PROVIDERS = {};
 function register(code, adapter) { PROVIDERS[code] = { providerCode: code, ...adapter }; }
 // Card / MoR / aggregator rails: a hosted/push session; settlement arrives by webhook.
-for (const code of ['stripe', 'paddle_mor', 'flutterwave', 'dlocal', 'bitripay', 'bank_transfer']) {
+for (const code of ['stripe', 'paystack', 'paddle_mor', 'flutterwave', 'dlocal', 'bitripay', 'bank_transfer']) {
   register(code, {
     createSession(topup) {
-      const provider = process.env[code.toUpperCase() + '_KEY'] ? code : 'sandbox';
-      return { flow: B.RAILS[code].flow, provider, checkout_url: `sandbox://${code}/${topup.id}`, provider_ref: 'sb_' + U.token(4) };
+      const keyEnv = PROVIDER_KEY_ENV[code];
+      const flow = (B.RAILS[code] && B.RAILS[code].flow) || 'HOSTED_CHECKOUT';
+      if (keyEnv && process.env[keyEnv] && LIVE_ADAPTER.has(code)) {
+        // real rail: defer the provider call to the /billing/go redirect (kept async there)
+        return { flow, provider: code, checkout_url: `${publicBase()}/billing/go/${topup.id}`, provider_ref: null };
+      }
+      return { flow, provider: 'sandbox', checkout_url: `sandbox://${code}/${topup.id}`, provider_ref: 'sb_' + U.token(4) };
     },
   });
 }
+
+// Async: mint the REAL provider checkout for a pending top-up/plan and return its URL.
+// Called only from the /billing/go/:id redirect route — never from the sync money-path.
+async function startProviderSession(topupId) {
+  const t = q.get('SELECT * FROM topups WHERE id=?', topupId);
+  if (!t) return { error: 'topup_not_found' };
+  if (t.status === 'settled') return { url: `${appBase()}/app/#billing?paid=1` };
+  const providers = require('./rail_providers');
+  const ctx = {
+    success_url: `${appBase()}/app/#${t.purpose === 'plan' ? 'billing?paid=1' : 'billing?topup=1'}`,
+    cancel_url: `${appBase()}/app/#billing?cancelled=1`,
+  };
+  const r = await providers.createCheckout(t.rail, t, ctx);
+  if (r && r.provider_ref) q.run('UPDATE topups SET provider_ref=? WHERE id=?', r.provider_ref, t.id);
+  return r;
+}
+function appBase() { return (process.env.KODA_APP_URL || process.env.KODA_PUBLIC_URL || 'http://localhost:4600').replace(/\/$/, ''); }
 
 // ── methods for a merchant context (routing + server-side quote per rail) ──────
 function methods(merchant, ctx = {}) {
@@ -312,7 +387,8 @@ function planMethods(planKey) {
     methods: [
       { rail: 'koda', label: 'KODA Mobile Money (pay to our DRC number)', available: !!process.env.KODA_COLLECT_MSISDN, quote: planQuote(planKey, 'koda') },
       { rail: 'stripe', label: 'Card (Stripe)', available: !!process.env.STRIPE_KEY, quote: planQuote(planKey, 'stripe') },
-      { rail: 'bitripay', label: 'BitriPay', available: B.RAILS.bitripay.live === true && !!process.env.BITRIPAY_KEY, quote: B.RAILS.bitripay.live === true ? planQuote(planKey, 'bitripay') : null },
+      { rail: 'paystack', label: 'Card / bank / MoMo (Paystack)', available: !!process.env.PAYSTACK_KEY, quote: planQuote(planKey, 'paystack') },
+      { rail: 'flutterwave', label: 'Card / mobile money (Flutterwave)', available: !!process.env.FLUTTERWAVE_KEY, quote: planQuote(planKey, 'flutterwave') },
     ],
   };
 }
@@ -386,6 +462,6 @@ function matchKodaCollection(amountLocal) {
 module.exports = {
   methods, createTopup, settleTopup, topupView, reconcile, post, acctBalance, verifyWebhook,
   distributorFloat, wholesalePurchase, createDistributorTopup, settleDistributorTopup, matchDistributorPayment,
-  planMethods, planQuote, createPlanCheckout,
+  planMethods, planQuote, createPlanCheckout, startProviderSession,
   matchKodaCollection, assignExpectedLocal, localCurrency,
 };

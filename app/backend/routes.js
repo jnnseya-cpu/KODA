@@ -1181,9 +1181,23 @@ module.exports = function registerRoutes(r) {
     // signature before doing anything. No secret / bad signature ⇒ never settle.
     const v = billing.verifyWebhook(req.params.provider, req);
     if (!v.ok) return [401, { error: { code: 'webhook_unverified' } }];
-    const tid = req.body && req.body.topup_id;
+    // Real providers send their own event; only a successful-payment event settles.
+    // (paid===false ⇒ acknowledge so the provider stops retrying, but credit nothing.)
+    if (v.paid === false) return { ok: true, ignored: true, event: v.event };
+    const tid = v.topup_id || (req.body && req.body.topup_id);
     if (!tid) return [400, { error: { code: 'topup_id_required' } }];
     return billing.settleTopup(tid);
+  });
+
+  // Buyer-facing redirect: turns a pending card/PSP checkout into the provider's real
+  // hosted page. Kept isolated + async so the synchronous billing money-path stays sync.
+  // The topup id is an unguessable capability token (like a checkout client_secret).
+  r.get('/billing/go/:id', async (req) => {
+    const t = q.get('SELECT * FROM topups WHERE id=?', req.params.id);
+    if (!t) return [404, { error: { code: 'not_found' } }];
+    const r0 = await billing.startProviderSession(t.id);
+    if (r0 && r0.url) return [302, { redirecting_to: r0.url }, { Location: r0.url }];
+    return [502, { error: { code: 'provider_error', detail: (r0 && (r0.detail || r0.error)) || 'no_checkout_url' } }];
   });
 
   // ---- Sentinel heartbeat: keeps device health fresh for the resolver (§9.3) ----
