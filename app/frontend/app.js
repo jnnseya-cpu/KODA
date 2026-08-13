@@ -1820,7 +1820,7 @@ async function adminCollection() {
     <span id="cn-out" style="font-size:13px"></span>
   </div>`);
 }
-window.addCollectNumber = () => { _collectNums.push({ operator: '', msisdn: '', label: '', active: true }); syncCollectFromDom(); document.getElementById('cn-list').innerHTML = renderCollectRows(); };
+window.addCollectNumber = () => { syncCollectFromDom(); _collectNums.push({ operator: '', msisdn: '', label: '', active: true }); document.getElementById('cn-list').innerHTML = renderCollectRows(); };
 window.removeCollectNumber = (i) => { syncCollectFromDom(); _collectNums.splice(i, 1); document.getElementById('cn-list').innerHTML = renderCollectRows(); };
 function renderCollectRows() {
   const opList = ['', 'orange_cd', 'mpesa_cd', 'airtel_cd', 'africell_cd', 'mtn_momo', 'wave'];
