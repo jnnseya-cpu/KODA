@@ -144,6 +144,45 @@ the £2.99/mo automated-daily add-on is worth it for a payments product).
 
 ---
 
+## Step 9 — Turn on real payment collection (how KODA gets paid for plans)
+
+This is **System B** — how *KODA* collects subscription/top-up money from merchants.
+It never touches a merchant's own customer payments. Plan checkout offers **two
+rails**; full reference in `docs/BILLING_RAILS.md`.
+
+### A) Mobile money — KODA's own engine (Door 3, no third party, no fee)
+The buyer pays KODA's Orange/M-Pesa/Airtel number; KODA's Sentinel on that SIM sees
+the operator SMS and **auto-verifies + activates the plan** — no code to paste.
+
+1. **Run one KODA receiving SIM.** Pick (or create) a KODA-owned merchant account to
+   be the *collector*, and pair a phone running the **Sentinel app** on the SIM that
+   holds your receiving number (same enrolment as any merchant device).
+2. In the app: **Admin → Collection setup** — add the receiving number(s), choose the
+   collector account, set the currency + USD→local rate, **Save**. *(Stored in the DB,
+   no env editing. The `KODA_COLLECT_*` vars in `.env` are only a boot fallback.)*
+3. That's it — the mobile-money rail is now live on plan checkout.
+
+### B) Card (Visa/Mastercard) — Stripe
+1. In `nano .env` add:
+   ```
+   STRIPE_KEY=sk_live_xxx
+   STRIPE_WEBHOOK_SECRET=whsec_xxx
+   ```
+2. In the **Stripe dashboard → Developers → Webhooks**, add endpoint
+   `https://kodajnn.com/webhooks/billing/stripe` for event `checkout.session.completed`.
+3. Redeploy: `docker compose up -d --build`. The card rail now appears on plan checkout.
+
+### C) (Optional) extra rails for ACU top-ups
+Paystack (NG/GH/KE/ZA cards+bank+MoMo) and Flutterwave (pan-African) can be added for
+**ACU top-ups** with `PAYSTACK_KEY` / `FLUTTERWAVE_KEY` (+ their webhook secrets in
+`.env`, URLs `.../webhooks/billing/paystack` and `.../flutterwave`). They are **not**
+shown on plan checkout — plans are mobile-money (your engine) + Stripe only.
+
+**Every key is optional.** With none set, the app runs normally, mobile-money plans work
+once you add a receiving number in the console, and card rails show "coming soon".
+
+---
+
 ## Updating later
 ```bash
 cd /root/koda/app && git pull && docker compose up -d --build
@@ -170,9 +209,10 @@ Your ledger volume is preserved across updates.
 - Real **emails** → add a Brevo key (until then they log)
 
 So: launch as a **public beta** today; the **Sentinel app** is the one piece that
-switches real payments on — no SIMs, no payment gateway, no money held by KODA.
-Merchants pay you for the service via manual/prepaid top-ups at first (add a card
-gateway later only if you want it).
+switches real *merchant* payment verification on — no SIMs held by KODA for that, no
+payment gateway, no money held by KODA. Merchants pay *you* for the service through the
+collection rails in **Step 9** — mobile money via KODA's own engine (needs one KODA
+receiving SIM) and/or card via Stripe.
 
 ---
 
