@@ -172,14 +172,16 @@ the operator SMS and **auto-verifies + activates the plan** — no code to paste
    `https://kodajnn.com/webhooks/billing/stripe` for event `checkout.session.completed`.
 3. Redeploy: `docker compose up -d --build`. The card rail now appears on plan checkout.
 
-### C) (Optional) extra rails for ACU top-ups
-Paystack (NG/GH/KE/ZA cards+bank+MoMo) and Flutterwave (pan-African) can be added for
-**ACU top-ups** with `PAYSTACK_KEY` / `FLUTTERWAVE_KEY` (+ their webhook secrets in
-`.env`, URLs `.../webhooks/billing/paystack` and `.../flutterwave`). They are **not**
-shown on plan checkout — plans are mobile-money (your engine) + Stripe only.
+Both **plans and ACU top-ups** use these same two rails — Mobile money (A) + Card (B).
 
-**Every key is optional.** With none set, the app runs normally, mobile-money plans work
-once you add a receiving number in the console, and card rails show "coming soon".
+### C) Paystack / Flutterwave — switched OFF for now
+These are built and tested but disabled (`live:false` in `app/shared/billing.js`), so they
+appear nowhere in checkout. To re-enable one later: flip its `live` flag to `true`, set its
+key(s) in `.env` (`PAYSTACK_KEY`, or `FLUTTERWAVE_KEY` + `FLUTTERWAVE_WEBHOOK_HASH`), register
+its webhook (`.../webhooks/billing/paystack` or `.../flutterwave`), and redeploy.
+
+**Every key is optional.** With none set, the app runs normally, mobile-money plans/top-ups
+work once you add a receiving number in the console, and the Stripe card rail shows "coming soon".
 
 ---
 

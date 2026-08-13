@@ -12,17 +12,23 @@ signature** is verified (fail-closed).
 |---|---|---|---|
 | **KODA Mobile Money** | DRC pilot — pay to KODA's own Orange/M-Pesa/Airtel number | Pay-to-SIM, auto-settled by KODA's own verify engine | `KODA_COLLECT_MSISDN` (+ `KODA_COLLECT_MERCHANT`, `KODA_USD_TO_LOCAL`) |
 | **Stripe** | Global cards (Visa/Mastercard) | Hosted Checkout | `STRIPE_KEY`, `STRIPE_WEBHOOK_SECRET` |
-| **Paystack** | Nigeria/Ghana/Kenya/SA — cards, bank, mobile money | Hosted checkout (`authorization_url`) | `PAYSTACK_KEY` (+ `PAYSTACK_CURRENCY`, `PAYSTACK_FX`) |
-| **Flutterwave** | Pan-African cards + mobile money | Hosted payment link | `FLUTTERWAVE_KEY`, `FLUTTERWAVE_WEBHOOK_HASH` (+ `FLUTTERWAVE_CURRENCY`) |
-| Distributor / Voucher / Bank transfer | Agents, resellers, invoices | escrow / PIN / invoice | already live (no external key) |
+| **Paystack** _(off)_ | NG/GH/KE/SA — cards, bank, MoMo | Hosted checkout | switched off (`live:false`); flip in `shared/billing.js`, then `PAYSTACK_KEY` |
+| **Flutterwave** _(off)_ | Pan-African cards + MoMo | Hosted payment link | switched off (`live:false`); flip in `shared/billing.js`, then `FLUTTERWAVE_KEY` + `FLUTTERWAVE_WEBHOOK_HASH` |
+| Distributor / Voucher / Bank transfer | Agents, resellers, invoices | escrow / PIN / invoice | own dedicated flows (no external key) |
+
+> **Current policy:** both **plan checkout** and **ACU top-ups** offer exactly two
+> consumer rails — **Mobile money (KODA's own engine)** and **Card (Stripe)**.
+> Paystack and Flutterwave are built and tested but **switched off** (`live:false`);
+> re-enable either by flipping its `live` flag in `app/shared/billing.js` and setting
+> its key. The adapters, quotes, and webhook verification stay ready.
 
 A rail is only shown as **clickable** in the app when its key is configured; otherwise it
 renders greyed as "coming soon" — never a broken sandbox checkout. With **no** provider
 keys set, every card rail falls back to the sandbox flow, exactly as before.
 
-### Plan checkout is intentionally two rails
+### Plan checkout AND ACU top-ups are the same two rails
 
-When a merchant **buys a plan**, checkout offers exactly:
+Both buying a plan and topping up ACU offer exactly:
 
 1. **Mobile money — verified by KODA (Door 3).** The buyer pays KODA's own Orange/M-Pesa/
    Airtel number; KODA's Sentinel on that SIM sees the operator confirmation SMS and
@@ -32,8 +38,8 @@ When a merchant **buys a plan**, checkout offers exactly:
 2. **Card (Visa/Mastercard) — Stripe.** Hosted Stripe Checkout; the signed
    `checkout.session.completed` webhook settles the plan idempotently.
 
-Paystack and Flutterwave stay available for **ACU top-ups** (the billing mesh) but are not
-offered on plan checkout — MoMo plans go through KODA's own engine, cards through Stripe.
+Paystack and Flutterwave are **switched off** for now (`live:false`) — offered on neither
+plan checkout nor top-ups. Mobile money goes through KODA's own engine; cards through Stripe.
 
 ## The two example journeys
 

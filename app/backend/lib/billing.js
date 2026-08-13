@@ -153,12 +153,19 @@ function methods(merchant, ctx = {}) {
   const railAvailable = (code) => code === 'bank_transfer' || code === 'distributor'
     ? true
     : PROVIDER_ENV[code] ? !!process.env[PROVIDER_ENV[code]] : false;
-  const koda = { rail: 'koda', label: 'KODA Mobile Money (pay to our number)', flow: 'MOBILE_MONEY_TO_KODA_SIM', fee_pct: 0,
+  const koda = { rail: 'koda', label: 'Mobile money — verified by KODA (Orange · M-Pesa · Airtel)', flow: 'MOBILE_MONEY_TO_KODA_SIM', fee_pct: 0,
     available: settings.collectConfigured(),
     quote: { rail: 'koda', acu, subtotal_usd: retail, collection_fee_usd: 0, total_usd: retail, currency: ctx.currency || 'USD' } };
+  // ACU top-ups use the SAME two consumer rails as plan checkout: mobile money
+  // (KODA's own engine, Door 3) + card (Stripe). Paystack/Flutterwave are switched
+  // off (live:false in shared/billing.js) — flip them on there to re-offer them.
+  // (Distributor + voucher top-ups have their own dedicated flows/endpoints.)
+  void ranked; void railAvailable; void PROVIDER_ENV;
+  const stripe = { rail: 'stripe', label: 'Card (Visa · Mastercard) — Stripe', flow: 'HOSTED_CHECKOUT', fee_pct: (B.RAILS.stripe.fee_pct || 0),
+    available: !!process.env.STRIPE_KEY, quote: withFee('stripe') };
   return {
     country, amount_acu: acu,
-    methods: [koda, ...ranked.filter(r => r.rail !== 'voucher').map(r => ({ ...r, available: railAvailable(r.rail), quote: withFee(r.rail) }))],
+    methods: [koda, stripe],
   };
 }
 
