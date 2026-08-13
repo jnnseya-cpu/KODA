@@ -20,6 +20,21 @@ A rail is only shown as **clickable** in the app when its key is configured; oth
 renders greyed as "coming soon" — never a broken sandbox checkout. With **no** provider
 keys set, every card rail falls back to the sandbox flow, exactly as before.
 
+### Plan checkout is intentionally two rails
+
+When a merchant **buys a plan**, checkout offers exactly:
+
+1. **Mobile money — verified by KODA (Door 3).** The buyer pays KODA's own Orange/M-Pesa/
+   Airtel number; KODA's Sentinel on that SIM sees the operator confirmation SMS and
+   **auto-verifies + settles the plan** through KODA's own engine — no third party, no
+   per-transaction fee, no code to paste. Configure the receiving number(s) and collector
+   SIM in **Admin → Collection setup** (stored in `koda_settings`, not env).
+2. **Card (Visa/Mastercard) — Stripe.** Hosted Stripe Checkout; the signed
+   `checkout.session.completed` webhook settles the plan idempotently.
+
+Paystack and Flutterwave stay available for **ACU top-ups** (the billing mesh) but are not
+offered on plan checkout — MoMo plans go through KODA's own engine, cards through Stripe.
+
 ## The two example journeys
 
 **Kinshasa merchant paying with Airtel Money.** They pick a plan → choose *KODA Mobile

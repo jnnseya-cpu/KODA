@@ -28,14 +28,19 @@ const mkReq = (body, headers) => ({ headers: headers || {}, rawBody: Buffer.from
   ok(pq.margin_pct >= 100, 'Paystack quote keeps ≥100% margin (fee passed through)', `${pq.margin_pct}%`);
   ok(Math.abs(pq.collection_fee_usd - pq.subtotal_usd * 0.039) < 1e-6, 'Paystack collection fee is passed through', `$${pq.collection_fee_usd}`);
 
-  // ── 2. plan methods offer the rails, gated on each API key ───────────────────
+  // ── 2. plan collection is exactly two rails: mobile money (KODA) + card (Stripe) ──
   delete process.env.STRIPE_KEY; delete process.env.PAYSTACK_KEY; delete process.env.FLUTTERWAVE_KEY;
-  const pmOff = billing.planMethods('boutique');
   const rail = (pm, r) => pm.methods.find(x => x.rail === r);
-  ok(rail(pmOff, 'paystack') && rail(pmOff, 'paystack').available === false, 'Paystack shown but NOT available with no key');
-  ok(rail(pmOff, 'stripe') && rail(pmOff, 'flutterwave'), 'plan methods list stripe + flutterwave too');
+  const pm = billing.planMethods('boutique');
+  ok(pm.methods.length === 2 && rail(pm, 'koda') && rail(pm, 'stripe'), 'plan checkout offers exactly Mobile money (KODA) + Card (Stripe)');
+  ok(!rail(pm, 'paystack') && !rail(pm, 'flutterwave'), 'aggregators are NOT offered on plan checkout (Door 3 for MoMo, Stripe for card)');
+  ok(rail(pm, 'stripe').available === false, 'Stripe shown but NOT available with no key');
+  process.env.STRIPE_KEY = 'sk_test_stripe_plan';
+  ok(rail(billing.planMethods('boutique'), 'stripe').available === true, 'Card (Stripe) becomes available once STRIPE_KEY is set');
+  delete process.env.STRIPE_KEY;
+  // Paystack still available on the top-up mesh (not plan checkout), gated on its key
   process.env.PAYSTACK_KEY = 'sk_test_paystack';
-  ok(rail(billing.planMethods('boutique'), 'paystack').available === true, 'Paystack becomes available once its key is set');
+  ok(billing.methods(merchant, { amount_acu: 100 }).methods.find(m => m.rail === 'paystack')?.available === true, 'Paystack available for ACU top-ups once its key is set');
 
   // ── 3. a configured provider yields a real KODA redirect, not a sandbox URL ──
   process.env.STRIPE_KEY = 'sk_test_stripe';

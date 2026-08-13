@@ -149,7 +149,7 @@ function methods(merchant, ctx = {}) {
   };
   // a rail is only offered as clickable when its provider is really configured;
   // otherwise it's shown greyed as 'not set up' (never a broken sandbox checkout).
-  const PROVIDER_ENV = { stripe: 'STRIPE_KEY', paddle_mor: 'PADDLE_KEY', flutterwave: 'FLUTTERWAVE_KEY', dlocal: 'DLOCAL_KEY', bitripay: 'BITRIPAY_KEY' };
+  const PROVIDER_ENV = { stripe: 'STRIPE_KEY', paystack: 'PAYSTACK_KEY', paddle_mor: 'PADDLE_KEY', flutterwave: 'FLUTTERWAVE_KEY', dlocal: 'DLOCAL_KEY', bitripay: 'BITRIPAY_KEY' };
   const railAvailable = (code) => code === 'bank_transfer' || code === 'distributor'
     ? true
     : PROVIDER_ENV[code] ? !!process.env[PROVIDER_ENV[code]] : false;
@@ -383,13 +383,15 @@ function planMethods(planKey) {
   const PLANS = require('../../shared/plans').PLANS;
   const plan = PLANS[planKey];
   if (!plan) return { plan: planKey, methods: [] };
+  // Plan collection is intentionally two rails (per product decision):
+  //  • Mobile money  → KODA's OWN engine (Door 3): pay our number, KODA's Sentinel
+  //    auto-verifies the operator SMS and settles the plan — no third party, no fee.
+  //  • Card          → Stripe hosted checkout.
   return {
     plan: planKey, plan_label: plan.label, monthly_usd: plan.usd, free: !(plan.usd > 0),
     methods: [
-      { rail: 'koda', label: 'KODA Mobile Money (pay to our DRC number)', available: settings.collectConfigured(), quote: planQuote(planKey, 'koda') },
-      { rail: 'stripe', label: 'Card (Stripe)', available: !!process.env.STRIPE_KEY, quote: planQuote(planKey, 'stripe') },
-      { rail: 'paystack', label: 'Card / bank / MoMo (Paystack)', available: !!process.env.PAYSTACK_KEY, quote: planQuote(planKey, 'paystack') },
-      { rail: 'flutterwave', label: 'Card / mobile money (Flutterwave)', available: !!process.env.FLUTTERWAVE_KEY, quote: planQuote(planKey, 'flutterwave') },
+      { rail: 'koda', label: 'Mobile money — verified by KODA (Orange · M-Pesa · Airtel)', available: settings.collectConfigured(), quote: planQuote(planKey, 'koda') },
+      { rail: 'stripe', label: 'Card (Visa · Mastercard) — Stripe', available: !!process.env.STRIPE_KEY, quote: planQuote(planKey, 'stripe') },
     ],
   };
 }
