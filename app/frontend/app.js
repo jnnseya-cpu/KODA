@@ -1262,13 +1262,30 @@ window.retryDelivery = async (id) => {
   catch (e) { toast('✗ ' + e.message); }
 };
 
+// MERCHANT-facing: only your own inbox + how you're reached. The full event
+// architecture / catalogue / QA is operator tooling and lives in Admin → Comms engine.
 VIEWS.comms = async () => {
-  const cat = await api('/app/comms/catalogue');
-  const del = await api('/app/comms/deliveries');
   const notifs = await api('/app/notifications');
   const prefs = await api('/app/comms/prefs');
+  shell('comms', t('comms'), 'Your messages and how you receive them', `
+  <div class="card"><h3>Inbox <button class="btn btn-ghost btn-sm" style="float:right" onclick="markRead()">${t('mark_read')}</button></h3>
+    ${notifs.slice(0, 30).map(n => `<div class="feed-row">
+      <div class="feed-ic ${n.severity === 'success' ? 'f-ok' : n.severity === 'critical' ? 'f-bad' : 'f-dim'}">${n.read ? '·' : '●'}</div>
+      <div><div class="t">${esc(n.title)}</div><div class="m">${esc(n.event_key)} · ${when(n.created_at)}</div></div></div>`).join('') || '<div class="empty">Empty inbox.</div>'}
+  </div>
+  <div class="card" style="margin-top:14px"><h3>How KODA reaches you</h3>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:10px">Choose the extra channels for your alerts. In-app is always on, and <b>mandatory notices</b> (security, fraud, legal) always deliver on every channel regardless of these toggles.</p>
+    <div class="pill-row">${['email', 'whatsapp', 'push', 'sms'].map(ch =>
+      `<button class="pill ${prefs[ch] ? 'on' : ''}" onclick="togglePref('${ch}',${prefs[ch] ? 0 : 1})">${ch} ${prefs[ch] ? '✓' : '✗'}</button>`).join('')}</div>
+  </div>`);
+};
+// ADMIN-only: the whole event engine — catalogue, channel coverage, template QA,
+// and the system-wide delivery log. Not merchant-facing.
+async function adminComms() {
+  const cat = await api('/app/comms/catalogue');
+  const del = await api('/app/comms/deliveries');
   const s = cat.stats;
-  shell('comms', 'Communication Event Architecture', `One event engine — ${s.total} events fan out across email · in-app · WhatsApp · push · SMS`, `
+  shell('admin', 'Communication Event Architecture', `One event engine — ${s.total} events fan out across email · in-app · WhatsApp · push · SMS`, adminTabBar('comms') + `
   <div class="grid g4">
     <div class="card stat"><b>${s.total}</b><span>catalogue events · ${s.categories} categories</span></div>
     <div class="card stat"><b>${s.mandatory}</b><span>mandatory notices — bypass opt-outs</span></div>
@@ -1291,24 +1308,13 @@ VIEWS.comms = async () => {
       <button class="btn btn-ghost btn-sm" onclick="sendTest()">${t('send_test')}</button>
     </div>
     <div id="mailprev"></div>
-    <div class="mono" style="font-size:11px;color:var(--dim);margin-top:8px">Preview renders exactly what a recipient receives — your logo, brand colour and details on every outbound email. Send test fires it live when a provider key is set; otherwise it's recorded in sandbox so the flow is always testable.</div>
+    <div class="mono" style="font-size:11px;color:var(--dim);margin-top:8px">Preview renders exactly what a recipient receives — logo, brand colour and details on every outbound email. Send test fires it live when a provider key is set; otherwise it's recorded in sandbox so the flow is always testable.</div>
   </div>
-  <div class="grid g2" style="margin-top:14px">
-    <div class="card"><h3>Recent deliveries — event × channel × recipient</h3>
-      ${del.deliveries.slice(0, 12).map(d => `<div class="feed-row">
-        <div class="feed-ic ${d.status === 'sent' ? 'f-ok' : 'f-dim'}"><span class="chan ${d.channel}" style="margin:0">${d.channel[0]}</span></div>
-        <div><div class="t mono" style="font-size:12px">${esc(d.event_key)}</div>
-        <div class="m">${esc(d.status)} · ${esc(d.provider)} · ${when(d.created_at)}</div></div></div>`).join('') || '<div class="empty">None yet.</div>'}
-    </div>
-    <div class="card"><h3>Inbox <button class="btn btn-ghost btn-sm" style="float:right" onclick="markRead()">${t('mark_read')}</button></h3>
-      ${notifs.slice(0, 12).map(n => `<div class="feed-row">
-        <div class="feed-ic ${n.severity === 'success' ? 'f-ok' : n.severity === 'critical' ? 'f-bad' : 'f-dim'}">${n.read ? '·' : '●'}</div>
-        <div><div class="t">${esc(n.title)}</div><div class="m">${esc(n.event_key)} · ${when(n.created_at)}</div></div></div>`).join('') || '<div class="empty">Empty inbox.</div>'}
-    </div>
-  </div>
-  <div class="card" style="margin-top:14px"><h3>My channel preferences (mandatory notices always deliver)</h3>
-    <div class="pill-row">${['email', 'whatsapp', 'push', 'sms'].map(ch =>
-      `<button class="pill ${prefs[ch] ? 'on' : ''}" onclick="togglePref('${ch}',${prefs[ch] ? 0 : 1})">${ch} ${prefs[ch] ? '✓' : '✗'}</button>`).join('')}</div>
+  <div class="card" style="margin-top:14px"><h3>Recent deliveries — event × channel × recipient</h3>
+    ${del.deliveries.slice(0, 20).map(d => `<div class="feed-row">
+      <div class="feed-ic ${d.status === 'sent' ? 'f-ok' : 'f-dim'}"><span class="chan ${d.channel}" style="margin:0">${d.channel[0]}</span></div>
+      <div><div class="t mono" style="font-size:12px">${esc(d.event_key)}</div>
+      <div class="m">${esc(d.status)} · ${esc(d.provider)} · ${when(d.created_at)}</div></div></div>`).join('') || '<div class="empty">None yet.</div>'}
   </div>
   <div class="card" style="margin-top:14px"><h3>Full catalogue</h3>
     ${cat.categories.map(c => `<div style="margin-bottom:16px">
@@ -1321,7 +1327,7 @@ VIEWS.comms = async () => {
         <td style="white-space:nowrap">${e.channels.map(ch => `<span class="chan ${ch}">${ch}</span>`).join('')}</td>
       </tr>`).join('')}</table></div></div>`).join('')}
   </div>`);
-};
+}
 window.previewMail = async () => {
   const r = await api('/app/comms/preview/' + document.getElementById('evsel').value);
   document.getElementById('mailprev').innerHTML = `<iframe class="mailframe" srcdoc="${r.html.replace(/"/g, '&quot;')}"></iframe>`;
@@ -1482,7 +1488,7 @@ const ADMIN_TABS = [
   ['distributors', 'Distributors'], ['vouchers', 'Resellers & vouchers'], ['rails', 'Rails'],
   ['coverage', 'Coverage'], ['doors', 'Doors'], ['agents', 'AI agents'],
   ['fraud', 'Fraud & disputes'], ['verifications', 'Verifications'], ['devices', 'Devices'],
-  ['health', 'System health'], ['audit', 'Audit log'],
+  ['health', 'System health'], ['comms', 'Comms engine'], ['audit', 'Audit log'],
 ];
 const adminTabBar = (active) => `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px">
   ${ADMIN_TABS.map(([id, label]) => `<a href="#admin${id === 'overview' ? '' : '?tab=' + id}"
@@ -1508,6 +1514,7 @@ VIEWS.admin = async (params) => {
   if (tab === 'verifications') return adminVerifications();
   if (tab === 'devices') return adminDevices();
   if (tab === 'health') return adminHealth();
+  if (tab === 'comms') return adminComms();
   if (tab === 'audit') return adminAudit();
   const o = await api('/app/admin/overview');
   const merchants = await api('/app/admin/merchants');

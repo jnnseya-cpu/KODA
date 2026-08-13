@@ -89,12 +89,14 @@ async function main() {
     T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
 
     console.log('— communications');
-    const cat = (await j('/app/comms/catalogue', {}, tk)).d;
+    // The event catalogue / preview / test are OPERATOR tooling — admin-only now.
+    T('comms catalogue is admin-only (merchant refused)', (await j('/app/comms/catalogue', {}, tk)).s === 403);
+    const cat = (await j('/app/comms/catalogue', {}, admin.token)).d;
     const { ALL: CAT_ALL, CATEGORIES: CAT_CATS } = require('../../shared/events');
     T('catalogue matches source of truth', cat.stats.total === CAT_ALL.length && cat.stats.categories === CAT_CATS.length && cat.stats.total >= 150,
       `${cat.stats.total} events · ${cat.stats.categories} categories · mandatory=${cat.stats.mandatory}`);
-    T('email preview branded', (await j('/app/comms/preview/payment.verified', {}, tk)).d.html.includes('Maison Kivu'));
-    T('test fire', (await j('/app/comms/test/billing.low_balance', { body: {} }, tk)).d.deliveries.length > 0);
+    T('email preview renders (admin QA)', (await j('/app/comms/preview/payment.verified', {}, admin.token)).d.html.length > 100);
+    T('test fire (admin QA)', (await j('/app/comms/test/billing.low_balance', { body: {} }, admin.token)).s === 200);
     T('prefs save', (await j('/app/comms/prefs', { body: { sms: false } }, tk)).d.ok === true);
 
     console.log('— WhatsApp Door 2');

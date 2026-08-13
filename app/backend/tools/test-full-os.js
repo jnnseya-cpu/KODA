@@ -76,12 +76,14 @@ async function hit(path, { method = 'GET', token, body, raw } = {}) {
   console.log('— merchant app API');
   const appGets = ['/app/me', '/app/dashboard', '/app/feed', '/app/receipts', '/app/devices',
     '/app/keys', '/app/webhooks', '/app/billing', '/app/team', '/app/network-accounts',
-    '/app/notifications', '/app/disputes', '/app/growth/tools', '/app/comms/catalogue', '/app/submerchants'];
+    '/app/notifications', '/app/disputes', '/app/growth/tools', '/app/comms/prefs', '/app/submerchants'];
   for (const p of appGets) {
     const r = await hit(p, { token });
     ok(`GET ${p} (auth)`, r.status === 200, `status ${r.status} ${r.data?.error || ''}`);
     ok(`  ${p} rejects no-auth`, (await hit(p)).status === 401);
   }
+  // the event catalogue is operator tooling — a normal merchant must be refused
+  ok('comms catalogue is admin-only', (await hit('/app/comms/catalogue', { token })).status === 403);
 
   // mint an API key once, up-front (used by the detection + Door 3 checks below)
   const key = (await hit('/app/keys', { token, method: 'POST', body: { prefix: 'sk_test', label: 'sweep' } })).data?.secret;

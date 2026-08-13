@@ -621,7 +621,10 @@ module.exports = function registerRoutes(r) {
   r.post('/app/notifications/read', auth((req, user) => {
     q.run('UPDATE notifications SET read=1 WHERE user_id=?', user.id); return { ok: true };
   }));
-  r.get('/app/comms/catalogue', auth(() => ({
+  // The event architecture / catalogue / QA / delivery log is OPERATOR tooling —
+  // admin-only. Merchants only get their own inbox (/app/notifications) + channel
+  // preferences (/app/comms/prefs) below.
+  r.get('/app/comms/catalogue', admin(() => ({
     categories: CATEGORIES.map(c => ({ id: c.id, label: c.label, events: c.events })),
     channels: CHANNELS,
     stats: {
@@ -631,17 +634,17 @@ module.exports = function registerRoutes(r) {
       byChannel: Object.fromEntries(CHANNELS.map(ch => [ch, ALL.filter(e => e.channels.includes(ch)).length])),
     },
   })));
-  r.get('/app/comms/deliveries', auth((req, user, m) => ({
+  r.get('/app/comms/deliveries', admin((req, user, m) => ({
     deliveries: q.all(`SELECT * FROM comm_deliveries WHERE merchant_id=? OR user_id=?
                        ORDER BY created_at DESC LIMIT 60`, m?.id || '', user.id),
     sent: q.get(`SELECT COUNT(*) c FROM comm_deliveries WHERE (merchant_id=? OR user_id=?) AND status='sent'`, m?.id || '', user.id).c,
     attempted: q.get(`SELECT COUNT(*) c FROM comm_deliveries WHERE merchant_id=? OR user_id=?`, m?.id || '', user.id).c,
   })));
-  r.get('/app/comms/preview/:key', auth((req, user, m) => {
+  r.get('/app/comms/preview/:key', admin((req, user, m) => {
     const html = notify.previewEmail(req.params.key, m, user, { amount: '25 000 CDF', reference: 'OM.260717.1432.A88213', acu: 1750, number: 'INV-2026-071', plan: 'Commerce' });
     return html ? { html } : [404, { error: 'unknown_event' }];
   }));
-  r.post('/app/comms/test/:key', auth((req, user, m) => {
+  r.post('/app/comms/test/:key', admin((req, user, m) => {
     const out = notify.fire(req.params.key, { user, merchant: m, data: { amount: '25 000 CDF', reference: 'TEST-REF', acu: 300 } });
     return out;
   }));
