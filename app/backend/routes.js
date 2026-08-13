@@ -1002,6 +1002,21 @@ module.exports = function registerRoutes(r) {
     audit(t.merchant_id, user.id, 'admin.topup_force_activated', { topup: t.id, purpose: t.purpose, plan: t.plan_key, override: true });
     return out;
   }));
+  // TEST ONLY: simulate the operator payment SMS landing on the KODA SIM, so the
+  // REAL auto-match path (matchKodaCollection → settleTopup) runs end-to-end without
+  // a physical phone. Lets staff demo/test the full buyer flow: the buyer's checkout
+  // screen (which polls) flips to '✓ active' on its next tick. Admin-only + audited.
+  r.post('/app/admin/topups/:id/simulate-payment', admin((req, user) => {
+    const t = q.get('SELECT * FROM topups WHERE id=?', req.params.id);
+    if (!t) return [404, { error: { code: 'topup_not_found' } }];
+    if (t.rail !== 'koda') return [400, { error: { code: 'not_a_koda_collection' } }];
+    if (t.status === 'settled') return { ok: true, already: true };
+    let local; try { local = JSON.parse(t.routing_snapshot || '{}').expected_local; } catch { /* none */ }
+    if (local == null) return [400, { error: { code: 'no_expected_amount' } }];
+    const r0 = billing.matchKodaCollection(local);   // the exact path a real Sentinel SMS triggers
+    audit(t.merchant_id, user.id, 'admin.collection_simulated', { topup: t.id, amount_local: local, test: true });
+    return (r0 && !Array.isArray(r0)) ? { ok: true, simulated: true, ...r0 } : { ok: false, note: 'no matching pending collection' };
+  }));
   // Dismiss/cancel an UNPAID pending order (test clicks, abandoned checkouts). Never
   // touches a settled order; just clears it from the awaiting-confirmation list.
   r.post('/app/admin/topups/:id/cancel', admin((req, user) => {

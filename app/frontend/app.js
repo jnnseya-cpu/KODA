@@ -1686,7 +1686,7 @@ async function adminCollections() {
     <p style="font-size:13px;color:var(--dim)">These merchants opened a mobile-money plan checkout. <b>They activate on their own</b> the moment KODA's Sentinel sees the payment on the SIM — you do nothing. Only use <b>force-activate</b> if you personally saw the money arrive but the Sentinel missed it, and <b>dismiss</b> test clicks / abandoned checkouts.</p>
     <table class="tbl"><tr><th>When</th><th>Merchant</th><th>Plan</th><th>Rail</th><th class="num">Amount</th><th></th></tr>
     ${pendingPlans.map(p => `<tr><td>${when(p.created_at)}</td><td>${esc(p.merchant)}</td><td><span class="badge b-info">${esc(p.plan_key)}</span></td><td class="mono">${esc(p.rail)}</td><td class="num">$${fmt(p.total_usd)}</td>
-      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="adminDismissTopup('${p.id}')">dismiss</button>
+      <td style="white-space:nowrap">${p.rail === 'koda' ? `<button class="btn btn-ghost btn-sm" onclick="adminSimulatePay('${p.id}')">simulate (test)</button> ` : ''}<button class="btn btn-ghost btn-sm" onclick="adminDismissTopup('${p.id}')">dismiss</button>
         <button class="btn btn-danger btn-sm" onclick="adminSettleTopup('${p.id}')">force-activate</button></td></tr>`).join('')}
     </table></div>` : ''}
   <div class="grid g4">
@@ -1712,6 +1712,10 @@ async function adminCollections() {
 window.adminSettleTopup = async (id) => {
   if (!confirm('MANUAL OVERRIDE — activate WITHOUT automated verification.\n\nOnly do this if you have personally seen this exact payment arrive on the KODA SIM. Normally KODA\'s Sentinel confirms mobile-money payments automatically. Force-activate anyway?')) return;
   try { const r = await api(`/app/admin/topups/${id}/settle`, { body: {} }); toast(r.plan_activated ? '✓ plan activated: ' + r.plan_activated : '✓ settled'); route(); } catch (e) { toast('✗ ' + e.message); }
+};
+window.adminSimulatePay = async (id) => {
+  if (!confirm('TEST ONLY — simulate the payment SMS landing on the KODA SIM.\n\nRuns the real auto-verify path so this order settles and the buyer\'s checkout flips to active. Use for testing/demo without a physical Sentinel SIM.')) return;
+  try { const r = await api(`/app/admin/topups/${id}/simulate-payment`, { body: {} }); toast(r.simulated || r.already ? '✓ simulated — order settled' : '✗ ' + (r.note || 'no match')); route(); } catch (e) { toast('✗ ' + e.message); }
 };
 window.adminDismissTopup = async (id) => {
   if (!confirm('Dismiss this unpaid pending order? (Use for test clicks / abandoned checkouts — a real settled payment cannot be dismissed.)')) return;

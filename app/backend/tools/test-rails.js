@@ -130,6 +130,15 @@ const mkReq = (body, headers) => ({ headers: headers || {}, rawBody: Buffer.from
   ok(fx.currencyForCountry('NG') === 'NGN' && fx.currencyForCountry('SN') === 'XOF' && fx.currencyForCountry('CD') === 'CDF', 'country → currency resolves (NG→NGN, SN→XOF, CD→CDF)');
   ok(Object.keys(fx.COUNTRY_CURRENCY).length >= 70, 'country→currency map covers KODA\'s broad footprint', Object.keys(fx.COUNTRY_CURRENCY).length + ' countries');
 
+  // ── 8. simulate-payment path: matchKodaCollection settles the exact-amount order ──
+  settings.set('collect_numbers', JSON.stringify([{ operator: 'airtel_cd', msisdn: '+243999000111', active: 1 }]));
+  const simT = billing.createTopup(merchant, { amount_acu: 30, rail: 'koda', usd: 5 });
+  const localAmt = simT.session.amount_local;
+  ok(q.get('SELECT status FROM topups WHERE id=?', simT.topup_id).status === 'pending', 'koda order starts pending (awaiting the SMS)');
+  const simRes = billing.matchKodaCollection(localAmt);   // the exact call an admin "simulate" / a real Sentinel SMS makes
+  ok(simRes && !Array.isArray(simRes), 'matchKodaCollection matches the exact local amount');
+  ok(q.get('SELECT status FROM topups WHERE id=?', simT.topup_id).status === 'settled', 'simulate/Sentinel path settles the order end-to-end (buyer screen would flip to ✓)');
+
   console.log(`\n${fail === 0 ? '✅ RAILS GREEN' : '❌ RAILS FAILED'} — ${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('RAILS TEST CRASH', e && e.stack || e); process.exit(1); });
