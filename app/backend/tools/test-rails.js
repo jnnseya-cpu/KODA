@@ -82,6 +82,24 @@ const mkReq = (body, headers) => ({ headers: headers || {}, rawBody: Buffer.from
   ok(nv.ok && nv.paid === false, 'Stripe: a non-completed event verifies but is NOT paid (no settle)');
   delete process.env.STRIPE_WEBHOOK_SECRET;
 
+  // ── 6. KODA self-collection is admin-managed (DB settings), no env editing ───
+  const settings = require('../lib/settings');
+  delete process.env.KODA_COLLECT_MSISDN; delete process.env.KODA_COLLECT_MERCHANT;
+  settings.set('collect_numbers', JSON.stringify([]));
+  ok(settings.collectConfigured() === false, 'self-collect NOT configured with no numbers (env or DB)');
+  ok(billing.methods(merchant, { amount_acu: 100 }).methods.find(m => m.rail === 'koda').available === false, 'KODA MoMo rail hidden until a number is set');
+  // admin saves a receiving number + rate + collector via the settings store
+  settings.set('collect_numbers', JSON.stringify([{ operator: 'airtel_cd', msisdn: '+243999000111', label: 'Kinshasa till', active: 1 }]));
+  settings.set('collect_currency', 'CDF');
+  settings.set('usd_to_local', '2500');
+  settings.set('collect_merchant_id', merchant.id);
+  ok(settings.collectConfigured() === true, 'self-collect becomes configured once a number is saved (no restart)');
+  ok(settings.primaryNumber() === '+243999000111', 'primary receiving number resolves from the DB store');
+  ok(settings.collectMerchantId() === merchant.id, 'collector merchant resolves from the DB store');
+  const topup = billing.createTopup(merchant, { amount_acu: 100, rail: 'koda', usd: 10 });
+  ok(topup.session && topup.session.pay_to === '+243999000111', 'KODA MoMo checkout shows the admin-set number', topup.session && topup.session.pay_to);
+  ok(topup.session.amount_local === Math.round(10 * 2500) + 0 || Math.abs(topup.session.amount_local - 10 * 2500) < 100, 'exact local amount uses the admin-set rate', topup.session.amount_local);
+
   console.log(`\n${fail === 0 ? '✅ RAILS GREEN' : '❌ RAILS FAILED'} — ${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('RAILS TEST CRASH', e && e.stack || e); process.exit(1); });

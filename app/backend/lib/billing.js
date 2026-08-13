@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 const { q, tx } = require('./db');
 const U = require('./util');
 const B = require('../../shared/billing');
+const settings = require('./settings');   // admin-managed KODA collection config (DB → env → default)
 
 // Webhook authenticity — a provider callback settles real money, so it MUST prove
 // itself. FAIL CLOSED: no configured secret or a bad/absent signature ⇒ reject and
@@ -153,7 +154,7 @@ function methods(merchant, ctx = {}) {
     ? true
     : PROVIDER_ENV[code] ? !!process.env[PROVIDER_ENV[code]] : false;
   const koda = { rail: 'koda', label: 'KODA Mobile Money (pay to our number)', flow: 'MOBILE_MONEY_TO_KODA_SIM', fee_pct: 0,
-    available: !!process.env.KODA_COLLECT_MSISDN,
+    available: settings.collectConfigured(),
     quote: { rail: 'koda', acu, subtotal_usd: retail, collection_fee_usd: 0, total_usd: retail, currency: ctx.currency || 'USD' } };
   return {
     country, amount_acu: acu,
@@ -177,7 +178,7 @@ function createTopup(merchant, body = {}) {
     q.run(`INSERT INTO topups (id,merchant_id,acu_amount,subtotal_usd,collection_fee_usd,tax_usd,total_usd,currency,rail,purpose,idempotency_key,routing_snapshot,status)
            VALUES (?,?,?,?,?,?,?,?,?, 'acu', ?, ?, 'pending')`,
       id, merchant.id, acu, subtotal, 0, 0, subtotal, 'USD', 'koda', idem, JSON.stringify({ rail: 'koda', expected_local: expected }));
-    const num = process.env.KODA_COLLECT_MSISDN || '(KODA DRC number — set KODA_COLLECT_MSISDN)';
+    const num = settings.primaryNumber() || '(no KODA receiving number set — add one in Admin → Collection)';
     return {
       ...topupView(q.get('SELECT * FROM topups WHERE id=?', id)),
       session: { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, amount_usd: subtotal, amount_local: expected, currency: cur, reference: id,
@@ -385,7 +386,7 @@ function planMethods(planKey) {
   return {
     plan: planKey, plan_label: plan.label, monthly_usd: plan.usd, free: !(plan.usd > 0),
     methods: [
-      { rail: 'koda', label: 'KODA Mobile Money (pay to our DRC number)', available: !!process.env.KODA_COLLECT_MSISDN, quote: planQuote(planKey, 'koda') },
+      { rail: 'koda', label: 'KODA Mobile Money (pay to our DRC number)', available: settings.collectConfigured(), quote: planQuote(planKey, 'koda') },
       { rail: 'stripe', label: 'Card (Stripe)', available: !!process.env.STRIPE_KEY, quote: planQuote(planKey, 'stripe') },
       { rail: 'paystack', label: 'Card / bank / MoMo (Paystack)', available: !!process.env.PAYSTACK_KEY, quote: planQuote(planKey, 'paystack') },
       { rail: 'flutterwave', label: 'Card / mobile money (Flutterwave)', available: !!process.env.FLUTTERWAVE_KEY, quote: planQuote(planKey, 'flutterwave') },
@@ -416,7 +417,7 @@ function createPlanCheckout(merchant, planKey, rail = 'koda', opts = {}) {
 }
 function sessionFor(topup, rail, quote) {
   if (rail === 'koda') {
-    const num = process.env.KODA_COLLECT_MSISDN || '(KODA DRC number — set KODA_COLLECT_MSISDN)';
+    const num = settings.primaryNumber() || '(no KODA receiving number set — add one in Admin → Collection)';
     const cur = localCurrency();
     // assign the exact local amount once, persist it for auto-matching
     let expected;
@@ -440,8 +441,8 @@ function sessionFor(topup, rail, quote) {
 // (base from KODA_USD_TO_LOCAL, plus a small offset so two pending payments never
 // collide). Only runs for the collection merchant (KODA_COLLECT_MERCHANT), so a
 // normal merchant's customer SMS can never settle a KODA collection.
-function localRate() { return Number(process.env.KODA_USD_TO_LOCAL) || 2800; } // CDF pilot default
-function localCurrency() { return process.env.KODA_COLLECT_CURRENCY || 'CDF'; }
+function localRate() { return settings.usdToLocal(); } // admin-managed (DB → KODA_USD_TO_LOCAL → 2800)
+function localCurrency() { return settings.collectCurrency(); }
 function assignExpectedLocal(usd) {
   const base = Math.round(Number(usd) * localRate());
   const used = new Set(q.all(`SELECT routing_snapshot FROM topups WHERE rail='koda' AND status='pending'`)

@@ -470,6 +470,16 @@ db.exec(`CREATE TABLE IF NOT EXISTS blocked_ips (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
 
+// KODA runtime settings — admin-editable config that overrides env defaults, so the
+// team manages things (like KODA's own mobile-money receiving numbers for self-
+// collection) from the console instead of editing env files. Key/value; values are
+// JSON or plain strings. Read via lib/settings.js (DB → env → default).
+db.exec(`CREATE TABLE IF NOT EXISTS koda_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
 // hot verify path runs ~10 statements, so caching keeps the money path fast.

@@ -1429,6 +1429,7 @@ const PLAN_KEYS = ['marche', 'boutique', 'commerce', 'plateforme', 'enterprise']
 const ROLE_KEYS = ['cashier', 'manager', 'owner'];
 const ADMIN_TABS = [
   ['overview', 'Overview'], ['revenue', 'Revenue'], ['collections', 'Collections'],
+  ['collection', 'Collection setup'],
   ['distributors', 'Distributors'], ['vouchers', 'Resellers & vouchers'], ['rails', 'Rails'],
   ['coverage', 'Coverage'], ['doors', 'Doors'], ['agents', 'AI agents'],
   ['fraud', 'Fraud & disputes'], ['verifications', 'Verifications'], ['devices', 'Devices'],
@@ -1447,6 +1448,7 @@ VIEWS.admin = async (params) => {
   const tab = (params && params.get && params.get('tab')) || 'overview';
   if (tab === 'revenue') return adminRevenue();
   if (tab === 'collections') return adminCollections();
+  if (tab === 'collection') return adminCollection();
   if (tab === 'distributors') return adminDistributors();
   if (tab === 'vouchers') return adminResellers();
   if (tab === 'rails') return adminRails();
@@ -1758,6 +1760,105 @@ async function adminRails() {
     </table>
     <p style="font-size:12px;color:var(--dim);margin-top:10px">Rails are configured in code + env (provider keys, webhook secrets). A rail with <code>live:false</code> (e.g. BitriPay) never appears to merchants. Fees are passed through to the merchant — KODA's margin is always ≥100%.</p></div>`);
 }
+
+// ---- KODA self-collection setup (zero-fee mobile-money rail; no env editing) ----
+let _collectNums = [];
+async function adminCollection() {
+  const d = await api('/app/admin/collection');
+  _collectNums = (d.numbers || []).map(n => ({ operator: n.operator || '', msisdn: n.msisdn || '', label: n.label || '', active: n.active === false ? false : true }));
+  const opList = ['', 'orange_cd', 'mpesa_cd', 'airtel_cd', 'africell_cd', 'mtn_momo', 'wave'];
+  const opSel = (val) => `<select data-k="operator" class="cn-in" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:8px">
+    ${opList.map(o => `<option value="${o}" ${o === val ? 'selected' : ''}>${o || 'any operator'}</option>`).join('')}</select>`;
+  const numRows = () => _collectNums.map((n, i) => `<div class="cn-row" data-i="${i}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+    ${opSel(n.operator)}
+    <input data-k="msisdn" class="cn-in" value="${esc(n.msisdn)}" placeholder="+243 8XX XXX XXX (KODA receiving number)" style="flex:2;min-width:200px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:8px;font-family:var(--mono);font-size:12.5px">
+    <input data-k="label" class="cn-in" value="${esc(n.label)}" placeholder="label (e.g. Kinshasa till)" style="flex:1;min-width:120px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:8px">
+    <label style="font-size:12px;color:var(--dim);display:flex;align-items:center;gap:4px"><input data-k="active" type="checkbox" ${n.active ? 'checked' : ''}> active</label>
+    <button class="btn btn-danger btn-sm" onclick="removeCollectNumber(${i})">✕</button>
+  </div>`).join('') || '<p style="color:var(--dim);font-size:13px">No receiving numbers yet — add the KODA mobile-money number(s) customers pay to.</p>';
+  const dev = (d.devices || []);
+  const online = dev.filter(x => x.status === 'active').length;
+  shell('admin', 'Collection setup', 'KODA staff — the zero-fee mobile-money rail KODA gets paid on', adminTabBar('collection') + `
+  <div class="card ${d.configured ? '' : ''}" style="border-color:${d.configured ? 'var(--verify)' : 'var(--danger)'}">
+    <h3>${d.configured ? '✓ Self-collection is configured' : '⚠ Not configured yet'}</h3>
+    <p style="font-size:13px;color:var(--dim)">When a merchant buys a plan or ACU with <b>KODA Mobile Money</b>, they pay one of the numbers below. KODA's own Sentinel phone (on that SIM) sees the operator SMS and <b>auto-verifies</b> the payment — the plan/credit activates by itself in seconds. No code to paste, no per-transaction fee.</p>
+    <div class="grid g4" style="margin-top:10px">
+      <div class="card stat"><b>${d.numbers.filter(n => n.active).length}</b><span>active numbers</span></div>
+      <div class="card stat"><b>${online}/${dev.length}</b><span>collector Sentinels online</span></div>
+      <div class="card stat"><b>${fmt(d.pending_collections)}</b><span>pending collections</span></div>
+      <div class="card stat"><b>${esc(d.collect_currency)}</b><span>settlement currency</span></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px"><h3>Collector account (holds the receiving SIM + Sentinel)</h3>
+    <p style="font-size:13px;color:var(--dim)">Pick the KODA-owned merchant whose Sentinel phone receives the payments. Incoming SMS on this account auto-settle collections; its own counter sales are disabled to keep the treasury clean.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select id="cn-merchant" style="flex:1;min-width:240px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+        <option value="">— select collector merchant —</option>
+        ${(d.merchants || []).map(m => `<option value="${m.id}" ${m.id === d.collect_merchant_id ? 'selected' : ''}>${esc(m.name)} · ${esc(m.country)} · ${esc(m.id)}</option>`).join('')}
+      </select>
+    </div>
+    ${d.collector ? `<p style="font-size:12px;color:var(--dim);margin-top:8px">Sentinels on this account: ${dev.length ? dev.map(x => `<span class="badge ${x.status === 'active' ? 'b-ok' : 'b-warn'}">${esc(x.label)} · ${esc(x.status)}</span>`).join(' ') : '<span class="warn">none — enrol one in </span>'}${dev.length ? '' : '<a href="#devices" style="color:var(--gold)">Devices</a> on that account.'}</p>` : ''}
+  </div>
+
+  <div class="card" style="margin-top:14px"><h3>Receiving numbers</h3>
+    <div id="cn-list">${numRows()}</div>
+    <button class="btn btn-ghost btn-sm" onclick="addCollectNumber()">＋ Add a number</button>
+  </div>
+
+  <div class="card" style="margin-top:14px"><h3>Settlement rate</h3>
+    <p style="font-size:13px;color:var(--dim)">KODA prices plans in USD but receives local currency. This pinned rate converts the price to an exact local amount so payments auto-match. KODA is not an FX provider — set the rate you actually receive at.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:13px">1 USD =</label>
+      <input id="cn-rate" type="number" value="${esc(String(d.usd_to_local))}" style="width:140px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="cn-cur" value="${esc(d.collect_currency)}" style="width:100px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px" placeholder="CDF">
+    </div>
+  </div>
+
+  <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
+    <button class="btn btn-gold" onclick="saveCollection()">Save collection setup</button>
+    <span id="cn-out" style="font-size:13px"></span>
+  </div>`);
+}
+window.addCollectNumber = () => { _collectNums.push({ operator: '', msisdn: '', label: '', active: true }); syncCollectFromDom(); document.getElementById('cn-list').innerHTML = renderCollectRows(); };
+window.removeCollectNumber = (i) => { syncCollectFromDom(); _collectNums.splice(i, 1); document.getElementById('cn-list').innerHTML = renderCollectRows(); };
+function renderCollectRows() {
+  const opList = ['', 'orange_cd', 'mpesa_cd', 'airtel_cd', 'africell_cd', 'mtn_momo', 'wave'];
+  const opSel = (val) => `<select data-k="operator" class="cn-in" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:8px">
+    ${opList.map(o => `<option value="${o}" ${o === val ? 'selected' : ''}>${o || 'any operator'}</option>`).join('')}</select>`;
+  return _collectNums.map((n, i) => `<div class="cn-row" data-i="${i}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+    ${opSel(n.operator)}
+    <input data-k="msisdn" class="cn-in" value="${esc(n.msisdn)}" placeholder="+243 8XX XXX XXX (KODA receiving number)" style="flex:2;min-width:200px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:8px;font-family:var(--mono);font-size:12.5px">
+    <input data-k="label" class="cn-in" value="${esc(n.label)}" placeholder="label (e.g. Kinshasa till)" style="flex:1;min-width:120px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:8px">
+    <label style="font-size:12px;color:var(--dim);display:flex;align-items:center;gap:4px"><input data-k="active" type="checkbox" ${n.active ? 'checked' : ''}> active</label>
+    <button class="btn btn-danger btn-sm" onclick="removeCollectNumber(${i})">✕</button>
+  </div>`).join('') || '<p style="color:var(--dim);font-size:13px">No receiving numbers yet — add the KODA mobile-money number(s) customers pay to.</p>';
+}
+function syncCollectFromDom() {
+  const rows = Array.from(document.querySelectorAll('#cn-list .cn-row'));
+  if (!rows.length) return;
+  _collectNums = rows.map(row => ({
+    operator: (row.querySelector('[data-k="operator"]') || {}).value || '',
+    msisdn: (row.querySelector('[data-k="msisdn"]') || {}).value || '',
+    label: (row.querySelector('[data-k="label"]') || {}).value || '',
+    active: !!(row.querySelector('[data-k="active"]') || {}).checked,
+  }));
+}
+window.saveCollection = async () => {
+  syncCollectFromDom();
+  const out = document.getElementById('cn-out');
+  out.innerHTML = '…';
+  try {
+    const r = await api('/app/admin/collection', { body: {
+      collect_merchant_id: v('cn-merchant'),
+      collect_currency: v('cn-cur'),
+      usd_to_local: Number(v('cn-rate')),
+      numbers: _collectNums.filter(n => n.msisdn.trim()),
+    } });
+    out.innerHTML = r.configured ? '<span class="ok">✓ Saved — collection is live</span>' : '<span class="warn">Saved, but no active number yet</span>';
+    setTimeout(route, 1200);
+  } catch (e) { out.innerHTML = `<span class="badge b-bad">✗ ${esc(e.message)}</span>`; }
+};
 
 // ---- Doors status ----
 async function adminDoors() {

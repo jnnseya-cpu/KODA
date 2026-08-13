@@ -671,6 +671,43 @@ module.exports = function registerRoutes(r) {
     return { ok: true };
   }));
 
+  // ---- KODA self-collection config (zero-fee mobile-money rail, admin-managed) ----
+  // The receiving numbers + collector SIM live here, NOT in env files. Whatever the
+  // team saves is what buyers pay to and what auto-settles their plan/top-up.
+  r.get('/app/admin/collection', admin(() => {
+    const set = require('./lib/settings');
+    const mid = set.collectMerchantId();
+    const collector = mid ? q.get('SELECT id,name,country,msisdn FROM merchants WHERE id=?', mid) : null;
+    const devices = mid ? q.all(`SELECT id,label,operator,sim_msisdn,status,last_seen,attested FROM devices WHERE merchant_id=? ORDER BY created_at DESC`, mid) : [];
+    return {
+      configured: set.collectConfigured(),
+      collect_merchant_id: mid,
+      collector,
+      collect_currency: set.collectCurrency(),
+      usd_to_local: set.usdToLocal(),
+      numbers: set.collectNumbers(),
+      devices,
+      pending_collections: q.get(`SELECT COUNT(*) c FROM topups WHERE rail='koda' AND status='pending'`).c,
+      merchants: q.all(`SELECT id,name,country FROM merchants ORDER BY created_at ASC LIMIT 200`),
+    };
+  }));
+  r.post('/app/admin/collection', admin((req, user) => {
+    const set = require('./lib/settings');
+    const b = req.body || {};
+    if (b.collect_merchant_id != null) set.set('collect_merchant_id', String(b.collect_merchant_id).trim());
+    if (b.collect_currency != null) set.set('collect_currency', String(b.collect_currency).trim().toUpperCase());
+    if (b.usd_to_local != null && Number(b.usd_to_local) > 0) set.set('usd_to_local', String(Number(b.usd_to_local)));
+    if (Array.isArray(b.numbers)) {
+      const clean = b.numbers.filter(n => n && n.msisdn).slice(0, 20).map(n => ({
+        operator: String(n.operator || '').trim(), msisdn: String(n.msisdn).trim(),
+        label: String(n.label || '').trim().slice(0, 40), active: n.active === false ? 0 : 1,
+      }));
+      set.set('collect_numbers', JSON.stringify(clean));
+    }
+    audit(user.merchant_id || 'platform', user.id, 'collection_config_updated', { numbers: Array.isArray(b.numbers) ? b.numbers.length : undefined });
+    return { ok: true, configured: set.collectConfigured(), numbers: set.collectNumbers() };
+  }));
+
   r.get('/app/admin/overview', admin(() => {
     const ops = require('../shared/operators');
     return {
@@ -1309,8 +1346,8 @@ module.exports = function registerRoutes(r) {
     const to = String(req.query.to || '').toUpperCase();
     if (!from || !to) return [400, { error: { code: 'from_and_to_required' } }];
     let map = {}; try { map = JSON.parse(process.env.KODA_RATES || '{}'); } catch { /* ignore */ }
-    const usdLocal = Number(process.env.KODA_USD_TO_LOCAL) || 2800;
-    const localCur = (process.env.KODA_COLLECT_CURRENCY || 'CDF').toUpperCase();
+    const usdLocal = require('./lib/settings').usdToLocal();
+    const localCur = require('./lib/settings').collectCurrency();
     // full precision on the reverse rate — rounding is applied only at final amount
     // computation, never baked into the rate (would drift the "exact amount").
     const table = { [`USD:${localCur}`]: usdLocal, [`${localCur}:USD`]: 1 / usdLocal, ...map };

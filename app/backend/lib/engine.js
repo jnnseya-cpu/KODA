@@ -142,7 +142,7 @@ function ingestSms(merchant, { raw, operator, device_id }) {
   try { require('./billing').matchDistributorPayment(merchant.id, parsed.amount); } catch { /* billing optional */ }
   // KODA self-collection: if this SIM is KODA's own collection phone, a verified
   // incoming payment auto-settles a matching pending plan/top-up (exact local amount).
-  try { if (process.env.KODA_COLLECT_MERCHANT === merchant.id) require('./billing').matchKodaCollection(parsed.amount); } catch { /* billing optional */ }
+  try { if (require('./settings').collectMerchantId() === merchant.id) require('./billing').matchKodaCollection(parsed.amount); } catch { /* billing optional */ }
 
   // FULLY-AUTOMATIC walk-in verification — the merchant does NOTHING. A clean operator
   // SMS on the merchant's own device that no order is awaiting is a counter sale: verify
@@ -150,7 +150,7 @@ function ingestSms(merchant, { raw, operator, device_id }) {
   // quarantine never reaches here). Skipped for the KODA treasury SIM (collections above)
   // and when orders of this amount are awaiting but ambiguous (held for the code).
   let auto = null;
-  if (process.env.KODA_COLLECT_MERCHANT !== merchant.id && !match.ambiguous) {
+  if (require('./settings').collectMerchantId() !== merchant.id && !match.ambiguous) {
     const still = q.get('SELECT matched_intent_id FROM sms_ledger WHERE id=?', smsId);
     if (still && !still.matched_intent_id) auto = confirmLedgerPayment(merchant, smsId, {});
   }
