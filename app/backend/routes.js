@@ -686,8 +686,8 @@ module.exports = function registerRoutes(r) {
       collect_currency: set.collectCurrency(),
       usd_to_local: set.usdToLocal(),
       rate_is_explicit: set.rateIsExplicit(),   // false ⇒ the rate is an auto-default for the currency
-      fx_defaults: require('../../shared/fx').DEFAULT_RATES,        // currency → indicative rate
-      country_currency: require('../../shared/fx').COUNTRY_CURRENCY, // ISO-2 → currency
+      fx_defaults: require('../shared/fx').DEFAULT_RATES,        // currency → indicative rate
+      country_currency: require('../shared/fx').COUNTRY_CURRENCY, // ISO-2 → currency
       numbers: set.collectNumbers(),
       devices,
       pending_collections: q.get(`SELECT COUNT(*) c FROM topups WHERE rail='koda' AND status='pending'`).c,
