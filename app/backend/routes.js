@@ -997,8 +997,20 @@ module.exports = function registerRoutes(r) {
     const t = q.get('SELECT * FROM topups WHERE id=?', req.params.id);
     if (!t) return [404, { error: { code: 'topup_not_found' } }];
     const out = billing.settleTopup(t.id);
-    audit(t.merchant_id, user.id, 'admin.topup_settled', { topup: t.id, purpose: t.purpose, plan: t.plan_key });
+    // A manual settle BYPASSES automated SMS/webhook verification, so it is
+    // recorded as an override (who forced it) for the audit trail.
+    audit(t.merchant_id, user.id, 'admin.topup_force_activated', { topup: t.id, purpose: t.purpose, plan: t.plan_key, override: true });
     return out;
+  }));
+  // Dismiss/cancel an UNPAID pending order (test clicks, abandoned checkouts). Never
+  // touches a settled order; just clears it from the awaiting-confirmation list.
+  r.post('/app/admin/topups/:id/cancel', admin((req, user) => {
+    const t = q.get('SELECT * FROM topups WHERE id=?', req.params.id);
+    if (!t) return [404, { error: { code: 'topup_not_found' } }];
+    if (t.status === 'settled') return [409, { error: { code: 'already_settled', message: 'a settled payment cannot be dismissed' } }];
+    const r0 = q.run(`UPDATE topups SET status='cancelled' WHERE id=? AND status IN ('pending','initiated')`, t.id);
+    audit(t.merchant_id, user.id, 'admin.topup_cancelled', { topup: t.id, purpose: t.purpose, plan: t.plan_key });
+    return { ok: r0.changes === 1, cancelled: t.id };
   }));
   // pending plan payments awaiting confirmation (surfaced in Collections)
   r.get('/app/admin/plan-payments', admin(() =>

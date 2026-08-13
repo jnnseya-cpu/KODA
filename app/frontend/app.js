@@ -1037,29 +1037,36 @@ function mmPanel(s, label, statusHtml) {
 function mmWaitAndPoll(boxId, s, label) {
   const box = document.getElementById(boxId);
   if (!box) return;
-  const waiting = `<span class="badge b-warn">⏳ Waiting for your payment…</span> <button class="btn btn-ghost btn-sm" onclick="window.__mmCheck&&window.__mmCheck()">I've paid — check now</button>`;
-  box.innerHTML = mmPanel(s, label, waiting);
   const id = s.reference || s.topup_id;
   let tries = 0, done = false;
-  const check = async () => {
+  const btn = `<button class="btn btn-ghost btn-sm" onclick="window.__mmCheck&&window.__mmCheck()">I've paid — check now</button>`;
+  const setStatus = (html) => { const el = document.getElementById('mm-status'); if (el) el.innerHTML = html; };
+  box.innerHTML = mmPanel(s, label, `<span class="badge b-warn">⏳ Waiting for your payment…</span> ${btn}`);
+  const check = async (manual) => {
     if (done || !document.getElementById(boxId)) return;   // settled or navigated away → stop
     tries++;
+    if (manual) setStatus(`<span class="badge b-info">Checking…</span>`);
     try {
       const st = await api(`/app/billing/collect/${id}`);
       if (st && st.status === 'settled') {
         done = true;
-        const el = document.getElementById('mm-status');
-        if (el) el.innerHTML = `<span class="badge b-ok">✓ Payment received — ${esc(label)} is now active.</span>`;
+        setStatus(`<span class="badge b-ok">✓ Payment received — ${esc(label)} is now active.</span>`);
         try { ME = await api('/app/me'); } catch {}
         toast('✓ Payment confirmed');
         setTimeout(route, 1800);
         return;
       }
-    } catch { /* transient — keep polling */ }
-    if (!done && tries < 75 && document.getElementById(boxId)) setTimeout(check, 4000);   // ~5 min
+      // not yet seen — tell the buyer WHY nothing happened, don't leave a dead button
+      if (manual) setStatus(`<span class="badge b-warn">⏳ Not seen yet</span> ${btn}
+        <div style="font-size:12px;color:var(--dim);margin-top:6px">Send <b>exactly</b> the amount shown to one of the numbers above, from the matching wallet. It confirms on its own within seconds of arriving — no need to keep clicking.</div>`);
+      else setStatus(`<span class="badge b-warn">⏳ Waiting for your payment…</span> ${btn}`);
+    } catch (e) {
+      if (manual) setStatus(`<span class="badge b-bad">Couldn't check — ${esc(e.message || 'network')}</span> ${btn}`);
+    }
+    if (!done && tries < 75 && document.getElementById(boxId)) setTimeout(() => check(false), 4000);   // ~5 min
   };
-  window.__mmCheck = check;
-  setTimeout(check, 4000);
+  window.__mmCheck = () => check(true);
+  setTimeout(() => check(false), 4000);
 }
 window.collectTopup = async (acu, usd, rail) => {
   const out = document.getElementById('collect-out');
@@ -1672,14 +1679,15 @@ window.adminFilterOps = () => {
 async function adminCollections() {
   const d = await api('/app/admin/collections');
   const planPays = await api('/app/admin/plan-payments');
-  const pendingPlans = planPays.filter(p => p.status !== 'settled');
+  const pendingPlans = planPays.filter(p => p.status === 'pending' || p.status === 'initiated');
   const treasury = (d.accounts.find(a => a.account_key === 'koda:treasury') || {}).balance_acu || 0;
   shell('admin', 'Collections', 'KODA staff — money in by rail · double-entry ledger', adminTabBar('collections') + `
-  ${pendingPlans.length ? `<div class="card" style="border-color:var(--gold)"><h3>Plan payments awaiting confirmation (${fmt(pendingPlans.length)})</h3>
-    <p style="font-size:13px;color:var(--dim)">A merchant paid for a plan via KODA mobile money. Confirm once you see the payment on the KODA SIM to activate their plan.</p>
+  ${pendingPlans.length ? `<div class="card" style="border-color:var(--gold)"><h3>Plan checkouts started — NOT yet paid (${fmt(pendingPlans.length)})</h3>
+    <p style="font-size:13px;color:var(--dim)">These merchants opened a mobile-money plan checkout. <b>They activate on their own</b> the moment KODA's Sentinel sees the payment on the SIM — you do nothing. Only use <b>force-activate</b> if you personally saw the money arrive but the Sentinel missed it, and <b>dismiss</b> test clicks / abandoned checkouts.</p>
     <table class="tbl"><tr><th>When</th><th>Merchant</th><th>Plan</th><th>Rail</th><th class="num">Amount</th><th></th></tr>
     ${pendingPlans.map(p => `<tr><td>${when(p.created_at)}</td><td>${esc(p.merchant)}</td><td><span class="badge b-info">${esc(p.plan_key)}</span></td><td class="mono">${esc(p.rail)}</td><td class="num">$${fmt(p.total_usd)}</td>
-      <td><button class="btn btn-gold btn-sm" onclick="adminSettleTopup('${p.id}')">confirm & activate</button></td></tr>`).join('')}
+      <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="adminDismissTopup('${p.id}')">dismiss</button>
+        <button class="btn btn-danger btn-sm" onclick="adminSettleTopup('${p.id}')">force-activate</button></td></tr>`).join('')}
     </table></div>` : ''}
   <div class="grid g4">
     <div class="card stat"><b>$${fmt(d.settled_totals.gross)}</b><span>settled gross · ${fmt(d.settled_totals.n)} topups</span></div>
@@ -1701,7 +1709,14 @@ async function adminCollections() {
     </table></div>` : ''}`);
 }
 
-window.adminSettleTopup = async (id) => { try { const r = await api(`/app/admin/topups/${id}/settle`, { body: {} }); toast(r.plan_activated ? '✓ plan activated: ' + r.plan_activated : '✓ settled'); route(); } catch (e) { toast('✗ ' + e.message); } };
+window.adminSettleTopup = async (id) => {
+  if (!confirm('MANUAL OVERRIDE — activate WITHOUT automated verification.\n\nOnly do this if you have personally seen this exact payment arrive on the KODA SIM. Normally KODA\'s Sentinel confirms mobile-money payments automatically. Force-activate anyway?')) return;
+  try { const r = await api(`/app/admin/topups/${id}/settle`, { body: {} }); toast(r.plan_activated ? '✓ plan activated: ' + r.plan_activated : '✓ settled'); route(); } catch (e) { toast('✗ ' + e.message); }
+};
+window.adminDismissTopup = async (id) => {
+  if (!confirm('Dismiss this unpaid pending order? (Use for test clicks / abandoned checkouts — a real settled payment cannot be dismissed.)')) return;
+  try { await api(`/app/admin/topups/${id}/cancel`, { body: {} }); toast('✓ dismissed'); route(); } catch (e) { toast('✗ ' + e.message); }
+};
 
 // ---- Distributors (field agents) ----
 async function adminDistributors() {
