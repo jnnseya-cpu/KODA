@@ -685,10 +685,13 @@ module.exports = function registerRoutes(r) {
       collector,
       collect_currency: set.collectCurrency(),
       usd_to_local: set.usdToLocal(),
+      rate_is_explicit: set.rateIsExplicit(),   // false ⇒ the rate is an auto-default for the currency
+      fx_defaults: require('../../shared/fx').DEFAULT_RATES,        // currency → indicative rate
+      country_currency: require('../../shared/fx').COUNTRY_CURRENCY, // ISO-2 → currency
       numbers: set.collectNumbers(),
       devices,
       pending_collections: q.get(`SELECT COUNT(*) c FROM topups WHERE rail='koda' AND status='pending'`).c,
-      merchants: q.all(`SELECT id,name,country FROM merchants ORDER BY created_at ASC LIMIT 200`),
+      merchants: q.all(`SELECT id,name,country,currency FROM merchants ORDER BY created_at ASC LIMIT 200`),
     };
   }));
   r.post('/app/admin/collection', admin((req, user) => {

@@ -32,7 +32,20 @@ function getJson(key, dflt) {
 // receiving SIM(s); its incoming operator SMS auto-settles pending plan/top-up orders.
 function collectMerchantId() { return get('collect_merchant_id', 'KODA_COLLECT_MERCHANT', ''); }
 function collectCurrency() { return String(get('collect_currency', 'KODA_COLLECT_CURRENCY', 'CDF')).toUpperCase(); }
-function usdToLocal() { return Number(get('usd_to_local', 'KODA_USD_TO_LOCAL', 2800)) || 2800; }
+// Settlement rate: an explicitly-saved value (admin console) or env always wins;
+// otherwise it AUTO-DERIVES from the collection currency's indicative default
+// (shared/fx.js), so the rate is sensible per country without manual entry.
+function rateIsExplicit() {
+  const v = raw('usd_to_local');
+  return (v != null && v !== '') || !!process.env.KODA_USD_TO_LOCAL;
+}
+function usdToLocal() {
+  const v = raw('usd_to_local');
+  if (v != null && v !== '') return Number(v) || 2800;
+  if (process.env.KODA_USD_TO_LOCAL) return Number(process.env.KODA_USD_TO_LOCAL) || 2800;
+  try { const fx = require('../../shared/fx').defaultRate(collectCurrency()); if (fx) return fx; } catch { /* fx optional */ }
+  return 2800;
+}
 // Receiving numbers: [{ operator, msisdn, label, active }]. Falls back to the single
 // env number (KODA_COLLECT_MSISDN) so existing deployments keep working.
 function collectNumbers() {
@@ -53,6 +66,6 @@ function collectConfigured() { return activeNumbers().length > 0; }
 
 module.exports = {
   raw, get, getJson, set,
-  collectMerchantId, collectCurrency, usdToLocal,
+  collectMerchantId, collectCurrency, usdToLocal, rateIsExplicit,
   collectNumbers, activeNumbers, primaryNumber, collectConfigured,
 };

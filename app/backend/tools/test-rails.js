@@ -109,6 +109,18 @@ const mkReq = (body, headers) => ({ headers: headers || {}, rawBody: Buffer.from
   ok(topup.session && topup.session.pay_to === '+243999000111', 'KODA MoMo checkout shows the admin-set number', topup.session && topup.session.pay_to);
   ok(topup.session.amount_local === Math.round(10 * 2500) + 0 || Math.abs(topup.session.amount_local - 10 * 2500) < 100, 'exact local amount uses the admin-set rate', topup.session.amount_local);
 
+  // ── 7. settlement rate auto-derives from currency (90+ markets); explicit wins ──
+  const fx = require('../../shared/fx');
+  settings.set('usd_to_local', '');            // clear any explicit override
+  settings.set('collect_currency', 'XOF');
+  ok(settings.usdToLocal() === fx.defaultRate('XOF'), 'rate auto-derives from the currency default (XOF → 600)', settings.usdToLocal());
+  settings.set('collect_currency', 'NGN');
+  ok(settings.usdToLocal() === fx.defaultRate('NGN'), 'switching currency auto-updates the derived rate (NGN)', settings.usdToLocal());
+  settings.set('usd_to_local', '3100');        // explicit override always wins
+  ok(settings.usdToLocal() === 3100 && settings.rateIsExplicit() === true, 'an explicitly saved rate overrides the auto-default');
+  ok(fx.currencyForCountry('NG') === 'NGN' && fx.currencyForCountry('SN') === 'XOF' && fx.currencyForCountry('CD') === 'CDF', 'country → currency resolves (NG→NGN, SN→XOF, CD→CDF)');
+  ok(Object.keys(fx.COUNTRY_CURRENCY).length >= 70, 'country→currency map covers KODA\'s broad footprint', Object.keys(fx.COUNTRY_CURRENCY).length + ' countries');
+
   console.log(`\n${fail === 0 ? '✅ RAILS GREEN' : '❌ RAILS FAILED'} — ${pass} passed, ${fail} failed\n`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('RAILS TEST CRASH', e && e.stack || e); process.exit(1); });

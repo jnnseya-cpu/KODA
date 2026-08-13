@@ -1763,9 +1763,13 @@ async function adminRails() {
 
 // ---- KODA self-collection setup (zero-fee mobile-money rail; no env editing) ----
 let _collectNums = [];
+let _fxDefaults = {}, _countryCur = {}, _merchMap = {};
 async function adminCollection() {
   const d = await api('/app/admin/collection');
   _collectNums = (d.numbers || []).map(n => ({ operator: n.operator || '', msisdn: n.msisdn || '', label: n.label || '', active: n.active === false ? false : true }));
+  _fxDefaults = d.fx_defaults || {};
+  _countryCur = d.country_currency || {};
+  _merchMap = {}; (d.merchants || []).forEach(m => { _merchMap[m.id] = { country: m.country, currency: m.currency }; });
   const opList = ['', 'orange_cd', 'mpesa_cd', 'airtel_cd', 'africell_cd', 'mtn_momo', 'wave'];
   const opSel = (val) => `<select data-k="operator" class="cn-in" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:8px">
     ${opList.map(o => `<option value="${o}" ${o === val ? 'selected' : ''}>${o || 'any operator'}</option>`).join('')}</select>`;
@@ -1793,7 +1797,7 @@ async function adminCollection() {
   <div class="card" style="margin-top:14px"><h3>Collector account (holds the receiving SIM + Sentinel)</h3>
     <p style="font-size:13px;color:var(--dim)">Pick the KODA-owned merchant whose Sentinel phone receives the payments. Incoming SMS on this account auto-settle collections; its own counter sales are disabled to keep the treasury clean.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <select id="cn-merchant" style="flex:1;min-width:240px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <select id="cn-merchant" onchange="onCollectorPick()" style="flex:1;min-width:240px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
         <option value="">— select collector merchant —</option>
         ${(d.merchants || []).map(m => `<option value="${m.id}" ${m.id === d.collect_merchant_id ? 'selected' : ''}>${esc(m.name)} · ${esc(m.country)} · ${esc(m.id)}</option>`).join('')}
       </select>
@@ -1807,12 +1811,13 @@ async function adminCollection() {
   </div>
 
   <div class="card" style="margin-top:14px"><h3>Settlement rate</h3>
-    <p style="font-size:13px;color:var(--dim)">KODA prices plans in USD but receives local currency. This pinned rate converts the price to an exact local amount so payments auto-match. KODA is not an FX provider — set the rate you actually receive at.</p>
+    <p style="font-size:13px;color:var(--dim)">KODA works across 90+ countries. Pick a collector account (or type a currency) and the rate <b>auto-fills</b> with a sensible default for that currency — KODA is not an FX provider, so confirm/override it with the rate you actually receive at.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <label style="font-size:13px">1 USD =</label>
-      <input id="cn-rate" type="number" value="${esc(String(d.usd_to_local))}" style="width:140px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
-      <input id="cn-cur" value="${esc(d.collect_currency)}" style="width:100px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px" placeholder="CDF">
+      <input id="cn-rate" type="number" value="${esc(String(d.usd_to_local))}" oninput="onRateEdited()" style="width:140px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="cn-cur" value="${esc(d.collect_currency)}" onchange="onCollectCurrency()" onblur="onCollectCurrency()" style="width:100px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px" placeholder="CDF">
     </div>
+    <p id="cn-rate-hint" style="font-size:12px;color:var(--dim);margin-top:8px"></p>
   </div>
 
   <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
@@ -1844,6 +1849,34 @@ function syncCollectFromDom() {
     active: !!(row.querySelector('[data-k="active"]') || {}).checked,
   }));
 }
+// Auto-fill the settlement rate from the chosen currency/country (90+ markets).
+function fxRateHint() {
+  const el = document.getElementById('cn-rate-hint'); if (!el) return;
+  const cur = (v('cn-cur') || '').toUpperCase();
+  const def = _fxDefaults[cur];
+  if (!cur) { el.textContent = ''; return; }
+  el.innerHTML = def != null
+    ? `Auto-filled default for <b>${esc(cur)}</b> (≈ ${fmt(def)} ${esc(cur)} per $1). Confirm or edit to your received rate.`
+    : `No built-in default for <b>${esc(cur)}</b> — enter the local amount you actually receive for $1.`;
+}
+window.onCollectCurrency = () => {
+  const cur = (v('cn-cur') || '').toUpperCase();
+  const def = _fxDefaults[cur];
+  const r = document.getElementById('cn-rate');
+  if (def != null && r) r.value = def;   // rate is currency-specific → refill on currency change
+  fxRateHint();
+};
+window.onCollectorPick = () => {
+  const m = _merchMap[v('cn-merchant')];
+  if (!m) return;
+  const cur = (m.currency || _countryCur[(m.country || '').toUpperCase()] || '').toUpperCase();
+  const c = document.getElementById('cn-cur');
+  if (cur && c) { c.value = cur; onCollectCurrency(); }   // country → currency → default rate
+};
+window.onRateEdited = () => {
+  const el = document.getElementById('cn-rate-hint');
+  if (el) el.textContent = 'Using your custom rate — payments auto-match on the exact local amount computed from it.';
+};
 window.saveCollection = async () => {
   syncCollectFromDom();
   const out = document.getElementById('cn-out');
