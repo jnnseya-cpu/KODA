@@ -108,6 +108,15 @@ const mkReq = (body, headers) => ({ headers: headers || {}, rawBody: Buffer.from
   const topup = billing.createTopup(merchant, { amount_acu: 100, rail: 'koda', usd: 10 });
   ok(topup.session && topup.session.pay_to === '+243999000111', 'KODA MoMo checkout shows the admin-set number', topup.session && topup.session.pay_to);
   ok(topup.session.amount_local === Math.round(10 * 2500) + 0 || Math.abs(topup.session.amount_local - 10 * 2500) < 100, 'exact local amount uses the admin-set rate', topup.session.amount_local);
+  // multiple receiving numbers: the checkout must offer ALL active ones (per operator)
+  settings.set('collect_numbers', JSON.stringify([
+    { operator: 'airtel_cd', msisdn: '+243999000111', label: 'Airtel', active: 1 },
+    { operator: 'orange_cd', msisdn: '+243888000222', label: 'Orange', active: 1 },
+    { operator: 'mpesa_cd', msisdn: '+243777000333', label: 'off', active: 0 },
+  ]));
+  const t2 = billing.createTopup(merchant, { amount_acu: 50, rail: 'koda', usd: 10 });
+  ok(Array.isArray(t2.session.pay_to_numbers) && t2.session.pay_to_numbers.length === 2, 'MoMo checkout lists ALL active numbers (2 active, 1 disabled)', t2.session.pay_to_numbers && t2.session.pay_to_numbers.length);
+  ok(t2.session.pay_to_numbers.some(n => n.operator === 'orange_cd') && t2.session.pay_to_numbers.some(n => n.operator === 'airtel_cd'), 'each operator number is offered so the buyer pays from their own wallet');
 
   // ── 7. settlement rate auto-derives from currency (90+ markets); explicit wins ──
   const fx = require('../../shared/fx');

@@ -186,10 +186,11 @@ function createTopup(merchant, body = {}) {
            VALUES (?,?,?,?,?,?,?,?,?, 'acu', ?, ?, 'pending')`,
       id, merchant.id, acu, subtotal, 0, 0, subtotal, 'USD', 'koda', idem, JSON.stringify({ rail: 'koda', expected_local: expected }));
     const num = settings.primaryNumber() || '(no KODA receiving number set — add one in Admin → Collection)';
+    const numbers = settings.activeNumbers().map(n => ({ operator: n.operator || '', msisdn: n.msisdn, label: n.label || '' }));
     return {
       ...topupView(q.get('SELECT * FROM topups WHERE id=?', id)),
-      session: { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, amount_usd: subtotal, amount_local: expected, currency: cur, reference: id,
-        instructions: `Pay EXACTLY ${expected} ${cur} (≈ $${subtotal}) by mobile money to KODA at ${num}. Your ${acu} ACU are credited automatically once KODA sees the payment.` },
+      session: { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, pay_to_numbers: numbers, amount_usd: subtotal, amount_local: expected, currency: cur, reference: id,
+        instructions: `Pay EXACTLY ${expected} ${cur} (≈ $${subtotal}) by mobile money to any KODA number below. Your ${acu} ACU are credited automatically once KODA sees the payment.` },
     };
   }
   if (!B.RAILS[rail] || B.RAILS[rail].live === false) return [422, { error: { code: 'rail_unavailable', message: `rail ${rail} not available` } }];
@@ -435,7 +436,7 @@ function sessionFor(topup, rail, quote) {
       expected = assignExpectedLocal(quote.total_usd);
       q.run('UPDATE topups SET routing_snapshot=? WHERE id=?', JSON.stringify({ rail: 'koda', quote, expected_local: expected }), topup.id);
     }
-    return { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, amount_usd: quote.total_usd, amount_local: expected, currency: cur, reference: topup.id,
+    return { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, pay_to_numbers: settings.activeNumbers().map(n => ({ operator: n.operator || '', msisdn: n.msisdn, label: n.label || '' })), amount_usd: quote.total_usd, amount_local: expected, currency: cur, reference: topup.id,
       instructions: `Pay EXACTLY ${expected} ${cur} (≈ $${quote.total_usd}) by mobile money to KODA at ${num}. Your ${quote.plan_label} plan activates automatically once KODA sees the payment.` };
   }
   if (PROVIDERS[rail]) return PROVIDERS[rail].createSession(topup);

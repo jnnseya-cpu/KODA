@@ -1014,6 +1014,53 @@ window.topupPay = async (acu, usd) => {
       <div id="collect-out" style="margin-top:10px"></div></div>`;
   } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
+// friendly operator names for the pay-to list
+const OP_NAMES = { orange_cd: 'Orange Money', mpesa_cd: 'M-Pesa', airtel_cd: 'Airtel Money', africell_cd: 'Africell Money', mtn_momo: 'MTN MoMo', wave: 'Wave' };
+const opName = (c) => OP_NAMES[c] || (c || 'Mobile money');
+// Render the mobile-money pay panel: ALL active KODA numbers (buyer picks the one
+// matching their wallet) + a live status line that flips to ✓ when KODA auto-verifies.
+function mmPanel(s, label, statusHtml) {
+  const amt = s.amount_local != null ? `<b>${fmt(s.amount_local)} ${esc(s.currency || '')}</b> (≈ $${fmt(s.amount_usd)})` : `<b>$${fmt(s.amount_usd)}</b>`;
+  const nums = (s.pay_to_numbers && s.pay_to_numbers.length) ? s.pay_to_numbers : [{ operator: '', msisdn: s.pay_to, label: '' }];
+  const rows = nums.map(n => `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line-strong);border-radius:8px;margin-top:6px">
+    <div style="min-width:0"><div style="font-size:12px;color:var(--dim)">${esc(opName(n.operator))}${n.label ? ' · ' + esc(n.label) : ''}</div>
+      <div class="mono" style="font-size:15px;word-break:break-all">${esc(n.msisdn)}</div></div>
+    <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(n.msisdn)}');toast('✓ number copied')">Copy</button>
+  </div>`).join('');
+  return `<div class="card"><h3 class="ok">Pay by mobile money</h3>
+    <p style="font-size:14px">Send exactly ${amt} to <b>any one</b> of your KODA numbers below — use the operator that matches your wallet.</p>
+    ${rows}
+    <p style="font-size:13px;color:var(--dim);margin-top:10px">Your ${esc(label)} activates <b>automatically</b> once KODA sees the payment (usually seconds). Keep your confirmation SMS.</p>
+    <div id="mm-status" style="margin-top:10px">${statusHtml}</div></div>`;
+}
+// Show the panel, then poll the order until KODA settles it — no dead-end screen.
+function mmWaitAndPoll(boxId, s, label) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  const waiting = `<span class="badge b-warn">⏳ Waiting for your payment…</span> <button class="btn btn-ghost btn-sm" onclick="window.__mmCheck&&window.__mmCheck()">I've paid — check now</button>`;
+  box.innerHTML = mmPanel(s, label, waiting);
+  const id = s.reference || s.topup_id;
+  let tries = 0, done = false;
+  const check = async () => {
+    if (done || !document.getElementById(boxId)) return;   // settled or navigated away → stop
+    tries++;
+    try {
+      const st = await api(`/app/billing/collect/${id}`);
+      if (st && st.status === 'settled') {
+        done = true;
+        const el = document.getElementById('mm-status');
+        if (el) el.innerHTML = `<span class="badge b-ok">✓ Payment received — ${esc(label)} is now active.</span>`;
+        try { ME = await api('/app/me'); } catch {}
+        toast('✓ Payment confirmed');
+        setTimeout(route, 1800);
+        return;
+      }
+    } catch { /* transient — keep polling */ }
+    if (!done && tries < 75 && document.getElementById(boxId)) setTimeout(check, 4000);   // ~5 min
+  };
+  window.__mmCheck = check;
+  setTimeout(check, 4000);
+}
 window.collectTopup = async (acu, usd, rail) => {
   const out = document.getElementById('collect-out');
   out.innerHTML = '…';
@@ -1021,10 +1068,7 @@ window.collectTopup = async (acu, usd, rail) => {
     const r = await api('/app/billing/collect', { body: { amount_acu: acu, usd: usd || undefined, rail } });
     const s = r.session || {};
     if (s.flow === 'MOBILE_MONEY_TO_KODA_SIM') {
-      const amt = s.amount_local != null ? `<b>${fmt(s.amount_local)} ${esc(s.currency || '')}</b> (≈ $${fmt(s.amount_usd)})` : `<b>$${fmt(s.amount_usd)}</b>`;
-      out.innerHTML = `<div class="card"><h3 class="ok">Pay by mobile money</h3>
-        <p style="font-size:14px">Send exactly ${amt} to <b class="mono">${esc(s.pay_to)}</b>.</p>
-        <p style="font-size:13px;color:var(--dim)">Your ${fmt(acu)} ACU are credited <b>automatically</b> once KODA sees the payment (usually seconds).</p></div>`;
+      mmWaitAndPoll('collect-out', s, `${fmt(acu)} ACU`);
     } else if ((s.checkout_url || s.url) && /^https?:\/\//.test(s.checkout_url || s.url)) {
       out.innerHTML = `<a class="btn btn-gold" href="${esc(s.checkout_url || s.url)}" target="_blank" rel="noopener">Continue to secure checkout →</a>`;
     } else {
@@ -1089,10 +1133,8 @@ window.subscribePlan = async (plan, rail) => {
     const r = await api('/app/billing/subscribe', { body: { plan, rail } });
     const s = r.session || {};
     if (s.flow === 'MOBILE_MONEY_TO_KODA_SIM') {
-      const amt = s.amount_local != null ? `<b>${fmt(s.amount_local)} ${esc(s.currency || '')}</b> (≈ $${fmt(s.amount_usd)})` : `<b>$${fmt(s.amount_usd)}</b>`;
-      out.innerHTML = `<div class="card"><h3 class="ok">Pay by mobile money</h3>
-        <p style="font-size:14px">Send exactly ${amt} to <b class="mono">${esc(s.pay_to)}</b> by mobile money.</p>
-        <p style="font-size:13px;color:var(--dim)">Your plan activates <b>automatically</b> once KODA sees the payment (usually seconds). Keep your confirmation SMS.</p></div>`;
+      const label = (r.plan_label || (plan.charAt(0).toUpperCase() + plan.slice(1))) + ' plan';
+      mmWaitAndPoll('sub-out', s, label);
     } else if ((s.checkout_url || s.url) && /^https?:\/\//.test(s.checkout_url || s.url)) {
       out.innerHTML = `<a class="btn btn-gold" href="${esc(s.checkout_url || s.url)}" target="_blank" rel="noopener">Continue to secure checkout →</a>`;
     } else {
