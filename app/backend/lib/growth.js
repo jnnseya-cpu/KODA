@@ -8,6 +8,7 @@
 const ACU = {
   social_post: 1, advert: 2, email_campaign: 2, landing_page: 3, hashtags: 0.5,
   video_script: 2, recommendations: 1, audience: 1, analytics: 1, posting_time: 0.5,
+  sales_kit: 1,
 };
 
 const HOOKS_FR = [
@@ -152,8 +153,57 @@ function postingTime(m) {
     ], note: 'Peaks align with commute + evening commerce windows in mobile-money markets.' };
 }
 
+// 11 — FIELD-SALES KIT: everything to walk into a market and sell KODA by hand.
+// WhatsApp pitch in all 6 launch languages, a 30-second door-to-door script, a
+// printable flyer, and objection-handling. Deterministic (works with no AI key).
+const PITCH = {
+  fr: "Bonjour 👋 Vous acceptez Orange/M-Pesa/Airtel Money ? Avec KODA, chaque paiement est vérifié en 3 secondes sur VOTRE propre SMS opérateur — fini les faux screenshots. Gratuit pour commencer, aucun contrat télécom.",
+  en: "Hi 👋 Do you accept Orange/M-Pesa/Airtel Money? With KODA every payment is verified in 3 seconds against YOUR own operator SMS — no more fake screenshots. Free to start, no telco contract.",
+  sw: "Habari 👋 Unapokea Orange/M-Pesa/Airtel Money? Na KODA kila malipo yanathibitishwa kwa sekunde 3 kwa SMS yako mwenyewe ya opereta — hakuna screenshots za uongo. Bure kuanza, hakuna mkataba wa simu.",
+  ln: "Mbote 👋 Ozali kondima Orange/M-Pesa/Airtel Money? Na KODA lifuti nyonso evérifiema na segonde 3 na SMS ya opérateur na yo moko — faux screenshots esili. Ofele mpo kobanda, contrat ya télécom te.",
+  wo: "Salaam 👋 Dangay nangu Orange/M-Pesa/Airtel Money? Ak KODA, payement bu nekk dañu koy dëggal ci 3 segond ci sa SMS opérateur — faux screenshots jeex na. Free ngir tàmbali, amul kontaraa télécom.",
+  ak: "Agoo 👋 Wogye Orange/M-Pesa/Airtel Money? Wo KODA a, wɔhwɛ tuo biara mu wɔ sɛkɛnne 3 wɔ w'ankasa operator SMS so — screenshot atorɔ nni hɔ bio. Ɛyɛ fee sɛ wobɛfiri aseɛ, telecom kontrakt biara nni hɔ.",
+};
+function salesKit(m, { lang } = {}) {
+  const L = (lang || m.language || 'fr');
+  const F = (L === 'fr' || L === 'ln' || L === 'wo');   // FR-family for the long-form copy
+  const name = m.name || 'votre commerce';
+  return {
+    language: L,
+    whatsapp_pitch_all_languages: PITCH,
+    whatsapp_pitch: PITCH[L] || PITCH.fr,
+    door_to_door_30s: F
+      ? [`«Bonjour, je suis [nom] de KODA. Vous perdez de l'argent avec les faux paiements mobile money ?»`,
+         `«KODA vérifie chaque paiement en 3 secondes sur votre propre SMS Orange/M-Pesa/Airtel. Le client paie normalement, vous savez tout de suite que c'est vrai.»`,
+         `«C'est gratuit pour commencer, pas de contrat, pas d'appli compliquée. Je vous montre en 1 minute ?»`,
+         `«Scannez ce code / ce lien et vérifiez votre premier paiement maintenant.»`]
+      : [`"Hi, I'm [name] from KODA. Are fake mobile-money payments costing you money?"`,
+         `"KODA verifies every payment in 3 seconds against your own Orange/M-Pesa/Airtel SMS. The customer pays as usual, you know at once it's real."`,
+         `"It's free to start, no contract, no complicated app. Can I show you in 1 minute?"`,
+         `"Scan this code / link and verify your first payment right now."`],
+    flyer: {
+      headline: F ? 'Ne te fais plus arnaquer par les faux paiements' : 'Stop losing money to fake payments',
+      bullets: F
+        ? ['✓ Chaque paiement vérifié en 3 secondes', '✓ Sur ton propre SMS opérateur — impossible à falsifier', '✓ Gratuit pour commencer · aucun contrat télécom']
+        : ['✓ Every payment verified in 3 seconds', "✓ Against your own operator SMS — impossible to fake", '✓ Free to start · no telco contract'],
+      cta: F ? 'Commence gratuitement → kodajnn.com' : 'Start free → kodajnn.com',
+      footer: F ? `Recommandé par ${name}` : `Recommended by ${name}`,
+    },
+    objections: F
+      ? [{ q: '« C\'est cher ? »', a: 'Non — 10 vérifications par mois gratuites, pour toujours. Tu paies seulement si tu grandis.' },
+         { q: '« Je dois changer de numéro ? »', a: 'Non. Tu gardes ton numéro et ton compte mobile money. KODA lit juste le SMS de confirmation.' },
+         { q: '« C\'est compliqué ? »', a: 'Non. Colle le code du client ou transfère le SMS — la réponse arrive en 3 secondes.' }]
+      : [{ q: '"Is it expensive?"', a: 'No — 10 verifications/month free, forever. You only pay if you grow.' },
+         { q: '"Do I change my number?"', a: 'No. Keep your number and mobile-money account. KODA just reads the confirmation SMS.' },
+         { q: '"Is it complicated?"', a: 'No. Paste the customer code or forward the SMS — the verdict comes in 3 seconds.' }],
+    tip: F ? 'Fais vérifier UN vrai paiement devant le marchand — la démonstration vend mieux que les mots.'
+           : 'Verify ONE real payment in front of the merchant — the live demo sells better than words.',
+  };
+}
+
 const TOOLS = {
   social_post: { label: 'AI social media post generator', acu: ACU.social_post, run: socialPost },
+  sales_kit: { label: 'AI field-sales kit (pitch · script · flyer, 6 languages)', acu: ACU.sales_kit, run: salesKit },
   advert: { label: 'AI targeted advert creator', acu: ACU.advert, run: advert },
   email_campaign: { label: 'AI email campaign generator', acu: ACU.email_campaign, run: emailCampaign },
   landing_page: { label: 'AI landing page builder', acu: ACU.landing_page, run: landingPage },

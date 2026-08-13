@@ -271,6 +271,7 @@ const ROLE_VIEWS = {
 // opts in from Developers → "Sandbox test tools"; the flag lives in localStorage.
 const isSandbox = () => { try { return localStorage.getItem('koda_sandbox') === '1'; } catch { return false; } };
 const GROWTH_TOOLS = [
+  ['sales_kit', '🧰', 'Field-sales kit (pitch · script · flyer)'],
   ['social_post', '📱', 'Social media post'], ['advert', '📢', 'Advert creator'],
   ['email_campaign', '✉️', 'Email campaign'], ['landing_page', '🖥️', 'Landing page builder'],
   ['hashtags', '#️⃣', 'Hashtag generator'], ['video_script', '🎬', 'Video script'],
@@ -1461,6 +1462,21 @@ function growthOpts(tool) {
 }
 function renderGrowth(tool, r) {
   const pre = (o) => `<div class="codebox" style="white-space:pre-wrap">${esc(typeof o === 'string' ? o : JSON.stringify(o, null, 2))}</div>`;
+  if (tool === 'sales_kit') return `
+    <h3 style="margin:0 0 6px">WhatsApp pitch (${esc(r.language)})</h3>
+    <div class="codebox" style="white-space:pre-wrap">${esc(r.whatsapp_pitch)}</div>
+    <h3 style="margin:16px 0 6px">Door-to-door script (30 sec)</h3>
+    <div class="codebox" style="white-space:pre-wrap">${(r.door_to_door_30s || []).map(esc).join('\n\n')}</div>
+    <h3 style="margin:16px 0 6px">Printable flyer</h3>
+    <div class="card"><b style="font-size:16px">${esc(r.flyer.headline)}</b>
+      <div style="margin:8px 0">${(r.flyer.bullets || []).map(b => `<div>${esc(b)}</div>`).join('')}</div>
+      <div style="color:var(--gold);font-weight:700">${esc(r.flyer.cta)}</div>
+      <div style="font-size:12px;color:var(--dim);margin-top:4px">${esc(r.flyer.footer)}</div></div>
+    <h3 style="margin:16px 0 6px">Objection handling</h3>
+    ${(r.objections || []).map(o => `<div style="margin-bottom:8px"><b>${esc(o.q)}</b><br><span style="color:var(--dim)">${esc(o.a)}</span></div>`).join('')}
+    <div class="badge b-info" style="margin-top:8px;display:block;line-height:1.5">💡 ${esc(r.tip)}</div>
+    <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--gold)">Pitch in all 6 languages</summary>
+      ${Object.entries(r.whatsapp_pitch_all_languages || {}).map(([l, p]) => `<div style="margin-top:8px"><b class="mono">${esc(l)}</b><div class="codebox" style="white-space:pre-wrap">${esc(p)}</div></div>`).join('')}</details>`;
   if (tool === 'social_post') return `<div class="codebox" style="white-space:pre-wrap">${esc(r.text)}</div>
     <div style="margin-top:8px">${(r.hashtags || []).map(h => `<span class="chan inapp">${esc(h)}</span>`).join(' ')}</div>`;
   if (tool === 'advert') return `<dl class="kv"><dt>headline</dt><dd>${esc(r.headline)}</dd><dt>primary</dt><dd>${esc(r.primary_text)}</dd>

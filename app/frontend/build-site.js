@@ -884,8 +884,56 @@ fs.writeFileSync(path.join(OUT, 'blog.html'),
     lead: 'Guides on verifying mobile money payments, stopping fraud, and getting paid with certainty across Africa.', body: indexBody })
     .replace(/<title>[^<]*<\/title>/, m => m + '\n' + seo.seoHead({ title: 'KODA Blog — mobile money payment verification', description: 'Guides on verifying mobile money payments, stopping screenshot fraud, and reconciliation for African merchants.', path: '/blog', jsonld: [seo.orgJsonLd()] })));
 
-// sitemap + robots at site root (served by the server)
-fs.writeFileSync(path.join(OUT, 'sitemap.xml'), seo.sitemap(dates));
+// ---- SEO city × operator landing pages (organic long-tail acquisition) ----
+// One crawlable page per (city, operator) for searches like "vérifier Orange Money
+// Kinshasa". Free inbound over months; each links straight into free signup.
+const SEO_CITIES = [
+  ['Kinshasa', 'CD'], ['Lubumbashi', 'CD'], ['Goma', 'CD'], ['Bukavu', 'CD'], ['Kisangani', 'CD'],
+  ['Matadi', 'CD'], ['Mbuji-Mayi', 'CD'], ['Kananga', 'CD'], ['Kolwezi', 'CD'], ['Likasi', 'CD'],
+];
+const SEO_OPERATORS = ['Orange Money', 'M-Pesa', 'Airtel Money', 'Afrimoney'];
+const slugify = (s) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const cityPages = [];
+for (const [city] of SEO_CITIES) {
+  for (const op of SEO_OPERATORS) {
+    const slug = `verifier-${slugify(op)}-${slugify(city)}`;
+    const title = `Vérifier un paiement ${op} à ${city}`;
+    const lead = `Vous êtes commerçant à ${city} et vous acceptez ${op} ? Vérifiez chaque paiement en 3 secondes contre votre propre SMS opérateur — fini les faux screenshots. Gratuit pour commencer, sans contrat télécom.`;
+    const faqs = [
+      [`Comment vérifier un paiement ${op} à ${city} ?`, `Collez le code du client (ou transférez le SMS ${op}) dans KODA. Le paiement est vérifié en ~3 secondes contre le SMS de confirmation reçu sur votre téléphone, et le code est verrouillé pour toujours.`],
+      [`KODA est-il gratuit ?`, `Oui — 10 vérifications par mois, gratuites pour toujours. Vous ne payez que si votre activité grandit.`],
+      [`Dois-je changer de numéro ${op} ?`, `Non. Vous gardez votre numéro et votre compte ${op}. KODA lit uniquement le SMS de confirmation, avec votre accord.`],
+    ];
+    const body = `
+      <p>${lead}</p>
+      <h2>Comment ça marche à ${city}</h2>
+      <ol><li>Votre client paie sur ${op} comme d'habitude, à votre numéro marchand.</li>
+      <li>Collez son code ou transférez le SMS ${op} à KODA.</li>
+      <li>KODA vérifie contre le vrai SMS opérateur et verrouille le code — verdict en 3 secondes.</li></ol>
+      <h2>Pourquoi les commerçants de ${city} choisissent KODA</h2>
+      <ul><li>✓ Zéro faux screenshot — la preuve, c'est le SMS de l'opérateur.</li>
+      <li>✓ Protection anti-rejeu : un code utilisé une fois est mort pour toujours.</li>
+      <li>✓ Cinq portes : Console, WhatsApp, API, USSD, SMS — même sur téléphone simple.</li>
+      <li>✓ Gratuit pour commencer, aucun contrat télécom.</li></ul>
+      <div class="card"><b>Commencez gratuitement à ${city}</b><p style="margin:8px 0 0">Vérifiez votre premier paiement ${op} en 10 minutes.</p>
+        <p style="margin-top:10px"><a class="badge" style="font-size:13px;padding:9px 16px" href="/app#signup">Créer un compte gratuit →</a></p></div>
+      <h2>Questions fréquentes</h2>
+      ${faqs.map(([q, a]) => `<h3>${q}</h3><p>${a}</p>`).join('')}`;
+    const jsonld = [seo.orgJsonLd(), {
+      '@context': 'https://schema.org', '@type': 'FAQPage',
+      mainEntity: faqs.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
+    }];
+    const html = page({ title, kicker: `KODA · ${city}`, lead, body })
+      .replace(/<title>[^<]*<\/title>/, m => m + '\n' + seo.seoHead({ title: `${title} — KODA`, description: lead.slice(0, 155), path: '/' + slug, jsonld }));
+    fs.writeFileSync(path.join(OUT, `${slug}.html`), html);
+    cityPages.push('/' + slug);
+  }
+}
+
+// sitemap + robots at site root (served by the server) — inject the city pages too
+let sm = seo.sitemap(dates);
+sm = sm.replace('</urlset>', cityPages.map(u => `  <url><loc>${seo.SITE}${u}</loc><priority>0.5</priority></url>`).join('\n') + '\n</urlset>');
+fs.writeFileSync(path.join(OUT, 'sitemap.xml'), sm);
 fs.writeFileSync(path.join(OUT, 'robots.txt'), seo.robots());
 
-module.exports = { generated: Object.keys(pages).length, posts: posts.length };
+module.exports = { generated: Object.keys(pages).length, posts: posts.length, seo_city_pages: cityPages.length };
