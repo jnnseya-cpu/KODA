@@ -266,6 +266,10 @@ const ROLE_VIEWS = {
   cashier: ['dashboard', 'verify', 'feed', 'receipts', 'receipt', 'comms', 'settings'],
   manager: ['dashboard', 'verify', 'feed', 'receipts', 'receipt', 'disputes', 'accounts', 'devices', 'comms', 'settings'],
 };
+// Sandbox/dev test tooling (magic references, inject-SMS) is OFF for merchants by
+// default — it's testing/operator tooling, not part of the live product. A merchant
+// opts in from Developers → "Sandbox test tools"; the flag lives in localStorage.
+const isSandbox = () => { try { return localStorage.getItem('koda_sandbox') === '1'; } catch { return false; } };
 const GROWTH_TOOLS = [
   ['social_post', '📱', 'Social media post'], ['advert', '📢', 'Advert creator'],
   ['email_campaign', '✉️', 'Email campaign'], ['landing_page', '🖥️', 'Landing page builder'],
@@ -634,10 +638,10 @@ VIEWS.verify = async () => {
     <div style="margin-top:10px"><button class="btn btn-gold" onclick="verifySms(this)">📩 ${t('paste_sms_btn')}</button></div>
     <div class="verdict" id="smsverdict"></div>
   </div>
-  <div class="card" style="margin-top:14px"><h3>${t('v_sandbox')}</h3>
+  ${isSandbox() ? `<div class="card" style="margin-top:14px"><h3>${t('v_sandbox')} <span class="badge b-warn" style="float:right">sandbox</span></h3>
     <div class="mono" style="font-size:12px;color:var(--dim);line-height:2">
       TEST-OK-25000 → instant verified · TEST-REPLAY → code_already_used · TEST-SUFFIX → challenge flow
-    </div></div>
+    </div></div>` : ''}
   <details class="card" style="margin-top:14px">
     <summary style="cursor:pointer;font-weight:600">${t('vmeans_t')}</summary>
     <div style="display:grid;gap:10px;margin-top:12px">
@@ -690,12 +694,12 @@ window.verifySms = async (btn) => {
 VIEWS.feed = async () => {
   const rows = await api('/app/feed');
   shell('feed', t('feed'), t('auto_stream'), `
-  <div class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+  ${isSandbox() ? `<div class="card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
     <span class="mono" style="font-size:11px;color:var(--dim)">${t('f_inject_label')}</span>
     <input id="raw" placeholder='Vous avez recu 25 000 FC de ALICE K (+243897721). Ref: OM.260717.1500.H12345. Solde: 400 500'
       style="flex:1;min-width:260px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:9px 12px;font-family:var(--mono);font-size:12px">
     <button class="btn btn-gold btn-sm" onclick="injectSms()">${t('f_inject')}</button>
-  </div>
+  </div>` : ''}
   <div class="card" style="margin-top:14px">
     ${rows.map(s => `
       <div class="feed-row">
@@ -806,7 +810,7 @@ VIEWS.accounts = async () => {
       <input id="na-name" placeholder="${t('acc_holder_ph')}" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <button class="btn btn-gold" onclick="connectAccount()">${t('acc_connect')}</button>
     </div><div id="na-out" style="margin-top:10px"></div>
-    <p style="font-size:12px;color:var(--dim);margin-top:8px">Operator codes: see <a href="#admin?tab=coverage" style="color:var(--gold)">Coverage</a> or the public <a href="/coverage" target="_blank">coverage page</a>. Tier-C (bank/app-rail) networks aren't SMS-verifiable.</p></div>
+    <p style="font-size:12px;color:var(--dim);margin-top:8px">Operator codes: see the <a href="/coverage" target="_blank" style="color:var(--gold)">coverage page</a>. Tier-C (bank/app-rail) networks aren't SMS-verifiable.</p></div>
   <div class="card tbl-wrap" style="margin-top:14px"><h3>${t('acc_yours')} (${fmt(accts.length)})</h3>
     ${accts.length ? `<table class="tbl"><tr><th>${t('th_operator')}</th><th>${t('th_number')}</th><th>${t('th_ownership')}</th><th>${t('th_status')}</th><th>${t('th_doors')}</th><th></th></tr>
     ${accts.map(a => `<tr><td class="mono">${esc(a.network_code)}</td><td class="mono">${esc(a.masked || '—')}</td>
@@ -1221,6 +1225,10 @@ VIEWS.developers = async () => {
       }).join('') || '<div class="empty">None yet.</div>'}
     </div>
   </div>
+  <div class="card" style="margin-top:14px"><h3>Sandbox test tools</h3>
+    <p style="font-size:12.5px;color:var(--dim);margin-bottom:8px">Turn on developer test helpers — magic references (<span class="mono">TEST-OK-…</span>) on the Verify console and inject-an-SMS on the Live Feed — to try KODA before going live. Off by default; these never affect real payments.</p>
+    <button class="btn ${isSandbox() ? 'btn-gold' : 'btn-ghost'} btn-sm" onclick="toggleSandbox()">${isSandbox() ? '✓ Sandbox test tools ON — click to turn off' : 'Enable sandbox test tools'}</button>
+  </div>
   <div class="card" style="margin-top:14px"><h3>Quickstart</h3>
     <div class="codebox"># 1 · verify your key
 curl -H "Authorization: Bearer sk_test_..." ${location.origin}/v1/ping
@@ -1269,9 +1277,11 @@ VIEWS.comms = async () => {
   const prefs = await api('/app/comms/prefs');
   shell('comms', t('comms'), 'Your messages and how you receive them', `
   <div class="card"><h3>Inbox <button class="btn btn-ghost btn-sm" style="float:right" onclick="markRead()">${t('mark_read')}</button></h3>
-    ${notifs.slice(0, 30).map(n => `<div class="feed-row">
-      <div class="feed-ic ${n.severity === 'success' ? 'f-ok' : n.severity === 'critical' ? 'f-bad' : 'f-dim'}">${n.read ? '·' : '●'}</div>
-      <div><div class="t">${esc(n.title)}</div><div class="m">${esc(n.event_key)} · ${when(n.created_at)}</div></div></div>`).join('') || '<div class="empty">Empty inbox.</div>'}
+    ${notifs.slice(0, 30).map(n => `<div class="feed-row" id="nf-${n.id}" style="cursor:pointer" onclick="openNotif('${n.id}','${esc(n.event_key)}')" title="Open">
+      <div class="feed-ic ${n.severity === 'success' ? 'f-ok' : n.severity === 'critical' ? 'f-bad' : 'f-dim'}" id="nfdot-${n.id}">${n.read ? '·' : '●'}</div>
+      <div style="min-width:0;flex:1"><div class="t">${esc(n.title)}</div><div class="m">${esc(n.event_key)} · ${when(n.created_at)}</div>
+        ${n.body ? `<div class="nf-body" id="nfbody-${n.id}" style="display:none;font-size:12.5px;color:var(--dim);margin-top:6px;white-space:pre-wrap">${esc(n.body)}</div>` : ''}</div>
+      <div style="margin-left:auto;color:var(--dim);font-size:12px">${notifTarget(n.event_key) ? 'open →' : ''}</div></div>`).join('') || '<div class="empty">Empty inbox.</div>'}
   </div>
   <div class="card" style="margin-top:14px"><h3>How KODA reaches you</h3>
     <p style="font-size:13px;color:var(--dim);margin-bottom:10px">Choose the extra channels for your alerts. In-app is always on, and <b>mandatory notices</b> (security, fraud, legal) always deliver on every channel regardless of these toggles.</p>
@@ -1336,6 +1346,32 @@ window.sendTest = async () => {
   const r = await api('/app/comms/test/' + document.getElementById('evsel').value, { body: {} });
   toast(`✓ Fired — ${r.deliveries.map(d => d.channel + ':' + d.status).join(' · ')}`);
 };
+// Map an event key to the merchant screen it's about, so opening a notification deep-links there.
+function notifTarget(eventKey) {
+  const k = String(eventKey || '');
+  const pre = k.split('.')[0];
+  const MAP = {
+    billing: 'billing', plan: 'billing', invoice: 'billing', payout: 'growth', referral: 'growth', influencer: 'growth',
+    apikey: 'developers', webhook: 'developers', api: 'developers', sandbox: 'developers',
+    payment: 'receipts', receipt: 'receipts', replay: 'feed', checkout: 'feed', door: 'feed', fraud: 'feed',
+    dispute: 'disputes', sentinel: 'devices', parser: 'devices', networks: 'accounts',
+    reconciliation: 'dashboard', digest: 'dashboard', ai: 'dashboard', cs: 'dashboard', support: 'dashboard',
+    submerchant: 'submerchants', platform: 'submerchants',
+    account: 'settings', auth: 'settings', security: 'settings', mfa: 'settings', password: 'settings',
+    session: 'settings', privacy: 'settings', user: 'settings', role: 'settings', kyb: 'settings', invitation: 'settings',
+  };
+  return MAP[pre] || null;
+}
+window.openNotif = async (id, eventKey) => {
+  // mark this one read (clears its dot + the nav badge), reveal any body, then deep-link
+  try { await api(`/app/notifications/${id}/read`, { body: {} }); } catch { /* non-fatal */ }
+  const dot = document.getElementById('nfdot-' + id); if (dot) dot.textContent = '·';
+  const body = document.getElementById('nfbody-' + id); if (body && body.style.display === 'none') { body.style.display = 'block'; }
+  try { ME = await api('/app/me'); const b = document.querySelector('.nav-badge'); if (b && (!ME.unread)) b.remove(); } catch {}
+  const target = notifTarget(eventKey);
+  if (target) location.hash = '#' + target;
+};
+window.toggleSandbox = () => { try { localStorage.setItem('koda_sandbox', isSandbox() ? '0' : '1'); } catch {} toast(isSandbox() ? '✓ Sandbox test tools ON' : 'Sandbox test tools off'); route(); };
 window.markRead = async () => { await api('/app/notifications/read', { body: {} }); ME = await api('/app/me'); route(); };
 window.togglePref = async (ch, on) => { await api('/app/comms/prefs', { body: { [ch]: !!on } }); route(); };
 

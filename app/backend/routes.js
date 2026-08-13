@@ -621,6 +621,12 @@ module.exports = function registerRoutes(r) {
   r.post('/app/notifications/read', auth((req, user) => {
     q.run('UPDATE notifications SET read=1 WHERE user_id=?', user.id); return { ok: true };
   }));
+  // mark a single notification read (opening it from the inbox) + return its body
+  r.post('/app/notifications/:id/read', auth((req, user) => {
+    q.run('UPDATE notifications SET read=1 WHERE id=? AND user_id=?', req.params.id, user.id);
+    const n = q.get('SELECT id,event_key,severity,title,body,read,created_at FROM notifications WHERE id=? AND user_id=?', req.params.id, user.id);
+    return n || [404, { error: { code: 'not_found' } }];
+  }));
   // The event architecture / catalogue / QA / delivery log is OPERATOR tooling —
   // admin-only. Merchants only get their own inbox (/app/notifications) + channel
   // preferences (/app/comms/prefs) below.
