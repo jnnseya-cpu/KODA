@@ -30,9 +30,20 @@ function renderEmail({ subject, event, merchant, user, data = {} }) {
     ${data.cta ? `<a href="${esc(data.cta_url || '#')}" style="display:inline-block;background:${brand};color:#081813;font-weight:bold;font-size:14px;padding:12px 26px;border-radius:8px;text-decoration:none">${esc(data.cta)}</a>` : ''}
     ${data.details ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;background:#F5EFDF;border-radius:8px"><tr><td style="padding:16px 18px;font-family:'Courier New',monospace;font-size:12.5px;color:#41392A;line-height:1.8">${data.details}</td></tr></table>` : ''}
   </td></tr>
-  <tr><td style="padding:20px 8px;font-size:11.5px;color:#8A8168;line-height:1.7">
+  <tr><td style="padding:18px 8px 6px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F5EFDF;border-radius:8px"><tr>
+      <td style="padding:14px 18px;font-size:12.5px;color:#5A5340;line-height:1.6">
+        <b style="color:#241F14">Verify mobile-money payments in 3 seconds.</b><br>
+        No fake screenshots, no telco contract — start free.
+      </td>
+      <td align="right" style="padding:14px 18px;white-space:nowrap">
+        <a href="https://kodajnn.com" style="display:inline-block;background:${brand};color:#081813;font-weight:bold;font-size:12.5px;padding:9px 16px;border-radius:8px;text-decoration:none">Get KODA →</a>
+      </td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="padding:12px 8px;font-size:11.5px;color:#8A8168;line-height:1.7">
     Sent by ${esc(logoText)} · powered by KODA — le code confirme le cash.<br>
-    ${esc(merchant?.name || 'KODA')} · ${esc(merchant?.country || 'CD')} · <a href="#" style="color:#8A8168">notification preferences</a>
+    ${esc(merchant?.name || 'KODA')} · ${esc(merchant?.country || 'CD')} · <a href="https://kodajnn.com/app#comms" style="color:#8A8168">notification preferences</a>
     ${event?.mandatory ? ' · <b>mandatory service notice</b>' : ''}
   </td></tr>
 </table>

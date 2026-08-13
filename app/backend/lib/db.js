@@ -480,6 +480,23 @@ db.exec(`CREATE TABLE IF NOT EXISTS koda_settings (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
 
+// Referral engine (organic growth loop): each merchant has a share code; a new
+// merchant who joins with it and verifies their first payment rewards both sides.
+try { db.exec(`ALTER TABLE merchants ADD COLUMN ref_code TEXT`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE merchants ADD COLUMN referred_by TEXT`); } catch { /* exists */ }
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_merchants_refcode ON merchants(ref_code) WHERE ref_code IS NOT NULL;`);
+db.exec(`CREATE TABLE IF NOT EXISTS referrals (
+  id TEXT PRIMARY KEY,
+  referrer_id TEXT NOT NULL,
+  referred_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'signed_up',        -- signed_up | qualified
+  reward_acu REAL NOT NULL DEFAULT 0,
+  qualified_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);`);
+db.exec(`CREATE INDEX IF NOT EXISTS idx_referrals_referred ON referrals(referred_id);`);
+
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
 // hot verify path runs ~10 statements, so caching keeps the money path fast.

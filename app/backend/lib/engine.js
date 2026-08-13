@@ -280,6 +280,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   }
 
   metric('verifications');
+  try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ } // first verify rewards the referrer
   return { status: late ? 'verified_late' : 'verified', receipt_id: rcp, risk, trace,
            confirmation_level: 'sms_anchored',
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
@@ -330,6 +331,7 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
   notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(sms.amount)} ${sms.currency}`, reference: sms.ref_code });
 
   metric('verifications'); metric('verifications_auto');
+  try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ }
   return { status: 'verified', receipt_id: rcp, risk, trace, confirmation_level: 'sms_anchored',
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
 }
@@ -359,6 +361,7 @@ function sandboxVerify(merchant, intent, reference, { mode, userId, trace }) {
     intent_id: intent?.id || null, receipt_id: rcp, amount, sandbox: true, reference,
   });
   notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(amount)} ${intent?.currency || ''}`, reference });
+  try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ }
   return { status: 'verified', receipt_id: rcp, sandbox: true, amount_confirmed: amount, trace };
 }
 

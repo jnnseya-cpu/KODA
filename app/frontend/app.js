@@ -420,8 +420,11 @@ window.doAuthorize = async () => {
 };
 
 VIEWS.signup = (params) => {
+  const ref = (params.get('ref') || '').toUpperCase().trim();
   root.innerHTML = authCard(`
     <h1>${t('signup')}</h1><p>Three doors, one engine. Start free on Marché.</p>
+    ${ref ? `<div class="badge b-ok" style="display:block;margin-bottom:12px;line-height:1.5">🎁 You were invited (code <b>${esc(ref)}</b>) — you and your inviter each earn free ACU when you verify your first payment.</div>` : ''}
+    <input id="refcode" type="hidden" value="${esc(ref)}">
     <input id="hp" name="hp_field" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
     <div class="field"><label>Business name</label><input id="biz" placeholder="Maison Kivu"></div>
     <div class="field"><label>Your name</label><input id="nm"></div>
@@ -531,7 +534,8 @@ window.doLogin = async () => {
 window.doSignup = async (plan) => {
   try {
     const h = await humanToken();
-    const r = await api('/app/auth/signup', { body: { business: v('biz'), name: v('nm'), email: v('em'), phone: v('ph'), password: v('pw'), ...h } });
+    const refEl = document.getElementById('refcode');
+    const r = await api('/app/auth/signup', { body: { business: v('biz'), name: v('nm'), email: v('em'), phone: v('ph'), password: v('pw'), ref: refEl ? refEl.value : '', ...h } });
     localStorage.setItem('koda_token', r.token); ME = await api('/app/me');
     // Paid plan chosen on the pricing page → take them to Billing and open the
     // payment picker (KODA mobile money / card). Free plan → straight to the app.
@@ -1401,9 +1405,23 @@ window.suspendSub = async (id) => { await api(`/app/submerchants/${id}/suspend`,
 
 VIEWS.growth = async () => {
   const d = await api('/app/growth/tools');
+  const ref = await api('/app/referrals').catch(() => null);
   const acuBy = Object.fromEntries(d.tools.map(x => [x.id, x.acu]));
+  const shareMsg = encodeURIComponent(`I verify my mobile-money payments instantly with KODA — no more fake screenshots. Join free and we both earn credit: `);
   shell('growth', t('growth'), t('growth_sub') + ' · K-11', `
-  <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+  ${ref ? `<div class="card" style="border-color:var(--gold)">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+      <h3 style="margin:0">🎁 Refer & earn — grow KODA, get free ACU</h3>
+      <span class="mono" style="font-size:12px;color:var(--dim)">${fmt(ref.qualified)} joined · ${fmt(ref.acu_earned)} ACU earned</span></div>
+    <p style="font-size:13px;color:var(--dim);margin:8px 0">Share your link. When a merchant you invite verifies their <b>first payment</b>, <b>you both get ${fmt(ref.reward_per)} ACU</b>. No limit.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input id="reflink" readonly value="${esc(ref.link)}" onclick="this.select()" style="flex:1;min-width:240px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px;font-family:var(--mono);font-size:12px">
+      <button class="btn btn-gold btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(ref.link)}');toast('✓ link copied')">Copy link</button>
+      <a class="btn btn-ghost btn-sm" href="https://wa.me/?text=${shareMsg}${encodeURIComponent(ref.link)}" target="_blank" rel="noopener">Share on WhatsApp</a>
+    </div>
+    ${ref.list && ref.list.length ? `<div class="mono" style="font-size:11px;color:var(--dim);margin-top:10px">Recent: ${ref.list.slice(0, 5).map(x => `${esc(x.name)} <span class="badge ${x.status === 'qualified' ? 'b-ok' : 'b-info'}">${x.status === 'qualified' ? 'earned' : 'joined'}</span>`).join(' · ')}</div>` : ''}
+  </div>` : ''}
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px">
     <div style="font-size:13.5px;color:var(--dim)">Each tool runs the KODA Growth agent and produces ready-to-use output.
       Metered in ACU — <span class="mono" style="color:var(--gold)">${fmt(d.balance)} ACU</span> available.</div>
     <a class="btn btn-ghost btn-sm" href="#billing">${t('topup')}</a>

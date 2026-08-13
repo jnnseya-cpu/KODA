@@ -44,6 +44,9 @@ module.exports = function registerRoutes(r) {
       uid, mid, email.toLowerCase(), name, phone || null, U.hashPassword(password));
     const user = q.get('SELECT * FROM users WHERE id=?', uid);
     const merchant = q.get('SELECT * FROM merchants WHERE id=?', mid);
+    // Referral growth loop: give this merchant a share code, and link them to
+    // whoever referred them (?ref=CODE) so both are rewarded on first verify.
+    try { const referrals = require('./lib/referrals'); referrals.ensureCode(mid); referrals.attach(mid, req.body.ref || req.body.referral_code); } catch { /* growth optional */ }
     notify.fire('account.registration.requested', { user, merchant });
     notify.fire('cs.onboarding_started', { user, merchant });
     audit(mid, uid, 'signup', { business });
@@ -1633,6 +1636,8 @@ module.exports = function registerRoutes(r) {
     tools: Object.entries(growth.TOOLS).map(([id, t]) => ({ id, label: t.label, acu: t.acu })),
     balance: m ? m.acu_balance : 0,
   })));
+  // Referral engine — my share link + who I've brought + rewards earned.
+  r.get('/app/referrals', auth((req, user, m) => m ? require('./lib/referrals').stats(m.id) : [400, { error: 'no_merchant' }]));
   r.post('/app/growth/:tool', auth((req, user, m) => {
     if (!m) return [400, { error: 'no_merchant' }];
     const tool = growth.TOOLS[req.params.tool];
