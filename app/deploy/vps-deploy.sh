@@ -27,3 +27,15 @@ fi
 
 echo "✓ KODA healthy. IndexNow re-announce ran on container boot (new URLs only)."
 docker compose ps
+
+# Deploy-finished email — sent BY the server through KODA's own email transport
+# (your existing KODA_SMTP_* config). No CI secrets, no Brevo. Recipient defaults
+# to KODA_ADMIN_EMAIL; set DEPLOY_NOTIFY_EMAIL in .env to send it elsewhere.
+docker compose exec -T koda node -e '
+  const to = process.env.DEPLOY_NOTIFY_EMAIL || process.env.KODA_ADMIN_EMAIL;
+  if (!to) { console.log("deploy email: no recipient set — skip"); process.exit(0); }
+  require("./backend/comms/senders").sendEmail(to, "✅ KODA deployed — live & healthy",
+    "<p>A new KODA release was built, restarted and passed the health check on your VPS.</p>")
+    .then(r => console.log("deploy email:", JSON.stringify(r)))
+    .catch(e => console.log("deploy email failed (non-fatal):", e.message));
+' || true

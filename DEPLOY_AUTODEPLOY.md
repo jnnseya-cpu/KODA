@@ -82,7 +82,11 @@ deploys, exactly like a push — handy for re-deploying without a code change.
 
 ## Deploy notifications
 
-None to set up. **GitHub automatically emails you if a deploy fails** — no keys, no config.
+Nothing to set up.
+- **On success:** your server emails you "✅ KODA deployed" using **your own SMTP** (`KODA_SMTP_*`,
+  already configured). No Brevo, no GitHub secrets. It goes to `KODA_ADMIN_EMAIL` by default — set
+  `DEPLOY_NOTIFY_EMAIL` in `.env` to change the recipient.
+- **On failure:** GitHub emails you automatically.
 
 ---
 
