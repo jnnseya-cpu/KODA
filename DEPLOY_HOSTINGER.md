@@ -189,7 +189,9 @@ work once you add a receiving number in the console, and the Stripe card rail sh
 ```bash
 cd /root/koda/app && git pull && docker compose up -d --build
 ```
-Your ledger volume is preserved across updates.
+Your ledger volume is preserved across updates. This command also **auto-announces any newly added
+blog/city pages to IndexNow** (Bing/Yandex/etc.) — no extra step. See `SEO_SEARCH_CONSOLE.md` to
+force a full re-announce or to submit content edits that kept the same URL.
 
 ---
 

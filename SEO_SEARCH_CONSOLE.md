@@ -92,10 +92,15 @@ KODA now pings **IndexNow** automatically, which is the modern replacement for t
 **Bing, Yandex, Seznam and Naver** whenever the site is (re)built.
 
 - **Ownership key file** is served at `https://kodajnn.com/<key>.txt` (proves the domain is yours).
-- On every production boot the server submits all 80 sitemap URLs. Nothing to configure.
-- To announce again on demand (e.g. right after a deploy), run on the server:
+- **Auto-ping on every release.** Each production boot (`docker compose up -d --build`) diffs the
+  freshly built sitemap against what was last announced and pings **only the URLs the release added**
+  — so a plain restart/crash stays silent, but shipping new blog posts or city pages goes out
+  automatically. The baseline is stored in the data volume (`indexnow-state.json`), so it survives
+  rebuilds. **Nothing to run by hand for normal deploys.**
+- To announce on demand (e.g. after editing existing posts, which keeps the same URLs):
   ```bash
-  docker compose exec -T koda node backend/tools/indexnow.js
+  docker compose exec -T koda node backend/tools/indexnow.js         # only what changed
+  docker compose exec -T koda node backend/tools/indexnow.js --all   # force a full re-announce
   ```
   It prints `✅ Accepted` when the URLs are queued.
 

@@ -136,6 +136,9 @@ async function main() {
     T('IndexNow key file served at /<key>.txt', kf.status === 200 && (await kf.text()).trim() === idx.KEY);
     T('IndexNow reads the built sitemap URLs', idx.urls().length >= 70, `${idx.urls().length} urls`);
     T('IndexNow submit refuses an empty list (no accidental ping)', (await idx.submit([])).ok === false);
+    T('IndexNow first run announces all URLs', idx.pendingChanges().added.length === idx.urls().length);
+    idx.recordAnnounced(idx.urls()); // simulate a completed announce
+    T('IndexNow re-ping is change-gated (silent when nothing changed)', idx.pendingChanges().added.length === 0);
   } finally {
     srv.kill('SIGTERM');
     setTimeout(() => { try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch {} }, 500);
