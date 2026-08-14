@@ -7,6 +7,7 @@ on:
     branches: [main, "claude/**"]
   pull_request:
     branches: [main]
+  workflow_dispatch:      # "Run workflow" button — deploy on demand without a push
 
 jobs:
   gate:
@@ -65,7 +66,7 @@ jobs:
   deploy:
     name: Deploy to VPS
     needs: gate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/claude/koda-unified-spec-v2-vh5xtx'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/claude/koda-unified-spec-v2-vh5xtx'
     runs-on: ubuntu-latest
     concurrency:
       group: vps-deploy
@@ -89,3 +90,31 @@ jobs:
           DIR="${APP_DIR:-/root/koda/app}"
           ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" \
             "set -e; cd '$DIR'; git fetch origin; git checkout '$BR'; git pull --ff-only origin '$BR'; bash deploy/vps-deploy.sh"
+
+      # ── Optional deploy notifications (each no-ops unless its secret is set) ──
+      - name: Notify Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          STATUS: ${{ job.status }}
+        run: |
+          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then echo "no SLACK_WEBHOOK_URL — skip"; exit 0; fi
+          if [ "$STATUS" = success ]; then ICON="✅"; WORD="deployed to VPS"; else ICON="❌"; WORD="deploy FAILED"; fi
+          RUN="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          TEXT="$ICON KODA $WORD — \`${GITHUB_SHA:0:7}\` on $GITHUB_REF_NAME by $GITHUB_ACTOR. <$RUN|View run>"
+          jq -nc --arg t "$TEXT" '{text:$t}' | curl -sS -X POST -H 'content-type: application/json' -d @- "$SLACK_WEBHOOK_URL" || echo "slack notify failed (non-fatal)"
+
+      - name: Notify email (Brevo)
+        if: always()
+        env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          DEPLOY_EMAIL: ${{ secrets.DEPLOY_EMAIL }}
+          STATUS: ${{ job.status }}
+        run: |
+          if [ -z "${BREVO_API_KEY:-}" ] || [ -z "${DEPLOY_EMAIL:-}" ]; then echo "no BREVO_API_KEY/DEPLOY_EMAIL — skip"; exit 0; fi
+          if [ "$STATUS" = success ]; then SUBJ="✅ KODA deployed (${GITHUB_SHA:0:7})"; else SUBJ="❌ KODA deploy FAILED (${GITHUB_SHA:0:7})"; fi
+          RUN="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          HTML="<p>Status: <b>$STATUS</b></p><p>Commit <code>${GITHUB_SHA:0:7}</code> on $GITHUB_REF_NAME by $GITHUB_ACTOR.</p><p><a href=\"$RUN\">View run</a></p>"
+          jq -nc --arg s "$SUBJ" --arg h "$HTML" --arg to "$DEPLOY_EMAIL" \
+            '{sender:{email:"no-reply@kodajnn.com",name:"KODA Deploy"},to:[{email:$to}],subject:$s,htmlContent:$h}' \
+            | curl -sS -X POST https://api.brevo.com/v3/smtp/email -H "api-key: $BREVO_API_KEY" -H 'content-type: application/json' -d @- || echo "brevo notify failed (non-fatal)"

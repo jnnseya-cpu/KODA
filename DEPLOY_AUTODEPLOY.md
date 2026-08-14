@@ -74,6 +74,28 @@ and IndexNow has been re-pinged with any new URLs.
 
 ---
 
+## Deploy on demand (no push needed)
+
+**GitHub → Actions → KODA CI → Run workflow** → pick the
+`claude/koda-unified-spec-v2-vh5xtx` branch → **Run workflow**. This runs the gate and then
+deploys, exactly like a push — handy for re-deploying without a code change.
+
+## Optional — get pinged when a deploy finishes
+
+Both channels are optional and independent; each stays silent until its secret(s) exist.
+Add them under **Settings → Secrets and variables → Actions**:
+
+| Channel | Secrets to add | Where to get it |
+|---|---|---|
+| **Slack** | `SLACK_WEBHOOK_URL` | Slack → *Apps* → **Incoming Webhooks** → add to a channel → copy the URL |
+| **Email** | `BREVO_API_KEY` **and** `DEPLOY_EMAIL` | reuse your existing Brevo key; `DEPLOY_EMAIL` is where the alert goes |
+
+Each release then posts ✅/❌ with the commit, branch, author and a link to the run. A failed
+notification never fails the deploy. *(GitHub also emails you automatically on any failed run,
+even with neither of these set.)*
+
+---
+
 ## Safety notes
 - **Tests gate the deploy.** If `gate` fails, `deploy` never runs — a broken build can't reach production.
 - **Health-checked.** `vps-deploy.sh` waits for `/healthz`; if it never comes up, the job goes red and prints the container logs. Your **old container keeps serving** until the new one is healthy (Docker only swaps on a successful start).
