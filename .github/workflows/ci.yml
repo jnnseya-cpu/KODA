@@ -90,19 +90,4 @@ jobs:
           DIR="${APP_DIR:-/root/koda/app}"
           ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" \
             "set -e; cd '$DIR'; git fetch origin; git checkout '$BR'; git pull --ff-only origin '$BR'; bash deploy/vps-deploy.sh"
-
-      # ── Optional: email you when a deploy finishes (no-ops unless secrets set) ──
-      - name: Notify email (Brevo)
-        if: always()
-        env:
-          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-          DEPLOY_EMAIL: ${{ secrets.DEPLOY_EMAIL }}
-          STATUS: ${{ job.status }}
-        run: |
-          if [ -z "${BREVO_API_KEY:-}" ] || [ -z "${DEPLOY_EMAIL:-}" ]; then echo "no BREVO_API_KEY/DEPLOY_EMAIL — skip"; exit 0; fi
-          if [ "$STATUS" = success ]; then SUBJ="✅ KODA deployed (${GITHUB_SHA:0:7})"; else SUBJ="❌ KODA deploy FAILED (${GITHUB_SHA:0:7})"; fi
-          RUN="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          HTML="<p>Status: <b>$STATUS</b></p><p>Commit <code>${GITHUB_SHA:0:7}</code> on $GITHUB_REF_NAME by $GITHUB_ACTOR.</p><p><a href=\"$RUN\">View run</a></p>"
-          jq -nc --arg s "$SUBJ" --arg h "$HTML" --arg to "$DEPLOY_EMAIL" \
-            '{sender:{email:"no-reply@kodajnn.com",name:"KODA Deploy"},to:[{email:$to}],subject:$s,htmlContent:$h}' \
-            | curl -sS -X POST https://api.brevo.com/v3/smtp/email -H "api-key: $BREVO_API_KEY" -H 'content-type: application/json' -d @- || echo "brevo notify failed (non-fatal)"
+      # GitHub emails you automatically if this job fails — no notification setup needed.
