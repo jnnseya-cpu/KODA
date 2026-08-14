@@ -124,6 +124,18 @@ async function main() {
       '/about', '/how-it-works', '/industries', '/blog', '/developers', '/contact', '/get-started', '/growth', '/terms', '/privacy', '/policies', '/status']) {
       T(`GET ${p}`, (await fetch(B + p)).status === 200);
     }
+
+    console.log('— SEO: sitemap, robots, JSON-LD & IndexNow');
+    const sm = await (await fetch(B + '/sitemap.xml')).text();
+    const locs = (sm.match(/<loc>/g) || []).length;
+    T('sitemap.xml lists blog + city pages', locs >= 70, `${locs} URLs`);
+    T('robots.txt points at sitemap', (await (await fetch(B + '/robots.txt')).text()).includes('Sitemap:'));
+    T('homepage carries WebSite JSON-LD', (await (await fetch(B + '/')).text()).includes('"@type":"WebSite"'));
+    const idx = require('../lib/indexnow');
+    const kf = await fetch(B + idx.KEY_PATH);
+    T('IndexNow key file served at /<key>.txt', kf.status === 200 && (await kf.text()).trim() === idx.KEY);
+    T('IndexNow reads the built sitemap URLs', idx.urls().length >= 70, `${idx.urls().length} urls`);
+    T('IndexNow submit refuses an empty list (no accidental ping)', (await idx.submit([])).ok === false);
   } finally {
     srv.kill('SIGTERM');
     setTimeout(() => { try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch {} }, 500);

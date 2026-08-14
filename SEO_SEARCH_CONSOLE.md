@@ -85,6 +85,26 @@ Console (the "Inspect any URL" box), then click **Request indexing**. Prioritise
 
 ---
 
+## Step 2.5 — IndexNow (already built in — instant ping)
+
+KODA now pings **IndexNow** automatically, which is the modern replacement for the old sitemap
+"ping" endpoints (Google retired `/ping` in 2023; Bing redirects to IndexNow). It instantly notifies
+**Bing, Yandex, Seznam and Naver** whenever the site is (re)built.
+
+- **Ownership key file** is served at `https://kodajnn.com/<key>.txt` (proves the domain is yours).
+- On every production boot the server submits all 80 sitemap URLs. Nothing to configure.
+- To announce again on demand (e.g. right after a deploy), run on the server:
+  ```bash
+  docker compose exec -T koda node backend/tools/indexnow.js
+  ```
+  It prints `✅ Accepted` when the URLs are queued.
+
+> IndexNow does **not** cover Google — Google indexing still comes from Step 1 (Search Console +
+> sitemap). IndexNow is the fast path for everything else, including the engines behind
+> ChatGPT/Copilot search.
+
+---
+
 ## Step 3 — Confirm it's working
 
 Run these anytime:

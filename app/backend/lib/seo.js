@@ -109,5 +109,12 @@ function orgJsonLd() {
     logo: SITE + '/icon-512.png', description: 'Mobile money payment verification — verify any payment against the operator SMS, no telco API.',
     sameAs: [] };
 }
+// site-level structured data for the homepage — declares the canonical site and
+// its blog so crawlers understand the property (the "JSON-LD sitemap" surface).
+function websiteJsonLd() {
+  return { '@context': 'https://schema.org', '@type': 'WebSite', name: BRAND, url: SITE,
+    inLanguage: ['en', 'fr'], publisher: { '@type': 'Organization', name: BRAND, url: SITE, logo: SITE + '/icon-512.png' },
+    hasPart: { '@type': 'Blog', '@id': SITE + '/blog', name: `${BRAND} Blog`, url: SITE + '/blog' } };
+}
 
-module.exports = { renderPost, allPosts, postDates, sitemap, robots, seoHead, orgJsonLd, weave, SITE, BRAND, PAGES };
+module.exports = { renderPost, allPosts, postDates, sitemap, robots, seoHead, orgJsonLd, websiteJsonLd, weave, SITE, BRAND, PAGES };

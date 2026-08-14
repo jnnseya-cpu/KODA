@@ -100,6 +100,11 @@ html{scroll-behavior:smooth}
     .replace('<div class="wrap foot">', footerLinks() + '<div class="wrap foot">')
     // close the mobile dropdown when a menu link is tapped (pure-CSS toggle can't)
     .replace('</body>', `<script>document.addEventListener('click',function(e){if(e.target.closest('.nav-links a')){var t=document.getElementById('lnav');if(t)t.checked=false;}});</script></body>`);
+  // site-level structured data: WebSite + Organization JSON-LD for the homepage
+  const seoMod = require('../backend/lib/seo'); // local require: top-level `seo` is defined later in this file
+  const homeLd = [seoMod.websiteJsonLd(), seoMod.orgJsonLd()]
+    .map(o => `<script type="application/ld+json">${JSON.stringify(o)}</script>`).join('\n');
+  if (landing.includes('</head>')) landing = landing.replace('</head>', homeLd + '\n</head>');
   fs.writeFileSync(path.join(OUT, 'index.html'), landing);
 }
 

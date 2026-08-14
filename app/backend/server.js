@@ -21,6 +21,7 @@ require('./lib/db');            // init schema
 require('./seed');              // idempotent demo seed
 require('../frontend/build-site'); // generate public site pages at boot
 
+const indexnow = require('./lib/indexnow'); // instant search-engine indexing (IndexNow)
 const registerRoutes = require('./routes');
 
 if (PROD) {
@@ -174,6 +175,8 @@ const server = http.createServer(async (req, res) => {
     const sf = path.join(PUBLIC, 'site', file.slice(1));
     if (fs.existsSync(sf)) return send(200, fs.readFileSync(sf), { 'content-type': file.endsWith('.xml') ? 'application/xml' : 'text/plain' });
   }
+  // IndexNow ownership key file at /<key>.txt (proves we own the domain)
+  if (file === indexnow.KEY_PATH) return send(200, indexnow.KEY, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=86400' });
   // pretty URLs for site pages incl. /blog and /blog/<slug>: → /site/<path>.html
   const rel = path.normalize(file).replace(/^\/|\/$/g, '');
   const page = path.join(PUBLIC, 'site', rel + '.html');
@@ -209,4 +212,5 @@ server.listen(PORT, () => {
   console.log(`  → Channels       ai:${p.ai_gateway} whatsapp:${p.whatsapp} email:${p.email} push:${p.push} sms:${p.sms_fallback}`);
   if (!PROD) console.log(`  → Demo login     demo@koda.africa / koda-demo   ·   Admin: admin@koda.africa / koda-admin`);
   console.log('');
+  indexnow.autosubmit(); // announce all sitemap URLs to IndexNow (production only)
 });
