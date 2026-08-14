@@ -91,19 +91,7 @@ jobs:
           ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" \
             "set -e; cd '$DIR'; git fetch origin; git checkout '$BR'; git pull --ff-only origin '$BR'; bash deploy/vps-deploy.sh"
 
-      # ── Optional deploy notifications (each no-ops unless its secret is set) ──
-      - name: Notify Slack
-        if: always()
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          STATUS: ${{ job.status }}
-        run: |
-          if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then echo "no SLACK_WEBHOOK_URL — skip"; exit 0; fi
-          if [ "$STATUS" = success ]; then ICON="✅"; WORD="deployed to VPS"; else ICON="❌"; WORD="deploy FAILED"; fi
-          RUN="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          TEXT="$ICON KODA $WORD — \`${GITHUB_SHA:0:7}\` on $GITHUB_REF_NAME by $GITHUB_ACTOR. <$RUN|View run>"
-          jq -nc --arg t "$TEXT" '{text:$t}' | curl -sS -X POST -H 'content-type: application/json' -d @- "$SLACK_WEBHOOK_URL" || echo "slack notify failed (non-fatal)"
-
+      # ── Optional: email you when a deploy finishes (no-ops unless secrets set) ──
       - name: Notify email (Brevo)
         if: always()
         env:

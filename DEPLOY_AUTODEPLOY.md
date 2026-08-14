@@ -80,19 +80,20 @@ and IndexNow has been re-pinged with any new URLs.
 `claude/koda-unified-spec-v2-vh5xtx` branch → **Run workflow**. This runs the gate and then
 deploys, exactly like a push — handy for re-deploying without a code change.
 
-## Optional — get pinged when a deploy finishes
+## Optional — email you when a deploy finishes
 
-Both channels are optional and independent; each stays silent until its secret(s) exist.
-Add them under **Settings → Secrets and variables → Actions**:
+This is a **separate box** from your server's `.env`. The deploy runs on GitHub's machines,
+which can't read your VPS, so if you want the email you paste your **existing** Brevo key value
+here once. Add both under **Settings → Secrets and variables → Actions**:
 
-| Channel | Secrets to add | Where to get it |
-|---|---|---|
-| **Slack** | `SLACK_WEBHOOK_URL` | Slack → *Apps* → **Incoming Webhooks** → add to a channel → copy the URL |
-| **Email** | `BREVO_API_KEY` **and** `DEPLOY_EMAIL` | reuse your existing Brevo key; `DEPLOY_EMAIL` is where the alert goes |
+| Secret | Value |
+|---|---|
+| `BREVO_API_KEY` | the same Brevo API key you already use on the server (just its value, pasted into GitHub) |
+| `DEPLOY_EMAIL` | the address the alert goes to (e.g. `koda@kodajnn.com`) |
 
-Each release then posts ✅/❌ with the commit, branch, author and a link to the run. A failed
+Each release then emails ✅/❌ with the commit, branch, author and a link to the run. A failed
 notification never fails the deploy. *(GitHub also emails you automatically on any failed run,
-even with neither of these set.)*
+even without these set — so this is genuinely optional.)*
 
 ---
 
