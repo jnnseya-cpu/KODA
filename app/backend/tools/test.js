@@ -119,6 +119,16 @@ async function main() {
     const dv2 = (await j('/app/webhooks', {}, tk)).d.deliveries || [];
     T('routing: woocommerce endpoint received the event', dv2.some(d => d.endpoint_id === woo.id));
     T('routing: pos endpoint did NOT receive it', !dv2.some(d => d.endpoint_id === pos.id));
+    // /v1/verifications alias (§36): create + verify via the alias path works identically
+    const va = (await j('/v1/verifications', { body: { amount: 8500, currency: 'CDF', operators: ['orange_cd'] } }, key)).d;
+    T('POST /v1/verifications creates a verification', !!va.intent_id);
+    T('GET /v1/verifications/:id via alias', (await j(`/v1/verifications/${va.intent_id}`, {}, key)).d.status === 'awaiting_payment');
+    T('POST /v1/verifications/:id/verify via alias', (await j(`/v1/verifications/${va.intent_id}/verify`, { body: { reference: 'TEST-OK-8500' } }, key)).d.status === 'verified');
+    // amount_mismatch outcome (§24): SMS confirms a different amount than the order expected
+    const vm = (await j('/v1/intents', { body: { amount: 99999, currency: 'CDF', operators: ['orange_cd'] } }, key)).d;
+    await j('/app/sandbox/sms', { body: { raw: `Vous avez recu 12 000 FC de MISMATCH. Ref: OM.AMTMIS.1. Solde: 500 000`, operator: 'orange_cd' } }, tk);
+    const mmv = (await j(`/v1/intents/${vm.intent_id}/verify`, { body: { reference: 'OM.AMTMIS.1' } }, key)).d;
+    T('amount_mismatch rejects a wrong-amount payment', mmv.status === 'rejected' && mmv.code === 'amount_mismatch', `${mmv.status}/${mmv.code}`);
     T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
 
     console.log('— communications');

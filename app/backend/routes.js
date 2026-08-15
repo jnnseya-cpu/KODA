@@ -1189,33 +1189,43 @@ module.exports = function registerRoutes(r) {
   r.get('/v1/ping', apiKey((req, m) => ({
     ok: true, merchant: m.name, plan: m.plan, environment: req.keyPrefix.includes('test') ? 'test' : 'live',
   })));
-  r.post('/v1/intents', apiKey((req, m) => createIntent(m, req.body, req.headers['idempotency-key']), 'write:intents'));
-  r.get('/v1/intents/:id', apiKey((req, m) => {
+  // Verification lifecycle. Exposed under BOTH /v1/intents (original) and
+  // /v1/verifications (spec §36 naming) — identical handlers, so either path works.
+  const vCreate = (req, m) => createIntent(m, req.body, req.headers['idempotency-key']);
+  const vList = (req, m) => q.all('SELECT * FROM intents WHERE merchant_id=? ORDER BY created_at DESC LIMIT 100', m.id);
+  const vGet = (req, m) => {
     const i = q.get('SELECT * FROM intents WHERE id=? AND merchant_id=?', req.params.id, m.id);
     if (!i) return [404, { error: { code: 'not_found' } }];
     // Lazy expiry: an unpaid intent past its expires_at is reported (and flipped) to
-    // 'expired', so pollers/reconcilers can release a stuck order instead of waiting
-    // forever on an intent nothing will ever move off 'awaiting_payment'.
+    // 'expired', so pollers/reconcilers can release a stuck order instead of waiting forever.
     if (i.status === 'awaiting_payment' && i.expires_at && new Date(i.expires_at + 'Z').getTime() < Date.now()) {
       const cas = q.run(`UPDATE intents SET status='expired' WHERE id=? AND status='awaiting_payment'`, i.id);
       i.status = 'expired';
       if (cas.changes === 1) engine.emitOutcome(i.merchant_id, 'expired', 'timeout', { reference: i.id }); // §14 fire once
     }
     return i;
-  }));
-  r.post('/v1/intents/:id/verify', apiKey((req, m) => {
+  };
+  const vVerify = (req, m) => {
     const intent = q.get('SELECT * FROM intents WHERE id=? AND merchant_id=?', req.params.id, m.id);
     if (!intent) return [404, { error: { code: 'not_found' } }];
     if (intent.status !== 'awaiting_payment' && intent.status !== 'pending_review')
       return [409, { error: { code: 'intent_' + intent.status } }];
     return engine.verify(m, intent, req.body.reference || req.body.screenshot_ref,
       { mode: 'api', viaScreenshot: !!req.body.screenshot });
-  }));
-  r.post('/v1/intents/:id/cancel', apiKey((req, m) => {
+  };
+  const vCancel = (req, m) => {
     q.run(`UPDATE intents SET status='cancelled' WHERE id=? AND merchant_id=? AND status='awaiting_payment'`,
       req.params.id, m.id);
     return { ok: true };
-  }));
+  };
+  for (const base of ['/v1/intents', '/v1/verifications']) {
+    r.post(base, apiKey(vCreate, 'write:intents')); // create is the only scoped one (unchanged)
+    r.get(base, apiKey(vList));
+    r.get(base + '/:id', apiKey(vGet));
+    r.post(base + '/:id/verify', apiKey(vVerify));
+    r.post(base + '/:id/recheck', apiKey(vVerify)); // §36 recheck == re-run verify (idempotent)
+    r.post(base + '/:id/cancel', apiKey(vCancel));
+  }
   r.get('/v1/receipts', apiKey((req, m) =>
     q.all('SELECT * FROM receipts WHERE merchant_id=? ORDER BY verified_at DESC LIMIT 100', m.id), 'read:receipts'));
   r.post('/v1/sandbox/sms', apiKey((req, m) => engine.ingestSms(m, { raw: req.body.raw, operator: req.body.operator })));

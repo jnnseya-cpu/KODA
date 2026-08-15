@@ -249,6 +249,16 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
     return { status: 'not_found_yet', code: 'code_not_found_yet', trace };
   }
 
+  // 2b. amount guard (spec §24): the code exists, but the operator SMS confirms a
+  // DIFFERENT amount than this order expected → reject as amount_mismatch (never
+  // verify a wrong-amount payment against an order). Only when an intent is known.
+  if (intent && intent.amount != null && Number(sms.amount) !== Number(intent.amount)) {
+    trace.steps.push(`amount_mismatch: expected ${intent.amount}, SMS confirms ${sms.amount}`);
+    notifyOwners(merchant, 'payment.pending_review', { reference });
+    emitOutcome(merchant.id, 'rejected', 'amount_mismatch', { reference, amount: sms.amount, currency: sms.currency });
+    return { status: 'rejected', code: 'amount_mismatch', expected_amount: intent.amount, received_amount: sms.amount, trace };
+  }
+
   // 3. fraud scoring (+ optional cross-merchant network signal — 0 by default)
   const risk = scoreMatch({ merchant, intent, sms, reference, networkDelta: netDelta(sms) });
   trace.steps.push(`fraud_score: ${risk.score} (${risk.band}) ${risk.reasons.join(',') || 'clean'}`);
