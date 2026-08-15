@@ -532,6 +532,17 @@ module.exports = function registerRoutes(r) {
       { test: true, receipt_id: 'rcp_TEST', amount: 25000, currency: m.currency });
     return { ok: true, note: 'Signed test event dispatched.' };
   }));
+  // Rotate ONE endpoint's signing secret (spec §31/§36/§40). Returns the new secret
+  // once; the old secret stops verifying immediately. Owner-only.
+  r.post('/app/webhooks/:id/rotate', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    const ep = q.get('SELECT * FROM webhook_endpoints WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    if (!ep) return [404, { error: 'endpoint_not_found' }];
+    const secret = `whsec_${U.token(24)}`;
+    q.run('UPDATE webhook_endpoints SET secret=? WHERE id=? AND merchant_id=?', secret, ep.id, m.id);
+    audit(m.id, user.id, 'webhook_secret_rotated', { endpoint_id: ep.id });
+    return { ok: true, id: ep.id, secret };
+  }));
   // Enable/disable ONE endpoint (paused endpoints keep their url + secret; dispatch
   // simply skips them). Owner-only, like adding one.
   r.post('/app/webhooks/:id/toggle', auth((req, user, m) => {
@@ -1171,7 +1182,7 @@ module.exports = function registerRoutes(r) {
   r.get('/v1/ping', apiKey((req, m) => ({
     ok: true, merchant: m.name, plan: m.plan, environment: req.keyPrefix.includes('test') ? 'test' : 'live',
   })));
-  r.post('/v1/intents', apiKey((req, m) => createIntent(m, req.body), 'write:intents'));
+  r.post('/v1/intents', apiKey((req, m) => createIntent(m, req.body, req.headers['idempotency-key']), 'write:intents'));
   r.get('/v1/intents/:id', apiKey((req, m) => {
     const i = q.get('SELECT * FROM intents WHERE id=? AND merchant_id=?', req.params.id, m.id);
     if (!i) return [404, { error: { code: 'not_found' } }];
@@ -1770,9 +1781,16 @@ module.exports = function registerRoutes(r) {
 function SITE_BASE() { return process.env.KODA_PUBLIC_URL || 'http://localhost:4600'; }
 
 // ---------- shared helpers ----------
-function createIntent(m, body) {
+function createIntent(m, body, idemKey) {
   if (m.status !== 'active') return [403, { error: { code: 'merchant_suspended' } }];
   if (m.acu_balance <= -100) return [402, { error: { code: 'insufficient_credit' } }];
+  // Idempotency (spec §26): a repeat create with the same key returns the ORIGINAL
+  // verification instead of creating a second one. Scoped per merchant.
+  idemKey = (typeof idemKey === 'string' && idemKey.trim()) ? idemKey.trim().slice(0, 128) : null;
+  if (idemKey) {
+    const prev = q.get('SELECT response FROM idempotency_keys WHERE merchant_id=? AND key=?', m.id, idemKey);
+    if (prev) return JSON.parse(prev.response);
+  }
   // validate amount: positive finite number within sane bounds (in minor units)
   const amount = Number(body.amount);
   if (!Number.isFinite(amount) || amount <= 0 || amount > 1e12) {
@@ -1796,7 +1814,7 @@ function createIntent(m, body) {
   // verified, healthy networks for this country/currency/door. Falls back to the
   // legacy operators list (pay_to) when no network accounts are configured yet.
   const resolved = networks.resolve(m, { country: body.country || m.country, currency, amount, door: 'API' });
-  return {
+  const resp = {
     intent_id: iid, status: intent.status,
     client_secret: clientSecret,
     checkout_url: `${SITE_BASE()}/pay/${iid}?cs=${clientSecret}`,
@@ -1805,6 +1823,9 @@ function createIntent(m, body) {
     pay_to: ops.map(o => ({ operator: o, number: m.msisdn || '+243 8XX XXX XXX', ussd_hint: o.startsWith('orange') ? '#144#' : '*1122#' })),
     expires_at: intent.expires_at,
   };
+  // store the idempotent result (unique PK guards a same-key race)
+  if (idemKey) { try { q.run('INSERT INTO idempotency_keys (merchant_id,key,intent_id,response) VALUES (?,?,?,?)', m.id, idemKey, iid, JSON.stringify(resp)); } catch { /* concurrent same-key insert */ } }
+  return resp;
 }
 
 const { q: _q } = require('./lib/db');

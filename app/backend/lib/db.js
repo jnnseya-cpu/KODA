@@ -497,6 +497,17 @@ db.exec(`CREATE TABLE IF NOT EXISTS referrals (
 db.exec(`CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_referrals_referred ON referrals(referred_id);`);
 
+// Idempotency-Key on verification (intent) creation: a repeated create with the
+// same key returns the original result instead of making a second verification.
+db.exec(`CREATE TABLE IF NOT EXISTS idempotency_keys (
+  merchant_id TEXT NOT NULL,
+  key TEXT NOT NULL,
+  intent_id TEXT,
+  response TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (merchant_id, key)
+);`);
+
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
 // hot verify path runs ~10 statements, so caching keeps the money path fast.

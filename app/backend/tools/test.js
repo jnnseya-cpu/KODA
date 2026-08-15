@@ -60,6 +60,11 @@ async function main() {
     T('v1/ping', (await j('/v1/ping', {}, key)).d.ok === true);
     const intent = (await j('/v1/intents', { body: { amount: 25000, currency: 'CDF', operators: ['orange_cd'] } }, key)).d;
     T('intent create', !!intent.intent_id);
+    // Idempotency-Key: a repeat create with the same key returns the ORIGINAL verification
+    const idem = 'idem-' + Math.floor(Math.random() * 1e9);
+    const i1 = (await j('/v1/intents', { body: { amount: 12345, currency: 'CDF', operators: ['orange_cd'] }, headers: { 'idempotency-key': idem } }, key)).d;
+    const i2 = (await j('/v1/intents', { body: { amount: 12345, currency: 'CDF', operators: ['orange_cd'] }, headers: { 'idempotency-key': idem } }, key)).d;
+    T('idempotency-key returns the same verification', !!i1.intent_id && i1.intent_id === i2.intent_id, `${i1.intent_id} == ${i2.intent_id}`);
     const ver = (await j(`/v1/intents/${intent.intent_id}/verify`, { body: { reference: 'TEST-OK-25000' } }, key)).d;
     T('magic ref verify', ver.status === 'verified');
     T('openapi 3.1', (await j('/v1/openapi.json')).d.openapi === '3.1.0');
@@ -85,7 +90,10 @@ async function main() {
     const dsp = (await j('/app/disputes', { body: { reference: 'X.1', reason: 'suite' } }, tk)).d;
     T('dispute open + evidence', dsp.status === 'open' && !!dsp.evidence);
     T('dispute resolve', (await j(`/app/disputes/${dsp.id}/resolve`, { body: { outcome: 'accepted' } }, tk)).d.ok === true);
-    T('webhook endpoint add', !!(await j('/app/webhooks', { body: { url: 'http://localhost:9/wh' } }, tk)).d.secret);
+    const wh = (await j('/app/webhooks', { body: { url: 'http://localhost:9/wh' } }, tk)).d;
+    T('webhook endpoint add', !!wh.secret);
+    const rot = (await j(`/app/webhooks/${wh.id}/rotate`, { body: {} }, tk)).d;
+    T('webhook secret rotates (new whsec, differs)', !!rot.secret && rot.secret.startsWith('whsec_') && rot.secret !== wh.secret);
     T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
 
     console.log('— communications');
