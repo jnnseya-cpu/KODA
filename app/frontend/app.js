@@ -1707,7 +1707,8 @@ VIEWS.admin = async (params) => {
       <td class="num">${fmt(m.verifs)}</td><td class="num">${fmt(m.acu_balance)}</td><td class="num">${m.seats}</td>
       <td><span class="badge ${m.status === 'active' ? 'b-ok' : 'b-bad'}">${m.status}</span></td>
       <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="location.hash='#admin?m=${m.id}'">Manage</button>
-        <button class="btn btn-danger btn-sm" onclick="adminToggle('${m.id}')">${m.status === 'active' ? 'suspend' : 'restore'}</button></td></tr>`).join('')}
+        <button class="btn btn-danger btn-sm" onclick="adminToggle('${m.id}')">${m.status === 'active' ? 'suspend' : 'restore'}</button>
+        ${m.status === 'suspended' ? `<button class="btn btn-ghost btn-sm" style="color:#e5484d;border-color:rgba(229,72,77,.4)" onclick="adminDeleteMerchant('${m.id}','${esc(m.name).replace(/'/g, "\\'")}')">🗑 delete</button>` : ''}</td></tr>`).join('')}
   </table>` : '<p style="color:var(--dim);font-size:13px">No merchants yet. They appear here as businesses sign up at /app.</p>'}</div>
   <div class="card" style="margin-top:14px"><h3>Latest verifications (all merchants)</h3>
     ${o.latest.length ? o.latest.map(r => `<div class="feed-row"><div class="feed-ic f-ok">✓</div>
@@ -2302,5 +2303,11 @@ window.adminAddUser = async (mid) => {
   } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
 window.adminToggle = async (id) => { await api(`/app/admin/merchants/${id}/suspend`, { body: {} }); route(); };
+window.adminDeleteMerchant = async (id, name) => {
+  if (!confirm(`Permanently delete "${name}" and ALL its data (users, keys, receipts, devices…)?\n\nThis cannot be undone.`)) return;
+  if (!confirm(`Type-check: really delete "${name}"? This is irreversible.`)) return;
+  try { await api(`/app/admin/merchants/${id}/delete`, { body: {} }); toast('✓ merchant deleted'); route(); }
+  catch (e) { toast('✗ ' + (e.message || 'delete failed')); }
+};
 
 boot();

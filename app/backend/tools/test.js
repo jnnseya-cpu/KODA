@@ -165,6 +165,13 @@ async function main() {
     await j(`/app/admin/merchants/${susp.merchant.id}/suspend`, { body: {} }, admin.token);
     T('suspended merchant CANNOT log in', (await j('/app/auth/login', { body: { email: 'susp@co.test', password: susp.temp_password } })).s === 403);
     T('suspended merchant existing session token is revoked', (await j('/app/me', {}, suspTok)).s === 403);
+    // admin can permanently DELETE a merchant — but ONLY once it is suspended
+    const delActive = (await j('/app/admin/merchants', { body: { business: 'DelActiveCo', email: 'da@co.test', name: 'Deb' } }, admin.token)).d;
+    T('delete blocked while merchant is active', (await j(`/app/admin/merchants/${delActive.merchant.id}/delete`, { body: {} }, admin.token)).s === 409);
+    const delRes = (await j(`/app/admin/merchants/${susp.merchant.id}/delete`, { body: {} }, admin.token)).d;
+    T('suspended merchant deleted', delRes.ok === true && delRes.deleted === susp.merchant.id);
+    T('deleted merchant gone from admin list', !((await j('/app/admin/merchants', {}, admin.token)).d).some(x => x.id === susp.merchant.id));
+    T('deleted merchant owner cannot log in', (await j('/app/auth/login', { body: { email: 'susp@co.test', password: susp.temp_password } })).s !== 200);
     // self-service change password + admin resend-credentials-without-seeing
     const pwm = (await j('/app/admin/merchants', { body: { business: 'PwCo', email: 'pw@co.test', name: 'Pia' } }, admin.token)).d;
     const pwLogin = (await j('/app/auth/login', { body: { email: 'pw@co.test', password: pwm.temp_password } })).d;

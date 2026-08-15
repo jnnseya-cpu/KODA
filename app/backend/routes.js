@@ -808,6 +808,36 @@ module.exports = function registerRoutes(r) {
     q.run(`UPDATE merchants SET status = CASE status WHEN 'suspended' THEN 'active' ELSE 'suspended' END WHERE id=?`, req.params.id);
     return { ok: true };
   }));
+  // ---- admin: permanently DELETE a merchant (only when suspended) ----
+  // Guard rails: a merchant must be SUSPENDED first (deliberate two-step, no accidental
+  // wipes of a live account), and a platform account with sub-merchants can't be deleted
+  // until its children are gone. Removes the merchant and every row that references it
+  // (users, keys, devices, ledger, receipts, webhooks, billing, comms, …) in one tx so
+  // nothing is orphaned. Irreversible.
+  r.post('/app/admin/merchants/:id/delete', admin((req, user) => {
+    const mid = req.params.id;
+    const merchant = q.get('SELECT * FROM merchants WHERE id=?', mid);
+    if (!merchant) return [404, { error: { code: 'merchant_not_found' } }];
+    if (merchant.status !== 'suspended')
+      return [409, { error: { code: 'must_suspend_first', message: 'Suspend the merchant before deleting it.' } }];
+    const kids = q.get('SELECT COUNT(*) c FROM merchants WHERE parent_id=?', mid).c;
+    if (kids > 0) return [409, { error: { code: 'has_submerchants', message: `Remove ${kids} sub-merchant(s) first.` } }];
+    // Introspect every table that carries a merchant_id so the cascade stays complete as
+    // the schema grows. Order matters under FK enforcement: clear all merchant-scoped rows
+    // (many reference users.id) BEFORE deleting the users, and clear password_resets (which
+    // references users.id but has no merchant_id) by the merchant's user ids.
+    const midTables = q.all(`SELECT name FROM sqlite_master WHERE type='table'`)
+      .map(r => r.name)
+      .filter(t => t !== 'merchants' && q.all(`PRAGMA table_info(${t})`).some(c => c.name === 'merchant_id'));
+    tx(() => {
+      for (const tbl of midTables) if (tbl !== 'users') q.run(`DELETE FROM ${tbl} WHERE merchant_id=?`, mid);
+      try { q.run(`DELETE FROM password_resets WHERE user_id IN (SELECT id FROM users WHERE merchant_id=?)`, mid); } catch { /* table optional */ }
+      q.run('DELETE FROM users WHERE merchant_id=?', mid);
+      q.run('DELETE FROM merchants WHERE id=?', mid);
+    });
+    audit(null, user.id, 'admin.merchant_deleted', { merchant_id: mid, name: merchant.name });
+    return { ok: true, deleted: mid };
+  }));
   // ---- admin: create a new merchant + its owner login (provision an account) ----
   r.post('/app/admin/merchants', admin((req, user) => {
     const { business, email, name } = req.body;
