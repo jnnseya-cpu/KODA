@@ -401,10 +401,11 @@ module.exports = function registerRoutes(r) {
   r.post('/app/webhooks', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
     const wid = U.id('whe'), secret = `whsec_${U.token(24)}`;
-    q.run(`INSERT INTO webhook_endpoints (id,merchant_id,url,secret,events) VALUES (?,?,?,?,?)`,
-      wid, m.id, req.body.url, secret, JSON.stringify(req.body.events || ['*']));
+    const destination = (typeof req.body.destination === 'string' && req.body.destination.trim()) ? req.body.destination.trim().slice(0, 64) : null;
+    q.run(`INSERT INTO webhook_endpoints (id,merchant_id,url,secret,events,destination) VALUES (?,?,?,?,?,?)`,
+      wid, m.id, req.body.url, secret, JSON.stringify(req.body.events || ['*']), destination);
     notify.fire('webhook.endpoint_added', { user, merchant: m });
-    return { id: wid, secret };
+    return { id: wid, secret, destination };
   }));
 
   // ---- Platform integrations: install-scoped, revocable credentials ----

@@ -105,6 +105,20 @@ async function main() {
     T('verification.succeeded fires on verify', evs.has('verification.succeeded'));
     T('verification.duplicate_detected fires on replay', evs.has('verification.duplicate_detected'));
     T('payment.verified still fires (backward compat)', evs.has('payment.verified'));
+    // §12 timestamped signature: Koda-Signature: t=,v1= alongside legacy x-koda-signature
+    const whlib = require('../lib/webhooks'), util = require('../lib/util');
+    const hdr = whlib.signHeaders('sekret', '{"a":1}', 'evt_x');
+    const mm = /^t=(\d+),v1=([a-f0-9]+)$/.exec(hdr['koda-signature'] || '');
+    T('koda-signature is timestamped (t=,v1=) + legacy header intact',
+      !!mm && hdr['x-koda-signature'] === util.hmac('sekret', '{"a":1}') && mm[2] === util.hmac('sekret', mm[1] + '.{"a":1}'));
+    // §15 routing: a destination-scoped endpoint only gets matching events; catch-all gets all
+    const woo = (await j('/app/webhooks', { body: { url: 'http://localhost:9/woo', destination: 'woocommerce' } }, tk)).d;
+    const pos = (await j('/app/webhooks', { body: { url: 'http://localhost:9/pos', destination: 'pos' } }, tk)).d;
+    const vr = (await j('/v1/intents', { body: { amount: 7000, currency: 'CDF', operators: ['orange_cd'], metadata: { destination: 'woocommerce' } } }, key)).d;
+    await j(`/v1/intents/${vr.intent_id}/verify`, { body: { reference: 'TEST-OK-7000' } }, key);
+    const dv2 = (await j('/app/webhooks', {}, tk)).d.deliveries || [];
+    T('routing: woocommerce endpoint received the event', dv2.some(d => d.endpoint_id === woo.id));
+    T('routing: pos endpoint did NOT receive it', !dv2.some(d => d.endpoint_id === pos.id));
     T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
 
     console.log('— communications');

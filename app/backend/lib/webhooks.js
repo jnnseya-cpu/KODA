@@ -8,19 +8,35 @@ const MAX_ATTEMPTS = 5;
 function dispatch(merchantId, event, payload) {
   const endpoints = q.all(
     `SELECT * FROM webhook_endpoints WHERE merchant_id=? AND active=1`, merchantId);
+  // Routing (spec §15): a verification/event can name a destination (top-level or in
+  // metadata); an endpoint scoped to a destination only receives matching events,
+  // while a NULL-destination endpoint is a catch-all (unchanged legacy behaviour).
+  const dest = payload.destination || payload.metadata?.destination || payload.metadata?.application || null;
   for (const ep of endpoints) {
     const events = JSON.parse(ep.events || '["*"]');
     if (!events.includes('*') && !events.includes(event)) continue;
+    if (ep.destination && ep.destination !== dest) continue;   // scoped endpoint, non-matching → skip
     const body = JSON.stringify({ event, ...payload, created_at: new Date().toISOString() });
-    const signature = hmac(ep.secret, body);
+    const signature = hmac(ep.secret, body);   // stored record (legacy body-only sig)
     const dlv = id('whd');
     q.run(`INSERT INTO webhook_deliveries (id,endpoint_id,merchant_id,event,payload,signature,status)
            VALUES (?,?,?,?,?,?, 'pending')`, dlv, ep.id, merchantId, event, body, signature);
-    attempt(dlv, ep.url, body, signature, 1);
+    attempt(dlv, ep.url, body, ep.secret, 1);
   }
 }
 
-function attempt(dlvId, url, body, signature, n) {
+// Signature headers computed at SEND time (so retries carry a fresh timestamp).
+// Returns both the legacy body-only sig and the spec §12 timestamped Koda-Signature.
+function signHeaders(secret, body, dlvId) {
+  const ts = Math.floor(Date.now() / 1000);
+  return {
+    'x-koda-signature': hmac(secret, body),                       // legacy, backward-compatible
+    'koda-signature': `t=${ts},v1=${hmac(secret, ts + '.' + body)}`, // §12 replay-protected
+    'koda-event-id': dlvId,
+  };
+}
+
+function attempt(dlvId, url, body, secret, n) {
   const finish = (status, err) => {
     q.run(`UPDATE webhook_deliveries SET status=?, attempts=?, last_error=?,
            delivered_at=CASE WHEN ?='sent' THEN datetime('now') ELSE delivered_at END WHERE id=?`,
@@ -33,7 +49,7 @@ function attempt(dlvId, url, body, signature, n) {
   }
   fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-koda-signature': signature },
+    headers: { 'content-type': 'application/json', ...signHeaders(secret, body, dlvId) },
     body, signal: AbortSignal.timeout(8000),
   }).then(r => {
     if (r.ok) return finish('sent');
@@ -42,7 +58,7 @@ function attempt(dlvId, url, body, signature, n) {
     if (n >= MAX_ATTEMPTS) return finish('dead', String(e.message || e));
     q.run(`UPDATE webhook_deliveries SET status='pending', attempts=?, last_error=? WHERE id=?`,
       n, String(e.message || e), dlvId);
-    setTimeout(() => attempt(dlvId, url, body, signature, n + 1),
+    setTimeout(() => attempt(dlvId, url, body, secret, n + 1),
       Math.min(60000, 1000 * 2 ** n)).unref?.();
   });
 }
@@ -56,8 +72,8 @@ function redeliver(dlvId) {
   const ep = q.get('SELECT * FROM webhook_endpoints WHERE id=?', d.endpoint_id);
   if (!ep) return { ok: false, error: 'endpoint_gone' };
   q.run(`UPDATE webhook_deliveries SET status='pending', last_error=NULL WHERE id=?`, dlvId);
-  attempt(dlvId, ep.url, d.payload, d.signature, 1);
+  attempt(dlvId, ep.url, d.payload, ep.secret, 1);
   return { ok: true, delivery_id: dlvId, endpoint_id: ep.id, url: ep.url };
 }
 
-module.exports = { dispatch, redeliver };
+module.exports = { dispatch, redeliver, signHeaders };

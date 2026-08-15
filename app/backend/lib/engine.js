@@ -201,6 +201,7 @@ function emitOutcome(merchantId, status, code, ctx = {}) {
     webhooks.dispatch(merchantId, ev, {
       verification_id: ctx.receipt_id || null, reference: ctx.reference || null,
       status, reason: code || null, amount: ctx.amount ?? null, currency: ctx.currency ?? null,
+      metadata: ctx.metadata || {}, // enables destination routing (§15) on verification.* too
     });
   } catch { /* a webhook must never break verification */ }
 }
@@ -291,7 +292,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
     metadata: intent?.metadata ? JSON.parse(intent.metadata) : {},
   };
   webhooks.dispatch(merchant.id, event, payload);
-  emitOutcome(merchant.id, late ? 'verified_late' : 'verified', null, { receipt_id: rcp, reference: payload.reference, amount: sms.amount, currency: sms.currency });
+  emitOutcome(merchant.id, late ? 'verified_late' : 'verified', null, { receipt_id: rcp, reference: payload.reference, amount: sms.amount, currency: sms.currency, metadata: payload.metadata });
   notifyOwners(merchant, event, { amount: `${fmtAmt(sms.amount)} ${sms.currency}`, reference: payload.reference });
 
   // top-up intents credit the wallet on verification — the product bills itself with itself
@@ -381,10 +382,11 @@ function sandboxVerify(merchant, intent, reference, { mode, userId, trace }) {
       notifyOwners(merchant, 'billing.topup.verified', { acu: pack.acu });
     }
   }
+  const sbMeta = intent?.metadata ? JSON.parse(intent.metadata) : {};
   webhooks.dispatch(merchant.id, 'payment.verified', {
-    intent_id: intent?.id || null, receipt_id: rcp, amount, sandbox: true, reference,
+    intent_id: intent?.id || null, receipt_id: rcp, amount, sandbox: true, reference, metadata: sbMeta,
   });
-  emitOutcome(merchant.id, 'verified', null, { receipt_id: rcp, reference, amount, currency: intent?.currency || null });
+  emitOutcome(merchant.id, 'verified', null, { receipt_id: rcp, reference, amount, currency: intent?.currency || null, metadata: sbMeta });
   notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(amount)} ${intent?.currency || ''}`, reference });
   try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ }
   return { status: 'verified', receipt_id: rcp, sandbox: true, amount_confirmed: amount, trace };

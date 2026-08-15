@@ -497,6 +497,10 @@ db.exec(`CREATE TABLE IF NOT EXISTS referrals (
 db.exec(`CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id);`);
 db.exec(`CREATE INDEX IF NOT EXISTS idx_referrals_referred ON referrals(referred_id);`);
 
+// Webhook routing (spec §15): an endpoint may be scoped to a destination
+// (e.g. "woocommerce", "pos"); NULL = catch-all (receives everything, as before).
+try { db.exec(`ALTER TABLE webhook_endpoints ADD COLUMN destination TEXT`); } catch { /* exists */ }
+
 // Idempotency-Key on verification (intent) creation: a repeated create with the
 // same key returns the original result instead of making a second verification.
 db.exec(`CREATE TABLE IF NOT EXISTS idempotency_keys (
