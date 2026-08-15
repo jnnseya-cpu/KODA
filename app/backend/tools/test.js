@@ -94,6 +94,11 @@ async function main() {
     T('webhook endpoint add', !!wh.secret);
     const rot = (await j(`/app/webhooks/${wh.id}/rotate`, { body: {} }, tk)).d;
     T('webhook secret rotates (new whsec, differs)', !!rot.secret && rot.secret.startsWith('whsec_') && rot.secret !== wh.secret);
+    // webhook has a name and the FULL secret is retrievable (copyable) by the owner
+    const named = (await j('/app/webhooks', { body: { url: 'http://localhost:9/named', name: 'WooCommerce prod' } }, tk)).d;
+    T('webhook stores a name + returns full secret on create', named.name === 'WooCommerce prod' && named.secret.startsWith('whsec_') && named.secret.length > 20);
+    const listed = ((await j('/app/webhooks', {}, tk)).d.endpoints || []).find(e => e.id === named.id);
+    T('GET returns the webhook name + full secret (copyable)', !!listed && listed.name === 'WooCommerce prod' && listed.secret === named.secret);
     // verification.* event namespace fires ADDITIVELY (payment.verified still fires)
     await j('/app/webhooks', { body: { url: 'http://localhost:9/whv', events: ['*'] } }, tk);
     const vok = (await j('/v1/intents', { body: { amount: 5000, currency: 'CDF', operators: ['orange_cd'] } }, key)).d;

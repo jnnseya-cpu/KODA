@@ -1207,13 +1207,16 @@ VIEWS.developers = async () => {
     </div>
     <div class="card"><h3>Webhooks — HMAC-SHA256 signed</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <input id="whurl" placeholder="https://yourapp.com/webhooks/koda" style="flex:1;min-width:220px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:9px 12px;font-family:var(--mono);font-size:12px">
+        <input id="whname" placeholder="Name (e.g. WooCommerce production)" style="min-width:170px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:9px 12px;font-size:12.5px">
+        <input id="whurl" placeholder="https://yourapp.com/webhooks/koda" style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:9px 12px;font-family:var(--mono);font-size:12px">
         <button class="btn btn-gold btn-sm" onclick="addWebhook()">${t('add_webhook')}</button>
       </div>
       ${wh.endpoints.map(e => `<div class="feed-row"><div class="feed-ic ${e.active ? 'f-ok' : 'f-dim'}">⇄</div>
-        <div style="min-width:0"><div class="t mono" style="font-size:12.5px;word-break:break-all">${esc(e.url)}</div>
-        <div class="m">secret whsec_···${esc(e.secret.slice(-4))} · <span class="badge ${e.active ? 'b-ok' : 'b-warn'}">${e.active ? 'active' : 'disabled'}</span></div></div>
+        <div style="min-width:0">
+        ${e.name ? `<div class="t" style="font-weight:800;font-size:13px">${esc(e.name)}</div><div class="mono" style="font-size:12px;color:var(--dim);word-break:break-all">${esc(e.url)}</div>` : `<div class="t mono" style="font-size:12.5px;word-break:break-all">${esc(e.url)}</div>`}
+        <div class="m">secret <span class="mono">whsec_···${esc(e.secret.slice(-4))}</span> · <span class="badge ${e.active ? 'b-ok' : 'b-warn'}">${e.active ? 'active' : 'disabled'}</span></div></div>
         <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(e.secret)}');toast('✓ Signing secret copied')">Copy secret</button>
           <button class="btn btn-ghost btn-sm" onclick="testWebhook('${e.id}')">${t('test')}</button>
           <button class="btn btn-ghost btn-sm" onclick="toggleWebhook('${e.id}')">${e.active ? 'Disable' : 'Enable'}</button>
           <button class="btn btn-danger btn-sm" onclick="deleteWebhook('${e.id}')">Delete</button>
@@ -1257,8 +1260,12 @@ window.createKey = async (prefix) => {
 };
 window.revokeKey = async (id) => { await api(`/app/keys/${id}/revoke`, { body: {} }); toast('✓ Revoked'); route(); };
 window.addWebhook = async () => {
-  try { const r = await api('/app/webhooks', { body: { url: v('whurl') } }); toast(`✓ Added — secret ${r.secret.slice(0, 12)}…`); route(); }
-  catch (e) { toast('✗ ' + e.message); }
+  const url = v('whurl'); if (!url) return toast('Enter the endpoint URL first');
+  try {
+    await api('/app/webhooks', { body: { url, name: v('whname') } });
+    toast('✓ Webhook added — click "Copy secret" on it to grab the signing key', 5000);
+    route();
+  } catch (e) { toast('✗ ' + (e.message || 'could not add')); }
 };
 window.testWebhook = async (id) => { await api(`/app/webhooks/${id}/test`, { body: {} }); toast('✓ Signed test event dispatched'); route(); };
 window.toggleWebhook = async (id) => {

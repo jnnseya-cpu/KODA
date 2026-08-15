@@ -500,6 +500,8 @@ db.exec(`CREATE INDEX IF NOT EXISTS idx_referrals_referred ON referrals(referred
 // Webhook routing (spec §15): an endpoint may be scoped to a destination
 // (e.g. "woocommerce", "pos"); NULL = catch-all (receives everything, as before).
 try { db.exec(`ALTER TABLE webhook_endpoints ADD COLUMN destination TEXT`); } catch { /* exists */ }
+// Human-readable name/label so merchants can tell endpoints apart (spec §9).
+try { db.exec(`ALTER TABLE webhook_endpoints ADD COLUMN name TEXT`); } catch { /* exists */ }
 
 // Idempotency-Key on verification (intent) creation: a repeated create with the
 // same key returns the original result instead of making a second verification.
