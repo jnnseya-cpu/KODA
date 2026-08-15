@@ -367,13 +367,19 @@ module.exports = function registerRoutes(r) {
     q.all('SELECT id,prefix,last4,label,revoked,created_at FROM api_keys WHERE merchant_id=? AND submerchant_id IS NULL', m.id)));
   r.post('/app/keys', auth((req, user, m) => {
     if (!needRole(user, ['manager'])) return [403, { error: 'manager_or_owner_only' }];
-    const prefix = ['sk_live', 'pk_live', 'sk_test', 'pk_test', 'rk_live'].includes(req.body.prefix) ? req.body.prefix : 'sk_test';
+    // koda_ key scheme (spec §4/§32). Legacy sk_/pk_/rk_ names are accepted as
+    // aliases so existing integrations keep working — auth is hash-based, so no
+    // previously-issued key ever breaks.
+    const ALIAS = { sk_live: 'koda_live', sk_test: 'koda_test', pk_live: 'koda_pub_live', pk_test: 'koda_pub_test', rk_live: 'koda_rk_live' };
+    const ALLOWED = ['koda_live', 'koda_test', 'koda_pub_live', 'koda_pub_test', 'koda_rk_live'];
+    let prefix = ALIAS[req.body.prefix] || req.body.prefix;
+    if (!ALLOWED.includes(prefix)) prefix = 'koda_test';
     const secret = `${prefix}_${U.token(24)}`;
-    // rk_ keys default to read-only; pk_ keys (browser-exposed) may ONLY create intents;
-    // sk_ (server-side secret) keys get full scope unless explicit scopes are given.
+    // koda_rk_ = read-only; koda_pub_ (browser-exposed) may ONLY create verifications;
+    // koda_live/koda_test (server-side secret) get full scope unless explicit scopes are given.
     const scopes = Array.isArray(req.body.scopes) && req.body.scopes.length ? req.body.scopes
-      : prefix === 'rk_live' ? ['read:receipts', 'read:usage', 'read:agents']
-      : prefix.startsWith('pk_') ? ['write:intents'] : ['*'];
+      : prefix.startsWith('koda_rk') ? ['read:receipts', 'read:usage', 'read:agents']
+      : prefix.startsWith('koda_pub') ? ['write:intents'] : ['*'];
     q.run(`INSERT INTO api_keys (id,merchant_id,prefix,key_hash,last4,label,scopes) VALUES (?,?,?,?,?,?,?)`,
       U.id('key'), m.id, prefix, U.sha256(secret), secret.slice(-4), req.body.label || null, JSON.stringify(scopes));
     notify.fire('apikey.created', { user, merchant: m });
@@ -413,9 +419,9 @@ module.exports = function registerRoutes(r) {
     platform = String(platform || 'custom').slice(0, 32);
     const storeUrl = String(store_url || '').slice(0, 300) || null;
     const webhookUrl = String(webhook_url || '').slice(0, 300) || null;
-    const secret = `rk_live_${U.token(24)}`, kid = U.id('key');
+    const secret = `koda_rk_live_${U.token(24)}`, kid = U.id('key');
     q.run(`INSERT INTO api_keys (id,merchant_id,prefix,key_hash,last4,label,scopes) VALUES (?,?,?,?,?,?,?)`,
-      kid, m.id, 'rk_live', U.sha256(secret), secret.slice(-4), platform + ' installation', JSON.stringify(INSTALL_SCOPES));
+      kid, m.id, 'koda_rk_live', U.sha256(secret), secret.slice(-4), platform + ' installation', JSON.stringify(INSTALL_SCOPES));
     let whId = null, whSecret = null;
     if (webhookUrl) {
       whId = U.id('whe'); whSecret = `whsec_${U.token(24)}`;
@@ -615,10 +621,10 @@ module.exports = function registerRoutes(r) {
            VALUES (?,?,?,?,?,?, 'boutique', 0)`,
       sid, req.body.name, req.body.country || m.country, req.body.currency || m.currency,
       req.body.msisdn || null, m.id);
-    const secret = `sk_live_sub_${U.token(24)}`;
+    const secret = `koda_live_sub_${U.token(24)}`;
     q.run(`INSERT INTO api_keys (id,merchant_id,prefix,key_hash,last4,label,submerchant_id)
            VALUES (?,?,?,?,?,?,?)`,
-      U.id('key'), m.id, 'sk_live_sub', U.sha256(secret), secret.slice(-4), req.body.name, sid);
+      U.id('key'), m.id, 'koda_live_sub', U.sha256(secret), secret.slice(-4), req.body.name, sid);
     engine.chargeAcu(m, engine.ACU.submerchant, 'submerchant', sid);
     notify.fire('submerchant.onboarded', { user, merchant: m, data: { name: req.body.name } });
     return { submerchant_id: sid, key: secret };
@@ -1149,7 +1155,7 @@ module.exports = function registerRoutes(r) {
     return {
       doors: [
         { id: 1, name: 'Manual console', endpoint: 'POST /app/verify', live: true, requires: 'nothing (pure code path)', status: 'live', note: 'Screenshot path uses VisionAgent (3 ACU).' },
-        { id: 3, name: 'API / drop-in', endpoint: 'POST /v1/intents', live: true, requires: 'an API key', status: 'live', note: 'sk_test keys run in sandbox on the same host.' },
+        { id: 3, name: 'API / drop-in', endpoint: 'POST /v1/intents', live: true, requires: 'an API key', status: 'live', note: 'koda_test keys run in sandbox on the same host.' },
         { id: 2, name: 'WhatsApp Chat', endpoint: 'POST /webhooks/whatsapp', live: meta.configured(), requires: 'META_WA_TOKEN + META_WA_PHONE_ID (+ APP_SECRET)', status: meta.configured() ? 'live' : 'sandbox', note: meta.appSecretSet() ? 'app secret set' : 'app secret NOT set (signature check open)' },
         { id: 4, name: 'USSD', endpoint: 'POST /webhooks/ussd', live: false, requires: 'a USSD shortcode from an aggregator (Africa\'s Talking / MNO)', status: 'endpoint ready', note: 'Routes by merchant msisdn. No KODA env key — shortcode lives at the aggregator.' },
         { id: 5, name: 'Inbound SMS', endpoint: 'POST /webhooks/sms', live: !!process.env.SMS_GATEWAY_KEY, requires: 'SMS_GATEWAY_KEY + an SMS long/short-code', status: process.env.SMS_GATEWAY_KEY ? 'live' : 'endpoint ready', note: 'Replies send via gateway only when the key is set.' },
@@ -2018,7 +2024,7 @@ function openapi() {
   return {
     openapi: '3.1.0',
     info: { title: 'KODA API', version: VERSION.api, description: 'Payment verification for mobile money — the SMS is the API.' },
-    servers: [{ url: 'https://kodajnn.com/v1', description: 'Production. Use sk_live_ keys; sk_test_ keys run in sandbox on the same host.' }],
+    servers: [{ url: 'https://kodajnn.com/v1', description: 'Production. Use koda_live_ keys; koda_test_ keys run in sandbox on the same host.' }],
     paths: {
       '/ping': { get: { summary: 'Verify a key and see the merchant it unlocks.' } },
       '/intents': { post: { summary: 'Create payment intent — returns client_secret + checkout_url for drop-in checkout', 'x-scope': 'write:intents' } },

@@ -1118,7 +1118,7 @@ window.confirmTopup = async (iid) => {
 let _testKey = null;
 async function ensureTestKey() {
   if (_testKey) return _testKey;
-  const r = await api('/app/keys', { body: { prefix: 'sk_test', label: 'console-internal' } });
+  const r = await api('/app/keys', { body: { prefix: 'koda_test', label: 'console-internal' } });
   _testKey = r.secret; return _testKey;
 }
 window.redeemVoucher = async () => {
@@ -1193,9 +1193,9 @@ VIEWS.developers = async () => {
   shell('developers', t('developers'), t('sub_developers'), `
   <div class="grid g2">
     <div class="card"><h3>API keys</h3>
-      <p style="font-size:12.5px;color:var(--dim);margin-bottom:8px">Tap a button below to create a key (shown once). For testing use <b>Create sk_test</b>.</p>
+      <p style="font-size:12.5px;color:var(--dim);margin-bottom:8px">Tap a button below to create a key (shown once). For testing use <b>Create koda_test</b>.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        ${[['sk_test', 'Create sk_test (sandbox)'], ['sk_live', 'Create sk_live'], ['pk_live', 'Create pk_live'], ['rk_live', 'Create rk_live (read-only)']].map(([p, label]) => `<button class="btn ${p === 'sk_test' ? 'btn-gold' : 'btn-ghost'} btn-sm" onclick="createKey('${p}')">${esc(label)}</button>`).join('')}
+        ${[['koda_test', 'Create koda_test (sandbox)'], ['koda_live', 'Create koda_live'], ['koda_pub_live', 'Create koda_pub_live'], ['koda_rk_live', 'Create koda_rk_live (read-only)']].map(([p, label]) => `<button class="btn ${p === 'koda_test' ? 'btn-gold' : 'btn-ghost'} btn-sm" onclick="createKey('${p}')">${esc(label)}</button>`).join('')}
       </div>
       <table class="tbl">${keys.map(k => `<tr>
         <td class="mono" style="font-size:12px">${esc(k.prefix)}_···${esc(k.last4)}</td>
@@ -1236,14 +1236,14 @@ VIEWS.developers = async () => {
   </div>
   <div class="card" style="margin-top:14px"><h3>Quickstart</h3>
     <div class="codebox"># 1 · verify your key
-curl -H "Authorization: Bearer sk_test_..." ${location.origin}/v1/ping
+curl -H "Authorization: Bearer koda_test_..." ${location.origin}/v1/ping
 
 # 2 · create an intent
-curl ${location.origin}/v1/intents -H "Authorization: Bearer sk_test_..." \\
+curl ${location.origin}/v1/intents -H "Authorization: Bearer koda_test_..." \\
   -d '{"amount":25000,"currency":"CDF","operators":["orange_cd"]}'
 
 # 3 · customer pays → submit their code
-curl ${location.origin}/v1/intents/{id}/verify -H "Authorization: Bearer sk_test_..." \\
+curl ${location.origin}/v1/intents/{id}/verify -H "Authorization: Bearer koda_test_..." \\
   -d '{"reference":"TEST-OK-25000"}'
 
 # machine-readable contract
