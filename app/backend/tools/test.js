@@ -136,6 +136,14 @@ async function main() {
     });
     T('welcome email includes email + temp password + sign-in link',
       wemail.includes('new@cust.co') && wemail.includes('TMP-abc123') && wemail.includes('kodajnn.com/app#login'));
+    // a SUSPENDED merchant blocks all its users (session login + existing token)
+    const susp = (await j('/app/admin/merchants', { body: { business: 'SuspendCo', email: 'susp@co.test', name: 'Suzy' } }, admin.token)).d;
+    const suspLogin1 = await j('/app/auth/login', { body: { email: 'susp@co.test', password: susp.temp_password } });
+    T('active merchant can log in', suspLogin1.s === 200 && !!suspLogin1.d.token);
+    const suspTok = suspLogin1.d.token;
+    await j(`/app/admin/merchants/${susp.merchant.id}/suspend`, { body: {} }, admin.token);
+    T('suspended merchant CANNOT log in', (await j('/app/auth/login', { body: { email: 'susp@co.test', password: susp.temp_password } })).s === 403);
+    T('suspended merchant existing session token is revoked', (await j('/app/me', {}, suspTok)).s === 403);
     T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
 
     console.log('— communications');

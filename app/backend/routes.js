@@ -64,6 +64,8 @@ module.exports = function registerRoutes(r) {
     if (!user || !U.verifyPassword(password || '', user.pass_hash)) { security.record('bad_login', security.clientIp(req.headers), { email: String(email || '').slice(0, 60) }); return [401, { error: 'invalid_credentials' }]; }
     if (user.status !== 'active') return [403, { error: 'account_suspended' }];
     const merchant = user.merchant_id ? q.get('SELECT * FROM merchants WHERE id=?', user.merchant_id) : null;
+    // A suspended MERCHANT blocks all its users' access (admins/KODA staff exempt).
+    if (merchant && merchant.status !== 'active' && !user.is_admin) return [403, { error: 'account_suspended' }];
     notify.fire('auth.login.success', { user, merchant });
     return { token: U.signJwt({ uid: user.id, mid: user.merchant_id, adm: !!user.is_admin }), user: safeUser(user), merchant };
   });
@@ -1861,6 +1863,8 @@ function auth(handler) {
     const user = _q.get('SELECT * FROM users WHERE id=?', payload.uid);
     if (!user || user.status !== 'active') return [401, { error: 'unauthenticated' }];
     const merchant = user.merchant_id ? _q.get('SELECT * FROM merchants WHERE id=?', user.merchant_id) : null;
+    // A suspended MERCHANT revokes session access for all its users (admins exempt).
+    if (merchant && merchant.status !== 'active' && !user.is_admin) return [403, { error: { code: 'account_suspended' } }];
     return handler(req, user, merchant);
   };
 }
