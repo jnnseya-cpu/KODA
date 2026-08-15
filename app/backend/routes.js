@@ -799,7 +799,13 @@ module.exports = function registerRoutes(r) {
     });
     audit(mid, user.id, 'admin.merchant_created', { business, email: em, plan });
     const u = q.get('SELECT * FROM users WHERE id=?', uid);
-    notify.fire('merchant.activated', { user: u, merchant: created, data: { merchant: business } });
+    // Welcome email carries the login link + (only when auto-generated) the temp password,
+    // so the customer can actually sign in. If the admin set the password, it isn't emailed.
+    const loginUrl = `${(process.env.KODA_PUBLIC_URL || 'https://kodajnn.com').replace(/\/$/, '')}/app#login`;
+    notify.fire('merchant.activated', { user: u, merchant: created, data: {
+      merchant: business, email: em, temp_password: req.body.password ? null : pw,
+      cta: 'Sign in to KODA', cta_url: loginUrl,
+    } });
     return { ok: true, merchant: created, owner_email: em, temp_password: req.body.password ? undefined : pw };
   }));
   // ---- admin: change a merchant's plan ----

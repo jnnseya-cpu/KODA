@@ -55,6 +55,10 @@ function defaultBody(event, data) {
   const map = {
     'payment.verified': `A payment of <b>${esc(data.amount || '')}</b> was verified against your operator ledger. Reference <b>${esc(data.reference || '')}</b>. The code is now locked and cannot be reused.`,
     'billing.topup.verified': `Your wallet top-up was verified by KODA's own engine — <b>${esc(data.acu || '')} ACU</b> credited instantly.`,
+    'merchant.activated': `Your KODA account for <b>${esc(data.merchant || '')}</b> is ready. Use these details to sign in`
+      + (data.temp_password ? ` and change your password after your first login:` : `:`)
+      + `<br><br><b>Email:</b> ${esc(data.email || '')}`
+      + (data.temp_password ? `<br><b>Temporary password:</b> ${esc(data.temp_password)}` : ''),
     'sentinel.offline': `Your Sentinel device stopped sending heartbeats. Payments arriving on that SIM are queued on-device and will back-fill when it reconnects — but live verification is degraded until then.`,
     'fraud.chain_break': `An SMS claiming to be from your operator broke the running balance arithmetic on your line. It was quarantined and will never verify a payment. No action is required, but stay alert for social-engineering follow-ups.`,
   };

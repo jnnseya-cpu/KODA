@@ -129,6 +129,13 @@ async function main() {
     await j('/app/sandbox/sms', { body: { raw: `Vous avez recu 12 000 FC de MISMATCH. Ref: OM.AMTMIS.1. Solde: 500 000`, operator: 'orange_cd' } }, tk);
     const mmv = (await j(`/v1/intents/${vm.intent_id}/verify`, { body: { reference: 'OM.AMTMIS.1' } }, key)).d;
     T('amount_mismatch rejects a wrong-amount payment', mmv.status === 'rejected' && mmv.code === 'amount_mismatch', `${mmv.status}/${mmv.code}`);
+    // admin-created merchant welcome email carries login + temp password (customer can sign in)
+    const wemail = require('../comms/email').renderEmail({
+      subject: 'x', event: { key: 'merchant.activated' }, merchant: { name: 'Acme' }, user: {},
+      data: { merchant: 'Acme Co', email: 'new@cust.co', temp_password: 'TMP-abc123', cta: 'Sign in to KODA', cta_url: 'https://kodajnn.com/app#login' },
+    });
+    T('welcome email includes email + temp password + sign-in link',
+      wemail.includes('new@cust.co') && wemail.includes('TMP-abc123') && wemail.includes('kodajnn.com/app#login'));
     T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
 
     console.log('— communications');
