@@ -12,14 +12,19 @@ entirely on the server, so the two never fight.
 
 ## Turn it on — ONE command (run once on the VPS)
 
-Open the Hostinger web console (or `ssh root@187.124.117.159`) and run:
+Open the Hostinger web console (or `ssh root@187.124.117.159`) and paste this **one** line:
 
 ```bash
-bash /root/koda/app/deploy/install-autopull.sh
+cd /root/koda/app && git fetch origin && git checkout claude/koda-unified-spec-v2-vh5xtx && git pull --ff-only origin claude/koda-unified-spec-v2-vh5xtx && bash deploy/install-autopull.sh
 ```
 
-That's it. You'll see `✓ Installed. This VPS now auto-deploys…`. From now on, pushing to the
-deploy branch deploys automatically. You never touch the console to ship again.
+This does everything in one go:
+1. Pulls **all work so far** onto the server.
+2. **Deploys it immediately** (builds, restarts, health-checks) — so the live site is caught up to the latest commit right now.
+3. Arms auto-deploy, so every future push goes live within ~2 minutes.
+
+You'll end on `✓ Live site is now on <sha>. Auto-deploy armed — no more manual updates.`
+**That's the last manual command you ever run.**
 
 > First time only: the installer checks the server can `git fetch` (it already can — that's the
 > same auth your manual `git pull` uses). If it can't, it tells you to fix the clone's git token

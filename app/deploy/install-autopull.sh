@@ -67,3 +67,12 @@ else
   echo "  Logs: tail -f /var/log/koda-deploy.log"
   echo "  Stop: crontab -e  (delete the line ending in '$MARK')"
 fi
+
+# Initial catch-up: fast-forward to the very latest and deploy it NOW, so turning
+# auto-deploy ON also brings the live site fully up to date in the same step
+# (the timer alone would only act on the NEXT push).
+echo "→ catching the live site up to the latest commit…"
+git -C "$APP_DIR" checkout -q "$BR" 2>/dev/null || true
+git -C "$APP_DIR" merge --ff-only "origin/$BR" 2>/dev/null || true
+bash "$APP_DIR/deploy/vps-deploy.sh"
+echo "✓ Live site is now on $(git -C "$APP_DIR" rev-parse --short HEAD). Auto-deploy armed — no more manual updates."
