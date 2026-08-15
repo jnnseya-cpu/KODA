@@ -213,4 +213,5 @@ server.listen(PORT, () => {
   if (!PROD) console.log(`  → Demo login     demo@koda.africa / koda-demo   ·   Admin: admin@koda.africa / koda-admin`);
   console.log('');
   indexnow.autosubmit(); // announce all sitemap URLs to IndexNow (production only)
+  try { require('./lib/fx_live').start(); } catch { /* fx refresh optional */ } // keep USD→local rates fresh
 });

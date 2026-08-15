@@ -130,6 +130,17 @@ const mkReq = (body, headers) => ({ headers: headers || {}, rawBody: Buffer.from
   ok(fx.currencyForCountry('NG') === 'NGN' && fx.currencyForCountry('SN') === 'XOF' && fx.currencyForCountry('CD') === 'CDF', 'country → currency resolves (NG→NGN, SN→XOF, CD→CDF)');
   ok(Object.keys(fx.COUNTRY_CURRENCY).length >= 70, 'country→currency map covers KODA\'s broad footprint', Object.keys(fx.COUNTRY_CURRENCY).length + ' countries');
 
+  // ── 7b. LIVE FX refresh feeds the rate — below admin/env override, above static ──
+  const fxlive = require('../lib/fx_live');
+  settings.set('usd_to_local', '');   // no explicit override
+  settings.set('collect_currency', 'NGN');
+  settings.set('fx_live', { base: 'USD', rates: { NGN: 1701 }, at: new Date().toISOString() });
+  ok(fxlive.rateFor('NGN') === 1701, 'live FX cache exposes the current rate', fxlive.rateFor('NGN'));
+  ok(settings.usdToLocal() === 1701, 'usdToLocal prefers the fresh LIVE rate over the static default');
+  settings.set('usd_to_local', '3100');   // admin cash rate must still win (and restore test-7 state)
+  ok(settings.usdToLocal() === 3100, 'admin-saved cash rate still overrides the live rate');
+  settings.set('fx_live', '');            // clear live cache so downstream tests use defaults
+
   // ── 8. simulate-payment path: matchKodaCollection settles the exact-amount order ──
   settings.set('collect_numbers', JSON.stringify([{ operator: 'airtel_cd', msisdn: '+243999000111', active: 1 }]));
   const simT = billing.createTopup(merchant, { amount_acu: 30, rail: 'koda', usd: 5 });

@@ -41,9 +41,10 @@ function rateIsExplicit() {
 }
 function usdToLocal() {
   const v = raw('usd_to_local');
-  if (v != null && v !== '') return Number(v) || 2800;
-  if (process.env.KODA_USD_TO_LOCAL) return Number(process.env.KODA_USD_TO_LOCAL) || 2800;
-  try { const fx = require('../../shared/fx').defaultRate(collectCurrency()); if (fx) return fx; } catch { /* fx optional */ }
+  if (v != null && v !== '') return Number(v) || 2800;                              // admin-saved (exact cash rate) wins
+  if (process.env.KODA_USD_TO_LOCAL) return Number(process.env.KODA_USD_TO_LOCAL) || 2800; // env pin
+  try { const live = require('./fx_live').rateFor(collectCurrency()); if (live) return live; } catch { /* live optional */ } // fresh live rate
+  try { const fx = require('../../shared/fx').defaultRate(collectCurrency()); if (fx) return fx; } catch { /* fx optional */ } // static default
   return 2800;
 }
 // Receiving numbers: [{ operator, msisdn, label, active }]. Falls back to the single
