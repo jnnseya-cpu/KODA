@@ -15,8 +15,11 @@ entirely on the server, so the two never fight.
 Open the Hostinger web console (or `ssh root@187.124.117.159`) and paste this **one** line:
 
 ```bash
-cd /root/koda/app && git fetch origin && git checkout claude/koda-unified-spec-v2-vh5xtx && git pull --ff-only origin claude/koda-unified-spec-v2-vh5xtx && bash deploy/install-autopull.sh
+systemctl stop koda-deploy.timer 2>/dev/null; cd /root/koda/app && git fetch origin && git checkout claude/koda-unified-spec-v2-vh5xtx && git pull --ff-only origin claude/koda-unified-spec-v2-vh5xtx && bash deploy/install-autopull.sh
 ```
+
+*(The leading `systemctl stop …` pauses any already-installed timer so it can't fetch at the
+same time as this pull — the installer re-arms it at the end. Safe to run even the first time.)*
 
 This does everything in one go:
 1. Pulls **all work so far** onto the server.
