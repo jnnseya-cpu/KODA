@@ -36,9 +36,10 @@ if (!q.get(`SELECT id FROM users WHERE email='admin@koda.africa'`)) {
     U.id('usr'), mid, U.hashPassword('koda-demo'));
 
   // devices
+  const devId = U.id('dev');
   q.run(`INSERT INTO devices (id,merchant_id,label,operator,sim_msisdn,status,attested,last_seen,battery,parse_health)
          VALUES (?,?,'Caisse principale — Tecno Spark','orange_cd','+243812345678','active',1,datetime('now'),84,0.996)`,
-    U.id('dev'), mid);
+    devId, mid);
   q.run(`INSERT INTO devices (id,merchant_id,label,operator,sim_msisdn,status,attested,last_seen,battery,parse_health)
          VALUES (?,?,'SIM M-Pesa — Samsung A14','mpesa_cd','+243821112233','active',1,datetime('now','-4 minutes'),67,0.991)`,
     U.id('dev'), mid);
@@ -57,13 +58,13 @@ if (!q.get(`SELECT id FROM users WHERE email='admin@koda.africa'`)) {
     bal += amt;
     engine.ingestSms(m, {
       raw: `Vous avez recu ${amt.toLocaleString('fr-FR')} FC de ${name} (+24389${sfx}). Ref: ${ref}. Solde: ${bal.toLocaleString('fr-FR')}`,
-      operator: 'orange_cd',
+      operator: 'orange_cd', device_id: devId,      // continuous Sentinel stream → balance-chain gated
     });
   }
-  // one spoofed SMS → quarantined by the balance-chain defence
+  // one spoofed SMS on the SAME device stream → quarantined by the balance-chain defence
   engine.ingestSms(q.get('SELECT * FROM merchants WHERE id=?', mid), {
     raw: `Vous avez recu 80 000 FC de MR PROMO (+243890000). Ref: OM.260717.1441.X99310. Solde: 999 999`,
-    operator: 'orange_cd',
+    operator: 'orange_cd', device_id: devId,
   });
 
   // verify two of them through the engine (manual + api modes)

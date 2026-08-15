@@ -112,14 +112,20 @@ function ingestSms(merchant, { raw, operator, device_id }) {
     return { id: smsId, parsed: false };
   }
   const chain = chainCheck(merchant.id, parsed.operator, parsed.amount, parsed.balance);
+  // The balance-chain anti-forgery test only makes sense for a CONTINUOUS device (Sentinel)
+  // stream, where every operator SMS is captured in order so balances must add up. A
+  // device-less MANUAL PASTE / WhatsApp forward is occasional — the merchant relays one
+  // receipt, not every transaction — so a balance "gap" is normal and must NOT quarantine
+  // an otherwise-valid operator SMS. Chain-gating therefore applies only to device streams.
+  const quarantine = device_id ? !chain.ok : false;
   q.run(`INSERT INTO sms_ledger (id,merchant_id,device_id,operator,raw,ref_code,amount,currency,
          counterparty_name,counterparty_suffix,balance_after,chain_ok,quarantined)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     smsId, merchant.id, device_id || null, parsed.operator, raw, parsed.ref, parsed.amount,
     parsed.currency, parsed.name || null, parsed.suffix || null, parsed.balance,
-    chain.ok ? 1 : 0, chain.ok ? 0 : 1);
+    chain.ok ? 1 : 0, quarantine ? 1 : 0);
 
-  if (!chain.ok) {
+  if (quarantine) {
     notifyOwners(merchant, 'fraud.chain_break', { operator: parsed.operator });
     metric('quarantines');
     recordNetwork({ counterparty_suffix: parsed.suffix }, 'quarantined'); // ADD-ON B

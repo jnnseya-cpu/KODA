@@ -94,6 +94,15 @@ async function main() {
     const opsCd = (await j('/app/operators?country=CD', {}, tk)).d;
     T('country filter narrows to that country only', opsCd.operators.length > 0 && opsCd.operators.every(o => o.country === 'CD'));
     T('operators exclude tier-C (non-SMS-verifiable) rails', !ops.operators.some(o => o.code === 'upi_in'));
+    // device-less MANUAL door: the merchant pastes the operator SMS by hand (no Sentinel)
+    // and it verifies a waiting order. A balance "gap" (normal for occasional pastes) must
+    // NOT quarantine it — chain-gating is only for continuous device streams.
+    await j('/v1/intents', { body: { amount: 33000, currency: 'CDF', operators: ['orange_cd'] } }, key);
+    const paste1 = (await j('/app/verify-sms', { body: { raw: 'Vous avez recu 33 000 FC de A Kalala (0810000001). Ref: OMDL01. Solde: 500 000' } }, tk)).d;
+    T('device-less SMS paste verifies an order (no Sentinel needed)', paste1.status === 'verified');
+    await j('/v1/intents', { body: { amount: 44000, currency: 'CDF', operators: ['orange_cd'] } }, key);
+    const paste2 = (await j('/app/verify-sms', { body: { raw: 'Vous avez recu 44 000 FC de B Mumba (0810000002). Ref: OMDL02. Solde: 90 000' } }, tk)).d;
+    T('manual paste with a balance gap is NOT quarantined', paste2.status === 'verified');
     const dsp = (await j('/app/disputes', { body: { reference: 'X.1', reason: 'suite' } }, tk)).d;
     T('dispute open + evidence', dsp.status === 'open' && !!dsp.evidence);
     T('dispute resolve', (await j(`/app/disputes/${dsp.id}/resolve`, { body: { outcome: 'accepted' } }, tk)).d.ok === true);
