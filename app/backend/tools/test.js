@@ -89,10 +89,11 @@ async function main() {
     T('device enroll', !!(await j('/app/devices/enroll', { body: { label: 'T', operator: 'mpesa_cd' } }, tk)).d.enrol_code);
     // operator picker: dropdown source — human names + codes, SMS-verifiable only, never empty
     const ops = (await j('/app/operators', {}, tk)).d;
-    T('operators list is non-empty', Array.isArray(ops) && ops.length > 0);
-    T('operators carry code + human name', ops.every(o => o.code && o.name) && ops.some(o => /money|orange|airtel|m-?pesa/i.test(o.name)));
-    const opsIn = (await j('/app/operators?country=IN', {}, tk)).d;
-    T('operators exclude tier-C (non-SMS-verifiable) rails', Array.isArray(opsIn) && !opsIn.some(o => o.code === 'upi_in'));
+    T('operators span all supported countries (not just home)', Array.isArray(ops.operators) && new Set(ops.operators.map(o => o.country)).size > 20);
+    T('operators carry code + human name + country', ops.operators.every(o => o.code && o.name && o.country) && ops.operators.some(o => /money|orange|airtel|m-?pesa/i.test(o.name)));
+    const opsCd = (await j('/app/operators?country=CD', {}, tk)).d;
+    T('country filter narrows to that country only', opsCd.operators.length > 0 && opsCd.operators.every(o => o.country === 'CD'));
+    T('operators exclude tier-C (non-SMS-verifiable) rails', !ops.operators.some(o => o.code === 'upi_in'));
     const dsp = (await j('/app/disputes', { body: { reference: 'X.1', reason: 'suite' } }, tk)).d;
     T('dispute open + evidence', dsp.status === 'open' && !!dsp.evidence);
     T('dispute resolve', (await j(`/app/disputes/${dsp.id}/resolve`, { body: { outcome: 'accepted' } }, tk)).d.ok === true);

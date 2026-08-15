@@ -1451,18 +1451,18 @@ module.exports = function registerRoutes(r) {
   r.post('/app/network-accounts/:id/link-device', auth((req, user, m) => networks.setState(m, req.params.id, { device_id: req.body.device_id || null })));
   r.get('/app/payment-methods', auth((req, user, m) => networks.resolve(m, req.query)));
   // operator picker for the "add receiving account" form — human names, not codes.
-  // Filtered to the merchant's country and to SMS-verifiable (tier A/B) networks so a
-  // merchant can never type "Airtel Money" and get UNKNOWN_NETWORK.
+  // Returns EVERY SMS-verifiable (tier A/B) operator across all supported countries so
+  // a merchant can never type "Airtel Money" and get UNKNOWN_NETWORK. The UI groups by
+  // country and pre-selects the merchant's home country. Pass ?country=XX to narrow.
   r.get('/app/operators', auth((req, user, m) => {
-    const cc = String(req.query.country || m.country || '').toUpperCase();
-    let nets = networks.catalogue(cc, { currency: req.query.currency }).networks
-      .map(n => ({ code: n.code, name: n.display_name, currency: n.currency, country: cc, support: n.koda_support_status }));
-    if (!nets.length) {                                    // country unset/uncovered → never leave the dropdown empty
-      const reg = require('../shared/operators');
-      nets = reg.OPERATORS.filter(o => reg.tierOf(o) !== 'C')
-        .map(o => ({ code: o.id, name: o.name, currency: o.currency, country: o.country, support: o.packed ? 'LIVE' : 'BETA' }));
-    }
-    return nets;
+    const reg = require('../shared/operators');
+    const cc = String(req.query.country || '').toUpperCase();
+    const list = reg.OPERATORS
+      .filter(o => reg.tierOf(o) !== 'C')
+      .filter(o => !cc || o.country === cc)
+      .map(o => ({ code: o.id, name: o.name, currency: o.currency, country: o.country, support: o.packed ? 'LIVE' : 'BETA' }))
+      .sort((a, b) => a.country.localeCompare(b.country) || a.name.localeCompare(b.name));
+    return { home: (m.country || '').toUpperCase() || null, operators: list };
   }));
 
   // Public API (key): connect + activate + resolve; and the public country catalogue.

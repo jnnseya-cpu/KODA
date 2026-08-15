@@ -806,20 +806,25 @@ VIEWS.accounts = async () => {
   const accts = await api('/app/network-accounts');
   const resolved = await api('/app/payment-methods').catch(() => ({ available: [], excluded: [] }));
   const devices = await api('/app/devices').catch(() => []);
-  const operators = await api('/app/operators').catch(() => []);
+  const opsResp = await api('/app/operators').catch(() => ({ home: null, operators: [] }));
+  const operators = opsResp.operators || [];
+  const homeCC = opsResp.home || (operators[0] && operators[0].country) || '';
+  const cName = (cc) => { try { return new Intl.DisplayNames([document.documentElement.lang || 'en'], { type: 'region' }).of(cc) || cc; } catch { return cc; } };
+  const countries = [...new Set(operators.map(o => o.country))].map(cc => ({ cc, label: cName(cc) })).sort((a, b) => a.label.localeCompare(b.label));
+  window.__naOps = operators;
   shell('accounts', t('accounts'), t('sub_accounts'), `
   <div class="card"><h3>${t('acc_add')}</h3>
     <p style="font-size:13px;color:var(--dim)">${t('acc_add_p')}</p>
     <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:680px">
-      <select id="na-code" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
-        <option value="">${t('acc_op_pick')}</option>
-        ${(operators || []).map(o => `<option value="${esc(o.code)}">${esc(o.name)}${o.currency ? ' · ' + esc(o.currency) : ''}${o.support && o.support !== 'LIVE' ? ' (beta)' : ''}</option>`).join('')}
+      <select id="na-country" onchange="naFillOps()" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+        ${countries.map(c => `<option value="${esc(c.cc)}"${c.cc === homeCC ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}
       </select>
+      <select id="na-code" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px"></select>
       <input id="na-ident" placeholder="${t('acc_num_ph')}" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <input id="na-name" placeholder="${t('acc_holder_ph')}" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <button class="btn btn-gold" onclick="connectAccount()">${t('acc_connect')}</button>
     </div><div id="na-out" style="margin-top:10px"></div>
-    <p style="font-size:12px;color:var(--dim);margin-top:8px">Only SMS-verifiable operators for your country are listed. Full <a href="/coverage" target="_blank" style="color:var(--gold)">coverage page</a> →</p></div>
+    <p style="font-size:12px;color:var(--dim);margin-top:8px">Pick your country, then the operator — only SMS-verifiable networks are listed. Full <a href="/coverage" target="_blank" style="color:var(--gold)">coverage page</a> →</p></div>
   <div class="card tbl-wrap" style="margin-top:14px"><h3>${t('acc_yours')} (${fmt(accts.length)})</h3>
     ${accts.length ? `<table class="tbl"><tr><th>${t('th_operator')}</th><th>${t('th_number')}</th><th>${t('th_ownership')}</th><th>${t('th_status')}</th><th>${t('th_doors')}</th><th></th></tr>
     ${accts.map(a => `<tr><td class="mono">${esc(a.network_code)}</td><td class="mono">${esc(a.masked || '—')}</td>
@@ -832,6 +837,15 @@ VIEWS.accounts = async () => {
   <div class="card" style="margin-top:14px"><h3>${t('acc_would_see')}</h3>
     ${(resolved.available || []).length ? (resolved.available || []).map(mth => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0"><span class="mono">${esc(mth.network_code || mth.network || '')}</span><span class="badge b-ok">${esc(mth.health || 'live')}</span></div>`).join('') : '<p style="color:var(--dim);font-size:13px">'+t('acc_no_live')+'</p>'}
     ${(resolved.excluded || []).length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:var(--dim)">Why some are hidden (${resolved.excluded.length})</summary>${resolved.excluded.map(e => `<div class="mono" style="font-size:11px;color:var(--dim);padding:2px 0">${esc(e.network_code || e.network || '')} — ${esc(e.reason || '')}</div>`).join('')}</details>` : ''}</div>`);
+  naFillOps();                                     // populate operators for the pre-selected (home) country
+};
+// repopulate the operator dropdown to only the selected country's operators
+window.naFillOps = () => {
+  const sel = document.getElementById('na-code');
+  const cc = (document.getElementById('na-country') || {}).value || '';
+  const ops = (window.__naOps || []).filter(o => !cc || o.country === cc);
+  sel.innerHTML = `<option value="">${t('acc_op_pick')}</option>` +
+    ops.map(o => `<option value="${esc(o.code)}">${esc(o.name)}${o.currency ? ' · ' + esc(o.currency) : ''}${o.support && o.support !== 'LIVE' ? ' (beta)' : ''}</option>`).join('');
 };
 window.connectAccount = async () => {
   const out = document.getElementById('na-out');
