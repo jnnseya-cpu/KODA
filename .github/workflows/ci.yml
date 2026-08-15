@@ -7,7 +7,7 @@ on:
     branches: [main, "claude/**"]
   pull_request:
     branches: [main]
-  workflow_dispatch:      # "Run workflow" button — deploy on demand without a push
+  workflow_dispatch:      # "Run workflow" button — re-run the test gate on demand
 
 jobs:
   gate:
@@ -58,36 +58,3 @@ jobs:
       - name: Stop server
         if: always()
         run: kill "$SERVER_PID" 2>/dev/null || true
-
-  # ── Auto-deploy: once the gate is green on the deploy branch, ship to the VPS ──
-  # Requires repo secrets: VPS_SSH_KEY (private key), VPS_HOST, VPS_USER, and
-  # optionally VPS_APP_DIR. Without them the job no-ops with a warning (never red).
-  # See DEPLOY_AUTODEPLOY.md for the one-time SSH-key + secrets setup.
-  deploy:
-    name: Deploy to VPS
-    needs: gate
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/claude/koda-unified-spec-v2-vh5xtx'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: vps-deploy
-      cancel-in-progress: false
-    steps:
-      - name: Ship over SSH (pull → build → health-check; IndexNow re-pings on boot)
-        env:
-          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-          APP_DIR: ${{ secrets.VPS_APP_DIR }}
-        run: |
-          if [ -z "${SSH_KEY:-}" ] || [ -z "${VPS_HOST:-}" ] || [ -z "${VPS_USER:-}" ]; then
-            echo "::warning::VPS deploy secrets not set (VPS_SSH_KEY/VPS_HOST/VPS_USER) — skipping auto-deploy. See DEPLOY_AUTODEPLOY.md."
-            exit 0
-          fi
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-          BR='claude/koda-unified-spec-v2-vh5xtx'
-          DIR="${APP_DIR:-/root/koda/app}"
-          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" \
-            "set -e; cd '$DIR'; git fetch origin; git checkout '$BR'; git pull --ff-only origin '$BR'; bash deploy/vps-deploy.sh"
-      # GitHub emails you automatically if this job fails — no notification setup needed.
