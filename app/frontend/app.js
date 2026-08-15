@@ -1514,6 +1514,12 @@ VIEWS.settings = async () => {
       <dt>currency</dt><dd>${esc(m.currency)}</dd><dt>msisdn</dt><dd class="mono">${esc(m.msisdn || '—')}</dd>
       <dt>plan</dt><dd>${esc(m.plan)}</dd><dt>brand colour</dt><dd><span style="display:inline-block;width:14px;height:14px;background:${esc(m.brand_color)};border-radius:4px;vertical-align:-2px"></span> ${esc(m.brand_color)} (used on customer receipts & emails)</dd>
     </dl></div>
+  <div class="card" style="margin-top:14px"><h3>Change password</h3>
+    <p style="font-size:13px;color:var(--dim);margin-bottom:10px">If you signed in with a temporary password, set your own here.</p>
+    <div class="field"><label>Current password</label><input id="cur_pw" type="password" autocomplete="current-password"></div>
+    <div class="field"><label>New password (min 8 characters)</label><input id="new_pw" type="password" autocomplete="new-password"></div>
+    <button class="btn btn-gold" style="width:auto;padding:10px 18px" onclick="changePassword()">Update password</button>
+  </div>
   <div class="card" style="margin-top:14px"><h3>${t('language')}</h3>
     <p style="font-size:13px;color:var(--dim);margin-bottom:10px">${t('st_lang_note')}</p>
     <div class="pill-row">
@@ -1533,6 +1539,16 @@ VIEWS.settings = async () => {
       <button class="btn btn-ghost" onclick="exportMyData()">${t('st_download')}</button>
       ${ME.user.role === 'owner' || ME.user.is_admin ? `<button class="btn btn-danger" onclick="deleteMyAccount()">${t('st_delete')}</button>` : ''}
     </div></div>`);
+};
+window.changePassword = async () => {
+  const current_password = v('cur_pw'), new_password = v('new_pw');
+  if (!new_password || new_password.length < 8) return toast('New password must be at least 8 characters');
+  try {
+    await api('/app/account/password', { body: { current_password, new_password } });
+    toast('✓ Password updated');
+    const a = document.getElementById('cur_pw'), b = document.getElementById('new_pw');
+    if (a) a.value = ''; if (b) b.value = '';
+  } catch (e) { toast(e.message || 'Could not update password'); }
 };
 window.exportMyData = async () => {
   try {
@@ -1641,6 +1657,7 @@ async function adminMerchantDetail(mid) {
   const m = d.merchant;
   shell('admin', esc(m.name), 'Admin — manage this merchant', `
   <a class="btn btn-ghost btn-sm" href="#admin">← All merchants</a>
+  <button class="btn btn-gold btn-sm" style="margin-left:8px" onclick="adminResendWelcome('${m.id}')">📧 Email login to owner</button>
   <div class="grid g4" style="margin-top:12px">
     <div class="card stat"><b>${acuFmt(m.acu_balance)}</b><span>ACU balance</span></div>
     <div class="card stat"><b>${esc(m.plan)}</b><span>plan · ${esc(m.country)}/${esc(m.currency)}</span></div>
@@ -2199,6 +2216,13 @@ window.adminResetPw = async (uid) => {
   try { const r = await api(`/app/admin/users/${uid}/reset`, { body: {} });
     toast('✓ temp password: ' + r.temp_password, 8000); }
   catch (e) { toast('✗ ' + e.message); }
+};
+// Regenerate a temp password and EMAIL it to the owner — admin never sees it.
+window.adminResendWelcome = async (mid) => {
+  if (!confirm('Generate a NEW temporary password and email it to the owner? (You will not see the password.)')) return;
+  try { const r = await api(`/app/admin/merchants/${mid}/resend-welcome`, { body: {} });
+    toast('✓ Login details emailed to ' + r.sent_to, 6000); }
+  catch (e) { toast('✗ ' + (e.message || 'could not send')); }
 };
 window.adminToggleUser = async (uid, mid) => {
   try { await api(`/app/admin/users/${uid}/suspend`, { body: {} }); route(); }

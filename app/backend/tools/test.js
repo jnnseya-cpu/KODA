@@ -144,6 +144,15 @@ async function main() {
     await j(`/app/admin/merchants/${susp.merchant.id}/suspend`, { body: {} }, admin.token);
     T('suspended merchant CANNOT log in', (await j('/app/auth/login', { body: { email: 'susp@co.test', password: susp.temp_password } })).s === 403);
     T('suspended merchant existing session token is revoked', (await j('/app/me', {}, suspTok)).s === 403);
+    // self-service change password + admin resend-credentials-without-seeing
+    const pwm = (await j('/app/admin/merchants', { body: { business: 'PwCo', email: 'pw@co.test', name: 'Pia' } }, admin.token)).d;
+    const pwLogin = (await j('/app/auth/login', { body: { email: 'pw@co.test', password: pwm.temp_password } })).d;
+    T('change password: wrong current rejected', (await j('/app/account/password', { body: { current_password: 'nope', new_password: 'brandnew123' } }, pwLogin.token)).s === 403);
+    T('change password succeeds', (await j('/app/account/password', { body: { current_password: pwm.temp_password, new_password: 'brandnew123' } }, pwLogin.token)).d.ok === true);
+    T('can log in with the new password', (await j('/app/auth/login', { body: { email: 'pw@co.test', password: 'brandnew123' } })).s === 200);
+    const resend = (await j(`/app/admin/merchants/${pwm.merchant.id}/resend-welcome`, { body: {} }, admin.token)).d;
+    T('admin resend returns sent_to but NEVER the password', resend.ok === true && resend.sent_to === 'pw@co.test' && resend.temp_password === undefined);
+    T('resend set a fresh temp password (old one no longer works)', (await j('/app/auth/login', { body: { email: 'pw@co.test', password: 'brandnew123' } })).s === 401);
     T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
 
     console.log('— communications');

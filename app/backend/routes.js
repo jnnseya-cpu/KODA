@@ -113,6 +113,18 @@ module.exports = function registerRoutes(r) {
     return { ok: true };
   });
 
+  // ---- change my own password (logged in — e.g. after a temp password) ----
+  r.post('/app/account/password', auth((req, user, merchant) => {
+    if (!U.verifyPassword(String(req.body.current_password || ''), user.pass_hash))
+      return [403, { error: { code: 'wrong_current_password', message: 'Current password is incorrect.' } }];
+    const nw = String(req.body.new_password || '');
+    if (nw.length < 8) return [400, { error: { code: 'weak_password', message: 'Use at least 8 characters.' } }];
+    q.run('UPDATE users SET pass_hash=? WHERE id=?', U.hashPassword(nw), user.id);
+    notify.fire('password.reset.successful', { user, merchant, data: { body: 'Your KODA password was just changed. If this wasn’t you, contact support immediately.' } });
+    audit(user.merchant_id, user.id, 'password.changed', {});
+    return { ok: true };
+  }));
+
   r.get('/app/me', auth((req, user, merchant) => ({
     user: safeUser(user), merchant,
     plan: PLANS[merchant?.plan || 'marche'],
@@ -809,6 +821,24 @@ module.exports = function registerRoutes(r) {
       cta: 'Sign in to KODA', cta_url: loginUrl,
     } });
     return { ok: true, merchant: created, owner_email: em, temp_password: req.body.password ? undefined : pw };
+  }));
+  // ---- admin: (re)send login credentials WITHOUT seeing them ----
+  // Generates a FRESH temporary password, sets it on the merchant's owner, and emails
+  // it to them. The password is never returned — the admin can send access without
+  // ever seeing it (passwords are hashed, so the old one can't be recovered anyway).
+  r.post('/app/admin/merchants/:id/resend-welcome', admin((req, actor) => {
+    const merchant = q.get('SELECT * FROM merchants WHERE id=?', req.params.id);
+    if (!merchant) return [404, { error: { code: 'merchant_not_found' } }];
+    const owner = q.get(`SELECT * FROM users WHERE merchant_id=? AND role='owner' ORDER BY created_at LIMIT 1`, merchant.id);
+    if (!owner) return [404, { error: { code: 'owner_not_found' } }];
+    const pw = U.token(8); // fresh temp password — never shown to the admin
+    q.run('UPDATE users SET pass_hash=? WHERE id=?', U.hashPassword(pw), owner.id);
+    const loginUrl = `${(process.env.KODA_PUBLIC_URL || 'https://kodajnn.com').replace(/\/$/, '')}/app#login`;
+    notify.fire('merchant.activated', { user: owner, merchant, data: {
+      merchant: merchant.name, email: owner.email, temp_password: pw, cta: 'Sign in to KODA', cta_url: loginUrl,
+    } });
+    audit(merchant.id, actor.id, 'admin.credentials_resent', { email: owner.email });
+    return { ok: true, sent_to: owner.email }; // NO password in the response
   }));
   // ---- admin: change a merchant's plan ----
   r.post('/app/admin/merchants/:id/plan', admin((req, user) => {
