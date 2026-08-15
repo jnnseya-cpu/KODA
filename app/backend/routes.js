@@ -1450,6 +1450,20 @@ module.exports = function registerRoutes(r) {
   r.post('/app/network-accounts/:id/resume', auth((req, user, m) => networks.setState(m, req.params.id, { activation_status: 'ACTIVE' })));
   r.post('/app/network-accounts/:id/link-device', auth((req, user, m) => networks.setState(m, req.params.id, { device_id: req.body.device_id || null })));
   r.get('/app/payment-methods', auth((req, user, m) => networks.resolve(m, req.query)));
+  // operator picker for the "add receiving account" form — human names, not codes.
+  // Filtered to the merchant's country and to SMS-verifiable (tier A/B) networks so a
+  // merchant can never type "Airtel Money" and get UNKNOWN_NETWORK.
+  r.get('/app/operators', auth((req, user, m) => {
+    const cc = String(req.query.country || m.country || '').toUpperCase();
+    let nets = networks.catalogue(cc, { currency: req.query.currency }).networks
+      .map(n => ({ code: n.code, name: n.display_name, currency: n.currency, country: cc, support: n.koda_support_status }));
+    if (!nets.length) {                                    // country unset/uncovered → never leave the dropdown empty
+      const reg = require('../shared/operators');
+      nets = reg.OPERATORS.filter(o => reg.tierOf(o) !== 'C')
+        .map(o => ({ code: o.id, name: o.name, currency: o.currency, country: o.country, support: o.packed ? 'LIVE' : 'BETA' }));
+    }
+    return nets;
+  }));
 
   // Public API (key): connect + activate + resolve; and the public country catalogue.
   r.post('/v1/merchant-network-accounts', apiKey((req, m) => networks.connect(m, req.body), 'write:intents'));
