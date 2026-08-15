@@ -1516,11 +1516,15 @@ VIEWS.settings = async () => {
   const m = ME.merchant;
   shell('settings', t('settings'), esc(m.name), `
   <div class="card"><h3>${t('st_profile')}</h3>
-    <dl class="kv">
-      <dt>name</dt><dd>${esc(m.name)}</dd><dt>country</dt><dd>${esc(m.country)}</dd>
-      <dt>currency</dt><dd>${esc(m.currency)}</dd><dt>msisdn</dt><dd class="mono">${esc(m.msisdn || '—')}</dd>
-      <dt>plan</dt><dd>${esc(m.plan)}</dd><dt>brand colour</dt><dd><span style="display:inline-block;width:14px;height:14px;background:${esc(m.brand_color)};border-radius:4px;vertical-align:-2px"></span> ${esc(m.brand_color)} (used on customer receipts & emails)</dd>
-    </dl></div>
+    <div class="field"><label>Business name</label><input id="pf-name" value="${esc(m.name)}"></div>
+    <div class="field"><label>📲 Mobile-money number customers pay to</label>
+      <input id="pf-msisdn" value="${esc(m.msisdn || '')}" placeholder="+243 8XX XXX XXX" style="font-family:var(--mono)">
+      <p style="font-size:12px;color:var(--gold);margin-top:4px">This is the number shown on your customer checkout page — set it so customers know where to send payment.</p></div>
+    <div class="field"><label>Brand colour (receipts &amp; emails)</label>
+      <input id="pf-brand" type="color" value="${esc(m.brand_color || '#E8A11F')}" style="width:60px;height:38px;padding:2px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;vertical-align:middle"></div>
+    <div style="font-size:12.5px;color:var(--dim);margin:6px 0 12px">country ${esc(m.country)} · currency ${esc(m.currency)} · plan ${esc(m.plan)}</div>
+    <button class="btn btn-gold" style="width:auto;padding:10px 18px" onclick="saveProfile()">Save profile</button>
+  </div>
   <div class="card" style="margin-top:14px"><h3>Change password</h3>
     <p style="font-size:13px;color:var(--dim);margin-bottom:10px">If you signed in with a temporary password, set your own here.</p>
     <div class="field"><label>Current password</label><input id="cur_pw" type="password" autocomplete="current-password"></div>
@@ -1546,6 +1550,14 @@ VIEWS.settings = async () => {
       <button class="btn btn-ghost" onclick="exportMyData()">${t('st_download')}</button>
       ${ME.user.role === 'owner' || ME.user.is_admin ? `<button class="btn btn-danger" onclick="deleteMyAccount()">${t('st_delete')}</button>` : ''}
     </div></div>`);
+};
+window.saveProfile = async () => {
+  try {
+    const r = await api('/app/settings/profile', { body: { name: v('pf-name'), msisdn: v('pf-msisdn'), brand_color: v('pf-brand') } });
+    if (r.merchant) ME.merchant = r.merchant;
+    toast('✓ Profile saved' + (v('pf-msisdn') ? ' — customers now see your pay-to number' : ''));
+    route();
+  } catch (e) { toast(e.message || 'Could not save profile'); }
 };
 window.changePassword = async () => {
   const current_password = v('cur_pw'), new_password = v('new_pw');

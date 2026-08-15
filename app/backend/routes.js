@@ -125,6 +125,20 @@ module.exports = function registerRoutes(r) {
     return { ok: true };
   }));
 
+  // ---- edit business profile: pay-to number (what customers pay), name, brand ----
+  // The mobile-money number here is shown on the customer checkout as the pay-to
+  // destination — the simplest way to accept payments without the Sentinel/Network flow.
+  r.post('/app/settings/profile', auth((req, user, m) => {
+    if (!m) return [400, { error: { code: 'no_merchant' } }];
+    if (!needRole(user, ['manager'])) return [403, { error: { code: 'manager_or_owner_only' } }];
+    const msisdn = typeof req.body.msisdn === 'string' ? (req.body.msisdn.trim().slice(0, 32) || null) : m.msisdn;
+    const name = (typeof req.body.name === 'string' && req.body.name.trim()) ? req.body.name.trim().slice(0, 120) : m.name;
+    const brand = (typeof req.body.brand_color === 'string' && /^#[0-9a-fA-F]{6}$/.test(req.body.brand_color)) ? req.body.brand_color : m.brand_color;
+    q.run('UPDATE merchants SET msisdn=?, name=?, brand_color=? WHERE id=?', msisdn, name, brand, m.id);
+    audit(m.id, user.id, 'profile_updated', { has_msisdn: !!msisdn });
+    return { ok: true, merchant: q.get('SELECT * FROM merchants WHERE id=?', m.id) };
+  }));
+
   r.get('/app/me', auth((req, user, merchant) => ({
     user: safeUser(user), merchant,
     plan: PLANS[merchant?.plan || 'marche'],

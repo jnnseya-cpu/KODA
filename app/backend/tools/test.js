@@ -158,6 +158,11 @@ async function main() {
     const resend = (await j(`/app/admin/merchants/${pwm.merchant.id}/resend-welcome`, { body: {} }, admin.token)).d;
     T('admin resend returns sent_to but NEVER the password', resend.ok === true && resend.sent_to === 'pw@co.test' && resend.temp_password === undefined);
     T('resend set a fresh temp password (old one no longer works)', (await j('/app/auth/login', { body: { email: 'pw@co.test', password: 'brandnew123' } })).s === 401);
+    // merchant can set their pay-to number → it shows on the customer checkout
+    await j('/app/settings/profile', { body: { msisdn: '+243 812 345 678' } }, tk);
+    T('merchant pay-to number is editable', (await j('/app/me', {}, tk)).d.merchant.msisdn === '+243 812 345 678');
+    const payIntent = (await j('/v1/intents', { body: { amount: 6000, currency: 'CDF', operators: ['orange_cd'] } }, key)).d;
+    T('checkout pay_to shows the merchant number', (payIntent.pay_to || []).some(p => p.number === '+243 812 345 678'));
     T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
 
     console.log('— communications');
