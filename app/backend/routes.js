@@ -1196,8 +1196,9 @@ module.exports = function registerRoutes(r) {
     // 'expired', so pollers/reconcilers can release a stuck order instead of waiting
     // forever on an intent nothing will ever move off 'awaiting_payment'.
     if (i.status === 'awaiting_payment' && i.expires_at && new Date(i.expires_at + 'Z').getTime() < Date.now()) {
-      q.run(`UPDATE intents SET status='expired' WHERE id=? AND status='awaiting_payment'`, i.id);
+      const cas = q.run(`UPDATE intents SET status='expired' WHERE id=? AND status='awaiting_payment'`, i.id);
       i.status = 'expired';
+      if (cas.changes === 1) engine.emitOutcome(i.merchant_id, 'expired', 'timeout', { reference: i.id }); // §14 fire once
     }
     return i;
   }));

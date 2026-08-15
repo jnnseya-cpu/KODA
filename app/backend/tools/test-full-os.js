@@ -100,7 +100,7 @@ async function hit(path, { method = 'GET', token, body, raw } = {}) {
   // ── 5b. PLATFORM INTEGRATIONS (install-scoped, revocable credentials) ──────
   console.log('— platform integrations (connect flow)');
   const conn = await hit('/app/integrations', { token, method: 'POST', body: { platform: 'woocommerce', store_url: 'https://shop.example.com', webhook_url: 'https://shop.example.com/wp-json/koda/v1/webhook' } });
-  ok('connect issues a scoped key + webhook secret', conn.status === 200 && /^rk_live_/.test(conn.data?.server_key || '') && !!conn.data?.webhook_secret, conn.data?.error);
+  ok('connect issues a scoped key + webhook secret', conn.status === 200 && /^koda_rk_live_/.test(conn.data?.server_key || '') && !!conn.data?.webhook_secret, conn.data?.error);
   const instKey = conn.data?.server_key;
   ok('install key can create an intent (write:intents)', (await hit('/v1/intents', { token: instKey, method: 'POST', body: { amount: 5000, currency: 'CDF', operators: ['orange_cd'] } })).status === 200);
   ok('install key is SCOPED (cannot mint keys / read admin)', (await hit('/v1/agents/reconciler/run', { token: instKey, method: 'POST', body: {} })).status === 403);
@@ -120,7 +120,7 @@ async function hit(path, { method = 'GET', token, body, raw } = {}) {
   const oauthCode = (redir.match(/[?&]code=(kc_[^&]+)/) || [])[1];
   ok('authorize rejects a non-http redirect_uri', (await hit('/app/oauth/authorize', { token, method: 'POST', body: { redirect_uri: 'javascript:alert(1)' } })).status === 400);
   const tok = await hit('/v1/oauth/token', { method: 'POST', body: { code: oauthCode, redirect_uri: 'https://oauth-shop.example.com/wp-json/koda/v1/oauth/callback' } });
-  ok('token exchange returns scoped access_token + webhook_secret', tok.status === 200 && /^rk_live_/.test(tok.data?.access_token || '') && !!tok.data?.webhook_secret, tok.data?.error);
+  ok('token exchange returns scoped access_token + webhook_secret', tok.status === 200 && /^koda_rk_live_/.test(tok.data?.access_token || '') && !!tok.data?.webhook_secret, tok.data?.error);
   ok('token exchange returns the scopes (write:intents, read:receipts, read:usage)', Array.isArray(tok.data?.scopes) && tok.data.scopes.includes('write:intents'));
   const oauthKey = tok.data?.access_token;
   ok('oauth-issued key can create an intent', (await hit('/v1/intents', { token: oauthKey, method: 'POST', body: { amount: 7000, currency: 'CDF', operators: ['orange_cd'] } })).status === 200);

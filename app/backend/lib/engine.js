@@ -186,6 +186,25 @@ function recordNetwork(sms, kind) {
 }
 
 // the core verify — one truth for all five doors
+// Spec §14: emit the canonical verification.* webhook for an outcome. ADDITIVE —
+// payment.verified still fires on success for existing subscribers. Never throws
+// (a webhook must never break the verify path).
+function emitOutcome(merchantId, status, code, ctx = {}) {
+  const ev = (status === 'verified' || status === 'verified_late') ? 'verification.succeeded'
+    : status === 'pending_review' ? 'verification.manual_review_required'
+    : status === 'expired' ? 'verification.expired'
+    : status === 'rejected' ? (code === 'code_already_used' ? 'verification.duplicate_detected'
+        : code === 'amount_mismatch' ? 'verification.amount_mismatch' : 'verification.failed')
+    : null;
+  if (!ev) return;
+  try {
+    webhooks.dispatch(merchantId, ev, {
+      verification_id: ctx.receipt_id || null, reference: ctx.reference || null,
+      status, reason: code || null, amount: ctx.amount ?? null, currency: ctx.currency ?? null,
+    });
+  } catch { /* a webhook must never break verification */ }
+}
+
 function verify(merchant, intent, reference, { mode = 'api', userId = null, viaScreenshot = false, late = false } = {}) {
   reference = String(reference || '').trim().toUpperCase();
   const trace = { steps: [], template_version: VERSION.trace_template, model_version: VERSION.fraud_model };
@@ -201,6 +220,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
     if (intent) {
       trace.steps.push('replay_index: HIT — code already consumed');
       notifyOwners(merchant, 'replay.blocked', { reference });
+      emitOutcome(merchant.id, 'rejected', 'code_already_used', { reference });
       return { status: 'rejected', code: 'code_already_used', trace };
     }
     // No intent = a status re-check (USSD / SMS / manual console). The payment already
@@ -233,11 +253,13 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   trace.steps.push(`fraud_score: ${risk.score} (${risk.band}) ${risk.reasons.join(',') || 'clean'}`);
   if (risk.band === 'reject') {
     notifyOwners(merchant, 'fraud.high_risk_blocked', { reference });
+    emitOutcome(merchant.id, 'rejected', 'high_risk', { reference });
     metric('rejects');     return { status: 'rejected', code: 'high_risk', risk, trace };
   }
   if (risk.band === 'challenge') {
     if (intent) q.run(`UPDATE intents SET status='pending_review' WHERE id=?`, intent.id);
     notifyOwners(merchant, 'payment.pending_review', { reference });
+    emitOutcome(merchant.id, 'pending_review', 'msisdn_suffix_mismatch', { reference });
     return { status: 'pending_review', code: 'msisdn_suffix_mismatch', risk, trace };
   }
 
@@ -269,6 +291,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
     metadata: intent?.metadata ? JSON.parse(intent.metadata) : {},
   };
   webhooks.dispatch(merchant.id, event, payload);
+  emitOutcome(merchant.id, late ? 'verified_late' : 'verified', null, { receipt_id: rcp, reference: payload.reference, amount: sms.amount, currency: sms.currency });
   notifyOwners(merchant, event, { amount: `${fmtAmt(sms.amount)} ${sms.currency}`, reference: payload.reference });
 
   // top-up intents credit the wallet on verification — the product bills itself with itself
@@ -302,12 +325,12 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
   const reference = String(sms.ref_code).toUpperCase();
   const used = q.get('SELECT * FROM replay_index WHERE merchant_id=? AND reference=? AND receipt_id IS NOT NULL',
     merchant.id, reference);
-  if (used) { notifyOwners(merchant, 'replay.blocked', { reference }); return { status: 'rejected', code: 'code_already_used', trace }; }
+  if (used) { notifyOwners(merchant, 'replay.blocked', { reference }); emitOutcome(merchant.id, 'rejected', 'code_already_used', { reference }); return { status: 'rejected', code: 'code_already_used', trace }; }
 
   const risk = scoreMatch({ merchant, intent: null, sms, reference, networkDelta: netDelta(sms) });
   trace.steps.push(`fraud_score: ${risk.score} (${risk.band}) ${risk.reasons.join(',') || 'clean'}`);
-  if (risk.band === 'reject') { notifyOwners(merchant, 'fraud.high_risk_blocked', { reference }); return { status: 'rejected', code: 'high_risk', risk, trace }; }
-  if (risk.band === 'challenge') { notifyOwners(merchant, 'payment.pending_review', { reference }); return { status: 'pending_review', code: 'needs_review', risk, trace }; }
+  if (risk.band === 'reject') { notifyOwners(merchant, 'fraud.high_risk_blocked', { reference }); emitOutcome(merchant.id, 'rejected', 'high_risk', { reference }); return { status: 'rejected', code: 'high_risk', risk, trace }; }
+  if (risk.band === 'challenge') { notifyOwners(merchant, 'payment.pending_review', { reference }); emitOutcome(merchant.id, 'pending_review', 'needs_review', { reference }); return { status: 'pending_review', code: 'needs_review', risk, trace }; }
 
   const rcp = id('rcp');
   const acuCost = withinQuota(merchant) ? 0 : ACU.code;
@@ -328,6 +351,7 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
     matched_msisdn_suffix: sms.counterparty_suffix ? `***${sms.counterparty_suffix}` : null,
     risk_score: risk.score, mode: 'manual', confirmation_level: 'sms_anchored', metadata: {} };
   webhooks.dispatch(merchant.id, 'payment.verified', payload);
+  emitOutcome(merchant.id, 'verified', null, { receipt_id: rcp, reference: sms.ref_code, amount: sms.amount, currency: sms.currency });
   notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(sms.amount)} ${sms.currency}`, reference: sms.ref_code });
 
   metric('verifications'); metric('verifications_auto');
@@ -338,8 +362,8 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
 
 function sandboxVerify(merchant, intent, reference, { mode, userId, trace }) {
   trace.steps.push('sandbox: magic reference');
-  if (reference === 'TEST-REPLAY') return { status: 'rejected', code: 'code_already_used', trace };
-  if (reference === 'TEST-SUFFIX') return { status: 'pending_review', code: 'msisdn_suffix_mismatch', trace };
+  if (reference === 'TEST-REPLAY') { emitOutcome(merchant.id, 'rejected', 'code_already_used', { reference }); return { status: 'rejected', code: 'code_already_used', trace }; }
+  if (reference === 'TEST-SUFFIX') { emitOutcome(merchant.id, 'pending_review', 'msisdn_suffix_mismatch', { reference }); return { status: 'pending_review', code: 'msisdn_suffix_mismatch', trace }; }
   const m = reference.match(/^TEST-OK-(\d+)/);
   const amount = m ? Number(m[1]) : (intent ? intent.amount : 0);
   const rcp = id('rcp');
@@ -360,6 +384,7 @@ function sandboxVerify(merchant, intent, reference, { mode, userId, trace }) {
   webhooks.dispatch(merchant.id, 'payment.verified', {
     intent_id: intent?.id || null, receipt_id: rcp, amount, sandbox: true, reference,
   });
+  emitOutcome(merchant.id, 'verified', null, { receipt_id: rcp, reference, amount, currency: intent?.currency || null });
   notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(amount)} ${intent?.currency || ''}`, reference });
   try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ }
   return { status: 'verified', receipt_id: rcp, sandbox: true, amount_confirmed: amount, trace };
@@ -376,4 +401,4 @@ function editDistance(a, b) {
 }
 function fmtAmt(n) { return Number(n || 0).toLocaleString('fr-FR'); }
 
-module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota };
+module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, emitOutcome };

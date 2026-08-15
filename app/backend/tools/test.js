@@ -94,6 +94,17 @@ async function main() {
     T('webhook endpoint add', !!wh.secret);
     const rot = (await j(`/app/webhooks/${wh.id}/rotate`, { body: {} }, tk)).d;
     T('webhook secret rotates (new whsec, differs)', !!rot.secret && rot.secret.startsWith('whsec_') && rot.secret !== wh.secret);
+    // verification.* event namespace fires ADDITIVELY (payment.verified still fires)
+    await j('/app/webhooks', { body: { url: 'http://localhost:9/whv', events: ['*'] } }, tk);
+    const vok = (await j('/v1/intents', { body: { amount: 5000, currency: 'CDF', operators: ['orange_cd'] } }, key)).d;
+    await j(`/v1/intents/${vok.intent_id}/verify`, { body: { reference: 'TEST-OK-5000' } }, key);
+    const vbad = (await j('/v1/intents', { body: { amount: 5000, currency: 'CDF', operators: ['orange_cd'] } }, key)).d;
+    await j(`/v1/intents/${vbad.intent_id}/verify`, { body: { reference: 'TEST-REPLAY' } }, key);
+    const dv = (await j('/app/webhooks', {}, tk)).d.deliveries || [];
+    const evs = new Set(dv.map(d => d.event));
+    T('verification.succeeded fires on verify', evs.has('verification.succeeded'));
+    T('verification.duplicate_detected fires on replay', evs.has('verification.duplicate_detected'));
+    T('payment.verified still fires (backward compat)', evs.has('payment.verified'));
     T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
 
     console.log('— communications');
