@@ -59,13 +59,42 @@ function setState(merchant, id, patch) {
   return { ok: true, merchant_account_id: id, ...patch };
 }
 
-// activation gate — never activate without ownership + (a device for auto doors)
+// Activation is SELF-SERVE — the merchant just turns a receiving number on/off.
+// KODA needs no upfront "ownership ceremony": every real payment is verified
+// per-transaction (Door 3 matches the customer's confirmation code against the SMS
+// the merchant's own phone actually received). A wrong/unowned number therefore
+// never verifies a payment and self-corrects. Ownership remains an auto-earned trust
+// badge (set when a forwarded SMS carries the account's verify_ref) — a signal, not a gate.
 function activate(merchant, id) {
   const a = q.get('SELECT * FROM merchant_network_accounts WHERE id=? AND merchant_id=?', id, merchant.id);
   if (!a) return [404, { error: { code: 'account_not_found' } }];
-  if (a.ownership_status !== 'VERIFIED')
-    return [409, { error: { code: 'ownership_unverified', message: 'Prove ownership first (Sentinel must capture the verify_ref), then activate.' } }];
   return setState(merchant, id, { activation_status: 'ACTIVE' });
+}
+
+// edit a receiving account — fix a wrong number or holder name. Changing the number
+// resets the ownership badge (the proof was for the old number) and re-issues a ref.
+function update(merchant, id, body) {
+  const a = q.get('SELECT * FROM merchant_network_accounts WHERE id=? AND merchant_id=?', id, merchant.id);
+  if (!a) return [404, { error: { code: 'account_not_found' } }];
+  const cols = [], vals = [];
+  if (typeof body.account_identifier === 'string' && body.account_identifier.trim()) {
+    const ident = body.account_identifier.trim();
+    cols.push('account_identifier=?', 'masked=?'); vals.push(ident, mask(ident));
+    if (ident !== a.account_identifier) { cols.push("ownership_status='UNVERIFIED'"); }
+  }
+  if (typeof body.account_holder_name === 'string') { cols.push('account_holder_name=?'); vals.push(body.account_holder_name.trim() || null); }
+  if (!cols.length) return { ok: true, merchant_account_id: id };
+  q.run(`UPDATE merchant_network_accounts SET ${cols.join(',')} WHERE id=?`, ...vals, id);
+  const row = q.get('SELECT id,network_code,masked,account_identifier,account_holder_name,ownership_status,activation_status FROM merchant_network_accounts WHERE id=?', id);
+  return { ok: true, merchant_account_id: id, ...row };
+}
+
+// remove a receiving account entirely (a wrong entry the merchant no longer wants).
+function remove(merchant, id) {
+  const a = q.get('SELECT id FROM merchant_network_accounts WHERE id=? AND merchant_id=?', id, merchant.id);
+  if (!a) return [404, { error: { code: 'account_not_found' } }];
+  q.run('DELETE FROM merchant_network_accounts WHERE id=?', id);
+  return { ok: true, removed: id };
 }
 
 // door → column
@@ -92,7 +121,7 @@ function resolve(merchant, ctx = {}) {
     if (a.activation_status === 'PAUSED') { drop(a, 'MERCHANT_TEMPORARILY_PAUSED'); continue; }
     if (a.activation_status === 'SUSPENDED') { drop(a, 'OPERATOR_SUSPENDED'); continue; }
     if (a.activation_status !== 'ACTIVE') { drop(a, 'MERCHANT_NOT_ACTIVATED'); continue; }
-    if (a.ownership_status !== 'VERIFIED') { drop(a, 'ACCOUNT_NOT_VERIFIED'); continue; }
+    // ownership is a trust badge, NOT a visibility gate — payments verify per-transaction
     if (!DOOR_COL[door] || !a[DOOR_COL[door]]) { drop(a, 'DOOR_DISABLED'); continue; }
     const dev = deviceHealthy(a.device_id);
     // auto doors (API/WhatsApp) need a healthy Sentinel; MANUAL can run device-less
@@ -108,6 +137,7 @@ function resolve(merchant, ctx = {}) {
       instruction_mode: 'USSD',
       priority: a.priority,
       health: dev.healthy ? 'HEALTHY' : (door === 'MANUAL' ? 'MANUAL' : 'DEGRADED'),
+      ownership_verified: a.ownership_status === 'VERIFIED',   // trust badge (auto-earned from SMS)
       koda_support: dep.packed ? 'LIVE' : (registry.tierOf(dep) === 'A' ? 'BETA' : 'PILOT'),
     });
   }
@@ -130,4 +160,4 @@ function catalogue(countryCode, { currency, supportStatus } = {}) {
   return { country: { code: countryCode }, networks: nets, count: nets.length };
 }
 
-module.exports = { connect, activate, setState, resolve, catalogue, mask, deviceHealthy };
+module.exports = { connect, activate, update, remove, setState, resolve, catalogue, mask, deviceHealthy };

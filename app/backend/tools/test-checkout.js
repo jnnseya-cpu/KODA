@@ -25,9 +25,9 @@ async function j(method, path, body, headers) {
   const bearer = { authorization: 'Bearer ' + login.d.token };
 
   const pk = await j('POST', '/app/keys', { prefix: 'pk_live', label: 'widget' }, bearer);
-  ok(pk.status === 200 && /^pk_live_/.test(pk.d.secret || ''), 'publishable pk_ key minted', pk.d.secret ? pk.d.secret.slice(0, 12) + '…' : '');
+  ok(pk.status === 200 && /^(koda_pub_live_|pk_live_)/.test(pk.d.secret || ''), 'publishable pk_ key minted', pk.d.secret ? pk.d.secret.slice(0, 12) + '…' : '');
   const sk = await j('POST', '/app/keys', { prefix: 'sk_live', label: 'server' }, bearer);
-  ok(sk.status === 200 && /^sk_live_/.test(sk.d.secret || ''), 'secret sk_ key minted');
+  ok(sk.status === 200 && /^(koda_live_|sk_live_)/.test(sk.d.secret || ''), 'secret sk_ key minted');
   const PK = { authorization: 'Bearer ' + pk.d.secret };
   const SK = { authorization: 'Bearer ' + sk.d.secret };
 
@@ -52,6 +52,18 @@ async function j(method, path, body, headers) {
   const view = await j('GET', `/checkout/${iid}?cs=${encodeURIComponent(cs)}`);
   ok(view.status === 200 && view.d.amount === amt && view.d.merchant && view.d.pay_to.length, 'customer view: amount + merchant + pay-to shown');
   ok(view.d.has_success_url === true, 'checkout knows an order-success redirect exists');
+
+  // --- multi-number: the checkout must show EACH active receiving account with its OWN
+  //     number (not the single profile msisdn), so "4 numbers, only 2 work" can't happen ---
+  const cOr = await j('POST', '/app/network-accounts', { network_code: 'orange_cd', account_identifier: '+243810000001', account_holder_name: 'DEMO', receive_currencies: ['CDF'] }, bearer);
+  const cMp = await j('POST', '/app/network-accounts', { network_code: 'mpesa_cd', account_identifier: '+243820000002', account_holder_name: 'DEMO', receive_currencies: ['CDF'] }, bearer);
+  await j('POST', `/app/network-accounts/${cOr.d.merchant_account_id}/activate`, {}, bearer);
+  await j('POST', `/app/network-accounts/${cMp.d.merchant_account_id}/activate`, {}, bearer);
+  const iMulti = await j('POST', '/v1/intents', { amount: 9900, currency: 'CDF', operators: ['orange_cd'] }, PK);
+  const vMulti = await j('GET', `/checkout/${iMulti.d.intent_id}?cs=${encodeURIComponent(iMulti.d.client_secret)}`);
+  const nums = (vMulti.d.pay_to || []).map(p => p.number);
+  ok(vMulti.d.pay_to.length === 2 && vMulti.d.pay_to.some(p => p.operator === 'mpesa_cd'), 'checkout lists ALL active accounts (not just the intent operators)', vMulti.d.pay_to.map(p => p.operator).join(','));
+  ok(nums.includes('+243810000001') && nums.includes('+243820000002'), 'each network shows its OWN receiving number', nums.join(' '));
 
   // wrong / missing client_secret is refused (can't enumerate other intents)
   const bad = await j('GET', `/checkout/${iid}?cs=cs_wrong`);

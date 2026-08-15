@@ -40,7 +40,7 @@ const has = (res, code) => (res.d.available || []).some(a => a.network_code === 
   const c = await j('POST', '/v1/merchant-network-accounts', { network_code: 'upi_in', account_identifier: '1' }, SK);
   ok(c.status === 422, 'connecting a Tier-C network (UPI) is rejected', String(c.status));
 
-  // connect Orange Money CD — starts UNVERIFIED / DRAFT
+  // connect Orange Money CD — starts DRAFT (self-serve activation, no ownership ceremony)
   const conn = await j('POST', '/v1/merchant-network-accounts', { network_code: 'orange_cd', account_identifier: '+243812345678', account_holder_name: 'MAISON KIVU', receive_currencies: ['CDF'] }, SK);
   ok(conn.status === 200 && conn.d.verify_ref && conn.d.activation_status === 'DRAFT', 'network connected → DRAFT + verify_ref issued', conn.d.verify_ref);
   const maId = conn.d.merchant_account_id, vref = conn.d.verify_ref;
@@ -49,27 +49,29 @@ const has = (res, code) => (res.d.available || []).some(a => a.network_code === 
   let res = await j('GET', '/v1/merchants/me/payment-methods?currency=CDF&door=API', null, SK);
   ok(!has(res, 'orange_cd') && reasons(res, 'orange_cd') === 'MERCHANT_NOT_ACTIVATED', 'unactivated account is hidden', reasons(res, 'orange_cd'));
 
-  // activation is gated on ownership proof
-  const actFail = await j('POST', `/v1/merchant-network-accounts/${maId}/activate`, {}, SK);
-  ok(actFail.status === 409, 'cannot activate before ownership proven (409)');
+  // activation is SELF-SERVE — the merchant just turns it on, no ownership proof required
+  const act = await j('POST', `/v1/merchant-network-accounts/${maId}/activate`, {}, SK);
+  ok(act.status === 200, 'activation is self-serve (no ownership ceremony blocks it)');
 
-  // prove ownership: Sentinel forwards an SMS carrying the verify_ref
+  // a device makes the auto (API) door healthy
   const enroll = await j('POST', '/app/devices/enroll', { label: 'Till phone', operator: 'orange_cd' }, bearer);
   const DT = { authorization: 'Bearer ' + enroll.d.device_token };
-  await j('POST', '/v1/device/sms', { raw: `KODA verification ${vref} for Orange Money`, operator: 'orange_cd' }, DT);
   await j('POST', `/app/network-accounts/${maId}/link-device`, { device_id: enroll.d.device_id }, bearer);
-  const act = await j('POST', `/v1/merchant-network-accounts/${maId}/activate`, {}, SK);
-  ok(act.status === 200, 'ownership proven via SMS → activation succeeds');
-
-  // heartbeat keeps device healthy for the resolver
   const hb = await j('POST', '/v1/device/heartbeat', { battery: 90, attested: true, parse_health: 1 }, DT);
   ok(hb.status === 200 && hb.d.ok, 'Sentinel heartbeat accepted');
 
-  // now customer-visible on the API door
+  // now customer-visible on the API door — ownership badge not yet earned
   res = await j('GET', '/v1/merchants/me/payment-methods?currency=CDF&door=API', null, SK);
-  const av = (res.d.available || []).find(a => a.network_code === 'orange_cd');
-  ok(av && av.health === 'HEALTHY', 'active + verified + healthy → customer-visible', av ? av.health : 'hidden');
+  let av = (res.d.available || []).find(a => a.network_code === 'orange_cd');
+  ok(av && av.health === 'HEALTHY', 'active + healthy → customer-visible (ownership not required)', av ? av.health : 'hidden');
+  ok(av && av.ownership_verified === false, 'ownership badge is off until proven', av ? String(av.ownership_verified) : 'hidden');
   ok(av && av.masked_receiving_identifier && !/\d{6,}/.test(av.masked_receiving_identifier), 'receiving number is masked in output', av && av.masked_receiving_identifier);
+
+  // ownership is an auto-earned TRUST BADGE: a forwarded SMS carrying the verify_ref flips it
+  await j('POST', '/v1/device/sms', { raw: `KODA verification ${vref} for Orange Money`, operator: 'orange_cd' }, DT);
+  res = await j('GET', '/v1/merchants/me/payment-methods?currency=CDF&door=API', null, SK);
+  av = (res.d.available || []).find(a => a.network_code === 'orange_cd');
+  ok(av && av.ownership_verified === true, 'ownership badge auto-earned from a matching SMS', av ? String(av.ownership_verified) : 'hidden');
 
   // currency / country / door exclusions
   res = await j('GET', '/v1/merchants/me/payment-methods?currency=KES&door=API', null, SK);
@@ -89,6 +91,16 @@ const has = (res, code) => (res.d.available || []).some(a => a.network_code === 
   await j('POST', `/app/devices/${enroll.d.device_id}/revoke`, {}, bearer);
   res = await j('GET', '/v1/merchants/me/payment-methods?currency=CDF&door=API', null, SK);
   ok(reasons(res, 'orange_cd') === 'DEVICE_OFFLINE', 'offline/revoked Sentinel → method hidden on auto door', reasons(res, 'orange_cd'));
+
+  // edit: fixing the number resets the ownership badge (proof was for the old number)
+  const upd = await j('POST', `/app/network-accounts/${maId}/update`, { account_identifier: '+243899990000', account_holder_name: 'MAISON KIVU SARL' }, bearer);
+  ok(upd.status === 200 && upd.d.ownership_status === 'UNVERIFIED' && upd.d.account_holder_name === 'MAISON KIVU SARL', 'edit number/holder → saved + ownership reset');
+
+  // remove: delete a wrong entry entirely
+  const rm = await j('POST', `/app/network-accounts/${maId}/remove`, {}, bearer);
+  ok(rm.status === 200 && rm.d.removed === maId, 'account removed');
+  res = await j('GET', '/v1/merchants/me/payment-methods?currency=CDF&door=API', null, SK);
+  ok(!has(res, 'orange_cd') && !reasons(res, 'orange_cd'), 'removed account no longer resolves at all');
 
   // isolation: a fresh merchant sees none of Maison Kivu's accounts
   const other = await j('POST', '/app/auth/signup', { business: 'Other Shop', name: 'Owner Two', email: `other${Math.floor(performance.now()%1e6)}@koda.africa`, password: 'koda-demo123' });

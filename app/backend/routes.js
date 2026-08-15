@@ -1425,7 +1425,7 @@ module.exports = function registerRoutes(r) {
   // ---------- NETWORK INTELLIGENCE LAYER (merchant network accounts + resolver) ----------
   // App/dashboard (JWT): connect, verify, activate, pause, preview resolution.
   r.get('/app/network-accounts', auth((req, user, m) => q.all(
-    `SELECT id,network_code,masked,account_holder_name,ownership_status,activation_status,
+    `SELECT id,network_code,masked,account_identifier,account_holder_name,ownership_status,activation_status,
             enabled_manual,enabled_whatsapp,enabled_api,receive_currencies,priority,device_id,verify_ref
      FROM merchant_network_accounts WHERE merchant_id=? AND submerchant_id IS NULL ORDER BY priority`, m.id)));
   // helper: friendly network name for comms templates
@@ -1448,6 +1448,8 @@ module.exports = function registerRoutes(r) {
   }));
   r.post('/app/network-accounts/:id/pause', auth((req, user, m) => networks.setState(m, req.params.id, { activation_status: 'PAUSED' })));
   r.post('/app/network-accounts/:id/resume', auth((req, user, m) => networks.setState(m, req.params.id, { activation_status: 'ACTIVE' })));
+  r.post('/app/network-accounts/:id/update', auth((req, user, m) => networks.update(m, req.params.id, req.body)));
+  r.post('/app/network-accounts/:id/remove', auth((req, user, m) => networks.remove(m, req.params.id)));
   r.post('/app/network-accounts/:id/link-device', auth((req, user, m) => networks.setState(m, req.params.id, { device_id: req.body.device_id || null })));
   r.get('/app/payment-methods', auth((req, user, m) => networks.resolve(m, req.query)));
   // operator picker for the "add receiving account" form — human names, not codes.
@@ -1801,13 +1803,27 @@ module.exports = function registerRoutes(r) {
     const i = checkoutIntent(req.params.id, req.query.cs);
     if (!i) return [404, { error: { code: 'intent_not_found' } }];
     const m = q.get('SELECT name, msisdn, brand_color, logo_text, currency FROM merchants WHERE id=?', i.merchant_id);
-    const ops = JSON.parse(i.operators);
+    const ussd = (o) => o.startsWith('orange') ? '#144#' : o.startsWith('mpesa') ? '*1122#' : o.startsWith('airtel') ? '*501#' : o.startsWith('africell') || o.startsWith('afri') ? '*150#' : '*150#';
+    // Prefer the merchant's ACTIVE receiving accounts — each network shows ITS OWN full
+    // number (this is where the customer sends money, so it must be the real per-network
+    // number, not the single profile msisdn). Fall back to the intent's operator list on
+    // the profile number only when the merchant has activated no accounts.
+    const active = q.all(
+      `SELECT network_code, account_identifier, receive_currencies FROM merchant_network_accounts
+       WHERE merchant_id=? AND submerchant_id IS NULL AND activation_status='ACTIVE' ORDER BY priority`, i.merchant_id)
+      .filter(a => { try { const c = JSON.parse(a.receive_currencies || '[]'); return !c.length || !i.currency || c.includes(i.currency); } catch { return true; } });
+    let pay_to;
+    if (active.length) {
+      pay_to = active.map(a => ({ operator: a.network_code, number: a.account_identifier || m.msisdn || '', ussd_hint: ussd(a.network_code) }));
+    } else {
+      const ops = JSON.parse(i.operators);
+      pay_to = ops.map(o => ({ operator: o, number: m.msisdn || '+243 8XX XXX XXX', ussd_hint: ussd(o) }));
+    }
     return {
       intent_id: i.id, status: i.status, amount: i.amount, currency: i.currency,
       merchant: { name: m.logo_text || m.name, brand_color: m.brand_color },
       metadata: JSON.parse(i.metadata || '{}'),
-      pay_to: ops.map(o => ({ operator: o, number: m.msisdn || '+243 8XX XXX XXX',
-        ussd_hint: o.startsWith('orange') ? '#144#' : o.startsWith('mpesa') ? '*1122#' : o.startsWith('airtel') ? '*501#' : '*150#' })),
+      pay_to,
       expires_at: i.expires_at, has_success_url: !!i.success_url,
     };
   });
