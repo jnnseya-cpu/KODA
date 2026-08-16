@@ -551,15 +551,36 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
     title: 'Get KODA Sentinel', kicker: 'Sentinel app',
     lead: 'Sentinel is the free Android app that turns a merchant\'s SIM phone into a verification endpoint. It reads only mobile-money confirmation SMS and forwards them to KODA — so every payment on that SIM is verified automatically.',
     body: `
-<div class="card"><h3>Download &amp; install (2 minutes)</h3>
+<div class="card"><h3>Download &amp; install (about 3 minutes)</h3>
+<p style="font-size:13.5px;color:var(--dim);margin:0 0 12px">You'll need the Android phone that holds the SIM you receive money on (Android 8.0 / 2017 or newer), and you must be signed in to your KODA account. Follow the steps in order.</p>
 <a class="btn btn-gold" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk" style="font-size:16px">⬇ Download KODA Sentinel (.apk)</a>
-<ol style="margin-top:14px">
-<li><b>Allow install:</b> when your phone warns about "unknown sources", tap <b>Settings → allow from this source</b> (you can turn it back off after).</li>
-<li><b>Open KODA Sentinel.</b> The server is already set to <code>https://kodajnn.com</code>.</li>
-<li><b>Pair the phone:</b> in your KODA merchant account → <b>Sentinel devices → Enroll a device</b>, copy the <code>dvk_…</code> pairing token, paste it into the app, tap <b>PAIR THIS PHONE</b>.</li>
-<li><b>Grant the SMS permission</b> when Android asks — Sentinel reads <em>only</em> operator payment SMS (enforced by an on-device operator filter), never personal messages.</li>
+<ol style="margin-top:16px;line-height:1.7">
+<li><b>Download the app.</b> Tap the gold button above on the phone itself. When the download finishes, open it by tapping the notification, or find <code>koda-sentinel.apk</code> in your <b>Files</b> app under <b>Downloads</b> and tap it.</li>
+<li><b>Allow the install.</b> Android will warn that the file is from an "unknown source" (normal for any app not from Google Play). Tap <b>Settings</b> on that prompt, turn on <b>Allow from this source</b>, then press <b>Back</b> and tap <b>Install</b>. You can turn that setting back off afterwards.</li>
+<li><b>Open KODA Sentinel</b> once it finishes installing (tap <b>Open</b>, or find the ✓ Sentinel icon in your app drawer). The server is already set to <code>https://kodajnn.com</code> — leave it exactly as it is.</li>
+<li><b>Get your pairing token from KODA.</b> On any device, sign in at <a href="/app#login">kodajnn.com/app</a> → open the left-hand menu → <b>Sentinel devices</b>. Choose the operator this SIM belongs to (Orange Money, M-Pesa, Airtel Money, Africell…), give the phone a label like "Front till", then tap <b>Enroll a device</b>. A pairing token starting with <code>dvk_…</code> appears — tap <b>Copy</b>.</li>
+<li><b>Pair the phone.</b> Back in the Sentinel app, paste that <code>dvk_…</code> token into the field labelled <b>"…or paste the pairing token"</b>, then tap <b>PAIR THIS PHONE</b>. The status should change to <b>Paired ✅</b>. (If you have KODA open on the same phone, you can instead tap <b>Scan QR</b> and point it at the QR code shown on the Enroll screen.)</li>
+<li><b>Grant the SMS permission</b> when Android asks. Sentinel needs this to read the operator's payment confirmations. It reads <em>only</em> mobile-money SMS — enforced by an on-device sender filter — and never your personal messages, contacts, or anything else.</li>
+<li><b>Confirm it's working.</b> The app's main screen should show <b>Paired</b> and <b>Listening</b>. In KODA → <b>Sentinel devices</b>, the phone now shows as <b>online</b> with a recent heartbeat. You're done.</li>
 </ol>
-<p style="font-size:13px;color:var(--dim)">Requires Android 8.0+ (2017 or newer). The app runs quietly in the background and keeps working after a reboot.</p></div>
+<p style="font-size:13px;color:var(--dim);margin-top:10px">Requires Android 8.0+ (2017 or newer). One phone can hold two SIMs (dual-SIM) and Sentinel reads both — so you rarely need one phone per number.</p></div>
+
+<div class="card"><h3>Keep Sentinel running (important — do this once)</h3>
+<p style="font-size:13.5px;color:var(--dim);margin:0 0 10px">Android aggressively "sleeps" background apps to save battery. If it sleeps Sentinel, payments stop being read automatically until you re-open the app. Turn that off once and it will run reliably, including after a reboot:</p>
+<ol style="line-height:1.7">
+<li><b>Disable battery optimization for Sentinel:</b> phone <b>Settings → Apps → KODA Sentinel → Battery</b>, and choose <b>Unrestricted</b> (or "Don't optimize" / "Allow background activity").</li>
+<li><b>Allow auto-start</b> if your phone has it (common on Tecno, Infinix, Xiaomi, Oppo, Samsung): <b>Settings → Apps → KODA Sentinel → Auto-launch / Autostart → On</b>.</li>
+<li><b>Keep the phone powered and online:</b> leave it charging near the till on Wi-Fi or mobile data. Sentinel uses very little data (just the payment SMS).</li>
+</ol></div>
+
+<div class="card"><h3>If something doesn't work</h3>
+<ul style="line-height:1.7">
+<li><b>"Install blocked":</b> repeat step 2 — the "Allow from this source" switch must be on for the app you're installing <em>from</em> (usually Files or Chrome).</li>
+<li><b>Token rejected / "already used":</b> pairing tokens are single-use. Go back to <b>Sentinel devices → Enroll a device</b> and generate a fresh <code>dvk_…</code>.</li>
+<li><b>Paired but payments aren't verifying:</b> make sure the SIM that receives the money is in <em>this</em> phone, that you granted the SMS permission (step 6), and that battery optimization is off (above). As a fallback you can always confirm a payment by pasting the operator SMS into <b>Verify console</b> in KODA.</li>
+<li><b>Phone shows "offline" in KODA:</b> open the Sentinel app once to wake it, and complete the "Keep Sentinel running" steps so it stays online.</li>
+</ul>
+<p style="font-size:13px;color:var(--dim);margin-top:8px">The app then runs quietly in the background and keeps working after a reboot.</p></div>
 <div class="card"><h3>What it does — and what it never does</h3>
 <ul>
 <li><b>Reads</b> the confirmation SMS your operator (Orange, M-Pesa, Airtel, Africell…) sends when you receive money, and forwards it to KODA over an encrypted connection.</li>
