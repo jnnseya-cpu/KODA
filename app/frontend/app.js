@@ -209,15 +209,23 @@ let LANG = localStorage.getItem('koda_lang') || '';
 // Auto-detect from the device: map the browser locale to a supported language,
 // otherwise French (KODA's primary francophone-Africa market).
 function detectLang() {
-  const codes = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'fr']);
+  // Order of preference: an explicit ?lang= in the URL (shareable / testable), then
+  // EVERY language the device advertises (navigator.languages mirrors the phone's
+  // system language list on Android/iOS), then French as the francophone-Africa default.
+  let urlLang = '';
+  try { urlLang = (new URLSearchParams(location.search).get('lang') || '').toLowerCase().slice(0, 2); } catch { /* no URL */ }
+  const codes = [urlLang].concat(navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'fr']);
   for (const c of codes) {
-    const p = String(c).toLowerCase().slice(0, 2);
+    const p = String(c || '').toLowerCase().slice(0, 2);
     if (SUPPORTED_LANGS.includes(p)) return p;
     if (p === 'ak' || p === 'tw') return 'ak'; // Akan/Twi
   }
   return 'fr';
 }
 function lang() { return LANG || detectLang(); }
+// Reflect the active language on the document so the OS, screen readers and
+// Intl.* use it too. Called on boot and whenever the language changes.
+function applyDocLang() { try { document.documentElement.lang = lang(); } catch { /* SSR guard */ } }
 const t = (k) => {
   const L = lang();
   if (I18N[L] && I18N[L][k] != null) return I18N[L][k];
@@ -257,6 +265,7 @@ let ME = null;
 const root = document.getElementById('root');
 
 async function boot() {
+  applyDocLang();                                    // pick up the device language before first paint
   if (TOKEN()) { try { ME = await api('/app/me'); } catch { localStorage.removeItem('koda_token'); } }
   route();
 }
@@ -373,7 +382,7 @@ function shell(active, title, sub, content) {
     </main>
   </div>`;
 }
-window.setLang = (v) => { LANG = v; if (v) localStorage.setItem('koda_lang', v); else localStorage.removeItem('koda_lang'); route(); };
+window.setLang = (v) => { LANG = v; if (v) localStorage.setItem('koda_lang', v); else localStorage.removeItem('koda_lang'); applyDocLang(); route(); };
 window.logout = () => { localStorage.removeItem('koda_token'); ME = null; location.hash = '#login'; };
 
 /* ---------------- views ---------------- */
