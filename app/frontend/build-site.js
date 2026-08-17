@@ -104,7 +104,11 @@ html{scroll-behavior:smooth}
   const seoMod = require('../backend/lib/seo'); // local require: top-level `seo` is defined later in this file
   const homeLd = [seoMod.websiteJsonLd(), seoMod.orgJsonLd()]
     .map(o => `<script type="application/ld+json">${JSON.stringify(o)}</script>`).join('\n');
-  if (landing.includes('</head>')) landing = landing.replace('</head>', homeLd + '\n</head>');
+  // Self-referencing canonical (absolute, https, non-www) so Google indexes THIS URL and
+  // not a redirecting variant (www→apex / http→https), which shows up as "Page with redirect".
+  const homeHead = (/rel=["']canonical/i.test(landing) ? '' :
+    `<link rel="canonical" href="https://kodajnn.com/">\n<meta property="og:url" content="https://kodajnn.com/">\n`) + homeLd;
+  if (landing.includes('</head>')) landing = landing.replace('</head>', homeHead + '\n</head>');
   fs.writeFileSync(path.join(OUT, 'index.html'), landing);
 }
 
@@ -858,7 +862,18 @@ fetch('/healthz').then(r=>r.json()).then(d=>{
 };
 
 for (const [name, html] of Object.entries(pages)) {
-  fs.writeFileSync(path.join(OUT, `${name}.html`), html);
+  // Every content page gets a self-referencing canonical (+ og:url/robots) so Google
+  // indexes the canonical https, non-www, no-trailing-slash URL instead of flagging a
+  // redirecting variant as "Page with redirect". (The blog index is re-emitted with its
+  // own seoHead further below, so skipping a double tag there is fine.)
+  const u = `https://kodajnn.com/${name}`;
+  const head = `<link rel="canonical" href="${u}">\n`
+    + `<meta property="og:url" content="${u}">\n`
+    + `<meta property="og:type" content="website">\n`
+    + `<meta name="robots" content="index,follow,max-image-preview:large">`;
+  const out = /rel=["']canonical/i.test(html) ? html
+    : html.replace(/<title>([^<]*)<\/title>/, (m) => `${m}\n${head}`);
+  fs.writeFileSync(path.join(OUT, `${name}.html`), out);
 }
 
 // ---- /demo: interactive 5-door simulator. Inlines the REAL parser (shared/parser.js)

@@ -231,6 +231,12 @@ async function main() {
     T('sitemap.xml lists blog + city pages', locs >= 70, `${locs} URLs`);
     T('robots.txt points at sitemap', (await (await fetch(B + '/robots.txt')).text()).includes('Sitemap:'));
     T('homepage carries WebSite JSON-LD', (await (await fetch(B + '/')).text()).includes('"@type":"WebSite"'));
+    // Self-referencing canonicals (https, non-www) so redirecting variants aren't indexed
+    // ("Page with redirect"). Each page's canonical must point at its OWN absolute URL.
+    for (const [p, want] of [['/', 'https://kodajnn.com/'], ['/how-it-works', 'https://kodajnn.com/how-it-works'], ['/coverage', 'https://kodajnn.com/coverage'], ['/pricing', 'https://kodajnn.com/pricing']]) {
+      const h = await (await fetch(B + p)).text();
+      T(`canonical self-references ${p}`, h.includes(`rel="canonical" href="${want}"`) && (h.match(/rel="canonical"/g) || []).length === 1);
+    }
     const idx = require('../lib/indexnow');
     const kf = await fetch(B + idx.KEY_PATH);
     T('IndexNow key file served at /<key>.txt', kf.status === 200 && (await kf.text()).trim() === idx.KEY);
