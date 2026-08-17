@@ -13,7 +13,9 @@ const topBal=async(tok)=>{const f=(await j('/app/feed',{},tok)).d;const r=f.find
     await j('/app/sandbox/sms',{body:{raw:`Vous avez recu ${amt} FC de MERE NGOZI ${String.fromCharCode(65+i%26)}${i} (+2438${sfx}). Ref: ${ref}. Solde: ${bal}`,operator:'orange_cd'}},A.token);
   }
   let verified=0,other=0;const statuses={};
-  for(const ref of codes){const v=(await j('/app/verify',{body:{reference:ref}},A.token)).d;statuses[v.status]=(statuses[v.status]||0)+1;v.status==='verified'?verified++:other++;}
+  // The engine now AUTO-verifies a clean walk-in SMS on ingest, so an explicit verify
+  // returns 'already_verified' — that is success (zero-action verification), same as 'verified'.
+  for(const ref of codes){const v=(await j('/app/verify',{body:{reference:ref}},A.token)).d;statuses[v.status]=(statuses[v.status]||0)+1;(v.status==='verified'||v.status==='already_verified')?verified++:other++;}
   console.log(`busy merchant, 50 different-payer clean payments → ${JSON.stringify(statuses)}`);
   process.exit(verified===50?0:1);
 })();

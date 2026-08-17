@@ -12,6 +12,11 @@ on:
 jobs:
   gate:
     runs-on: ubuntu-latest
+    env:
+      # CI-only: the server refuses to boot with a known dev secret unless this is set.
+      # Every test harness that spawns its own server already sets it; the manually
+      # booted server below needs it too, or /readyz never comes up and the job fails.
+      KODA_ALLOW_DEV_SECRET: "1"
     defaults:
       run:
         working-directory: app
@@ -32,7 +37,7 @@ jobs:
       # HTTP suites need a running instance — boot one, wait for health, run them
       - name: Boot server
         run: |
-          KODA_QUIET=1 node --no-warnings backend/server.js &
+          KODA_QUIET=1 KODA_DATA_DIR="$(mktemp -d)" node --no-warnings backend/server.js &
           echo "SERVER_PID=$!" >> "$GITHUB_ENV"
           for i in $(seq 1 40); do
             curl -sf http://localhost:4600/readyz >/dev/null && break
@@ -41,7 +46,7 @@ jobs:
           curl -sf http://localhost:4600/version
 
       - name: Security / adversarial
-        run: node --no-warnings backend/tools/adversarial.js
+        run: node --no-warnings backend/tools/test-adversarial.js
 
       - name: AI gating (no free AI action)
         run: node --no-warnings backend/tools/test-ai-gating.js

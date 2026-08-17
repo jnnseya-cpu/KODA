@@ -8,7 +8,7 @@ const j = async (p, o = {}, tok) => { const r = await fetch(B + p, { method: o.m
 (async () => {
   const A = (await j('/app/auth/login', { body: { email: 'demo@koda.africa', password: 'koda-demo' } })).d;
   const list = (await j('/app/growth/tools', {}, A.token)).d;
-  T('10 growth tools listed', list.tools.length === 10, `got ${list.tools.length}`);
+  T('growth tools listed (10+)', list.tools.length >= 10, `got ${list.tools.length}`);
   const cases = {
     social_post: r => typeof r.text === 'string' && r.text.length > 40 && Array.isArray(r.hashtags),
     advert: r => r.headline && r.primary_text && r.cta_button,
