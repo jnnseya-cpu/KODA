@@ -46,4 +46,28 @@ object OperatorFilter {
         for ((needle, op) in map) if (s.contains(needle)) return op
         return null
     }
+
+    // Operator (and default-SMS) app packages → KODA operator id. Used by the Play
+    // build's NotificationForwarder to recognise a payment notification by its source
+    // app when the title alone doesn't carry an operator sender. Messaging apps are
+    // included so an operator SMS surfaced as a notification still resolves via title.
+    private val PACKAGES = linkedMapOf(
+        "com.orange.orangemoney" to "orange_cd", "cd.orange.money" to "orange_cd",
+        "com.vodacom.mpesa" to "mpesa_cd", "com.vodacash.mpesa" to "mpesa_cd", "vodacom.mpesa" to "mpesa_cd",
+        "com.airtel.africa.money" to "airtel_cd", "com.airtel.money" to "airtel_cd",
+        "com.africell.afrimoney" to "africell_cd",
+        "com.mtn.momo" to "mtn_momo", "com.wave.personal" to "wave"
+    )
+    // Default SMS apps that post operator SMS as notifications — resolved by TITLE (sender).
+    private val MESSAGING = setOf(
+        "com.google.android.apps.messaging", "com.samsung.android.messaging",
+        "com.android.messaging", "com.android.mms"
+    )
+
+    /** Operator id if the posting app is a known operator app; null otherwise. */
+    fun operatorForPackage(pkg: String?): String? {
+        val p = (pkg ?: "").lowercase()
+        if (p.isEmpty() || p in MESSAGING) return null   // messaging apps resolve by title, not package
+        return PACKAGES[p]
+    }
 }

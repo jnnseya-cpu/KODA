@@ -52,13 +52,15 @@ jobs:
           KODA_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KODA_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KODA_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew --no-daemon :app:assembleRelease :app:bundleRelease
+        run: ./gradlew --no-daemon :app:assembleSideloadRelease :app:bundlePlayRelease
 
       - name: Stage artifacts
         run: |
           mkdir -p dist
-          cp sentinel/app/build/outputs/apk/release/*.apk dist/koda-sentinel.apk
-          cp sentinel/app/build/outputs/bundle/release/*.aab dist/koda-sentinel.aab || true
+          # sideload APK = the direct-download build (reads SMS) for pilots
+          cp sentinel/app/build/outputs/apk/sideload/release/*.apk dist/koda-sentinel.apk
+          # play AAB = the Google-Play upload (notification listener, no SMS permission)
+          cp sentinel/app/build/outputs/bundle/playRelease/*.aab dist/koda-sentinel-play.aab || true
           ls -la dist
 
       - name: Upload build artifacts
@@ -75,8 +77,12 @@ jobs:
           tag_name: sentinel-latest
           name: KODA Sentinel (latest)
           body: |
-            Latest KODA Sentinel build. Install the APK on the merchant's SIM phone.
+            Latest KODA Sentinel build.
+            · koda-sentinel.apk — direct-install build (reads SMS) for pilots. Install on the merchant's SIM phone.
+            · koda-sentinel-play.aab — Google Play upload (notification listener, no SMS permission).
             Signed: ${{ steps.keystore.outputs.have_keystore == 'true' && 'release upload key' || 'debug key (side-load pilot)' }}.
             Download page: https://kodajnn.com/sentinel
-          files: dist/koda-sentinel.apk
+          files: |
+            dist/koda-sentinel.apk
+            dist/koda-sentinel-play.aab
           make_latest: 'true'

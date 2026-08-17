@@ -16,6 +16,26 @@ android {
         versionName = "0.2.0"
     }
 
+    // Two distribution paths from one codebase:
+    //  · sideload — reads SMS directly (restricted permission); distributed as a direct
+    //    APK for pilots (kodajnn.com/sentinel). This is the default flavor.
+    //  · play — reads the operator payment NOTIFICATION via a NotificationListenerService
+    //    (no SMS permission); Google-Play-compliant, shipped as an AAB.
+    // The capture code and manifests are flavor-specific source sets; the outbox,
+    // pairing, heartbeat and UI are shared in `main`.
+    flavorDimensions += "dist"
+    productFlavors {
+        create("sideload") {
+            dimension = "dist"
+            buildConfigField("boolean", "USE_NOTIFICATION_LISTENER", "false")
+        }
+        create("play") {
+            dimension = "dist"
+            buildConfigField("boolean", "USE_NOTIFICATION_LISTENER", "true")
+            versionNameSuffix = "-play"
+        }
+    }
+
     // Release signing. In CI, a keystore is provided via env (decoded from a GitHub
     // secret); locally without one, release falls back to the debug key so
     // assembleRelease still yields an installable APK for side-load pilots.
@@ -44,7 +64,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { viewBinding = true }
+    buildFeatures { viewBinding = true; buildConfig = true }
 }
 
 dependencies {

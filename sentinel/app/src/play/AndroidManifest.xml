@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PLAY flavor: capture operator payments from the on-screen payment NOTIFICATION
+     via a NotificationListenerService — no restricted SMS permission, so this build
+     is Google-Play-compliant. The user grants "Notification access" once, after a
+     prominent in-app disclosure. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- reads only operator payment notifications; filtered on-device by OperatorFilter -->
+        <service
+            android:name=".NotificationForwarder"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

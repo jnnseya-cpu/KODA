@@ -98,14 +98,10 @@ class MainActivity : AppCompatActivity() {
         } else super.onActivityResult(requestCode, resultCode, data)
     }
 
-    private fun ensurePermissions() {
-        val need = mutableListOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS)
-        if (Build.VERSION.SDK_INT >= 33) need.add(Manifest.permission.POST_NOTIFICATIONS)
-        val ask = need.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-        if (ask.isNotEmpty()) ActivityCompat.requestPermissions(this, ask.toTypedArray(), 7)
-    }
+    // Capture setup is flavor-specific: the `sideload` build requests the SMS
+    // permissions; the `play` build requests notification access. Keeping this in a
+    // per-flavor CaptureSetup means the Play build carries no SMS references at all.
+    private fun ensurePermissions() = CaptureSetup.ensure(this)
 
     /** Ask Android to exempt Sentinel from Doze so the outbox drains during idle. */
     private fun requestBatteryExemption() {

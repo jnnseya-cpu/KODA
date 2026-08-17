@@ -13,4 +13,5 @@
     <string name="unpair">Unpair</string>
     <string name="recent">Recent forwards</string>
     <string name="no_sms">No SMS forwarded yet.</string>
+    <string name="grant_notif_access">Grant KODA Sentinel notification access so it can read your mobile-money payment alerts. It reads only operator payment notifications — never personal messages.</string>
 </resources>
