@@ -553,13 +553,39 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 
   'sentinel': page({
     title: 'Get KODA Sentinel', kicker: 'Sentinel app',
-    lead: 'Sentinel is the free Android app that turns a merchant\'s SIM phone into a verification endpoint. It reads only mobile-money confirmation SMS and forwards them to KODA — so every payment on that SIM is verified automatically.',
+    lead: 'Sentinel is the free Android app that turns a merchant\'s SIM phone into a verification endpoint. It reads the mobile-money payment confirmation and forwards it to KODA — so every payment on that SIM is verified automatically. It comes in two builds; pick the one that fits.',
     body: `
-<div class="card"><h3>Download &amp; install (about 3 minutes)</h3>
-<p style="font-size:13.5px;color:var(--dim);margin:0 0 12px">You'll need the Android phone that holds the SIM you receive money on (Android 8.0 / 2017 or newer), and you must be signed in to your KODA account. Follow the steps in order.</p>
-<a class="btn btn-gold" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk" style="font-size:16px">⬇ Download KODA Sentinel (.apk)</a>
-<ol style="margin-top:16px;line-height:1.7">
-<li><b>Download the app.</b> Tap the gold button above on the phone itself. When the download finishes, open it by tapping the notification, or find <code>koda-sentinel.apk</code> in your <b>Files</b> app under <b>Downloads</b> and tap it.</li>
+<div class="card"><h3>Choose your build — both are free, both verify the same way</h3>
+<p style="font-size:13.5px;color:var(--dim);margin:0 0 14px">They differ only in <b>how the phone reads the payment</b> and <b>how easily they install</b>. You can even run one on some phones and the other on others.</p>
+<div class="grid">
+  <div style="border:1px solid var(--gold);border-radius:12px;padding:18px;display:flex;flex-direction:column">
+    <span class="badge" style="align-self:flex-start;margin:0 0 8px">Recommended for most</span>
+    <h3 style="margin:0 0 8px">🔔 Notification build</h3>
+    <ul style="margin:0 0 14px 18px">
+      <li><b>Installs easily</b> — no SMS permission, so Play Protect rarely blocks it.</li>
+      <li>Reads the operator <b>payment notification</b>.</li>
+      <li>The same build is going on the <b>Google Play Store</b> (automatic updates) — coming soon.</li>
+      <li>Just keep operator payment notifications turned on.</li>
+    </ul>
+    <a class="btn btn-gold" style="margin-top:auto" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel-notify.apk">⬇ Download notification build</a>
+  </div>
+  <div style="border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column">
+    <span class="badge" style="align-self:flex-start;margin:0 0 8px;background:rgba(155,167,155,.14);color:var(--dim)">Max reliability</span>
+    <h3 style="margin:0 0 8px">✉ SMS build</h3>
+    <ul style="margin:0 0 14px 18px">
+      <li><b>Most reliable</b> — reads the SMS directly and recovers payments missed during a reboot.</li>
+      <li>Works even if notifications are switched off.</li>
+      <li><b>Harder to install</b> — needs the Play Protect step below.</li>
+      <li>Best for high-value tills and power users.</li>
+    </ul>
+    <a class="btn btn-ghost" style="margin-top:auto" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk">⬇ Download SMS build</a>
+  </div>
+</div>
+<p style="font-size:12.5px;color:var(--dim);margin-top:12px">Not sure? Start with the <b>Notification build</b> — it's the easiest to install. The steps below work for either file.</p></div>
+<div class="card"><h3>Install &amp; pair (about 3 minutes)</h3>
+<p style="font-size:13.5px;color:var(--dim);margin:0 0 12px">You'll need the Android phone that holds the SIM you receive money on (Android 8.0 / 2017 or newer), and you must be signed in to your KODA account. These steps work for <b>either</b> build above.</p>
+<ol style="margin-top:8px;line-height:1.7">
+<li><b>Download a build.</b> Tap one of the two download buttons above on the phone itself. When it finishes, open it by tapping the notification, or find the <code>.apk</code> file in your <b>Files</b> app under <b>Downloads</b> and tap it.</li>
 <li><b>Allow the install.</b> Android will warn that the file is from an "unknown source" (normal for any app not from Google Play). Tap <b>Settings</b> on that prompt, turn on <b>Allow from this source</b>, then press <b>Back</b> and tap <b>Install</b>. You can turn that setting back off afterwards.</li>
 <li><b>Open KODA Sentinel</b> once it finishes installing (tap <b>Open</b>, or find the ✓ Sentinel icon in your app drawer). The server is already set to <code>https://kodajnn.com</code> — leave it exactly as it is.</li>
 <li><b>Get your pairing token from KODA.</b> On any device, sign in at <a href="/app#login">kodajnn.com/app</a> → open the left-hand menu → <b>Sentinel devices</b>. Choose the operator this SIM belongs to (Orange Money, M-Pesa, Airtel Money, Africell…), give the phone a label like "Front till", then tap <b>Enroll a device</b>. A pairing token starting with <code>dvk_…</code> appears — tap <b>Copy</b>.</li>
@@ -577,12 +603,12 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 <li><b>Keep the phone powered and online:</b> leave it charging near the till on Wi-Fi or mobile data. Sentinel uses very little data (just the payment SMS).</li>
 </ol></div>
 
-<div class="card"><h3>"App blocked" / "App not installed" (Play Protect) — the #1 issue</h3>
-<p style="font-size:13.5px;color:var(--dim);margin:0 0 10px">Because Sentinel reads payment SMS and isn't from the Play Store yet, <b>Google Play Protect</b> blocks it and Android shows <b>"App not installed"</b> ("Application non installée"). This is expected for a pilot side-load — turn Play Protect's scan off for a minute, install, then turn it back on:</p>
+<div class="card"><h3>"App blocked" / "App not installed" (Play Protect)</h3>
+<p style="font-size:13.5px;color:var(--dim);margin:0 0 10px"><b>Mostly affects the SMS build.</b> The <b>notification build</b> has no SMS permission, so Play Protect rarely blocks it — if the SMS build is blocked and shows <b>"App not installed"</b> ("Application non installée"), either switch to the notification build above, or turn Play Protect's scan off for a minute, install, then turn it back on:</p>
 <ol style="line-height:1.7">
 <li>Open the <b>Play Store</b> → tap your <b>profile picture</b> (top-right) → <b>Play Protect</b>.</li>
 <li>Tap the <b>⚙ Settings</b> (gear, top-right) → turn <b>OFF</b> "<b>Scan apps with Play Protect</b>" ("Analyser les applications par Play Protect").</li>
-<li>Go back to <b>Files → Downloads</b>, tap <code>koda-sentinel.apk</code> → <b>Install</b>. It now installs.</li>
+<li>Go back to <b>Files → Downloads</b>, tap the KODA Sentinel <code>.apk</code> → <b>Install</b>. It now installs.</li>
 <li>Open Sentinel, pair and grant the SMS permission. You can then turn Play Protect back <b>ON</b> — the app stays installed and running.</li>
 </ol>
 <p style="font-size:12.5px;color:var(--dim);margin-top:8px">Still "App not installed" with Play Protect off? <b>Uninstall any older "KODA Sentinel"</b> first (a different signature blocks the update), make sure there's free storage, and <b>re-download</b> the APK (an interrupted download won't install).</p></div>
@@ -617,7 +643,11 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 </ol></div>
 
 <div class="card"><h3>Étape 2 · Télécharger l'application Sentinel</h3>
-<a class="btn btn-gold" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk" style="font-size:16px">⬇ Télécharger KODA Sentinel (.apk)</a>
+<p style="font-size:13px;color:var(--dim);margin:0 0 10px">Deux versions existent. La <b>version notification</b> (bouton or) s'installe le plus facilement ; la <b>version SMS</b> (bouton clair) est la plus fiable mais demande l'étape Play Protect.</p>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<a class="btn btn-gold" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel-notify.apk">⬇ Version notification (facile)</a>
+<a class="btn btn-ghost" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk">⬇ Version SMS (fiable)</a>
+</div>
 <ol style="margin-top:12px">
 <li>Ouvrez le fichier téléchargé.</li>
 <li>Si Android affiche <b>« source inconnue »</b>, appuyez sur <b>Paramètres → Autoriser cette source</b>, puis revenez et installez.</li>
@@ -629,7 +659,7 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 <ol style="margin:8px 0 0">
 <li>Ouvrez le <b>Play Store</b> → touchez votre <b>photo de profil</b> (en haut à droite) → <b>Play Protect</b>.</li>
 <li>Touchez <b>⚙ Paramètres</b> (roue dentée) → <b>désactivez</b> « <b>Analyser les applications par Play Protect</b> ».</li>
-<li>Revenez dans <b>Mes fichiers → Téléchargements</b>, touchez <code>koda-sentinel.apk</code> → <b>Installer</b>. Ça s'installe.</li>
+<li>Revenez dans <b>Mes fichiers → Téléchargements</b>, touchez le fichier <code>.apk</code> KODA Sentinel → <b>Installer</b>. Ça s'installe.</li>
 <li>Ouvrez Sentinel, jumelez et autorisez les SMS. Vous pouvez ensuite <b>réactiver</b> Play Protect — l'app reste installée.</li>
 </ol>
 <p style="margin:8px 0 0;font-size:13px;color:var(--dim)">Toujours « non installée » ? <b>Désinstallez toute ancienne « KODA Sentinel »</b>, vérifiez l'espace de stockage, et <b>retéléchargez</b> le fichier (un téléchargement coupé ne s'installe pas).</p>

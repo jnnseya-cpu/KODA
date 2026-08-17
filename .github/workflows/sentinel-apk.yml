@@ -52,14 +52,16 @@ jobs:
           KODA_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KODA_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KODA_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew --no-daemon :app:assembleSideloadRelease :app:bundlePlayRelease
+        run: ./gradlew --no-daemon :app:assembleSideloadRelease :app:assemblePlayRelease :app:bundlePlayRelease
 
       - name: Stage artifacts
         run: |
           mkdir -p dist
-          # sideload APK = the direct-download build (reads SMS) for pilots
+          # sideload APK = direct-download build that READS SMS (max reliability, more Play Protect friction)
           cp sentinel/app/build/outputs/apk/sideload/release/*.apk dist/koda-sentinel.apk
-          # play AAB = the Google-Play upload (notification listener, no SMS permission)
+          # play APK = direct-download build that reads the NOTIFICATION (no SMS permission → easier side-load)
+          cp sentinel/app/build/outputs/apk/play/release/*.apk dist/koda-sentinel-notify.apk
+          # play AAB = the same notification build, for uploading to the Google Play Store
           cp sentinel/app/build/outputs/bundle/playRelease/*.aab dist/koda-sentinel-play.aab || true
           ls -la dist
 
@@ -77,12 +79,14 @@ jobs:
           tag_name: sentinel-latest
           name: KODA Sentinel (latest)
           body: |
-            Latest KODA Sentinel build.
-            · koda-sentinel.apk — direct-install build (reads SMS) for pilots. Install on the merchant's SIM phone.
-            · koda-sentinel-play.aab — Google Play upload (notification listener, no SMS permission).
+            Latest KODA Sentinel builds.
+            · koda-sentinel.apk — reads the SMS (max reliability + inbox back-fill); more Play Protect friction.
+            · koda-sentinel-notify.apk — reads the payment NOTIFICATION (no SMS permission → installs far more easily).
+            · koda-sentinel-play.aab — the notification build, for uploading to Google Play.
             Signed: ${{ steps.keystore.outputs.have_keystore == 'true' && 'release upload key' || 'debug key (side-load pilot)' }}.
             Download page: https://kodajnn.com/sentinel
           files: |
             dist/koda-sentinel.apk
+            dist/koda-sentinel-notify.apk
             dist/koda-sentinel-play.aab
           make_latest: 'true'
