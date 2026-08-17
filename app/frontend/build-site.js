@@ -577,7 +577,16 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 <li><b>Keep the phone powered and online:</b> leave it charging near the till on Wi-Fi or mobile data. Sentinel uses very little data (just the payment SMS).</li>
 </ol></div>
 
-<div class="card"><h3>If something doesn't work</h3>
+<div class="card"><h3>"App blocked" / "App not installed" (Play Protect) — the #1 issue</h3>
+<p style="font-size:13.5px;color:var(--dim);margin:0 0 10px">Because Sentinel reads payment SMS and isn't from the Play Store yet, <b>Google Play Protect</b> blocks it and Android shows <b>"App not installed"</b> ("Application non installée"). This is expected for a pilot side-load — turn Play Protect's scan off for a minute, install, then turn it back on:</p>
+<ol style="line-height:1.7">
+<li>Open the <b>Play Store</b> → tap your <b>profile picture</b> (top-right) → <b>Play Protect</b>.</li>
+<li>Tap the <b>⚙ Settings</b> (gear, top-right) → turn <b>OFF</b> "<b>Scan apps with Play Protect</b>" ("Analyser les applications par Play Protect").</li>
+<li>Go back to <b>Files → Downloads</b>, tap <code>koda-sentinel.apk</code> → <b>Install</b>. It now installs.</li>
+<li>Open Sentinel, pair and grant the SMS permission. You can then turn Play Protect back <b>ON</b> — the app stays installed and running.</li>
+</ol>
+<p style="font-size:12.5px;color:var(--dim);margin-top:8px">Still "App not installed" with Play Protect off? <b>Uninstall any older "KODA Sentinel"</b> first (a different signature blocks the update), make sure there's free storage, and <b>re-download</b> the APK (an interrupted download won't install).</p></div>
+<div class="card"><h3>If something else doesn't work</h3>
 <ul style="line-height:1.7">
 <li><b>"Install blocked":</b> repeat step 2 — the "Allow from this source" switch must be on for the app you're installing <em>from</em> (usually Files or Chrome).</li>
 <li><b>Token rejected / "already used":</b> pairing tokens are single-use. Go back to <b>Sentinel devices → Enroll a device</b> and generate a fresh <code>dvk_…</code>.</li>
@@ -613,7 +622,18 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 <li>Ouvrez le fichier téléchargé.</li>
 <li>Si Android affiche <b>« source inconnue »</b>, appuyez sur <b>Paramètres → Autoriser cette source</b>, puis revenez et installez.</li>
 <li>Sentinel lit <b>uniquement</b> les SMS de paiement des opérateurs — jamais vos messages personnels.</li>
-</ol></div>
+</ol>
+<div style="background:var(--ink2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:10px">
+<b style="color:var(--gold)">⚠ « Application non installée » ou « Appli bloquée » (Play Protect) ?</b>
+<p style="margin:8px 0 0">C'est normal : Sentinel lit les SMS de paiement et n'est pas encore sur le Play Store, donc <b>Play Protect</b> le bloque. Désactivez l'analyse une minute, installez, puis réactivez :</p>
+<ol style="margin:8px 0 0">
+<li>Ouvrez le <b>Play Store</b> → touchez votre <b>photo de profil</b> (en haut à droite) → <b>Play Protect</b>.</li>
+<li>Touchez <b>⚙ Paramètres</b> (roue dentée) → <b>désactivez</b> « <b>Analyser les applications par Play Protect</b> ».</li>
+<li>Revenez dans <b>Mes fichiers → Téléchargements</b>, touchez <code>koda-sentinel.apk</code> → <b>Installer</b>. Ça s'installe.</li>
+<li>Ouvrez Sentinel, jumelez et autorisez les SMS. Vous pouvez ensuite <b>réactiver</b> Play Protect — l'app reste installée.</li>
+</ol>
+<p style="margin:8px 0 0;font-size:13px;color:var(--dim)">Toujours « non installée » ? <b>Désinstallez toute ancienne « KODA Sentinel »</b>, vérifiez l'espace de stockage, et <b>retéléchargez</b> le fichier (un téléchargement coupé ne s'installe pas).</p>
+</div></div>
 
 <div class="card"><h3>Étape 3 · Obtenir le code de jumelage</h3>
 <ol>
