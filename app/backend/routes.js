@@ -420,6 +420,20 @@ module.exports = function registerRoutes(r) {
     notify.fire('apikey.revoked', { user, merchant: m });
     return { ok: true };
   }));
+  // Delete a key permanently — but ONLY a revoked one, and only while a live key remains
+  // (a replacement must be in place first, so a merchant can never delete themselves down
+  // to zero working keys and lock their integration out).
+  r.post('/app/keys/:id/delete', auth((req, user, m) => {
+    if (!needRole(user, ['manager'])) return [403, { error: 'manager_or_owner_only' }];
+    const key = q.get('SELECT * FROM api_keys WHERE id=? AND merchant_id=? AND submerchant_id IS NULL', req.params.id, m.id);
+    if (!key) return [404, { error: { code: 'key_not_found' } }];
+    if (!key.revoked) return [409, { error: { code: 'revoke_first', message: 'Revoke the key before deleting it.' } }];
+    const activeLeft = q.get('SELECT COUNT(*) c FROM api_keys WHERE merchant_id=? AND submerchant_id IS NULL AND revoked=0', m.id).c;
+    if (activeLeft < 1) return [409, { error: { code: 'need_active_key', message: 'Create a new API key before deleting your last one — a live key must stay in place.' } }];
+    q.run('DELETE FROM api_keys WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    audit(m.id, user.id, 'key_deleted', { prefix: key.prefix, last4: key.last4 });
+    return { ok: true, deleted: req.params.id };
+  }));
 
   // ---------- webhooks ----------
   r.get('/app/webhooks', auth((req, user, m) => ({

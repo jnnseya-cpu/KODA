@@ -1244,6 +1244,7 @@ window.inviteMember = async () => {
 
 VIEWS.developers = async () => {
   const keys = await api('/app/keys');
+  const activeKeys = keys.filter(k => !k.revoked).length;
   const wh = await api('/app/webhooks');
   shell('developers', t('developers'), t('sub_developers'), `
   <div class="grid g2">
@@ -1256,7 +1257,11 @@ VIEWS.developers = async () => {
         <td class="mono" style="font-size:12px">${esc(k.prefix)}_···${esc(k.last4)}</td>
         <td>${esc(k.label || '')}</td>
         <td>${k.revoked ? '<span class="badge b-bad">revoked</span>' : '<span class="badge b-ok">live</span>'}</td>
-        <td>${k.revoked ? '' : `<button class="btn btn-danger btn-sm" onclick="revokeKey('${k.id}')">revoke</button>`}</td></tr>`).join('')}
+        <td>${k.revoked
+          ? (activeKeys >= 1
+            ? `<button class="btn btn-ghost btn-sm" style="color:#e5484d;border-color:rgba(229,72,77,.4)" title="Delete this revoked key" onclick="deleteKey('${k.id}')">🗑 delete</button>`
+            : `<span style="font-size:11px;color:var(--dim)">create a live key first</span>`)
+          : `<button class="btn btn-danger btn-sm" onclick="revokeKey('${k.id}')">revoke</button>`}</td></tr>`).join('')}
       </table>
       <div id="key-out" style="margin-top:10px"></div>
     </div>
@@ -1314,6 +1319,11 @@ window.createKey = async (prefix) => {
   route.pending = true; toast('✓ Key created — shown once');
 };
 window.revokeKey = async (id) => { await api(`/app/keys/${id}/revoke`, { body: {} }); toast('✓ Revoked'); route(); };
+window.deleteKey = async (id) => {
+  if (!confirm('Permanently delete this revoked API key? This cannot be undone.')) return;
+  try { await api(`/app/keys/${id}/delete`, { body: {} }); toast('✓ Key deleted'); route(); }
+  catch (e) { toast('✗ ' + (e.message || 'delete failed')); }
+};
 window.addWebhook = async () => {
   const url = v('whurl'); if (!url) return toast('Enter the endpoint URL first');
   try {

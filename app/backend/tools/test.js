@@ -76,6 +76,13 @@ async function main() {
     T('rk key read allowed', (await j('/v1/usage', {}, rk)).s === 200);
     T('rk key run blocked (scope)', (await j('/v1/agents/reconciler/run', { body: {} }, rk)).s === 403);
     T('x-api-key header', (await j('/v1/ping', { headers: { 'x-api-key': key } })).s === 200);
+    // key lifecycle: a key must be REVOKED before it can be deleted, and a live key must remain
+    await j('/app/keys', { body: { prefix: 'koda_test', label: 'todelete' } }, tk);
+    const kRow = (await j('/app/keys', {}, tk)).d.find(x => x.label === 'todelete');
+    T('cannot delete an active (non-revoked) key', (await j(`/app/keys/${kRow.id}/delete`, { body: {} }, tk)).s === 409);
+    await j(`/app/keys/${kRow.id}/revoke`, { body: {} }, tk);
+    T('revoked key deletes while a live key remains', (await j(`/app/keys/${kRow.id}/delete`, { body: {} }, tk)).d.ok === true);
+    T('deleted key is gone from the list', !((await j('/app/keys', {}, tk)).d).some(x => x.id === kRow.id));
 
     console.log('— billing loop');
     const top = (await j('/app/billing/topup', { body: { usd: 10 } }, tk)).d;
