@@ -1678,6 +1678,7 @@ VIEWS.admin = async (params) => {
   if (tab === 'audit') return adminAudit();
   const o = await api('/app/admin/overview');
   const merchants = await api('/app/admin/merchants');
+  const nl = await api('/app/admin/newsletter').catch(() => null);
   shell('admin', t('admin'), 'KODA staff — the whole fleet at a glance', adminTabBar('overview') + `
   <div class="grid g4">
     <div class="card stat"><b>${fmt(o.merchants)}</b><span>merchants · ${fmt(o.submerchants)} sub</span></div>
@@ -1709,6 +1710,16 @@ VIEWS.admin = async (params) => {
     </div>
     <div id="cm-out" style="margin-top:10px"></div>
   </details>
+  ${nl ? `<div class="card" style="margin-top:14px"><h3>📣 Weekly product newsletter</h3>
+    <p style="font-size:13px;color:var(--dim);margin:2px 0 8px">Auto-sent every week to <b>${fmt(nl.recipients)}</b> registered user${nl.recipients === 1 ? '' : 's'}, selling KODA's features with deep links into the site &amp; blog. ${nl.last_sent && nl.last_sent.at ? `Last sent ${new Date(nl.last_sent.at).toISOString().slice(0, 10)} to ${fmt(nl.last_sent.count || 0)}. ` : 'Baseline set — first automatic send goes out within a week. '}${nl.next_due_at ? `Next auto-send on/after ${nl.next_due_at.slice(0, 10)}.` : ''}</p>
+    <div style="font-size:13px;margin-bottom:8px"><b>This week's subject:</b> ${esc(nl.subject)}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-gold btn-sm" onclick="newsletterSend(false)">Send now to all (${fmt(nl.recipients)})</button>
+      <button class="btn btn-ghost btn-sm" onclick="newsletterSend(true)">Send a test to me</button>
+    </div>
+    <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;color:var(--gold)">Preview this week's email</summary>
+      <iframe title="Newsletter preview" style="width:100%;height:540px;border:1px solid var(--line-strong);border-radius:8px;margin-top:8px;background:#fff" srcdoc="${esc(nl.preview_html)}"></iframe>
+    </details></div>` : ''}
   <div class="card tbl-wrap" style="margin-top:14px"><h3>Merchants — click Manage to change plan, grant ACU, manage the team</h3>
     ${merchants.length ? `<table class="tbl">
     <tr><th>Name</th><th>Plan</th><th class="num">Verifs</th><th class="num">ACU</th><th>Seats</th><th>Status</th><th></th></tr>
@@ -2312,6 +2323,14 @@ window.adminAddUser = async (mid) => {
   } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
 window.adminToggle = async (id) => { await api(`/app/admin/merchants/${id}/suspend`, { body: {} }); route(); };
+window.newsletterSend = async (test) => {
+  if (!test && !confirm('Send the weekly newsletter to ALL registered users right now?')) return;
+  try {
+    const r = await api('/app/admin/newsletter/send', { body: { test: !!test } });
+    toast(`✓ ${test ? 'Test sent' : 'Newsletter sent'} — ${r.sent} delivered${r.failed ? ', ' + r.failed + ' failed' : ''}`);
+    if (!test) route();
+  } catch (e) { toast('✗ ' + (e.message || 'send failed')); }
+};
 window.adminDeleteMerchant = async (id, name) => {
   if (!confirm(`Permanently delete "${name}" and ALL its data (users, keys, receipts, devices…)?\n\nThis cannot be undone.`)) return;
   if (!confirm(`Type-check: really delete "${name}"? This is irreversible.`)) return;

@@ -214,4 +214,5 @@ server.listen(PORT, () => {
   console.log('');
   indexnow.autosubmit(); // announce all sitemap URLs to IndexNow (production only)
   try { require('./lib/fx_live').start(); } catch { /* fx refresh optional */ } // keep USD→local rates fresh
+  try { require('./comms/newsletter').start(); } catch { /* newsletter optional */ } // weekly product newsletter
 });

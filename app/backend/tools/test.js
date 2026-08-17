@@ -172,6 +172,20 @@ async function main() {
     T('suspended merchant deleted', delRes.ok === true && delRes.deleted === susp.merchant.id);
     T('deleted merchant gone from admin list', !((await j('/app/admin/merchants', {}, admin.token)).d).some(x => x.id === susp.merchant.id));
     T('deleted merchant owner cannot log in', (await j('/app/auth/login', { body: { email: 'susp@co.test', password: susp.temp_password } })).s !== 200);
+    // weekly product newsletter — feature-selling email with many deep links, opt-out honoured
+    const nlStat = (await j('/app/admin/newsletter', {}, admin.token)).d;
+    const nlLinks = (nlStat.preview_html.match(/href="https:\/\/kodajnn\.com/g) || []).length;
+    T('newsletter: recipients + subject + many hyperlinks', nlStat.recipients > 0 && !!nlStat.subject && nlLinks >= 15, `${nlStat.recipients} users · ${nlLinks} links`);
+    const nlSend = (await j('/app/admin/newsletter/send', { body: { test: true } }, admin.token)).d;
+    T('newsletter: admin can send a test', nlSend.ok === true && nlSend.recipients === 1);
+    const nlCrypto = require('node:crypto');
+    T('newsletter: invalid unsubscribe token is refused', (await (await fetch(B + '/unsubscribe?u=nobody&t=bad')).text()).includes('invalid or has expired'));
+    // a VALID tokenised link unsubscribes and drops the recipient count
+    const nlOwner = (await j('/app/auth/login', { body: { email: 'demo@koda.africa', password: 'koda-demo' } })).d.user;
+    const nlTok = nlCrypto.createHmac('sha256', process.env.KODA_JWT_SECRET || 'koda-dev-secret-change-in-production').update('nl:' + nlOwner.id).digest('hex').slice(0, 32);
+    const before = (await j('/app/admin/newsletter', {}, admin.token)).d.recipients;
+    await fetch(B + `/unsubscribe?u=${nlOwner.id}&t=${nlTok}`);
+    T('newsletter: valid unsubscribe drops the recipient', (await j('/app/admin/newsletter', {}, admin.token)).d.recipients === before - 1);
     // self-service change password + admin resend-credentials-without-seeing
     const pwm = (await j('/app/admin/merchants', { body: { business: 'PwCo', email: 'pw@co.test', name: 'Pia' } }, admin.token)).d;
     const pwLogin = (await j('/app/auth/login', { body: { email: 'pw@co.test', password: pwm.temp_password } })).d;

@@ -908,6 +908,39 @@ module.exports = function registerRoutes(r) {
     audit(m.id, user.id, 'admin.acu_adjusted', { amount, balance: bal });
     return { ok: true, balance: bal };
   }));
+  // ---- admin: weekly product newsletter (preview + status + send now) ----
+  r.get('/app/admin/newsletter', admin(() => {
+    const nl = require('./comms/newsletter');
+    const last = nl.lastSent();
+    const preview = nl.build(Date.now(), null);
+    return {
+      recipients: nl.recipients().length,
+      last_sent: last,
+      due: nl.due(Date.now()),
+      next_due_at: last && last.at ? new Date(last.at + 7 * 24 * 60 * 60 * 1000).toISOString() : null,
+      subject: preview.subject,
+      preview_html: preview.html,
+    };
+  }));
+  r.post('/app/admin/newsletter/send', admin(async (req, user) => {
+    const nl = require('./comms/newsletter');
+    // ?test=1 or {test:true} sends only to the admin's own email (safe dry-run of the real send)
+    const testTo = (req.body && req.body.test) ? user.email : null;
+    const out = await nl.send({ testTo });
+    audit(null, user.id, 'admin.newsletter_sent', { test: !!testTo, ...out });
+    return { ok: true, ...out };
+  }));
+  // ---- public: one-click unsubscribe from the newsletter (no login, tokenised) ----
+  r.get('/unsubscribe', (req) => {
+    const nl = require('./comms/newsletter');
+    const uid = String(req.query.u || ''), tok = String(req.query.t || '');
+    const html = (msg) => [200, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KODA — Newsletter</title><meta name="robots" content="noindex"></head><body style="margin:0;background:#081813;color:#E9E4D5;font-family:Arial,Helvetica,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center"><div style="max-width:440px;padding:32px;text-align:center"><div style="font-weight:900;letter-spacing:3px;color:#E8A11F;margin-bottom:16px">✓ KODA</div><p style="font-size:16px;line-height:1.6">${msg}</p><p style="margin-top:22px"><a href="https://kodajnn.com/app#comms" style="color:#E8A11F">Manage all notification preferences →</a></p></div></body></html>`, { 'content-type': 'text/html; charset=utf-8' }];
+    if (!nl.verifyUnsub(uid, tok)) return html('This unsubscribe link is invalid or has expired. You can manage your email preferences from your account.');
+    q.run(`INSERT INTO comm_prefs (user_id,channel,enabled) VALUES (?, 'newsletter', 0)
+           ON CONFLICT(user_id,channel) DO UPDATE SET enabled=0`, uid);
+    return html('You\'ve been unsubscribed from the KODA weekly newsletter. You\'ll still receive important account and payment notifications.');
+  });
+
   // ---- admin: merchant detail incl. its users/team ----
   r.get('/app/admin/merchants/:id', admin((req) => {
     const m = q.get('SELECT * FROM merchants WHERE id=?', req.params.id);
