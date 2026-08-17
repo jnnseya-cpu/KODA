@@ -73,6 +73,8 @@ object KodaClient {
             .put("battery", battery)
             .put("parse_health", parseHealth)
             .put("attested", attestation != null)
+            // tell KODA which build this is so the Devices page can show the right mode + tips
+            .put("capture", if (BuildConfig.USE_NOTIFICATION_LISTENER) "notification" else "sms")
         if (attestation != null) body.put("attestation", attestation)
         return post("$baseUrl/v1/device/heartbeat", token, body)
     }

@@ -291,6 +291,9 @@ try { db.exec(`ALTER TABLE intents ADD COLUMN client_secret TEXT`); } catch { /*
 try { db.exec(`ALTER TABLE intents ADD COLUMN success_url TEXT`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE intents ADD COLUMN cancel_url TEXT`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE devices ADD COLUMN device_token TEXT`); } catch { /* exists */ }
+// how this Sentinel captures the operator message: 'sms' (side-load build reads the SMS)
+// or 'notification' (Play build reads the payment notification). Reported by the heartbeat.
+try { db.exec(`ALTER TABLE devices ADD COLUMN capture TEXT NOT NULL DEFAULT 'sms'`); } catch { /* exists */ }
 // plan-subscription: merchants table is created above, so this ALTER is safe here.
 try { db.exec(`ALTER TABLE merchants ADD COLUMN plan_expires_at TEXT`); } catch { /* exists */ }
 

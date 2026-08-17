@@ -94,6 +94,11 @@ async function main() {
 
     console.log('— operations');
     T('device enroll', !!(await j('/app/devices/enroll', { body: { label: 'T', operator: 'mpesa_cd' } }, tk)).d.enrol_code);
+    // Sentinel reports its build's capture mode (sms side-load / notification Play) via heartbeat
+    const capDev = (await j('/app/devices/enroll', { body: { label: 'CapPhone', operator: 'orange_cd' } }, tk)).d;
+    T('device defaults to sms capture', ((await j('/app/devices', {}, tk)).d).find(x => x.label === 'CapPhone')?.capture === 'sms');
+    await j('/v1/device/heartbeat', { body: { battery: 80, capture: 'notification' } }, capDev.device_token);
+    T('heartbeat updates capture mode to notification', ((await j('/app/devices', {}, tk)).d).find(x => x.label === 'CapPhone')?.capture === 'notification');
     // operator picker: dropdown source — human names + codes, SMS-verifiable only, never empty
     const ops = (await j('/app/operators', {}, tk)).d;
     T('operators span all supported countries (not just home)', Array.isArray(ops.operators) && new Set(ops.operators.map(o => o.country)).size > 20);

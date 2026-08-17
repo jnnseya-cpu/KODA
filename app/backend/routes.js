@@ -1445,11 +1445,12 @@ module.exports = function registerRoutes(r) {
     const dev = q.get(`SELECT * FROM devices WHERE device_token=? AND status='active'`, tok);
     if (!dev) return [401, { error: { code: 'device_unauthenticated' } }];
     const b = req.body || {};
-    q.run(`UPDATE devices SET last_seen=datetime('now'), battery=?, attested=?, parse_health=? WHERE id=?`,
+    const capture = (b.capture === 'notification' || b.capture === 'sms') ? b.capture : dev.capture;
+    q.run(`UPDATE devices SET last_seen=datetime('now'), battery=?, attested=?, parse_health=?, capture=? WHERE id=?`,
       Number.isFinite(+b.battery) ? Math.max(0, Math.min(100, +b.battery)) : dev.battery,
       b.attested ? 1 : dev.attested,
       Number.isFinite(+b.parse_health) ? Math.max(0, Math.min(1, +b.parse_health)) : dev.parse_health,
-      dev.id);
+      capture, dev.id);
     return { ok: true, device_id: dev.id, next_heartbeat_s: 45 };
   });
 
