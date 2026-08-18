@@ -224,9 +224,13 @@ module.exports = function registerRoutes(r) {
     }
     if (Number.isFinite(amt) && amt > 0) { // ad-hoc manual intent so the receipt carries an expected amount
       const iid = U.id('int');
+      // The console operator types the amount the way the SMS shows it ("5.89");
+      // intents store MINOR units, so convert on the way in or the engine's amount
+      // guard would reject every manual USD verification 100× over.
+      const { toMinor } = require('../shared/currency');
       q.run(`INSERT INTO intents (id,merchant_id,amount,currency,operators,status,expires_at,metadata)
              VALUES (?,?,?,?,?, 'awaiting_payment', datetime('now','+15 minutes'), ?)`,
-        iid, m.id, amt, m.currency, JSON.stringify(OPERATORS.map(o => o.id)),
+        iid, m.id, toMinor(amt, m.currency), m.currency, JSON.stringify(OPERATORS.map(o => o.id)),
         JSON.stringify({ manual: true }));
       intent = q.get('SELECT * FROM intents WHERE id=?', iid);
     }

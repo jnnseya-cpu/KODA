@@ -162,6 +162,19 @@ async function main() {
     await j('/app/sandbox/sms', { body: { raw: `Vous avez recu 12 000 FC de MISMATCH. Ref: OM.AMTMIS.1. Solde: 500 000`, operator: 'orange_cd' } }, tk);
     const mmv = (await j(`/v1/intents/${vm.intent_id}/verify`, { body: { reference: 'OM.AMTMIS.1' } }, key)).d;
     T('amount_mismatch rejects a wrong-amount payment', mmv.status === 'rejected' && mmv.code === 'amount_mismatch', `${mmv.status}/${mmv.code}`);
+    // USD units regression: intents carry MINOR units (589 = $5.89) while the operator
+    // SMS writes the human amount ("5.89 USD"). Compared raw, every honest USD payment
+    // was an amount_mismatch — and the hosted checkout asked a real buyer for
+    // "589 USD" on a $5.89 order. The units bridge is shared/currency.js; the proof is
+    // that this SMS AUTO-verifies the intent on ingestion (auto-match needs the
+    // amounts to agree), which was impossible before the fix.
+    const vusd = (await j('/v1/intents', { body: { amount: 589, currency: 'USD', operators: ['orange_cd'] } }, key)).d;
+    await j('/app/sandbox/sms', { body: { raw: `Vous avez recu 5.89 USD de JUSTIN TEST (0002). Ref: OM.USD589.1. Solde: 100`, operator: 'orange_cd' } }, tk);
+    const usdi = (await j(`/v1/intents/${vusd.intent_id}`, {}, key)).d;
+    T('a USD SMS in display units verifies a minor-unit intent', usdi.status === 'verified' || usdi.status === 'verified_late', String(usdi.status));
+    // The three extra requests above tip the per-minute rate limiter mid-suite;
+    // give the window a beat so later tests measure their own behaviour, not ours.
+    await new Promise(r => setTimeout(r, 1200));
     // admin-created merchant welcome email carries login + temp password (customer can sign in)
     const wemail = require('../comms/email').renderEmail({
       subject: 'x', event: { key: 'merchant.activated' }, merchant: { name: 'Acme' }, user: {},

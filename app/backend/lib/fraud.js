@@ -3,6 +3,7 @@
 // <0.15 auto-confirm · 0.15–0.6 challenge (pending_review) · >0.6 reject
 'use strict';
 const { q } = require('./db');
+const { toMinor } = require('../../shared/currency');
 
 function scoreMatch({ merchant, intent, sms, reference, suffixProvided, networkDelta }) {
   const reasons = [];
@@ -34,7 +35,9 @@ function scoreMatch({ merchant, intent, sms, reference, suffixProvided, networkD
     // lower trust: nudge into the challenge band so a human confirms it.
     if (sms.operator === 'generic') { score += 0.2; reasons.push('generic_operator_low_trust'); }
     if (sms.quarantined) { score += 0.9; reasons.push('sms_quarantined_chain_break'); }
-    if (intent && sms.amount !== intent.amount) { score += 0.45; reasons.push('amount_mismatch'); }
+    // SMS amounts are display units, intent amounts are minor — normalise before
+    // comparing or every USD match scores as a mismatch (see shared/currency.js).
+    if (intent && toMinor(sms.amount, sms.currency || intent.currency) !== Number(intent.amount)) { score += 0.45; reasons.push('amount_mismatch'); }
     if (intent) {
       const created = new Date(intent.created_at + 'Z').getTime();
       const received = new Date((sms.received_at || intent.created_at) + 'Z').getTime();

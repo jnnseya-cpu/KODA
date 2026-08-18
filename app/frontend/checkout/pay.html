@@ -264,7 +264,18 @@
   var C = document.getElementById('content');
   var chosen = null, DATA = null, watchTimer = null;
   var esc = function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
-  var fmt = function(n){return Number(n||0).toLocaleString(L.locale)};
+  // API amounts are MINOR units (shared/currency.js) — an intent of 589 USD-minor is
+  // $5.89, and rendering it raw asked a real buyer to send 589 dollars for a $5.89
+  // ticket. Zero-decimal mobile-money currencies (CDF, XOF…) have factor 1, which is
+  // why the bug never showed on CDF. `fmt` takes minor units; SMS-confirmed amounts
+  // arrive as the operator wrote them and are converted via `dispToMinor` first.
+  var CUR_DECIMALS = {USD:2, EUR:2, GBP:2, GHS:2, KES:2, ZAR:2, NGN:2};
+  var curDec = function(){ return CUR_DECIMALS[String((DATA&&DATA.currency)||'').toUpperCase()] || 0; };
+  var fmt = function(minor){
+    var d = curDec();
+    return (Number(minor||0)/Math.pow(10,d)).toLocaleString(L.locale,{minimumFractionDigits:d,maximumFractionDigits:d});
+  };
+  var dispToMinor = function(display){ return Math.round(Number(display||0)*Math.pow(10,curDec())); };
 
   function api(method, url, body){
     return fetch(url, {method:method, headers:{'content-type':'application/json'}, body: body?JSON.stringify(body):undefined})
@@ -328,7 +339,7 @@
     api('POST','/checkout/'+INTENT+'/verify', {cs:CS, reference:ref}).then(function(r){
       btn.disabled = false; btn.textContent=T('verify_btn');
       var d = r.d;
-      if(d.status==='verified' || d.status==='verified_late' || d.already){ return success(d.amount_confirmed||DATA.amount, d.redirect, d.receipt_id); }
+      if(d.status==='verified' || d.status==='verified_late' || d.already){ return success(d.amount_confirmed!=null?dispToMinor(d.amount_confirmed):DATA.amount, d.redirect, d.receipt_id); }
       if(d.status==='not_found_yet'){ return watching(); }
       if(d.status==='pending_review'){ return warn(T('review'), T('review_p')); }
       if(d.code==='code_already_used'){ return badV(T('used'), T('used_p')); }
@@ -346,7 +357,7 @@
       tries++;
       api('POST','/checkout/'+INTENT+'/verify', {cs:CS, reference:document.getElementById('ref').value.trim()}).then(function(r){
         var d = r.d;
-        if(d.status==='verified'||d.status==='verified_late'||d.already){ clearInterval(watchTimer); success(d.amount_confirmed||DATA.amount, d.redirect, d.receipt_id); }
+        if(d.status==='verified'||d.status==='verified_late'||d.already){ clearInterval(watchTimer); success(d.amount_confirmed!=null?dispToMinor(d.amount_confirmed):DATA.amount, d.redirect, d.receipt_id); }
         else if(tries>=6){ clearInterval(watchTimer); warn(T('still'),T('still_p')); }
       });
     }, 5000);

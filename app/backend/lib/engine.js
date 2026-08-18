@@ -6,6 +6,7 @@ const { id } = require('./util');
 const { scoreMatch, chainCheck } = require('./fraud');
 const trustNet = require('./trust_network'); // ADD-ON B: cross-merchant trust/fraud network
 const { parseSms } = require('../../shared/parser');
+const { toMinor } = require('../../shared/currency');
 const webhooks = require('./webhooks');
 const notify = require('../comms/notify');
 
@@ -166,9 +167,13 @@ function ingestSms(merchant, { raw, operator, device_id }) {
 // Match an incoming payment to an awaiting checkout order, safely (Door 3 auto).
 // Returns { intent } to auto-verify, { ambiguous:true } to hold for the code, or {} if none.
 function matchAwaitingIntent(merchantId, parsed) {
+  // Same units bridge as the verify guard: the SMS says "5.89", the intent stores 589
+  // minor. Compared raw, no USD order could ever auto-match its own payment. The
+  // currency filter is part of the same correctness: 5 000 CDF and 50.00 USD are the
+  // same stored number and must never match each other's orders.
   const waiting = q.all(
-    `SELECT * FROM intents WHERE merchant_id=? AND status='awaiting_payment' AND amount=?
-     ORDER BY created_at ASC`, merchantId, parsed.amount);
+    `SELECT * FROM intents WHERE merchant_id=? AND status='awaiting_payment' AND amount=? AND currency=?
+     ORDER BY created_at ASC`, merchantId, toMinor(parsed.amount, parsed.currency), String(parsed.currency || '').toUpperCase());
   if (!waiting.length) return {};
   if (parsed.suffix) {
     const bySuffix = waiting.find(i => i.customer_msisdn && String(i.customer_msisdn).replace(/\D/g, '').slice(-4) === String(parsed.suffix));
@@ -258,8 +263,13 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   // 2b. amount guard (spec §24): the code exists, but the operator SMS confirms a
   // DIFFERENT amount than this order expected → reject as amount_mismatch (never
   // verify a wrong-amount payment against an order). Only when an intent is known.
-  if (intent && intent.amount != null && Number(sms.amount) !== Number(intent.amount)) {
-    trace.steps.push(`amount_mismatch: expected ${intent.amount}, SMS confirms ${sms.amount}`);
+  //
+  // Units matter here: the intent carries API MINOR units, the SMS is written for a
+  // human ("5.89 USD"). Comparing them raw rejected every honest USD payment 100×
+  // over while CDF (factor 1) sailed through — see shared/currency.js.
+  const smsMinor = intent ? toMinor(sms.amount, sms.currency || intent.currency) : null;
+  if (intent && intent.amount != null && smsMinor !== Number(intent.amount)) {
+    trace.steps.push(`amount_mismatch: expected ${intent.amount} minor, SMS confirms ${sms.amount} (${smsMinor} minor)`);
     notifyOwners(merchant, 'payment.pending_review', { reference });
     emitOutcome(merchant.id, 'rejected', 'amount_mismatch', { reference, amount: sms.amount, currency: sms.currency });
     return { status: 'rejected', code: 'amount_mismatch', expected_amount: intent.amount, received_amount: sms.amount, trace };
