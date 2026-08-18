@@ -96,6 +96,7 @@
       no_conf:'Non confirmé', no_conf_p:"On n'a pas pu confirmer ce paiement. Vérifie le code, le montant et le numéro.",
       err:'Erreur', err_p:'Réessaie dans un instant.',
       ok:'Paiement confirmé', ok_p:'{amount} {cur} vérifié. Merci !',
+      not_ready:'Paiement indisponible', not_ready_p:"Ce marchand n'a pas encore connecté son numéro mobile money. Contacte-le — aucun paiement n'a été pris.",
       redir:'Redirection en cours…', done_close:'Tu peux fermer cette page — la commande est confirmée.', oops:'Oups' },
     en: { locale:'en-US', dir:'ltr',
       secure:'🔒 Secure · KODA', loading:'Loading…', foot:'Verified by KODA · the code confirms the cash',
@@ -113,6 +114,7 @@
       no_conf:'Not confirmed', no_conf_p:"We couldn't confirm this payment. Check the code, amount and number.",
       err:'Error', err_p:'Try again in a moment.',
       ok:'Payment confirmed', ok_p:'{amount} {cur} verified. Thank you!',
+      not_ready:'Payments not set up', not_ready_p:"This merchant hasn't connected a mobile-money number yet. Contact them — no payment has been taken.",
       redir:'Redirecting…', done_close:'You can close this page — the order is confirmed.', oops:'Oops' },
     es: { locale:'es-ES', dir:'ltr',
       secure:'🔒 Seguro · KODA', loading:'Cargando…', foot:'Verificado por KODA · el código confirma el pago',
@@ -296,6 +298,10 @@
   }
 
   function renderPay(){
+    if(!DATA.pay_to || !DATA.pay_to.length){
+      C.innerHTML = '<div class="verdict warn"><div class="ic">🛠️</div><b>'+esc(T('not_ready'))+'</b><p>'+esc(T('not_ready_p'))+'</p></div>';
+      return;
+    }
     C.innerHTML =
       '<div class="amount"><span class="lbl">'+esc(T('amount'))+'</span><b>'+fmt(DATA.amount)+' '+esc(DATA.currency)+'</b>'
       + (DATA.metadata && DATA.metadata.order_id ? '<div class="to">'+esc(T('order','x',DATA.metadata.order_id))+'</div>':'') + '</div>'

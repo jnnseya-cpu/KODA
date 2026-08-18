@@ -1898,8 +1898,24 @@ module.exports = function registerRoutes(r) {
     if (active.length) {
       pay_to = active.map(a => ({ operator: a.network_code, number: a.account_identifier || m.msisdn || '', ussd_hint: ussd(a.network_code) }));
     } else {
+      /*
+       * No activated receiving accounts. The old fallback listed EVERY operator on the
+       * intent with the single profile msisdn — which showed a merchant's UK contact
+       * number as the pay-to for M-Pesa, Airtel, Orange and Africell at once. A buyer
+       * who sends to that is one irreversible transfer away from lost money.
+       *
+       * The fallback now offers the profile number ONLY for the operator its prefix
+       * actually belongs to (a lone +243 82… number is a real Airtel wallet even
+       * before enrolment). A number matching none of the intent's operators offers
+       * nothing, and the checkout page tells the buyer the merchant is not ready —
+       * an honest dead end instead of a wrong number dressed up as instructions.
+       */
+      const opsLib = require('../shared/operators');
+      const owner = m.msisdn ? opsLib.operatorByMsisdn(m.msisdn) : null;
       const ops = JSON.parse(i.operators);
-      pay_to = ops.map(o => ({ operator: o, number: m.msisdn || '+243 8XX XXX XXX', ussd_hint: ussd(o) }));
+      pay_to = owner && ops.includes(owner)
+        ? [{ operator: owner, number: m.msisdn, ussd_hint: ussd(owner) }]
+        : [];
     }
     return {
       intent_id: i.id, status: i.status, amount: i.amount, currency: i.currency,
@@ -2003,7 +2019,16 @@ function createIntent(m, body, idemKey) {
     checkout_url: `${SITE_BASE()}/pay/${iid}?cs=${clientSecret}`,
     network_selection: ['AUTO', 'CUSTOMER', 'FIXED'].includes(body.network_selection) ? body.network_selection : 'CUSTOMER',
     available_networks: resolved.available,
-    pay_to: ops.map(o => ({ operator: o, number: m.msisdn || '+243 8XX XXX XXX', ussd_hint: o.startsWith('orange') ? '#144#' : '*1122#' })),
+    // Same rule as the hosted checkout: the profile number is offered only for the
+    // operator its prefix belongs to — never for every operator at once, which showed
+    // a UK contact number as the pay-to for four Congolese networks.
+    pay_to: (() => {
+      const opsLib = require('../shared/operators');
+      const owner = m.msisdn ? opsLib.operatorByMsisdn(m.msisdn) : null;
+      return owner && ops.includes(owner)
+        ? [{ operator: owner, number: m.msisdn, ussd_hint: owner.startsWith('orange') ? '#144#' : '*1122#' }]
+        : [];
+    })(),
     expires_at: intent.expires_at,
   };
   // store the idempotent result (unique PK guards a same-key race)
