@@ -267,12 +267,21 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   // Units matter here: the intent carries API MINOR units, the SMS is written for a
   // human ("5.89 USD"). Comparing them raw rejected every honest USD payment 100×
   // over while CDF (factor 1) sailed through — see shared/currency.js.
+  // DUAL-CURRENCY SAFETY: DRC (and every target market) runs the local and an
+  // international currency side by side, so 589 CDF and 5.89 USD are the SAME stored
+  // minor number. Comparing minor units alone, a 589 FC payment (~$0.21) would satisfy
+  // a $5.89 (589-minor USD) order. The currency must match too — auto-match already
+  // filters on it; this guards the customer-submitted-code path (Door 1 / API verify).
+  const curOk = !intent || !intent.currency || !sms.currency
+    || String(sms.currency).toUpperCase() === String(intent.currency).toUpperCase();
   const smsMinor = intent ? toMinor(sms.amount, sms.currency || intent.currency) : null;
-  if (intent && intent.amount != null && smsMinor !== Number(intent.amount)) {
-    trace.steps.push(`amount_mismatch: expected ${intent.amount} minor, SMS confirms ${sms.amount} (${smsMinor} minor)`);
+  if (intent && intent.amount != null && (!curOk || smsMinor !== Number(intent.amount))) {
+    trace.steps.push(!curOk
+      ? `amount_mismatch: order in ${intent.currency}, SMS confirms ${sms.currency}`
+      : `amount_mismatch: expected ${intent.amount} minor, SMS confirms ${sms.amount} (${smsMinor} minor)`);
     notifyOwners(merchant, 'payment.pending_review', { reference });
     emitOutcome(merchant.id, 'rejected', 'amount_mismatch', { reference, amount: sms.amount, currency: sms.currency });
-    return { status: 'rejected', code: 'amount_mismatch', expected_amount: intent.amount, received_amount: sms.amount, trace };
+    return { status: 'rejected', code: 'amount_mismatch', expected_amount: intent.amount, expected_currency: intent.currency, received_amount: sms.amount, received_currency: sms.currency, trace };
   }
 
   // 3. fraud scoring (+ optional cross-merchant network signal — 0 by default)

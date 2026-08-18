@@ -172,9 +172,26 @@ async function main() {
     await j('/app/sandbox/sms', { body: { raw: `Vous avez recu 5.89 USD de JUSTIN TEST (0002). Ref: OM.USD589.1. Solde: 100`, operator: 'orange_cd' } }, tk);
     const usdi = (await j(`/v1/intents/${vusd.intent_id}`, {}, key)).d;
     T('a USD SMS in display units verifies a minor-unit intent', usdi.status === 'verified' || usdi.status === 'verified_late', String(usdi.status));
+    // units bridge robustness: ANY unlisted 2-decimal rail must still bridge (default is
+    // 2 decimals, not 0) — otherwise KODA's expansion currencies (EGP, MAD, TZS, BDT, …)
+    // would silently re-introduce the 100× bug. Franc rails stay whole; 3-decimal scale ×1000.
+    const cur = require('../../shared/currency');
+    T('currency: unlisted 2-decimal rails default to minor units (no 100× regression)',
+      cur.toMinor(5.89, 'TZS') === 589 && cur.toDisplay(589, 'EGP') === 5.89 && cur.decimals('MAD') === 2);
+    T('currency: franc rails stay whole (factor 1); 3-decimal rails scale ×1000',
+      cur.toMinor(25000, 'CDF') === 25000 && cur.factor('XOF') === 1 && cur.toMinor(1.234, 'BHD') === 1234);
     // The three extra requests above tip the per-minute rate limiter mid-suite;
     // give the window a beat so later tests measure their own behaviour, not ours.
     await new Promise(r => setTimeout(r, 1200));
+    // DUAL-CURRENCY SAFETY: DRC runs CDF and USD side by side, so 589 CDF and 5.89 USD
+    // share the stored minor value 589. A 589 FC payment (~$0.21) must NOT satisfy a
+    // $5.89 (589-minor USD) order. Generic-parse SMS (no phone) so the walk-in path holds
+    // it for review and leaves the code free for the explicit currency-mismatched verify.
+    const kj2 = async (p, body) => { let r = await j(p, body ? { body } : {}, key); if (r.d && r.d.error && r.d.error.code === 'rate_limited') { await new Promise(x => setTimeout(x, 1100)); r = await j(p, body ? { body } : {}, key); } return r.d; };
+    const vDual = await kj2('/v1/intents', { amount: 589, currency: 'USD', operators: ['orange_cd'] });
+    await j('/app/sandbox/sms', { body: { raw: `Vous avez recu 589 FC de MISMATCH. Ref: OM.DUALCUR.1.`, operator: 'orange_cd' } }, tk);
+    const dualV = await kj2(`/v1/intents/${vDual.intent_id}/verify`, { reference: 'OM.DUALCUR.1' });
+    T('dual-currency: a 589 CDF payment cannot satisfy a 589-minor USD order', dualV.status === 'rejected' && dualV.code === 'amount_mismatch', `${dualV.status}/${dualV.code}`);
     // admin-created merchant welcome email carries login + temp password (customer can sign in)
     const wemail = require('../comms/email').renderEmail({
       subject: 'x', event: { key: 'merchant.activated' }, merchant: { name: 'Acme' }, user: {},

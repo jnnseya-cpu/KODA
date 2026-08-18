@@ -37,7 +37,12 @@ function scoreMatch({ merchant, intent, sms, reference, suffixProvided, networkD
     if (sms.quarantined) { score += 0.9; reasons.push('sms_quarantined_chain_break'); }
     // SMS amounts are display units, intent amounts are minor — normalise before
     // comparing or every USD match scores as a mismatch (see shared/currency.js).
-    if (intent && toMinor(sms.amount, sms.currency || intent.currency) !== Number(intent.amount)) { score += 0.45; reasons.push('amount_mismatch'); }
+    // Currency must also agree: with local + international currency side by side,
+    // 589 CDF and 5.89 USD are the same stored minor number (see the verify guard).
+    if (intent) {
+      const curMismatch = intent.currency && sms.currency && String(sms.currency).toUpperCase() !== String(intent.currency).toUpperCase();
+      if (curMismatch || toMinor(sms.amount, sms.currency || intent.currency) !== Number(intent.amount)) { score += 0.45; reasons.push('amount_mismatch'); }
+    }
     if (intent) {
       const created = new Date(intent.created_at + 'Z').getTime();
       const received = new Date((sms.received_at || intent.created_at) + 'Z').getTime();

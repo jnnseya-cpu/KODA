@@ -10,12 +10,28 @@
 // verification would have compared the SMS's 5.89 against the intent's 589 and
 // rejected every honest USD payment as amount_mismatch.
 //
-// Every display and every comparison must cross through these two functions.
-const DECIMALS = { USD: 2, EUR: 2, GBP: 2, GHS: 2, KES: 2, ZAR: 2, NGN: 2 };
+// Every display and every comparison must cross through these functions.
+//
+// The world's default is 2 decimals (ISO 4217), so we DEFAULT to 2 and name only the
+// exceptions. Treating an unknown currency as 2-decimal is the safe failure: it can
+// never silently re-introduce the 100× bug the way an allowlist would for the many
+// 2-decimal rails KODA expands into (EGP, MAD, TZS, MZN, ZMW, BDT, PKR, INR, LKR, …).
+
+// Zero-decimal in mobile-money practice — the amount IS the whole number. Includes
+// the African-franc rails (where CDF's nominal ISO centimes are never used) and the
+// true zero-decimal ISO currencies.
+const ZERO_DECIMAL = new Set([
+  'CDF', 'FC', 'XAF', 'XOF', 'XPF', 'GNF', 'RWF', 'BIF', 'KMF', 'DJF', 'UGX',
+  'JPY', 'KRW', 'VND', 'CLP', 'PYG', 'ISK', 'VUV'
+]);
+// Three-decimal ISO currencies.
+const THREE_DECIMAL = new Set(['BHD', 'KWD', 'OMR', 'TND', 'JOD', 'IQD', 'LYD']);
 
 function decimals(currency) {
-  const d = DECIMALS[String(currency || '').toUpperCase()];
-  return d == null ? 0 : d;
+  const c = String(currency || '').toUpperCase();
+  if (ZERO_DECIMAL.has(c)) return 0;
+  if (THREE_DECIMAL.has(c)) return 3;
+  return 2; // ISO default
 }
 
 function factor(currency) {
@@ -32,4 +48,4 @@ function toDisplay(minorAmount, currency) {
   return Number(minorAmount || 0) / factor(currency);
 }
 
-module.exports = { decimals, factor, toMinor, toDisplay };
+module.exports = { decimals, factor, toMinor, toDisplay, ZERO_DECIMAL, THREE_DECIMAL };

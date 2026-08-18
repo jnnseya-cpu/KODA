@@ -421,13 +421,15 @@ curl -H "Authorization: Bearer sk_test_..." https://kodajnn.com/v1/ping</pre>
 <p>Add "Pay by mobile money" to any website or marketplace. The customer picks their operator, pays, pastes the SMS code they received into a KODA panel, and KODA verifies it — <b>then the order moves forward on its own</b>. Two integration paths:</p>
 <h3>1 · Hosted checkout (recommended)</h3>
 <p>Your server creates the intent with your <b>secret</b> key and gets back a <code>checkout_url</code> + <code>client_secret</code>. Send the customer to the URL, or open it in the widget overlay:</p>
+<p><code>amount</code> is an integer in the currency's <b>minor unit</b> — the same convention as Stripe. <code>589</code> USD means <b>$5.89</b>. Zero-decimal currencies have no fractional part, so the amount is the whole number: <code>25000</code> CDF is 25 000 FC. KODA shows the customer the natural amount and matches it against the operator SMS.</p>
 <pre>// your server (secret key) — never exposes anything to the browser
-POST /v1/intents  { "amount": 25000, "currency": "CDF",
+POST /v1/intents  { "amount": 25000, "currency": "CDF",   // 25 000 FC
   "operators": ["orange_cd","mpesa_cd"],
   "metadata": { "order_id": "CMD-1042" },
   "success_url": "https://shop.example.com/order/success" }
 → { "intent_id": "int_…", "client_secret": "cs_…",
-    "checkout_url": "https://kodajnn.com/pay/int_…?cs=cs_…" }</pre>
+    "checkout_url": "https://kodajnn.com/pay/int_…?cs=cs_…" }
+// USD example: { "amount": 589, "currency": "USD" }  → the customer pays $5.89</pre>
 <pre>&lt;script src="https://kodajnn.com/js/koda.js"&gt;&lt;/script&gt;
 &lt;script&gt;
   Koda.checkout({
