@@ -248,6 +248,15 @@ async function main() {
     T('checkout pay_to never lends the number to another network', !(payIntent.pay_to || []).some(p => p.operator !== 'mpesa_cd'));
     const wrongNet = (await j('/v1/intents', { body: { amount: 6100, currency: 'CDF', operators: ['orange_cd'] } }, key)).d;
     T('no enrolled account + wrong-network profile number = an empty pay_to, not a wrong one', (wrongNet.pay_to || []).length === 0);
+    // Enrolled accounts end the fallback entirely — and a DRC enrolment defaults to
+    // BOTH wallet currencies, so the real number shows on USD checkouts too. The old
+    // ["CDF"]-only default silently removed every real number from USD orders, which
+    // is how a UK profile number ended up as the pay-to for four Congolese networks.
+    const enr = (await j('/v1/merchant-network-accounts', { body: { network_code: 'orange_cd', account_identifier: '+243 840 000 111' } }, key)).d;
+    await j(`/v1/merchant-network-accounts/${enr.merchant_account_id}/activate`, { body: {} }, key);
+    const usdPay = (await j('/v1/intents', { body: { amount: 1109, currency: 'USD', operators: ['orange_cd'] } }, key)).d;
+    T('an enrolled DRC account serves USD checkouts by default', (usdPay.pay_to || []).some(p => p.operator === 'orange_cd' && p.number === '+243 840 000 111'), JSON.stringify(usdPay.pay_to));
+    await new Promise(r => setTimeout(r, 1200));
     T('cashier cannot invite', (await j('/app/team/invite', { body: { email: 'x@x.co', name: 'x' } }, cashier.token)).s === 403);
 
     console.log('— communications');

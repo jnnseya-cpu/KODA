@@ -32,8 +32,11 @@ function connect(merchant, body) {
     return [422, { error: { code: 'network_not_supported', message: `${dep.name} is a bank-rail/app-push network (Tier C) — not SMS-verifiable`, koda_support: 'BANK_RAIL_REQUIRED' } }];
   const id = U.id('ma');
   const ident = String(body.account_identifier || '').trim();
+  // Default to everything the wallet can actually receive (dual-currency markets
+  // list both), not the Atlas primary alone: defaulting DRC accounts to ["CDF"]
+  // silently removed every real number from USD checkouts.
   const currencies = Array.isArray(body.receive_currencies) && body.receive_currencies.length
-    ? body.receive_currencies.filter(c => /^[A-Z]{3}$/.test(c)) : [dep.currency];
+    ? body.receive_currencies.filter(c => /^[A-Z]{3}$/.test(c)) : (dep.currencies || [dep.currency]);
   const verifyRef = 'KODA-' + U.token(3).toUpperCase().slice(0, 4);
   q.run(`INSERT INTO merchant_network_accounts
      (id,merchant_id,submerchant_id,network_code,account_identifier,masked,account_holder_name,receive_currencies,priority,device_id,verify_ref)

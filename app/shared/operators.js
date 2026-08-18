@@ -14,11 +14,15 @@
   // region: CENTRAL | WEST | EAST | SOUTHERN | NORTH
   // senders: brand tokens seen in the SMS sender field (uppercased match, tune from real traffic)
   const OPS = [
+    // DRC wallets are dual-currency: every major operator runs CDF and USD balances
+    // side by side, so `currencies` lists both. Enrolment defaults to this list —
+    // a merchant's real M-Pesa number must not vanish from USD checkouts because the
+    // Atlas only admitted francs.
     // ── Central Africa ────────────────────────────────────────────────────
-    { id: 'orange_cd', name: 'Orange Money', country: 'CD', region: 'CENTRAL', currency: 'CDF', senders: ['ORANGEMONEY', 'ORANGE'], packed: true },
-    { id: 'mpesa_cd', name: 'M-Pesa (Vodacom)', country: 'CD', region: 'CENTRAL', currency: 'CDF', senders: ['M-PESA', 'MPESA', 'VODACOM'], packed: true },
-    { id: 'airtel_cd', name: 'Airtel Money', country: 'CD', region: 'CENTRAL', currency: 'CDF', senders: ['AIRTELMONEY', 'AIRTEL'], packed: true },
-    { id: 'africell_cd', name: 'Afrimoney (Africell)', country: 'CD', region: 'CENTRAL', currency: 'CDF', senders: ['AFRICELL', 'AFRIMONEY'], packed: true },
+    { id: 'orange_cd', currencies: ['CDF', 'USD'], name: 'Orange Money', country: 'CD', region: 'CENTRAL', currency: 'CDF', senders: ['ORANGEMONEY', 'ORANGE'], packed: true },
+    { id: 'mpesa_cd', currencies: ['CDF', 'USD'], name: 'M-Pesa (Vodacom)', country: 'CD', region: 'CENTRAL', currency: 'CDF', senders: ['M-PESA', 'MPESA', 'VODACOM'], packed: true },
+    { id: 'airtel_cd', currencies: ['CDF', 'USD'], name: 'Airtel Money', country: 'CD', region: 'CENTRAL', currency: 'CDF', senders: ['AIRTELMONEY', 'AIRTEL'], packed: true },
+    { id: 'africell_cd', currencies: ['CDF', 'USD'], name: 'Afrimoney (Africell)', country: 'CD', region: 'CENTRAL', currency: 'CDF', senders: ['AFRICELL', 'AFRIMONEY'], packed: true },
     { id: 'illicocash_cd', name: 'Illicocash', country: 'CD', region: 'CENTRAL', currency: 'CDF', senders: ['ILLICOCASH', 'ILLICO'] },
     { id: 'orange_cm', name: 'Orange Money', country: 'CM', region: 'CENTRAL', currency: 'XAF', senders: ['ORANGEMONEY', 'ORANGE'] },
     { id: 'mtn_cm', name: 'MTN MoMo', country: 'CM', region: 'CENTRAL', currency: 'XAF', senders: ['MTNMOMO', 'MTN', 'MOBILEMONEY'] },

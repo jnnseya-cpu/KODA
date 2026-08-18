@@ -321,6 +321,22 @@ db.exec(`CREATE TABLE IF NOT EXISTS merchant_network_accounts (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
 
+/*
+ * Repair: DRC accounts enrolled under the old single-currency default.
+ *
+ * `connect()` used to default receive_currencies to the Atlas primary — ["CDF"] for
+ * every Congolese operator — so a merchant's real, activated M-Pesa number was
+ * silently filtered out of USD checkouts and the page fell back to the profile
+ * number ("wrong KODA numbers", live testing 18 Aug). DRC wallets hold CDF and USD
+ * balances side by side, so ["CDF"] on a CD account describes the wallet wrongly.
+ * Only the exact old default is widened; any other explicit list is a merchant's
+ * own choice and stays untouched (they can narrow again via the update API).
+ */
+try {
+  db.exec(`UPDATE merchant_network_accounts SET receive_currencies='["CDF","USD"]'
+           WHERE network_code LIKE '%_cd' AND receive_currencies='["CDF"]'`);
+} catch { /* nothing to repair */ }
+
 // ---------- GLOBAL BILLING MESH (System B — how KODA collects its own revenue) ----------
 // topups: one collection attempt, idempotent. status: initiated→pending→settled|failed|expired
 db.exec(`CREATE TABLE IF NOT EXISTS topups (

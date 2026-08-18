@@ -1885,38 +1885,7 @@ module.exports = function registerRoutes(r) {
     const i = checkoutIntent(req.params.id, req.query.cs);
     if (!i) return [404, { error: { code: 'intent_not_found' } }];
     const m = q.get('SELECT name, msisdn, brand_color, logo_text, currency FROM merchants WHERE id=?', i.merchant_id);
-    const ussd = (o) => o.startsWith('orange') ? '#144#' : o.startsWith('mpesa') ? '*1122#' : o.startsWith('airtel') ? '*501#' : o.startsWith('africell') || o.startsWith('afri') ? '*150#' : '*150#';
-    // Prefer the merchant's ACTIVE receiving accounts — each network shows ITS OWN full
-    // number (this is where the customer sends money, so it must be the real per-network
-    // number, not the single profile msisdn). Fall back to the intent's operator list on
-    // the profile number only when the merchant has activated no accounts.
-    const active = q.all(
-      `SELECT network_code, account_identifier, receive_currencies FROM merchant_network_accounts
-       WHERE merchant_id=? AND submerchant_id IS NULL AND activation_status='ACTIVE' ORDER BY priority`, i.merchant_id)
-      .filter(a => { try { const c = JSON.parse(a.receive_currencies || '[]'); return !c.length || !i.currency || c.includes(i.currency); } catch { return true; } });
-    let pay_to;
-    if (active.length) {
-      pay_to = active.map(a => ({ operator: a.network_code, number: a.account_identifier || m.msisdn || '', ussd_hint: ussd(a.network_code) }));
-    } else {
-      /*
-       * No activated receiving accounts. The old fallback listed EVERY operator on the
-       * intent with the single profile msisdn — which showed a merchant's UK contact
-       * number as the pay-to for M-Pesa, Airtel, Orange and Africell at once. A buyer
-       * who sends to that is one irreversible transfer away from lost money.
-       *
-       * The fallback now offers the profile number ONLY for the operator its prefix
-       * actually belongs to (a lone +243 82… number is a real Airtel wallet even
-       * before enrolment). A number matching none of the intent's operators offers
-       * nothing, and the checkout page tells the buyer the merchant is not ready —
-       * an honest dead end instead of a wrong number dressed up as instructions.
-       */
-      const opsLib = require('../shared/operators');
-      const owner = m.msisdn ? opsLib.operatorByMsisdn(m.msisdn) : null;
-      const ops = JSON.parse(i.operators);
-      pay_to = owner && ops.includes(owner)
-        ? [{ operator: owner, number: m.msisdn, ussd_hint: ussd(owner) }]
-        : [];
-    }
+    const pay_to = buildPayTo(i.merchant_id, m.msisdn, JSON.parse(i.operators), i.currency);
     return {
       intent_id: i.id, status: i.status, amount: i.amount, currency: i.currency,
       merchant: { name: m.logo_text || m.name, brand_color: m.brand_color },
@@ -2019,16 +1988,7 @@ function createIntent(m, body, idemKey) {
     checkout_url: `${SITE_BASE()}/pay/${iid}?cs=${clientSecret}`,
     network_selection: ['AUTO', 'CUSTOMER', 'FIXED'].includes(body.network_selection) ? body.network_selection : 'CUSTOMER',
     available_networks: resolved.available,
-    // Same rule as the hosted checkout: the profile number is offered only for the
-    // operator its prefix belongs to — never for every operator at once, which showed
-    // a UK contact number as the pay-to for four Congolese networks.
-    pay_to: (() => {
-      const opsLib = require('../shared/operators');
-      const owner = m.msisdn ? opsLib.operatorByMsisdn(m.msisdn) : null;
-      return owner && ops.includes(owner)
-        ? [{ operator: owner, number: m.msisdn, ussd_hint: owner.startsWith('orange') ? '#144#' : '*1122#' }]
-        : [];
-    })(),
+    pay_to: buildPayTo(m.id, m.msisdn, ops, currency),
     expires_at: intent.expires_at,
   };
   // store the idempotent result (unique PK guards a same-key race)
@@ -2050,6 +2010,30 @@ function auth(handler) {
     return handler(req, user, merchant);
   };
 }
+/*
+ * The pay-to list for a checkout: the merchant's ACTIVE receiving accounts that can
+ * take this currency — each network showing ITS OWN full number. With none enrolled,
+ * the profile number is offered only for the operator its prefix belongs to; a number
+ * matching none of the offered operators yields an empty list, and the checkout page
+ * says the merchant is not ready. One implementation for both the hosted checkout GET
+ * and the intent-creation response — they must never disagree about where money goes.
+ */
+function buildPayTo(merchantId, msisdn, operators, currency) {
+  const ussd = (o) => o.startsWith('orange') ? '#144#' : o.startsWith('mpesa') ? '*1122#' : o.startsWith('airtel') ? '*501#' : '*150#';
+  const active = q.all(
+    `SELECT network_code, account_identifier, receive_currencies FROM merchant_network_accounts
+     WHERE merchant_id=? AND submerchant_id IS NULL AND activation_status='ACTIVE' ORDER BY priority`, merchantId)
+    .filter(a => { try { const c = JSON.parse(a.receive_currencies || '[]'); return !c.length || !currency || c.includes(currency); } catch { return true; } });
+  if (active.length) {
+    return active.map(a => ({ operator: a.network_code, number: a.account_identifier || msisdn || '', ussd_hint: ussd(a.network_code) }));
+  }
+  const opsLib = require('../shared/operators');
+  const owner = msisdn ? opsLib.operatorByMsisdn(msisdn) : null;
+  return owner && operators.includes(owner)
+    ? [{ operator: owner, number: msisdn, ussd_hint: ussd(owner) }]
+    : [];
+}
+
 function admin(handler) {
   return auth((req, user, merchant) => user.is_admin ? handler(req, user, merchant) : [403, { error: 'admin_only' }]);
 }
