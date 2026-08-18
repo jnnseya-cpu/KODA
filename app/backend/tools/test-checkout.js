@@ -37,6 +37,14 @@ async function j(method, path, body, headers) {
   const leak2 = await j('GET', '/v1/billing/balance', null, PK);
   ok(leak2.status === 403, 'pk_ key CANNOT read balance (403)', 'status ' + leak2.status);
 
+  // --- the merchant configures its receiving numbers first (the realistic order of
+  //     operations): each network gets its OWN number, so the checkout can show the
+  //     right per-network account rather than a single profile number. ---
+  const cOr = await j('POST', '/app/network-accounts', { network_code: 'orange_cd', account_identifier: '+243810000001', account_holder_name: 'DEMO', receive_currencies: ['CDF'] }, bearer);
+  const cMp = await j('POST', '/app/network-accounts', { network_code: 'mpesa_cd', account_identifier: '+243820000002', account_holder_name: 'DEMO', receive_currencies: ['CDF'] }, bearer);
+  await j('POST', `/app/network-accounts/${cOr.d.merchant_account_id}/activate`, {}, bearer);
+  await j('POST', `/app/network-accounts/${cMp.d.merchant_account_id}/activate`, {}, bearer);
+
   // --- customer selects "pay by mobile": browser creates the intent with pk_ ---
   const amt = 47500, ref = 'OM.260805.1701.CHK' + Math.floor(performance.now() % 1e5);
   const intent = await j('POST', '/v1/intents', {
@@ -54,11 +62,8 @@ async function j(method, path, body, headers) {
   ok(view.d.has_success_url === true, 'checkout knows an order-success redirect exists');
 
   // --- multi-number: the checkout must show EACH active receiving account with its OWN
-  //     number (not the single profile msisdn), so "4 numbers, only 2 work" can't happen ---
-  const cOr = await j('POST', '/app/network-accounts', { network_code: 'orange_cd', account_identifier: '+243810000001', account_holder_name: 'DEMO', receive_currencies: ['CDF'] }, bearer);
-  const cMp = await j('POST', '/app/network-accounts', { network_code: 'mpesa_cd', account_identifier: '+243820000002', account_holder_name: 'DEMO', receive_currencies: ['CDF'] }, bearer);
-  await j('POST', `/app/network-accounts/${cOr.d.merchant_account_id}/activate`, {}, bearer);
-  await j('POST', `/app/network-accounts/${cMp.d.merchant_account_id}/activate`, {}, bearer);
+  //     number (not the single profile msisdn), so "4 numbers, only 2 work" can't happen.
+  //     The accounts were configured above; a fresh intent must still list them all. ---
   const iMulti = await j('POST', '/v1/intents', { amount: 9900, currency: 'CDF', operators: ['orange_cd'] }, PK);
   const vMulti = await j('GET', `/checkout/${iMulti.d.intent_id}?cs=${encodeURIComponent(iMulti.d.client_secret)}`);
   const nums = (vMulti.d.pay_to || []).map(p => p.number);
