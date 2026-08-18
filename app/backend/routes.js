@@ -2020,10 +2020,16 @@ function auth(handler) {
  */
 function buildPayTo(merchantId, msisdn, operators, currency) {
   const ussd = (o) => o.startsWith('orange') ? '#144#' : o.startsWith('mpesa') ? '*1122#' : o.startsWith('airtel') ? '*501#' : '*150#';
-  const active = q.all(
+  const activeAll = q.all(
     `SELECT network_code, account_identifier, receive_currencies FROM merchant_network_accounts
-     WHERE merchant_id=? AND submerchant_id IS NULL AND activation_status='ACTIVE' ORDER BY priority`, merchantId)
-    .filter(a => { try { const c = JSON.parse(a.receive_currencies || '[]'); return !c.length || !currency || c.includes(currency); } catch { return true; } });
+     WHERE merchant_id=? AND submerchant_id IS NULL AND activation_status='ACTIVE' ORDER BY priority`, merchantId);
+  // Prefer accounts whose currency tag lists this order's currency, but NEVER hide a real
+  // per-network account behind the profile fallback just because its tag omits it: in DRC
+  // the same M-Pesa / Orange / Airtel / Africell number receives both CDF and USD. This
+  // also covers accounts stored before the dual-currency default (tagged ["CDF"] only) —
+  // they still show on a USD order without needing a data migration.
+  const curMatch = activeAll.filter(a => { try { const c = JSON.parse(a.receive_currencies || '[]'); return !c.length || !currency || c.includes(currency); } catch { return true; } });
+  const active = curMatch.length ? curMatch : activeAll;
   if (active.length) {
     return active.map(a => ({ operator: a.network_code, number: a.account_identifier || msisdn || '', ussd_hint: ussd(a.network_code) }));
   }

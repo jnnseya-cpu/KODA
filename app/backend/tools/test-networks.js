@@ -73,6 +73,16 @@ const has = (res, code) => (res.d.available || []).some(a => a.network_code === 
   av = (res.d.available || []).find(a => a.network_code === 'orange_cd');
   ok(av && av.ownership_verified === true, 'ownership badge auto-earned from a matching SMS', av ? String(av.ownership_verified) : 'hidden');
 
+  // DUAL-CURRENCY CHECKOUT (existing-data path): this account is EXPLICITLY tagged ["CDF"]
+  // (as accounts saved before the dual-currency default are), but in DRC the same number
+  // receives USD too. A USD order must still show the account's OWN number on the hosted
+  // checkout — never fall back to the profile msisdn.
+  const usdInt = await j('POST', '/v1/intents', { amount: 1109, currency: 'USD', operators: ['orange_cd'] }, SK);
+  const cout = await j('GET', `/checkout/${usdInt.d.intent_id}?cs=${usdInt.d.client_secret}`);
+  const opay = (cout.d.pay_to || []).find(p => p.operator === 'orange_cd');
+  ok(cout.status === 200 && opay && opay.number === '+243812345678',
+    'USD order shows a CDF-tagged DRC account’s own number (not the profile fallback)', opay && opay.number);
+
   // currency / country / door exclusions
   res = await j('GET', '/v1/merchants/me/payment-methods?currency=KES&door=API', null, SK);
   ok(reasons(res, 'orange_cd') === 'CURRENCY_UNSUPPORTED', 'currency mismatch → excluded (KES)');
