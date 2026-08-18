@@ -31,12 +31,9 @@ class NotificationForwarder : NotificationListenerService() {
             ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString().orEmpty()
         if (body.isBlank()) return
 
-        // Match an operator either by the notification title (the SMS sender, e.g. "M-PESA"
-        // when the Messages app posts the SMS) or by the posting app's package (an operator
-        // app's own "you received" notification). No match → not a payment notice → skip.
-        val op = OperatorFilter.operatorFor(ctx, title)
-            ?: OperatorFilter.operatorForPackage(sbn.packageName)
-            ?: return
+        // HARDENED: only trust the operator's own app, or the phone's REAL default SMS app
+        // (spoof-proof) — a random app posting a look-alike "M-PESA" banner is ignored.
+        val op = OperatorFilter.operatorForNotification(ctx, sbn.packageName, title) ?: return
 
         val sender = title.ifBlank { sbn.packageName }
         Outbox.enqueue(ctx, body, op, sender, sbn.postTime)     // durable BEFORE any network call

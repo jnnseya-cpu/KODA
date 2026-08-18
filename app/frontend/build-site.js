@@ -559,29 +559,29 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 <p style="font-size:13.5px;color:var(--dim);margin:0 0 14px">They differ only in <b>how the phone reads the payment</b> and <b>how easily they install</b>. You can even run one on some phones and the other on others.</p>
 <div class="grid">
   <div style="border:1px solid var(--gold);border-radius:12px;padding:18px;display:flex;flex-direction:column">
-    <span class="badge" style="align-self:flex-start;margin:0 0 8px">Recommended for most</span>
+    <span class="badge" style="align-self:flex-start;margin:0 0 8px">Recommended · most secure</span>
+    <h3 style="margin:0 0 8px">✉ SMS build</h3>
+    <ul style="margin:0 0 14px 18px">
+      <li><b>Most reliable &amp; hardest to fake</b> — reads the real operator SMS, telephony-gated, with full balance-chain fraud protection.</li>
+      <li>Recovers payments missed during a reboot; works even if notifications are off.</li>
+      <li><b>Needs the Play Protect step</b> below (one minute, once).</li>
+      <li>Use for all real merchants and high-value tills.</li>
+    </ul>
+    <a class="btn btn-gold" style="margin-top:auto" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk">⬇ Download SMS build</a>
+  </div>
+  <div style="border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column">
+    <span class="badge" style="align-self:flex-start;margin:0 0 8px;background:rgba(155,167,155,.14);color:var(--dim)">Easy install · fallback</span>
     <h3 style="margin:0 0 8px">🔔 Notification build</h3>
     <ul style="margin:0 0 14px 18px">
       <li><b>Installs easily</b> — no SMS permission, so Play Protect rarely blocks it.</li>
-      <li>Reads the operator <b>payment notification</b>.</li>
-      <li>The same build is going on the <b>Google Play Store</b> (automatic updates) — coming soon.</li>
-      <li>Just keep operator payment notifications turned on.</li>
+      <li>Reads the operator <b>payment notification</b> (hardened: only the phone’s real SMS app / operator apps are trusted).</li>
+      <li>Going to the <b>Google Play Store</b> (auto-updates) — coming soon.</li>
+      <li>Use when the SMS build won’t install, or for quick pilots. Keep operator notifications on.</li>
     </ul>
-    <a class="btn btn-gold" style="margin-top:auto" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel-notify.apk">⬇ Download notification build</a>
-  </div>
-  <div style="border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column">
-    <span class="badge" style="align-self:flex-start;margin:0 0 8px;background:rgba(155,167,155,.14);color:var(--dim)">Max reliability</span>
-    <h3 style="margin:0 0 8px">✉ SMS build</h3>
-    <ul style="margin:0 0 14px 18px">
-      <li><b>Most reliable</b> — reads the SMS directly and recovers payments missed during a reboot.</li>
-      <li>Works even if notifications are switched off.</li>
-      <li><b>Harder to install</b> — needs the Play Protect step below.</li>
-      <li>Best for high-value tills and power users.</li>
-    </ul>
-    <a class="btn btn-ghost" style="margin-top:auto" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk">⬇ Download SMS build</a>
+    <a class="btn btn-ghost" style="margin-top:auto" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel-notify.apk">⬇ Download notification build</a>
   </div>
 </div>
-<p style="font-size:12.5px;color:var(--dim);margin-top:12px">Not sure? Start with the <b>Notification build</b> — it's the easiest to install. The steps below work for either file.</p></div>
+<p style="font-size:12.5px;color:var(--dim);margin-top:12px">Recommendation: install the <b>SMS build</b> — it’s the most secure and reliable. Only fall back to the notification build if the SMS build won’t install on a given phone. The steps below work for either file.</p></div>
 <div class="card"><h3>Install &amp; pair (about 3 minutes)</h3>
 <p style="font-size:13.5px;color:var(--dim);margin:0 0 12px">You'll need the Android phone that holds the SIM you receive money on (Android 8.0 / 2017 or newer), and you must be signed in to your KODA account. These steps work for <b>either</b> build above.</p>
 <ol style="margin-top:8px;line-height:1.7">
@@ -643,10 +643,10 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 </ol></div>
 
 <div class="card"><h3>Étape 2 · Télécharger l'application Sentinel</h3>
-<p style="font-size:13px;color:var(--dim);margin:0 0 10px">Deux versions existent. La <b>version notification</b> (bouton or) s'installe le plus facilement ; la <b>version SMS</b> (bouton clair) est la plus fiable mais demande l'étape Play Protect.</p>
+<p style="font-size:13px;color:var(--dim);margin:0 0 10px">Deux versions existent. Recommandée : la <b>version SMS</b> (bouton or) — la plus fiable et la plus sûre ; elle demande l'étape Play Protect. La <b>version notification</b> (bouton clair) est un secours plus facile à installer, à utiliser seulement si la version SMS ne s'installe pas.</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap">
-<a class="btn btn-gold" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel-notify.apk">⬇ Version notification (facile)</a>
-<a class="btn btn-ghost" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk">⬇ Version SMS (fiable)</a>
+<a class="btn btn-gold" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk">⬇ Version SMS (recommandée)</a>
+<a class="btn btn-ghost" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel-notify.apk">⬇ Version notification (secours)</a>
 </div>
 <ol style="margin-top:12px">
 <li>Ouvrez le fichier téléchargé.</li>

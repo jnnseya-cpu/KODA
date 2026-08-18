@@ -58,16 +58,40 @@ object OperatorFilter {
         "com.africell.afrimoney" to "africell_cd",
         "com.mtn.momo" to "mtn_momo", "com.wave.personal" to "wave"
     )
-    // Default SMS apps that post operator SMS as notifications — resolved by TITLE (sender).
+    // Known default SMS apps (fallback allowlist across common OEMs). The primary check
+    // is the phone's ACTUAL default SMS package (below) — this list only backstops it.
     private val MESSAGING = setOf(
         "com.google.android.apps.messaging", "com.samsung.android.messaging",
-        "com.android.messaging", "com.android.mms"
+        "com.android.messaging", "com.android.mms",
+        "com.transsion.sms", "com.transsion.smartpanel", "com.hmdglobal.app.messaging",
+        "com.miui.smsextra", "com.oppo.messages", "com.vivo.messages", "com.tct.messages"
     )
 
     /** Operator id if the posting app is a known operator app; null otherwise. */
     fun operatorForPackage(pkg: String?): String? {
         val p = (pkg ?: "").lowercase()
-        if (p.isEmpty() || p in MESSAGING) return null   // messaging apps resolve by title, not package
+        if (p.isEmpty()) return null
         return PACKAGES[p]
+    }
+
+    /**
+     * HARDENED notification resolver (Play build). A payment notification is only trusted if:
+     *   (a) it comes from a known operator's OWN app (package match), OR
+     *   (b) it comes from the phone's REAL default SMS app — resolved live via
+     *       Telephony.Sms.getDefaultSmsPackage (spoof-proof and OEM-agnostic; needs no SMS
+     *       permission), with the MESSAGING set as a backstop — and its title resolves to an
+     *       operator sender.
+     * Any other app posting a look-alike "M-PESA" banner is IGNORED — an attacker can spoof a
+     * notification title but not the package identity of the system SMS app.
+     */
+    fun operatorForNotification(ctx: Context, pkg: String?, title: String?): String? {
+        val p = (pkg ?: "").lowercase()
+        if (p.isEmpty()) return null
+        PACKAGES[p]?.let { return it }                                  // (a) operator's own app
+        val defaultSms = try {
+            android.provider.Telephony.Sms.getDefaultSmsPackage(ctx)?.lowercase()
+        } catch (e: Exception) { null }
+        if (p == defaultSms || p in MESSAGING) return operatorFor(ctx, title)   // (b) real SMS app only
+        return null                                                     // spoofed / unknown source → ignore
     }
 }
