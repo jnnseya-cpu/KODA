@@ -221,8 +221,17 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   reference = String(reference || '').trim().toUpperCase();
   const trace = { steps: [], template_version: VERSION.trace_template, model_version: VERSION.fraud_model };
 
-  // magic sandbox references
-  if (/^TEST-/.test(reference)) return sandboxVerify(merchant, intent, reference, { mode, userId, trace });
+  // magic sandbox references (TEST-OK-*, TEST-REPLAY, TEST-SUFFIX) — a verification
+  // convenience that must NEVER fire on a live customer order. A customer holding only
+  // an intent's client_secret could otherwise type "TEST-OK-25000" at a real checkout and
+  // get a verified receipt for nothing. Honour them ONLY in a sandbox context:
+  //   · the intent was created by a koda_test key (intent.livemode === 0), or
+  //   · KODA_ALLOW_SANDBOX_REFS is set (dev / CI — never in production).
+  // Otherwise a TEST- reference falls through and is treated as an ordinary (unknown) code.
+  if (/^TEST-/.test(reference)) {
+    const sandboxOk = (intent && Number(intent.livemode) === 0) || process.env.KODA_ALLOW_SANDBOX_REFS === '1';
+    if (sandboxOk) return sandboxVerify(merchant, intent, reference, { mode, userId, trace });
+  }
 
   // 1. replay index
   const used = q.get('SELECT * FROM replay_index WHERE merchant_id=? AND reference=? AND receipt_id IS NOT NULL',

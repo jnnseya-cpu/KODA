@@ -290,6 +290,10 @@ try { db.exec(`ALTER TABLE api_keys ADD COLUMN scopes TEXT NOT NULL DEFAULT '["*
 try { db.exec(`ALTER TABLE intents ADD COLUMN client_secret TEXT`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE intents ADD COLUMN success_url TEXT`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE intents ADD COLUMN cancel_url TEXT`); } catch { /* exists */ }
+// livemode: 1 = created by a live key (or the dashboard); 0 = created by a koda_test key.
+// Sandbox magic references (TEST-*) are honoured ONLY on livemode=0 intents (or when the
+// KODA_ALLOW_SANDBOX_REFS env flag is set for dev/CI) — never on a live customer order.
+try { db.exec(`ALTER TABLE intents ADD COLUMN livemode INTEGER NOT NULL DEFAULT 1`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE devices ADD COLUMN device_token TEXT`); } catch { /* exists */ }
 // how this Sentinel captures the operator message: 'sms' (side-load build reads the SMS)
 // or 'notification' (Play build reads the payment notification). Reported by the heartbeat.

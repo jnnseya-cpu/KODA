@@ -20,7 +20,7 @@ const j = (p, opts = {}, tok) => fetch(B + p, {
 async function main() {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'koda-test-'));
   const srv = spawn(process.execPath, ['--no-warnings', path.join(__dirname, '..', 'server.js')], {
-    env: { ...process.env, PORT, KODA_DATA_DIR: dataDir, KODA_QUIET: '1', KODA_ALLOW_DEV_SECRET: '1' }, stdio: 'ignore', detached: false,
+    env: { ...process.env, PORT, KODA_DATA_DIR: dataDir, KODA_QUIET: '1', KODA_ALLOW_DEV_SECRET: '1', KODA_ALLOW_SANDBOX_REFS: '1' }, stdio: 'ignore', detached: false,
   });
   for (let i = 0; i < 40; i++) { // wait for boot
     try { await fetch(B + '/healthz'); break; } catch { await new Promise(r => setTimeout(r, 250)); }

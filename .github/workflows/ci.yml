@@ -17,6 +17,8 @@ jobs:
       # Every test harness that spawns its own server already sets it; the manually
       # booted server below needs it too, or /readyz never comes up and the job fails.
       KODA_ALLOW_DEV_SECRET: "1"
+      # CI-only: allow the TEST-* sandbox verification refs (never set in production).
+      KODA_ALLOW_SANDBOX_REFS: "1"
     defaults:
       run:
         working-directory: app
@@ -59,6 +61,11 @@ jobs:
 
       - name: Busy-merchant fraud regression
         run: node --no-warnings backend/tools/test-busy-merchant.js
+
+      # Self-boots its own production-like server (sandbox refs OFF) — proves TEST-* codes
+      # cannot verify a live order.
+      - name: Sandbox-reference gate (security)
+        run: node --no-warnings backend/tools/test-sandbox-gate.js
 
       - name: Stop server
         if: always()

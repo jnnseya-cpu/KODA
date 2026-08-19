@@ -5,6 +5,7 @@
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 process.env.KODA_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'koda-ref-'));
 process.env.KODA_QUIET = '1';
+process.env.KODA_ALLOW_SANDBOX_REFS = '1';  // this in-process test verifies via TEST-OK refs
 const { q } = require('../lib/db');
 require('../seed');
 const referrals = require('../lib/referrals');

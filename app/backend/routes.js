@@ -1325,7 +1325,10 @@ module.exports = function registerRoutes(r) {
   })));
   // Verification lifecycle. Exposed under BOTH /v1/intents (original) and
   // /v1/verifications (spec §36 naming) — identical handlers, so either path works.
-  const vCreate = (req, m) => createIntent(m, req.body, req.headers['idempotency-key']);
+  // livemode follows the creating key: koda_test / koda_pub_test keys create TEST-mode
+  // intents (sandbox refs allowed); every live key creates a live intent.
+  const vCreate = (req, m) => createIntent(m, req.body, req.headers['idempotency-key'],
+    /_test$/.test(req.keyPrefix || '') ? 0 : 1);
   const vList = (req, m) => q.all('SELECT * FROM intents WHERE merchant_id=? ORDER BY created_at DESC LIMIT 100', m.id);
   const vGet = (req, m) => {
     const i = q.get('SELECT * FROM intents WHERE id=? AND merchant_id=?', req.params.id, m.id);
@@ -1949,7 +1952,7 @@ module.exports = function registerRoutes(r) {
 function SITE_BASE() { return process.env.KODA_PUBLIC_URL || 'http://localhost:4600'; }
 
 // ---------- shared helpers ----------
-function createIntent(m, body, idemKey) {
+function createIntent(m, body, idemKey, livemode = 1) {
   if (m.status !== 'active') return [403, { error: { code: 'merchant_suspended' } }];
   if (m.acu_balance <= -100) return [402, { error: { code: 'insufficient_credit' } }];
   // Idempotency (spec §26): a repeat create with the same key returns the ORIGINAL
@@ -1971,11 +1974,12 @@ function createIntent(m, body, idemKey) {
     ? body.operators.filter(o => typeof o === 'string').slice(0, 12) : ['orange_cd', 'mpesa_cd'];
   if (!ops.length) return [400, { error: { code: 'invalid_operators' } }];
   const okUrl = (u) => typeof u === 'string' && /^https?:\/\//.test(u) ? u.slice(0, 500) : null;
-  q.run(`INSERT INTO intents (id,merchant_id,amount,currency,operators,customer_msisdn,metadata,purpose,client_secret,success_url,cancel_url,expires_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?, datetime('now','+' || ? || ' seconds'))`,
+  q.run(`INSERT INTO intents (id,merchant_id,amount,currency,operators,customer_msisdn,metadata,purpose,client_secret,success_url,cancel_url,livemode,expires_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?, datetime('now','+' || ? || ' seconds'))`,
     iid, m.id, amount, currency, JSON.stringify(ops),
     body.customer_msisdn || null, JSON.stringify(body.metadata || {}),
     body.purpose === 'topup' ? 'topup' : 'sale', clientSecret, okUrl(body.success_url), okUrl(body.cancel_url),
+    livemode ? 1 : 0,
     Math.min(3600, Number(body.expires_in) || 900));
   const intent = q.get('SELECT * FROM intents WHERE id=?', iid);
   // Network Intelligence: the resolver returns only the merchant's active,
