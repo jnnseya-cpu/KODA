@@ -227,19 +227,18 @@ VPS. To make pushes go live on their own, run the poll-and-deploy script from
 cron. It pulls the tracked branch, rebuilds, health-checks, and does nothing when
 there's nothing new. Your `.env` and the `koda_data` ledger volume are untouched.
 
-**One-time setup on the VPS** (as the deploy user, e.g. `koda`):
+**One-time setup on the VPS** — the canonical installer (see `DEPLOY_AUTODEPLOY.md`):
 ```bash
-chmod +x ~/KODA/deploy/vps-autodeploy.sh
-# edit the branch it tracks if needed (default is the current feature branch):
-#   KODA_DEPLOY_BRANCH=main  at the top, or export it in the cron line
-( crontab -l 2>/dev/null; echo '*/2 * * * * /home/koda/KODA/deploy/vps-autodeploy.sh' ) | crontab -
+cd /root/koda/app && git pull --ff-only origin claude/koda-unified-spec-v2-vh5xtx && bash deploy/install-autopull.sh
 ```
+It arms a systemd timer (or cron) that runs `app/deploy/autopull-check.sh` every ~2
+minutes: pulls the tracked branch, and on a change rebuilds, health-checks, re-announces
+to IndexNow and emails you. Your `.env` and the `koda_data` volume are untouched.
 
 **Watch / operate:**
 ```bash
-tail -f ~/koda-deploy.log            # see each deploy as it happens
-~/KODA/deploy/vps-autodeploy.sh      # force a deploy right now
-crontab -l                           # confirm the schedule
+tail -f ~/koda-deploy.log                    # see each deploy as it happens
+bash /root/koda/app/deploy/vps-deploy.sh     # force a deploy right now
 ```
 
 Every push to the tracked branch is now live within ~2 minutes. To point
@@ -287,13 +286,11 @@ verifies one on every gate.
 ### 3. Rollback
 Code rollback never touches data (the volume persists):
 ```bash
-KODA_REPO_DIR=/root/koda /root/koda/deploy/rollback.sh          # → previous commit
-KODA_REPO_DIR=/root/koda /root/koda/deploy/rollback.sh <sha>    # → a specific commit
+cd /root/koda/app && git checkout <previous-good-sha> && bash deploy/vps-deploy.sh   # roll back + rebuild + health-check
 ```
-It checks out the target, rebuilds, and **health-checks** the result (fails loudly
-if the rolled-back build is unhealthy). Return to latest with
-`git checkout claude/koda-unified-spec-v2-vh5xtx && docker compose up -d --build`
-(or just let the auto-deploy cron catch up).
+`vps-deploy.sh` checks out the target, rebuilds, and **health-checks** the result
+(fails loudly if the rolled-back build is unhealthy). Return to latest with
+`git checkout claude/koda-unified-spec-v2-vh5xtx` (the auto-deploy timer then catches up).
 
 ### Uptime alerting
 `deploy/healthcheck-cron.sh` (host-side, independent of the app process) probes
