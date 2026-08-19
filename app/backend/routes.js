@@ -1291,7 +1291,7 @@ module.exports = function registerRoutes(r) {
       doors: [
         { id: 1, name: 'Manual console', endpoint: 'POST /app/verify', live: true, requires: 'nothing (pure code path)', status: 'live', note: 'Screenshot path uses VisionAgent (3 ACU).' },
         { id: 3, name: 'API / drop-in', endpoint: 'POST /v1/intents', live: true, requires: 'an API key', status: 'live', note: 'koda_test keys run in sandbox on the same host.' },
-        { id: 2, name: 'WhatsApp Chat', endpoint: 'POST /webhooks/whatsapp', live: meta.configured(), requires: 'META_WA_TOKEN + META_WA_PHONE_ID (+ APP_SECRET)', status: meta.configured() ? 'live' : 'sandbox', note: meta.appSecretSet() ? 'app secret set' : 'app secret NOT set (signature check open)' },
+        { id: 2, name: 'WhatsApp Chat', endpoint: 'POST /webhooks/whatsapp', live: meta.configured(), requires: 'META_WA_TOKEN + META_WA_PHONE_ID (+ APP_SECRET)', status: meta.configured() ? 'live' : 'sandbox', note: meta.appSecretSet() ? 'app secret set' : (meta.configured() ? 'app secret NOT set — inbound door CLOSED until set' : 'app secret NOT set (sandbox: signature skipped)') },
         { id: 4, name: 'USSD', endpoint: 'POST /webhooks/ussd', live: false, requires: 'a USSD shortcode from an aggregator (Africa\'s Talking / MNO)', status: 'endpoint ready', note: 'Routes by merchant msisdn. No KODA env key — shortcode lives at the aggregator.' },
         { id: 5, name: 'Inbound SMS', endpoint: 'POST /webhooks/sms', live: !!process.env.SMS_GATEWAY_KEY, requires: 'SMS_GATEWAY_KEY + an SMS long/short-code', status: process.env.SMS_GATEWAY_KEY ? 'live' : 'endpoint ready', note: 'Replies send via gateway only when the key is set.' },
       ],
@@ -2023,7 +2023,11 @@ function auth(handler) {
  * and the intent-creation response — they must never disagree about where money goes.
  */
 function buildPayTo(merchantId, msisdn, operators, currency) {
-  const ussd = (o) => o.startsWith('orange') ? '#144#' : o.startsWith('mpesa') ? '*1122#' : o.startsWith('airtel') ? '*501#' : '*150#';
+  // Per-operator USSD dial code from the registry (correct across countries) — NOT a
+  // hardcoded DRC guess: Afrimoney DRC is *144# (not *150#), and a Kenyan/Senegalese
+  // operator must not be handed a Congolese code. null when the registry has no code.
+  const opsLib = require('../shared/operators');
+  const ussd = (o) => opsLib.DIAL[o] || null;
   const activeAll = q.all(
     `SELECT network_code, account_identifier, receive_currencies FROM merchant_network_accounts
      WHERE merchant_id=? AND submerchant_id IS NULL AND activation_status='ACTIVE' ORDER BY priority`, merchantId);
@@ -2037,7 +2041,6 @@ function buildPayTo(merchantId, msisdn, operators, currency) {
   if (active.length) {
     return active.map(a => ({ operator: a.network_code, number: a.account_identifier || msisdn || '', ussd_hint: ussd(a.network_code) }));
   }
-  const opsLib = require('../shared/operators');
   const owner = msisdn ? opsLib.operatorByMsisdn(msisdn) : null;
   return owner && operators.includes(owner)
     ? [{ operator: owner, number: msisdn, ussd_hint: ussd(owner) }]

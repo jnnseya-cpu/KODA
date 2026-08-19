@@ -128,11 +128,11 @@ function resolve(merchant, ctx = {}) {
     if (!DOOR_COL[door] || !a[DOOR_COL[door]]) { drop(a, 'DOOR_DISABLED'); continue; }
     const dev = deviceHealthy(a.device_id);
     // auto doors (API/WhatsApp) need a healthy Sentinel; MANUAL can run device-less
-    if (door !== 'MANUAL' && !dev.healthy) { drop(a, dev.linked ? 'DEVICE_OFFLINE' : 'DEVICE_OFFLINE'); continue; }
+    if (door !== 'MANUAL' && !dev.healthy) { drop(a, dev.linked ? 'DEVICE_OFFLINE' : 'NO_DEVICE'); continue; }
     available.push({
       network_code: a.network_code,
       brand: registry.familyOf(dep),
-      display_name: a.account_holder_name ? dep.name : dep.name,
+      display_name: dep.name,
       merchant_account_id: a.id,
       masked_receiving_identifier: a.masked,
       account_holder_name: a.account_holder_name || null,
@@ -152,7 +152,7 @@ function resolve(merchant, ctx = {}) {
 function catalogue(countryCode, { currency, supportStatus } = {}) {
   const nets = registry.OPERATORS
     .filter(o => o.country === countryCode && registry.tierOf(o) !== 'C')
-    .filter(o => !currency || o.currency === currency)
+    .filter(o => !currency || (o.currencies || [o.currency]).includes(currency))  // dual-currency parity (a CD operator serves CDF and USD)
     .map(o => ({
       code: o.id, display_name: o.name, network_type: 'MOBILE_MONEY',
       currency: o.currency, tier: registry.tierOf(o), family: registry.familyOf(o),

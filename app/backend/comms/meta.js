@@ -14,11 +14,13 @@ const configured = () => !!(TOKEN() && PHONE_ID());
 const appSecretSet = () => !!APP_SECRET();
 
 // Verify Meta's X-Hub-Signature-256 (HMAC-SHA256 of the RAW body with the app
-// secret). If META_APP_SECRET is unset we skip (dev/sandbox) so the door still
-// works locally; in production, set it and every unsigned/forged call is 401.
+// secret). If META_APP_SECRET is unset we skip ONLY when the door is not actually
+// live (no TOKEN/PHONE_ID) — a dev/sandbox convenience. When WhatsApp IS configured
+// but the secret is missing we FAIL CLOSED: an inbound-payment door must never accept
+// an unverifiable (potentially forged) call in production.
 function verifySignature(rawBody, signatureHeader) {
   const secret = APP_SECRET();
-  if (!secret) return { ok: true, skipped: true };
+  if (!secret) return configured() ? { ok: false, reason: 'app_secret_required' } : { ok: true, skipped: true };
   const sig = String(signatureHeader || '');
   if (!sig.startsWith('sha256=')) return { ok: false };
   const expected = 'sha256=' + crypto.createHmac('sha256', secret)
