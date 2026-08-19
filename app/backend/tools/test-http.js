@@ -7,7 +7,7 @@ const path = require('node:path'); const fs = require('node:fs'); const os = req
 
 const PORT = 4771;
 const BASE = `http://localhost:${PORT}`;
-const SUITES = ['adversarial', 'test-checkout', 'test-doors', 'test-ai-gating', 'test-growth', 'test-busy-merchant'];
+const SUITES = ['test-adversarial', 'test-checkout', 'test-doors', 'test-ai-gating', 'test-growth', 'test-busy-merchant'];
 
 (async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'koda-http-'));

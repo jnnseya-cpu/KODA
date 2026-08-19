@@ -18,7 +18,7 @@
     "restore": "node --no-warnings backend/tools/restore.js",
     "test:backup": "node --no-warnings backend/tools/test-backup.js",
     "margin": "node --no-warnings backend/tools/margin.js",
-    "test:security": "node --no-warnings backend/tools/adversarial.js",
+    "test:security": "node --no-warnings backend/tools/test-adversarial.js",
     "test:networks": "node --no-warnings backend/tools/test-networks.js",
     "test:billing": "node --no-warnings backend/tools/test-billing.js",
     "test:comms": "node --no-warnings backend/tools/test-comms.js",

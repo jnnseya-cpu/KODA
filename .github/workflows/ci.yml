@@ -19,6 +19,9 @@ jobs:
       KODA_ALLOW_DEV_SECRET: "1"
       # CI-only: allow the TEST-* sandbox verification refs (never set in production).
       KODA_ALLOW_SANDBOX_REFS: "1"
+      # Mock operator-API adapter so the dual-confirm (crosscheck) path is exercised
+      # (mirrors launch-audit.sh). Only activates when a crosscheck is invoked.
+      KODA_OPAPI_ORANGE_CD: "mock://confirm"
     defaults:
       run:
         working-directory: app
@@ -66,6 +69,30 @@ jobs:
       # cannot verify a live order.
       - name: Sandbox-reference gate (security)
         run: node --no-warnings backend/tools/test-sandbox-gate.js
+
+      # Money-path & DR suites — previously ran ONLY in the local launch-audit, so a fresh
+      # push had far thinner financial coverage than the audit implied. These are
+      # in-process / self-booting (no shared server needed).
+      - name: Money-path & DR suites
+        run: |
+          node --no-warnings backend/tools/test-agents.js
+          node --no-warnings backend/tools/test-backup-restore.js
+          node --no-warnings backend/tools/test-backup.js
+          node --no-warnings backend/tools/test-billing-webhook.js
+          node --no-warnings backend/tools/test-billing.js
+          node --no-warnings backend/tools/test-rails.js
+          node --no-warnings backend/tools/test-comms.js
+          node --no-warnings backend/tools/test-networks.js
+
+      # Functional / doors / add-ons / human-gate — drive the shared server booted above.
+      - name: Functional & security suites
+        env:
+          KODA_BASE: http://localhost:4600
+        run: |
+          node --no-warnings backend/tools/test-doors.js
+          node --no-warnings backend/tools/test-full-os.js
+          node --no-warnings backend/tools/test-addons.js
+          node --no-warnings backend/tools/test-security.js
 
       - name: Stop server
         if: always()
