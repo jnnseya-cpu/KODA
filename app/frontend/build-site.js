@@ -876,7 +876,7 @@ function kodaContactSubmit(e){
 <table>
 <tr><th>Policy</th><th>Covers</th><th></th></tr>
 <tr><td>Terms of Service</td><td>The service contract, billing, SLA, acceptable use</td><td><a href="/terms">Read →</a></td></tr>
-<tr><td>Privacy Policy</td><td>Payment-SMS-only capture, masking, residency, your rights</td><td><a href="/privacy">Read →</a></td></tr>
+<tr><td>Privacy Policy</td><td>Operator-payment capture (SMS or notification), masking, residency, your rights</td><td><a href="/privacy">Read →</a></td></tr>
 <tr><td>Growth Partner Terms</td><td>Referral ladder, Verified Net Revenue, anti-fraud, payouts</td><td><a href="/growth">Read →</a></td></tr>
 <tr><td>SLA (Commerce+)</td><td>99.9% API availability · p95 &lt; 5 s KODA-side · credited if missed</td><td><a href="/terms">Read →</a></td></tr>
 <tr><td>Data Processing Addendum</td><td>Controller/processor roles, sub-processors, residency</td><td><a href="/contact">Request →</a></td></tr>
