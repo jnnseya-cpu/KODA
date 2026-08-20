@@ -850,10 +850,15 @@ function kodaContactSubmit(e){
 
   'privacy': page({
     title: 'Privacy Policy', kicker: 'Legal',
-    lead: 'Payment-SMS-only capture, enforced in code. Masked numbers everywhere except the fraud pipeline. Your data is your leverage, not our product.',
+    lead: 'Operator-payment capture only — SMS or notification, scoped in code to known mobile-money operators. Masked numbers everywhere except the fraud pipeline. Your data is your leverage, not our product.',
     body: `
 <h2>What we collect</h2><ul>
-<li><b>Payment confirmation SMS only</b> — Sentinel's receiver is scoped to operator sender IDs; non-payment SMS are never read or transmitted, enforced at code level.</li>
+<li><b>Operator payment confirmations only.</b> The Sentinel app captures a mobile-money payment confirmation the merchant themselves receives, in one of two ways depending on the build:
+  <ul>
+  <li><b>SMS build</b> (side-loaded): the receiver is scoped to operator sender IDs; non-payment SMS are never read or transmitted, enforced at code level.</li>
+  <li><b>Notification build</b> (Google Play): a NotificationListenerService reads <b>only</b> notifications that resolve to a known mobile-money operator — verified against the operator's own app package or the phone's real default SMS app. Every other notification is ignored and never read, stored, or transmitted. The app requests Notification access only after a prominent in-app disclosure, and holds no SMS permission at all.</li>
+  </ul>
+  From either build, only the fields needed to verify the payment (reference, amount, operator, timestamp) are extracted and sent, encrypted in transit, to the merchant's paired KODA account.</li>
 <li>Account data: business name, contact details, mobile money number (KYB-light).</li>
 <li>Usage & device telemetry: parse health, heartbeats, attestation results.</li></ul>
 <h2>How we use it</h2><ul>
