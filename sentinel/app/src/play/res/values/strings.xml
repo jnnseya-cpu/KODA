@@ -1,0 +1,7 @@
+<resources>
+    <!-- Play (notification-listener) build: this flavor reads the operator payment
+         NOTIFICATION, not SMS. Override the SMS-worded shared strings accordingly. -->
+    <string name="tagline">Reads your mobile-money payment alerts and sends them to KODA for verification.</string>
+    <string name="recent">Recent payment alerts</string>
+    <string name="no_sms">No payment alerts captured yet.</string>
+</resources>
