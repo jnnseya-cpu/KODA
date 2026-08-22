@@ -7,9 +7,11 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledThreadPoolExecutor
@@ -27,16 +29,43 @@ class ForwardService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        startForeground(NOTIF_ID, buildNotification(statusLine()))
+        // Android 12+ can refuse a foreground-service start from the background
+        // (ForegroundServiceStartNotAllowedException); Android 14+ also requires the
+        // declared service type. Because we are START_STICKY, the OS may relaunch us
+        // in the background, so this MUST NOT throw — otherwise the app crash-loops.
+        // If the foreground start is refused, the durable outbox + WorkManager cover it.
+        val foregrounded = try {
+            val notif = buildNotification(statusLine())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ServiceCompat.startForeground(
+                    this, NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                startForeground(NOTIF_ID, notif)
+            }
+            true
+        } catch (e: Throwable) {
+            runCatching { Prefs.appendLog(this, "FGS start refused: ${e.javaClass.simpleName}") }
+            DrainWorker.schedule(this)
+            HeartbeatWorker.schedule(this)
+            false
+        }
+        if (!foregrounded) { stopSelf(); return }
+
         beat = ScheduledThreadPoolExecutor(1)
         // primary heartbeat: keeps the device HEALTHY for the payment-method resolver
         beat.scheduleWithFixedDelay({ heartbeat() }, 5, HEARTBEAT_MIN, TimeUnit.MINUTES)
         // schedule the periodic WorkManager backstop once
         HeartbeatWorker.schedule(this)
         io.execute {
-            DeviceConfig.refresh(this)     // pull merchant + global sender allowlist
-            Backfill.run(this)             // recover SMS missed while we were down
-            drain()
+            try {
+                DeviceConfig.refresh(this)     // pull merchant + global sender allowlist
+                Backfill.run(this)             // recover SMS missed while we were down
+                drain()
+            } catch (e: Throwable) {
+                runCatching { Prefs.appendLog(this, "startup task failed: ${e.javaClass.simpleName}") }
+                DrainWorker.schedule(this)
+            }
         }
     }
 
@@ -53,9 +82,15 @@ class ForwardService : Service() {
 
     /** Send the outbox; if anything remains, hand off to WorkManager's backoff. */
     private fun drain() {
-        val fullyDrained = Outbox.drain(this)
-        updateNotification()
-        if (!fullyDrained) DrainWorker.schedule(this)
+        try {
+            val fullyDrained = Outbox.drain(this)
+            updateNotification()
+            if (!fullyDrained) DrainWorker.schedule(this)
+        } catch (e: Throwable) {
+            // never let a drain failure crash the (background) service thread
+            runCatching { Prefs.appendLog(this, "drain failed: ${e.javaClass.simpleName}") }
+            DrainWorker.schedule(this)
+        }
     }
 
     private fun heartbeat() {
