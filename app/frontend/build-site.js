@@ -66,6 +66,7 @@ document.addEventListener('click', function(e){
   else if(/\\.apk|releases\\/download|koda-sentinel/.test(href)){ ev='koda_sentinel_download'; fb='SentinelDownload'; custom=true; }
   else if(/\\/pricing/.test(href)){ ev='koda_view_pricing'; fb='ViewPricing'; custom=true; }
   else if(/\\/demo/.test(href)){ ev='koda_try_demo'; fb='TryDemo'; custom=true; }
+  else if(/\\/developers|\\/api-reference/.test(href)){ ev='koda_view_developers'; fb='ViewDevelopers'; custom=true; }
   else if(/\\/contact/.test(href)){ ev='koda_contact'; fb='Contact'; fbd={method:'contact_page'}; }
   if(!ev) return;
   try{ if(typeof fbq==='function'){ custom ? fbq('trackCustom',fb) : fbq('track',fb,fbd); } }catch(_){}
@@ -77,6 +78,21 @@ document.addEventListener('submit', function(e){
   try{ if(typeof fbq==='function') fbq('track','Lead',{content_name:'contact_form'}); }catch(_){}
   try{ window.dataLayer.push({event:'koda_contact_form'}); }catch(_){}
 });
+(function(){
+  var marks=[25,50,75,100], hit={};
+  function onScroll(){
+    var h=document.documentElement, b=document.body;
+    var st=(h.scrollTop||b.scrollTop||0), sh=(h.scrollHeight||b.scrollHeight)-h.clientHeight;
+    if(sh<=0) return; var pct=Math.round(st/sh*100);
+    for(var i=0;i<marks.length;i++){ var m=marks[i];
+      if(pct>=m && !hit[m]){ hit[m]=1;
+        try{ if(typeof fbq==='function') fbq('trackCustom','ScrollDepth',{percent:m}); }catch(_){}
+        try{ window.dataLayer.push({event:'koda_scroll_depth', percent:m}); }catch(_){}
+      }
+    }
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+})();
 </script>
 <!-- End KODA events -->`;
 
