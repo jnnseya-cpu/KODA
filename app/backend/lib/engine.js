@@ -9,6 +9,18 @@ const { parseSms } = require('../../shared/parser');
 const { toMinor } = require('../../shared/currency');
 const webhooks = require('./webhooks');
 const notify = require('../comms/notify');
+const analytics = require('./analytics');   // server-side conversion forwarding (env-gated)
+
+// Fire the "first payment verified" conversion exactly once per merchant — only when
+// analytics is configured, so the extra COUNT never touches the hot path otherwise.
+function maybeFirstVerified(merchantId) {
+  if (!analytics.enabled()) return;
+  try {
+    if (q.get('SELECT COUNT(*) c FROM receipts WHERE merchant_id=?', merchantId).c === 1) {
+      analytics.firstPaymentVerified(merchantId);
+    }
+  } catch (_) { /* never disturb verification */ }
+}
 
 const { ACU, TOPUP_PACKS, PLANS } = require('../../shared/plans');
 
@@ -327,6 +339,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   if (acuCost > 0) chargeAcu(merchant, acuCost, viaScreenshot ? 'vision' : 'verification', rcp);
 
   recordNetwork(sms, 'verified'); // ADD-ON B: contribute the hashed payer to the network
+  maybeFirstVerified(merchant.id);
   const event = late ? 'payment.verified.late' : 'payment.verified';
   const payload = {
     intent_id: intent?.id || null, receipt_id: rcp, amount: sms.amount, currency: sms.currency,
@@ -391,6 +404,7 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
   if (acuCost > 0) chargeAcu(merchant, acuCost, 'verification', rcp);
 
   recordNetwork(sms, 'verified'); // ADD-ON B
+  maybeFirstVerified(merchant.id);
   const payload = { intent_id: null, receipt_id: rcp, amount: sms.amount, currency: sms.currency,
     operator: sms.operator, reference: sms.ref_code, payer_name_masked: masked,
     matched_msisdn_suffix: sms.counterparty_suffix ? `***${sms.counterparty_suffix}` : null,

@@ -51,6 +51,7 @@ module.exports = function registerRoutes(r) {
     notify.fire('account.registration.requested', { user, merchant });
     notify.fire('cs.onboarding_started', { user, merchant });
     audit(mid, uid, 'signup', { business });
+    analytics.merchantSignup(mid);   // server-side conversion (env-gated; no PII)
     return { token: U.signJwt({ uid, mid }), user: safeUser(user), merchant };
   });
 

@@ -185,6 +185,41 @@ work once you add a receiving number in the console, and the Stripe card rail sh
 
 ---
 
+## Step 10 — Analytics (optional): Meta Pixel + Google Tag + server-side conversions
+
+The **public marketing site already ships** the Meta Pixel (`1598261432033956`) and Google Tag
+Manager (`GTM-PBF8PKBC`) — no setup needed; they load on the marketing pages only, never on the
+hosted checkout, the embeddable widget, the signed-in app, or the API (payment/customer data
+never reaches an ad network).
+
+The **in-app business conversions are forwarded server-side** (no browser trackers in the app),
+sending only the event name + a one-way hashed pseudonymous merchant id — no customer, payment,
+or merchant PII. This half is **off until you add the credentials below** to `nano .env`, then
+redeploy. Set Meta only, Google only, or both — each activates independently.
+
+```
+# Meta Conversions API — Events Manager → your Pixel → Settings → Conversions API → Generate access token
+META_CAPI_TOKEN=PASTE_META_SYSTEM_USER_TOKEN
+# META_PIXEL_ID defaults to 1598261432033956; only set to override
+# META_CAPI_TEST_CODE=TEST12345         # optional: Events Manager → Test Events, remove once verified
+
+# GA4 Measurement Protocol — needs a GA4 property (separate from GTM):
+#   Admin → Data Streams → your web stream → Measurement ID (G-…) and → Measurement Protocol API secrets → Create
+GA4_MEASUREMENT_ID=G-XXXXXXXXXX
+GA4_API_SECRET=PASTE_GA4_API_SECRET
+```
+
+Server-side conversions fired (each: Meta event / GA4 event):
+- merchant signup → `CompleteRegistration` / `koda_merchant_signup`
+- device enrolled → `EnrollDevice` / `koda_enroll_device`
+- API key created → `CreateApiKey` / `koda_api_key_created`
+- first payment verified (once per merchant) → `FirstPaymentVerified` / `koda_first_payment_verified`
+
+Verify after setting: Meta **Events Manager → Test Events** (with `META_CAPI_TEST_CODE`), or GA4
+**Admin → DebugView**. With none of these vars set, the forwarder is a silent no-op.
+
+---
+
 ## Updating later
 ```bash
 cd /root/koda/app && git pull && docker compose up -d --build

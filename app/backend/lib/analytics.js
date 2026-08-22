@@ -76,6 +76,8 @@ module.exports = {
   enabled,
   track,
   // named business conversions
-  deviceEnrolled: (merchantId) => track(merchantId, { meta: 'EnrollDevice', ga4: 'koda_enroll_device' }),
-  apiKeyCreated:  (merchantId) => track(merchantId, { meta: 'CreateApiKey', ga4: 'koda_api_key_created' }),
+  merchantSignup:       (merchantId) => track(merchantId, { meta: 'CompleteRegistration', ga4: 'koda_merchant_signup' }),
+  deviceEnrolled:       (merchantId) => track(merchantId, { meta: 'EnrollDevice',         ga4: 'koda_enroll_device' }),
+  apiKeyCreated:        (merchantId) => track(merchantId, { meta: 'CreateApiKey',          ga4: 'koda_api_key_created' }),
+  firstPaymentVerified: (merchantId) => track(merchantId, { meta: 'FirstPaymentVerified',  ga4: 'koda_first_payment_verified' }),
 };
