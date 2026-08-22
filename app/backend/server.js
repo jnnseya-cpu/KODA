@@ -83,9 +83,22 @@ const server = http.createServer(async (req, res) => {
     // merchant's cross-origin page, so those get frame-ancestors * (a payment widget
     // is meant to be embedded — its security is the intent client_secret, not framing).
     const embeddable = url.pathname === '/pay' || url.pathname.startsWith('/pay/') || url.pathname === '/js/koda.js';
-    const cspBase = "default-src 'self'; base-uri 'self'; object-src 'none'; img-src 'self' data:; "
+    // Analytics (Meta Pixel + Google tag) run ONLY on the public marketing site — never
+    // on the hosted checkout, the embeddable widget, the signed-in app, or the API — so ad
+    // networks never see payment or merchant data. Allow their hosts only on those pages.
+    const pth = url.pathname;
+    const marketing = !embeddable
+      && !pth.startsWith('/app')
+      && !pth.startsWith('/v1')
+      && !pth.startsWith('/api')
+      && !pth.startsWith('/webhooks')
+      && !pth.startsWith('/healthz');
+    const aScript = marketing ? ' https://connect.facebook.net https://www.googletagmanager.com' : '';
+    const aImg = marketing ? ' https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com' : '';
+    const aConnect = marketing ? ' https://www.facebook.com https://connect.facebook.net https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com' : '';
+    const cspBase = "default-src 'self'; base-uri 'self'; object-src 'none'; img-src 'self' data:" + aImg + "; "
       + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
-      + "script-src 'self' 'unsafe-inline'; connect-src 'self'";
+      + "script-src 'self' 'unsafe-inline'" + aScript + "; connect-src 'self'" + aConnect;
     res.writeHead(code, {
       'content-type': 'application/json; charset=utf-8',
       'access-control-allow-origin': '*',

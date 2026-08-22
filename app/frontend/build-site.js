@@ -20,6 +20,66 @@ for (const js of ['app.js', 'sw.js']) {
 const OUT = path.join(__dirname, 'site');
 fs.mkdirSync(OUT, { recursive: true });
 
+// ---- Analytics: Meta Pixel + conversion events ----
+// Injected into the PUBLIC MARKETING PAGES ONLY (never the hosted checkout /pay,
+// the embeddable widget, or the signed-in app — see the CSP gate in server.js), so
+// ad networks never see payment or merchant data. PageView fires on every page;
+// a small delegated listener maps key CTA clicks/forms to standard Pixel events.
+const META_PIXEL_ID = '1598261432033956';
+const GTM_ID = 'GTM-PBF8PKBC';
+const ANALYTICS = `
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','${GTM_ID}');</script>
+<!-- End Google Tag Manager -->
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '${META_PIXEL_ID}');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1"
+/></noscript>
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${GTM_ID}"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Meta Pixel Code -->
+<!-- KODA conversion events → Meta Pixel + GTM dataLayer -->
+<script>
+window.dataLayer = window.dataLayer || [];
+document.addEventListener('click', function(e){
+  var a = e.target.closest && e.target.closest('a, button'); if(!a) return;
+  var href=(a.getAttribute('href')||'').toLowerCase(), txt=(a.textContent||'').toLowerCase();
+  var ev=null, fb=null, fbd=null, custom=false;
+  if(/get.?started|sign.?up|create.*account|commencer|s'inscrire/.test(txt) || /\\/get-started|\\/app#?(signup|register)/.test(href)){ ev='koda_get_started'; fb='Lead'; fbd={content_name:'get_started'}; }
+  else if(href.indexOf('wa.me')>-1 || href.indexOf('whatsapp')>-1){ ev='koda_whatsapp'; fb='Contact'; fbd={method:'whatsapp'}; }
+  else if(/\\.apk|releases\\/download|koda-sentinel/.test(href)){ ev='koda_sentinel_download'; fb='SentinelDownload'; custom=true; }
+  else if(/\\/pricing/.test(href)){ ev='koda_view_pricing'; fb='ViewPricing'; custom=true; }
+  else if(/\\/demo/.test(href)){ ev='koda_try_demo'; fb='TryDemo'; custom=true; }
+  else if(/\\/contact/.test(href)){ ev='koda_contact'; fb='Contact'; fbd={method:'contact_page'}; }
+  if(!ev) return;
+  try{ if(typeof fbq==='function'){ custom ? fbq('trackCustom',fb) : fbq('track',fb,fbd); } }catch(_){}
+  try{ window.dataLayer.push(Object.assign({event:ev}, fbd||{})); }catch(_){}
+});
+document.addEventListener('submit', function(e){
+  var f=e.target, act=((f&&f.getAttribute&&f.getAttribute('action'))||location.pathname||'').toLowerCase();
+  if(!/contact/.test(act)) return;
+  try{ if(typeof fbq==='function') fbq('track','Lead',{content_name:'contact_form'}); }catch(_){}
+  try{ window.dataLayer.push({event:'koda_contact_form'}); }catch(_){}
+});
+</script>
+<!-- End KODA events -->`;
+
 // Package the WooCommerce plugin into a downloadable ZIP served at
 // https://kodajnn.com/koda-woocommerce.zip (regenerated from source each build,
 // so it can never drift from the plugin code).
@@ -108,7 +168,7 @@ html{scroll-behavior:smooth}
   // not a redirecting variant (www→apex / http→https), which shows up as "Page with redirect".
   const homeHead = (/rel=["']canonical/i.test(landing) ? '' :
     `<link rel="canonical" href="https://kodajnn.com/">\n<meta property="og:url" content="https://kodajnn.com/">\n`) + homeLd;
-  if (landing.includes('</head>')) landing = landing.replace('</head>', homeHead + '\n</head>');
+  if (landing.includes('</head>')) landing = landing.replace('</head>', homeHead + ANALYTICS + '\n</head>');
   fs.writeFileSync(path.join(OUT, 'index.html'), landing);
 }
 
@@ -128,7 +188,7 @@ function footerLinks() {
 function page({ title, kicker, lead, body }) {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} — KODA</title>
+<title>${title} — KODA</title>${ANALYTICS}
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -944,7 +1004,8 @@ try {
       .replace(/module\.exports\s*=\s*\{[^}]*\};?/,
         'window.KODA_PARSER = { parseSms, genericParse, OPERATORS, PACKS };');
     const parserBundle = '(function(){\n' + parserSrc + '\n})();';
-    const demo = fs.readFileSync(demoSrcPath, 'utf8').replace('/*__KODA_PARSER__*/', parserBundle);
+    let demo = fs.readFileSync(demoSrcPath, 'utf8').replace('/*__KODA_PARSER__*/', parserBundle);
+    if (demo.includes('</head>')) demo = demo.replace('</head>', ANALYTICS + '\n</head>');
     fs.writeFileSync(path.join(OUT, 'demo.html'), demo);
   }
 } catch (e) { console.error('demo page build skipped:', e.message); }
