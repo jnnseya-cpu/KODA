@@ -16,6 +16,7 @@ const crosscheck = require('./lib/crosscheck');     // ADD-ON A: operator-API du
 const security = require('./lib/security');         // SecurityAgent: human gate + anti-abuse
 const billing = require('./lib/billing');
 const vouchers = require('./lib/vouchers');
+const analytics = require('./lib/analytics');       // server-side conversion forwarding (Meta CAPI + GA4 MP), env-gated
 
 // role gate: owners always pass, KODA staff always pass
 function needRole(user, roles) { return user.is_admin || user.role === 'owner' || roles.includes(user.role); }
@@ -291,6 +292,7 @@ module.exports = function registerRoutes(r) {
       did, m.id, req.body.label || 'Merchant phone', req.body.operator || 'orange_cd', req.body.sim || null, code, deviceToken);
     notify.fireMerchant('sentinel.enrolled', m, { item: req.body.label || 'Merchant phone' });
     audit(m.id, user.id, 'device_enrolled', { did });
+    analytics.deviceEnrolled(m.id);   // server-side conversion (env-gated; no PII)
     // device_token is shown ONCE (like an API key) — the app stores it in the Android keystore
     return { device_id: did, enrol_code: code, device_token: deviceToken, qr: `koda://enroll/${code}?t=${deviceToken}` };
   }));
@@ -416,6 +418,7 @@ module.exports = function registerRoutes(r) {
       U.id('key'), m.id, prefix, U.sha256(secret), secret.slice(-4), req.body.label || null, JSON.stringify(scopes));
     notify.fire('apikey.created', { user, merchant: m });
     audit(m.id, user.id, 'key_created', { prefix });
+    analytics.apiKeyCreated(m.id);   // server-side conversion (env-gated; no PII)
     return { secret, note: 'The secret is shown once. Store it now.' };
   }));
   r.post('/app/keys/:id/revoke', auth((req, user, m) => {
