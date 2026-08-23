@@ -1853,6 +1853,27 @@ module.exports = function registerRoutes(r) {
     posts: seo.allPosts().map(p => ({ slug: p.slug, title: p.title, keyword: p.keyword,
       url: `${seo.SITE}/blog/${p.slug}`, tags: p.tags, internal_links: (p.links || []).length + (p.related || []).length })),
   }));
+  // public: count a blog-post read (fired by a same-origin beacon on each post page).
+  // Only known slugs are accepted, so it can never create arbitrary rows. Returns the
+  // running total so the page can display it. Aggregate only — no PII.
+  const BLOG_SLUGS = new Set(seo.allPosts().map(p => p.slug));
+  r.post('/v1/blog/view', (req) => {
+    const slug = String((req.body && req.body.slug) || '').trim();
+    if (!BLOG_SLUGS.has(slug)) return [404, { error: 'unknown_post' }];
+    q.run(`INSERT INTO blog_views (slug, views, updated_at) VALUES (?, 1, datetime('now'))
+           ON CONFLICT(slug) DO UPDATE SET views = views + 1, updated_at = datetime('now')`, slug);
+    const row = q.get('SELECT views FROM blog_views WHERE slug=?', slug);
+    return { ok: true, slug, views: row ? row.views : 1 };
+  });
+  // admin: per-post SEO score (with an actionable checklist) + read counts, most-read first.
+  r.get('/app/seo/posts', admin(() => {
+    const views = Object.fromEntries(q.all('SELECT slug, views FROM blog_views').map(r => [r.slug, r.views]));
+    const posts = seo.postsMeta()
+      .map(p => ({ ...p, url: `${seo.SITE}/blog/${p.slug}`, views: views[p.slug] || 0 }))
+      .sort((a, b) => b.views - a.views || b.score - a.score);
+    const avg = posts.length ? Math.round(posts.reduce((a, p) => a + p.score, 0) / posts.length) : 0;
+    return { posts, total_views: posts.reduce((a, p) => a + p.views, 0), avg_score: avg };
+  }));
   // admin: run the autopilot — regenerate the blog, sitemap and robots now
   r.post('/app/seo/autopilot', admin(() => {
     const before = require('node:fs');

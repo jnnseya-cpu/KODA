@@ -1045,7 +1045,16 @@ function blogPage({ title, headExtra, kicker, h1, lead, bodyHtml }) {
 }
 for (const p of posts) {
   const r = seo.renderPost(p, dates[p.slug]);
-  const body = `${r.bodyHtml}\n${r.faqHtml}\n${r.relatedHtml}\n<p style="margin-top:26px"><a href="/get-started">Verify your first payment free →</a> · <a href="/blog">← all articles</a></p>`;
+  const viewsBadge = `<p style="font-size:13px;color:var(--dim);margin:0 0 18px">👁 <span id="koda-blog-views">—</span> reads</p>`;
+  const viewsBeacon = `<script>
+(function(){try{
+  fetch('/v1/blog/view',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({slug:${JSON.stringify(p.slug)}})})
+  .then(function(res){return res.json();})
+  .then(function(d){var el=document.getElementById('koda-blog-views'); if(el&&d&&typeof d.views==='number') el.textContent=d.views.toLocaleString();})
+  .catch(function(){});
+}catch(_){}})();
+</script>`;
+  const body = `${viewsBadge}\n${r.bodyHtml}\n${r.faqHtml}\n${r.relatedHtml}\n<p style="margin-top:26px"><a href="/get-started">Verify your first payment free →</a> · <a href="/blog">← all articles</a></p>${viewsBeacon}`;
   const html = blogPage({ title: p.title + ' | KODA', headExtra: r.head, kicker: 'KODA Blog', h1: p.title, lead: p.description, bodyHtml: body })
     .replace(/<h1>[^<]*<\/h1>/, `<h1>${p.title.replace(/&/g, '&amp;')}</h1>`);
   fs.writeFileSync(path.join(blogDir, `${p.slug}.html`), html);

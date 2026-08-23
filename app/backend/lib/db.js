@@ -277,6 +277,14 @@ CREATE TABLE IF NOT EXISTS password_resets (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Blog post read counter (one row per slug; incremented by a same-origin beacon
+-- from each published blog page). No PII — just an aggregate read tally.
+CREATE TABLE IF NOT EXISTS blog_views (
+  slug TEXT PRIMARY KEY,
+  views INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_sms_merchant ON sms_ledger(merchant_id, received_at);
 CREATE INDEX IF NOT EXISTS idx_sms_ref ON sms_ledger(merchant_id, ref_code);
 CREATE INDEX IF NOT EXISTS idx_receipts_merchant ON receipts(merchant_id, verified_at);

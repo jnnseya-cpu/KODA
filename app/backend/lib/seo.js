@@ -82,6 +82,42 @@ function renderPost(post, dateISO) {
 }
 
 function allPosts() { return POSTS; }
+
+// Per-post on-page SEO score (0–100) from real, checkable factors. Returns the score
+// plus an actionable checklist so the admin panel can show WHAT to fix, not just a number.
+function wordCount(post) {
+  const body = (post.body || []).join(' ');
+  const faq = (post.faqs || []).map(([q, a]) => `${q} ${a}`).join(' ');
+  return `${body} ${faq}`.split(/\s+/).filter(Boolean).length;
+}
+function seoScore(post) {
+  const checks = [];
+  const add = (ok, label, detail) => checks.push({ ok: !!ok, label, detail });
+  const tl = (post.title || '').length;
+  add(tl >= 30 && tl <= 65, 'Title length', `${tl} chars · aim 30–65`);
+  const dl = (post.description || '').length;
+  add(dl >= 120 && dl <= 170, 'Meta description', `${dl} chars · aim 120–170`);
+  const kw = (post.keyword || '').toLowerCase();
+  const firstKw = kw.split(/\s+/)[0] || '';
+  add(!!kw && firstKw && (post.title || '').toLowerCase().includes(firstKw), 'Keyword in title', kw || 'no target keyword');
+  const wc = wordCount(post);
+  add(wc >= 600, 'Word count', `${wc} words · aim ≥600`);
+  const il = (post.links || []).length + (post.related || []).length;
+  add(il >= 3, 'Internal links', `${il} · aim ≥3`);
+  add((post.faqs || []).length >= 2, 'FAQ schema', `${(post.faqs || []).length} Q&A`);
+  add((post.tags || []).length >= 2, 'Tags', `${(post.tags || []).length}`);
+  const passed = checks.filter((c) => c.ok).length;
+  return { score: Math.round((passed / checks.length) * 100), passed, total: checks.length, checks };
+}
+// Compact per-post SEO metadata (slug/title/score/checks/links) for the admin panel.
+function postsMeta() {
+  return POSTS.map((p) => {
+    const s = seoScore(p);
+    return { slug: p.slug, title: p.title, keyword: p.keyword || '',
+      internal_links: (p.links || []).length + (p.related || []).length,
+      score: s.score, passed: s.passed, total: s.total, checks: s.checks };
+  });
+}
 function postDates(startISO) {
   // deterministic descending dates from a supplied "now" (scripts can't call Date.now())
   // tolerate a missing/invalid start (e.g. KODA_BUILD_DATE=unknown) → fall back safely
@@ -117,4 +153,4 @@ function websiteJsonLd() {
     hasPart: { '@type': 'Blog', '@id': SITE + '/blog', name: `${BRAND} Blog`, url: SITE + '/blog' } };
 }
 
-module.exports = { renderPost, allPosts, postDates, sitemap, robots, seoHead, orgJsonLd, websiteJsonLd, weave, SITE, BRAND, PAGES };
+module.exports = { renderPost, allPosts, postDates, sitemap, robots, seoHead, orgJsonLd, websiteJsonLd, weave, seoScore, postsMeta, SITE, BRAND, PAGES };

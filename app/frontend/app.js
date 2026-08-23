@@ -2172,6 +2172,19 @@ async function adminDoors() {
 // ---- AI agents ----
 async function adminAgents() {
   const d = await api('/app/admin/agents');
+  let seoPosts = null;
+  try { seoPosts = await api('/app/seo/posts'); } catch (_) { /* non-fatal */ }
+  const seoCard = seoPosts ? `
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>Blog reads &amp; SEO score (${seoPosts.posts.length} posts · avg ${seoPosts.avg_score}/100 · ${fmt(seoPosts.total_views)} reads)</h3>
+    <table class="tbl"><tr><th>Post</th><th class="num">Reads</th><th class="num">SEO</th><th>Needs work</th></tr>
+    ${seoPosts.posts.map(p => `<tr>
+      <td><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.title)}</a></td>
+      <td class="num">${fmt(p.views)}</td>
+      <td class="num ${p.score >= 80 ? 'ok' : p.score >= 50 ? 'warn' : 'bad'}">${p.score}</td>
+      <td style="font-size:11px;color:var(--dim)">${p.checks.filter(c => !c.ok).map(c => esc(c.label)).join(', ') || '<span class="ok">all checks pass ✓</span>'}</td>
+    </tr>`).join('')}
+    </table>
+    <p style="font-size:11px;color:var(--dim);margin-top:8px">Reads counted live from each post page. SEO score = share of on-page checks passing (title, meta, keyword-in-title, word count, internal links, FAQ schema, tags).</p></div>` : '';
   shell('admin', 'AI agents', 'KODA staff — the runnable agent mesh & ACU costs', adminTabBar('agents') + `
   <div class="card tbl-wrap"><h3>Runnable agents (API: /v1/agents)</h3>
     <table class="tbl"><tr><th>ID</th><th>Agent</th><th>Type</th><th class="num">ACU</th></tr>
@@ -2182,7 +2195,8 @@ async function adminAgents() {
     ${d.growth.map(g => `<tr><td>${esc(g.label)} <span class="mono" style="font-size:11px;color:var(--dim)">${esc(g.id)}</span></td><td class="num">${g.acu}</td></tr>`).join('')}
     </table></div>
   <div class="card" style="margin-top:14px"><h3>SEO Autopilot (${esc(d.seo.id)})</h3>
-    <p style="font-size:13px">AI gateway: ${d.seo.ai_gateway ? '<span class="ok">● configured</span>' : '<span class="warn">● not configured (set ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY)</span>'}</p></div>`);
+    <p style="font-size:13px">AI gateway: ${d.seo.ai_gateway ? '<span class="ok">● configured</span>' : '<span class="warn">● not configured (set ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY)</span>'}</p></div>
+  ${seoCard}`);
 }
 
 // ---- 6 · Fraud & disputes ----
