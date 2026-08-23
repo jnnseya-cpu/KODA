@@ -98,8 +98,13 @@ function seoScore(post) {
   const dl = (post.description || '').length;
   add(dl >= 120 && dl <= 170, 'Meta description', `${dl} chars · aim 120–170`);
   const kw = (post.keyword || '').toLowerCase();
-  const firstKw = kw.split(/\s+/)[0] || '';
-  add(!!kw && firstKw && (post.title || '').toLowerCase().includes(firstKw), 'Keyword in title', kw || 'no target keyword');
+  const titleLc = (post.title || '').toLowerCase();
+  const STOP = new Set(['the', 'for', 'and', 'with', 'without', 'your', 'you', 'a', 'an', 'to', 'of', 'in', 'on', 'no', 'business']);
+  const kwTokens = kw.split(/\s+/).filter((w) => w.length >= 3 && !STOP.has(w));
+  // pass if the title contains the whole keyword, or at least half of its significant tokens
+  const kwHit = !!kw && (titleLc.includes(kw) ||
+    (kwTokens.length > 0 && kwTokens.filter((t) => titleLc.includes(t)).length >= Math.ceil(kwTokens.length / 2)));
+  add(kwHit, 'Keyword in title', kw || 'no target keyword');
   const wc = wordCount(post);
   add(wc >= 600, 'Word count', `${wc} words · aim ≥600`);
   const il = (post.links || []).length + (post.related || []).length;
