@@ -288,8 +288,11 @@ module.exports = function registerRoutes(r) {
   r.post('/app/devices/enroll', auth((req, user, m) => {
     const did = U.id('dev'), code = U.token(6).slice(0, 8).toUpperCase();
     const deviceToken = 'dvk_' + U.token(24);   // the Sentinel app authenticates SMS forwards with this
+    // Enrolled but NOT yet online: 'pending' until the real phone sends its first
+    // heartbeat (which flips it to 'active' + real attestation). No phantom "active,
+    // attested, 100% health" device before a handset actually pairs.
     q.run(`INSERT INTO devices (id,merchant_id,label,operator,sim_msisdn,enrol_code,device_token,status,attested,last_seen)
-           VALUES (?,?,?,?,?,?,?, 'active', 1, datetime('now'))`,
+           VALUES (?,?,?,?,?,?,?, 'pending', 0, NULL)`,
       did, m.id, req.body.label || 'Merchant phone', req.body.operator || 'orange_cd', req.body.sim || null, code, deviceToken);
     notify.fireMerchant('sentinel.enrolled', m, { item: req.body.label || 'Merchant phone' });
     audit(m.id, user.id, 'device_enrolled', { did });
@@ -1453,11 +1456,13 @@ module.exports = function registerRoutes(r) {
   r.post('/v1/device/heartbeat', (req) => {
     const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.headers['x-device-token'];
     if (!tok || !/^dvk_/.test(tok)) return [401, { error: { code: 'device_unauthenticated' } }];
-    const dev = q.get(`SELECT * FROM devices WHERE device_token=? AND status='active'`, tok);
+    // Accept a pending (just-enrolled) or active device; the first real heartbeat
+    // activates it — that is the moment a phantom device becomes a real one.
+    const dev = q.get(`SELECT * FROM devices WHERE device_token=? AND status IN ('active','pending')`, tok);
     if (!dev) return [401, { error: { code: 'device_unauthenticated' } }];
     const b = req.body || {};
     const capture = (b.capture === 'notification' || b.capture === 'sms') ? b.capture : dev.capture;
-    q.run(`UPDATE devices SET last_seen=datetime('now'), battery=?, attested=?, parse_health=?, capture=? WHERE id=?`,
+    q.run(`UPDATE devices SET status='active', last_seen=datetime('now'), battery=?, attested=?, parse_health=?, capture=? WHERE id=?`,
       Number.isFinite(+b.battery) ? Math.max(0, Math.min(100, +b.battery)) : dev.battery,
       b.attested ? 1 : dev.attested,
       Number.isFinite(+b.parse_health) ? Math.max(0, Math.min(1, +b.parse_health)) : dev.parse_health,
@@ -1472,7 +1477,7 @@ module.exports = function registerRoutes(r) {
   r.get('/v1/device/config', (req) => {
     const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.headers['x-device-token'];
     if (!tok || !/^dvk_/.test(tok)) return [401, { error: { code: 'device_unauthenticated' } }];
-    const dev = q.get(`SELECT * FROM devices WHERE device_token=? AND status='active'`, tok);
+    const dev = q.get(`SELECT * FROM devices WHERE device_token=? AND status IN ('active','pending')`, tok);
     if (!dev) return [401, { error: { code: 'device_unauthenticated' } }];
     const m = q.get('SELECT name FROM merchants WHERE id=?', dev.merchant_id);
     const ops = require('../shared/operators');
@@ -1497,8 +1502,10 @@ module.exports = function registerRoutes(r) {
   r.post('/v1/device/sms', (req) => {
     const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.headers['x-device-token'];
     if (!tok || !/^dvk_/.test(tok)) return [401, { error: { code: 'device_unauthenticated' } }];
-    const dev = q.get(`SELECT * FROM devices WHERE device_token=? AND status='active'`, tok);
+    const dev = q.get(`SELECT * FROM devices WHERE device_token=? AND status IN ('active','pending')`, tok);
     if (!dev) return [401, { error: { code: 'device_unauthenticated' } }];
+    // a real forwarded SMS proves the phone is genuine — activate a pending device
+    if (dev.status === 'pending') q.run(`UPDATE devices SET status='active', last_seen=datetime('now') WHERE id=?`, dev.id);
     const m = q.get('SELECT * FROM merchants WHERE id=?', dev.merchant_id);
     if (!m || m.status !== 'active') return [403, { error: { code: 'merchant_suspended' } }];
     const raw = String(req.body.raw || '');
