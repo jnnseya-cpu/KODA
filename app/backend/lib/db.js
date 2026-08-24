@@ -414,12 +414,17 @@ db.exec(`CREATE TABLE IF NOT EXISTS distributors (
 
 db.exec(`CREATE TABLE IF NOT EXISTS resellers (
   id TEXT PRIMARY KEY,
+  merchant_id TEXT REFERENCES merchants(id),    -- links a KODA login → the reseller console (self-service)
   legal_name TEXT NOT NULL,
   country TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'ACTIVE',        -- APPLICANT|DUE_DILIGENCE|ACTIVE|SUSPENDED|TERMINATED
   settlement_currency TEXT NOT NULL DEFAULT 'USD',
+  inventory_acu INTEGER NOT NULL DEFAULT 0,     -- prepaid voucher inventory (authoritative escrow)
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
+// migrations for existing reseller tables (no-op on fresh DBs)
+try { db.exec(`ALTER TABLE resellers ADD COLUMN merchant_id TEXT REFERENCES merchants(id)`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE resellers ADD COLUMN inventory_acu INTEGER NOT NULL DEFAULT 0`); } catch { /* exists */ }
 
 // vouchers: Ed25519-signed, single-use, product+market locked, PIN stored hashed
 db.exec(`CREATE TABLE IF NOT EXISTS vouchers (

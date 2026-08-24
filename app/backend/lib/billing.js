@@ -362,6 +362,65 @@ function matchDistributorPayment(kdMerchantId, amountUsd) {
   return Array.isArray(r) ? null : r;
 }
 
+// ── RESELLER RAIL (Rail 4a) — prepaid voucher inventory is the escrow ─────────
+// Symmetric with the distributor rail: a reseller prepurchases inventory (paying
+// KODA the wholesale rate off-rail), then self-issues voucher batches that draw it
+// down. A voucher can never credit ACU the reseller hasn't paid for.
+function resellerInventory(rid) {
+  const r = q.get('SELECT inventory_acu FROM resellers WHERE id=?', rid);
+  return r ? r.inventory_acu : 0;
+}
+// Reseller prepurchases voucher inventory (card/aggregator cleared upstream) → inventory
+// credit + a reseller ledger balance that later backs each redemption.
+function resellerBuyInventory(rid, acuBlock, idemKey) {
+  const r = q.get('SELECT * FROM resellers WHERE id=?', rid);
+  if (!r) return [404, { error: { code: 'reseller_not_found' } }];
+  const acu = Math.round(Number(acuBlock) || 0);
+  if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
+  const key = 'reseller_wholesale:' + rid + ':' + (idemKey || 'k' + acu + ':' + r.inventory_acu);
+  const res = tx(() => {
+    const p = post([
+      { account_key: 'koda:treasury', entry_type: 'reseller_wholesale', acu_delta: -acu },
+      { account_key: 'reseller:' + rid, entry_type: 'reseller_wholesale', acu_delta: acu },
+    ], { idempotencyKey: key, ref: 'reseller_wholesale' });
+    if (p.idempotent) return { already: true };
+    q.run('UPDATE resellers SET inventory_acu = inventory_acu + ? WHERE id=?', acu, rid);
+    return { credited: true };
+  });
+  return { ok: true, already: !!res.already, reseller_id: rid, inventory_acu: resellerInventory(rid), purchased: res.already ? 0 : acu };
+}
+// Inventory-gated batch issuance: draws down prepaid inventory atomically so a
+// reseller can never issue ACU they haven't paid for. Returns the batch (+PINs) or
+// a [status, error] tuple. `activate` flips the batch live in the same breath.
+function issueResellerBatch(reseller, opts = {}) {
+  const vouchers = require('./vouchers');
+  const acu = Math.round(Number(opts.acu_amount) || 0);
+  const qty = Math.min(1000, Math.max(1, Math.round(Number(opts.quantity) || 1)));
+  const total = acu * qty;
+  if (total > 0 && resellerInventory(reseller.id) < total)
+    return [409, { error: { code: 'insufficient_inventory', required_acu: total, inventory_acu: resellerInventory(reseller.id), message: 'Top up voucher inventory before issuing this batch.' } }];
+  return tx(() => {
+    if (total > 0) {
+      const u = q.run('UPDATE resellers SET inventory_acu = inventory_acu - ? WHERE id=? AND inventory_acu >= ?', total, reseller.id, total);
+      if (u.changes !== 1) throw new Error('inventory_underflow');
+    }
+    const batch = vouchers.issueBatch(reseller, { ...opts, acu_amount: acu, quantity: qty });
+    if (opts.activate) vouchers.activateBatch(batch.batch_id);
+    return batch;
+  });
+}
+// Void a batch AND return its unredeemed ACU to the reseller's issuable inventory —
+// but only for inventory-backed resellers (a positive reseller ledger balance), so
+// legacy treasury-funded batches never create phantom inventory.
+function voidResellerBatch(batchId) {
+  const vouchers = require('./vouchers');
+  const sample = q.get('SELECT reseller_id, acu_amount FROM vouchers WHERE batch_id=? LIMIT 1', batchId);
+  const r = vouchers.voidBatch(batchId);
+  if (sample && sample.reseller_id && r.voided > 0 && sample.acu_amount > 0 && acctBalance('reseller:' + sample.reseller_id) > 0)
+    q.run('UPDATE resellers SET inventory_acu = inventory_acu + ? WHERE id=?', sample.acu_amount * r.voided, sample.reseller_id);
+  return { ...r, inventory_acu: sample ? resellerInventory(sample.reseller_id) : null };
+}
+
 // double-entry health: the whole ledger must sum to zero.
 function reconcile() {
   const s = q.get('SELECT COALESCE(SUM(acu_delta),0) s FROM billing_ledger').s;
@@ -473,6 +532,7 @@ function matchKodaCollection(amountLocal) {
 module.exports = {
   methods, createTopup, settleTopup, topupView, reconcile, post, acctBalance, verifyWebhook,
   distributorFloat, wholesalePurchase, createDistributorTopup, settleDistributorTopup, matchDistributorPayment,
+  resellerInventory, resellerBuyInventory, issueResellerBatch, voidResellerBatch,
   planMethods, planQuote, createPlanCheckout, startProviderSession,
   matchKodaCollection, assignExpectedLocal, localCurrency,
 };

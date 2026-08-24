@@ -1316,16 +1316,50 @@ module.exports = function registerRoutes(r) {
 
   // ---- Resellers & vouchers ----
   r.get('/app/admin/resellers', admin(() =>
-    q.all(`SELECT r.*, (SELECT COUNT(*) FROM vouchers v WHERE v.reseller_id=r.id) vouchers
+    q.all(`SELECT r.*, (SELECT COUNT(*) FROM vouchers v WHERE v.reseller_id=r.id) vouchers,
+           (SELECT u.email FROM users u WHERE u.merchant_id=r.merchant_id AND u.role='owner' ORDER BY u.created_at LIMIT 1) merchant_email
            FROM resellers r ORDER BY r.created_at DESC`)));
   r.post('/app/admin/resellers', admin((req, user) => {
     const { legal_name, country } = req.body;
     if (!legal_name || !country) return [400, { error: { code: 'missing_fields' } }];
+    let merchantId = req.body.merchant_id || null;
+    if (!merchantId && req.body.merchant_email) {
+      const row = resolveMerchantByEmail(req.body.merchant_email);
+      if (!row) return [404, { error: { code: 'merchant_not_found', message: 'No KODA merchant has that login email. Ask the reseller to sign up first, then link.' } }];
+      merchantId = row.merchant_id;
+    }
+    if (merchantId && q.get('SELECT id FROM resellers WHERE merchant_id=?', merchantId))
+      return [409, { error: { code: 'merchant_already_reseller', message: 'That merchant is already a reseller.' } }];
     const id = U.id('rsl');
-    q.run(`INSERT INTO resellers (id,legal_name,country,status,settlement_currency) VALUES (?,?,?,?,?)`,
-      id, legal_name, String(country).toUpperCase().slice(0, 2), req.body.status || 'ACTIVE', req.body.settlement_currency || 'USD');
-    audit(null, user.id, 'admin.reseller_created', { legal_name, country });
-    return { ok: true, id };
+    q.run(`INSERT INTO resellers (id,merchant_id,legal_name,country,status,settlement_currency) VALUES (?,?,?,?,?,?)`,
+      id, merchantId, legal_name, String(country).toUpperCase().slice(0, 2), req.body.status || 'ACTIVE', req.body.settlement_currency || 'USD');
+    audit(null, user.id, 'admin.reseller_created', { legal_name, country, linked: !!merchantId });
+    return { ok: true, id, merchant_id: merchantId,
+      note: merchantId ? 'Linked — the reseller can self-serve from their Reseller console once you fund inventory.'
+        : 'No login linked — link one so the reseller gets a self-service console. You can still issue batches as admin.' };
+  }));
+  // Fund a reseller's prepaid voucher inventory (after their wholesale payment clears).
+  r.post('/app/admin/resellers/:id/fund', admin((req, user) => {
+    const rs = q.get('SELECT * FROM resellers WHERE id=?', req.params.id);
+    if (!rs) return [404, { error: { code: 'reseller_not_found' } }];
+    const acu = Math.round(Number(req.body.acu));
+    if (!Number.isFinite(acu) || acu <= 0) return [400, { error: { code: 'bad_amount' } }];
+    const r = billing.resellerBuyInventory(rs.id, acu, 'adminfund:' + rs.id + ':' + user.id + ':' + acu + ':' + q.get('SELECT COUNT(*) c FROM billing_ledger').c);
+    if (Array.isArray(r)) return r;
+    audit(null, user.id, 'admin.reseller_funded', { reseller: rs.id, acu });
+    return { ok: true, inventory_acu: r.inventory_acu };
+  }));
+  // Link (or re-link) a reseller to a KODA merchant account by email.
+  r.post('/app/admin/resellers/:id/link', admin((req, user) => {
+    const rs = q.get('SELECT * FROM resellers WHERE id=?', req.params.id);
+    if (!rs) return [404, { error: { code: 'reseller_not_found' } }];
+    const row = resolveMerchantByEmail(req.body.merchant_email);
+    if (!row) return [404, { error: { code: 'merchant_not_found', message: 'No KODA merchant has that login email.' } }];
+    if (q.get('SELECT id FROM resellers WHERE merchant_id=? AND id<>?', row.merchant_id, rs.id))
+      return [409, { error: { code: 'merchant_already_reseller' } }];
+    q.run('UPDATE resellers SET merchant_id=? WHERE id=?', row.merchant_id, rs.id);
+    audit(null, user.id, 'admin.reseller_linked', { reseller: rs.id, merchant: row.merchant_id });
+    return { ok: true, merchant_id: row.merchant_id };
   }));
   r.get('/app/admin/vouchers', admin(() =>
     q.all(`SELECT batch_id, reseller_id, product_code, acu_amount, country_lock, currency_lock,
@@ -1336,13 +1370,14 @@ module.exports = function registerRoutes(r) {
     const reseller = q.get('SELECT * FROM resellers WHERE id=?', req.params.id);
     if (!reseller) return [404, { error: { code: 'reseller_not_found' } }];
     try {
-      const out = vouchers.issueBatch(reseller, {
+      const out = billing.issueResellerBatch(reseller, {
         product_code: req.body.product_code || 'ACU', acu_amount: Math.round(Number(req.body.acu_amount) || 0),
         quantity: Math.min(1000, Math.max(1, Math.round(Number(req.body.quantity) || 1))),
         country_lock: (req.body.country_lock || reseller.country || 'CD').toUpperCase().slice(0, 2),
         currency_lock: req.body.currency_lock || null, expires_at: req.body.expires_at || null,
+        activate: !!req.body.activate,
       });
-      if (req.body.activate && out.batch_id) vouchers.activateBatch(out.batch_id);
+      if (Array.isArray(out)) return out; // e.g. insufficient_inventory
       audit(null, user.id, 'admin.voucher_batch_issued', { reseller: reseller.id, qty: req.body.quantity });
       return { ok: true, ...out };
     } catch (e) { return [400, { error: { code: 'issue_failed', message: String(e.message || e) } }]; }
@@ -1354,7 +1389,7 @@ module.exports = function registerRoutes(r) {
   // Void a whole batch — kills every dormant/active PIN in it at once (already-redeemed
   // vouchers are untouched). Use it to retire a batch whose one-time PINs were lost.
   r.post('/app/admin/vouchers/:batch/void', admin((req, user) => {
-    try { const r = vouchers.voidBatch(req.params.batch); audit(null, user.id, 'admin.voucher_batch_voided', { batch: req.params.batch, voided: r.voided }); return r; }
+    try { const r = billing.voidResellerBatch(req.params.batch); audit(null, user.id, 'admin.voucher_batch_voided', { batch: req.params.batch, voided: r.voided }); return r; }
     catch (e) { return [400, { error: { code: 'void_failed', message: String(e.message || e) } }]; }
   }));
 
@@ -1503,9 +1538,58 @@ module.exports = function registerRoutes(r) {
     if (!user.is_admin) return [403, { error: { code: 'admin_only' } }];
     const reseller = q.get('SELECT * FROM resellers WHERE id=?', req.params.id);
     if (!reseller) return [404, { error: { code: 'reseller_not_found' } }];
-    const batch = vouchers.issueBatch(reseller, req.body || {});
-    if (req.body && req.body.activate) vouchers.activateBatch(batch.batch_id);
-    return batch;                                                  // PINs returned once
+    const batch = billing.issueResellerBatch(reseller, { ...(req.body || {}), activate: !!(req.body && req.body.activate) });
+    return batch;                                                  // PINs returned once (or [409] insufficient_inventory)
+  }));
+
+  // ---- Reseller SELF-SERVICE console — a reseller is a merchant linked to a resellers row ----
+  const myReseller = (m) => q.get('SELECT * FROM resellers WHERE merchant_id=?', m.id);
+  r.get('/app/reseller', auth((req, user, m) => {
+    const rs = myReseller(m);
+    return rs ? { reseller_id: rs.id, legal_name: rs.legal_name, country: rs.country, status: rs.status,
+      inventory_acu: rs.inventory_acu, settlement_currency: rs.settlement_currency }
+      : [404, { error: { code: 'not_a_reseller' } }];
+  }));
+  // Buy voucher inventory (card/aggregator cleared upstream, mirrors the KD wholesale buy).
+  r.post('/app/reseller/buy', auth((req, user, m) => {
+    const rs = myReseller(m);
+    if (!rs) return [404, { error: { code: 'not_a_reseller' } }];
+    return billing.resellerBuyInventory(rs.id, req.body.acu_block);
+  }));
+  r.get('/app/reseller/batches', auth((req, user, m) => {
+    const rs = myReseller(m);
+    if (!rs) return [404, { error: { code: 'not_a_reseller' } }];
+    return { inventory_acu: rs.inventory_acu, batches: q.all(`SELECT batch_id, product_code, acu_amount, country_lock, currency_lock,
+      COUNT(*) n, SUM(status='dormant') dormant, SUM(status='active') active, SUM(status='redeemed') redeemed, SUM(status='void') void,
+      MIN(created_at) created_at, MAX(expires_at) expires_at
+      FROM vouchers WHERE reseller_id=? GROUP BY batch_id ORDER BY created_at DESC LIMIT 100`, rs.id) };
+  }));
+  r.post('/app/reseller/batches', auth((req, user, m) => {
+    const rs = myReseller(m);
+    if (!rs) return [404, { error: { code: 'not_a_reseller' } }];
+    if (rs.status !== 'ACTIVE') return [403, { error: { code: 'reseller_inactive', message: 'Your reseller account is not active.' } }];
+    const out = billing.issueResellerBatch(rs, {
+      product_code: req.body.product_code || 'ACU', acu_amount: Math.round(Number(req.body.acu_amount) || 0),
+      quantity: Math.min(1000, Math.max(1, Math.round(Number(req.body.quantity) || 1))),
+      country_lock: (req.body.country_lock || rs.country || 'CD').toUpperCase().slice(0, 2),
+      currency_lock: req.body.currency_lock || null, expires_at: req.body.expires_at || null,
+      activate: req.body.activate !== false,   // resellers self-activate by default
+    });
+    if (Array.isArray(out)) return out;
+    audit(null, user.id, 'reseller.batch_issued', { reseller: rs.id, qty: out.quantity });
+    return { ok: true, ...out };
+  }));
+  // scope activate/void to the caller's own batches
+  const ownsBatch = (rs, batch) => q.get('SELECT 1 FROM vouchers WHERE batch_id=? AND reseller_id=? LIMIT 1', batch, rs.id);
+  r.post('/app/reseller/batches/:batch/activate', auth((req, user, m) => {
+    const rs = myReseller(m); if (!rs) return [404, { error: { code: 'not_a_reseller' } }];
+    if (!ownsBatch(rs, req.params.batch)) return [404, { error: { code: 'batch_not_found' } }];
+    return { ok: true, ...vouchers.activateBatch(req.params.batch) };
+  }));
+  r.post('/app/reseller/batches/:batch/void', auth((req, user, m) => {
+    const rs = myReseller(m); if (!rs) return [404, { error: { code: 'not_a_reseller' } }];
+    if (!ownsBatch(rs, req.params.batch)) return [404, { error: { code: 'batch_not_found' } }];
+    return billing.voidResellerBatch(req.params.batch);
   }));
 
   // Provider webhooks → settle a top-up. Sandbox accepts; real adapters verify the

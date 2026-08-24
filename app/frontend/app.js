@@ -959,6 +959,70 @@ window.kdBuy = async () => {
   catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
 
+// ---- Reseller console — self-service voucher issuance (merchant linked to a reseller row) ----
+VIEWS.reseller = async () => {
+  let info;
+  try { info = await api('/app/reseller'); }
+  catch { return shell('reseller', 'Reseller console', 'Voucher reseller', `<div class="card"><h3>Not a reseller</h3><p style="font-size:14px;color:var(--dim)">This account isn't set up as a KODA voucher reseller. Resellers hold prepaid voucher inventory and issue redeemable PIN batches. Ask KODA staff to enable it.</p></div>`); }
+  const bs = await api('/app/reseller/batches').catch(() => ({ inventory_acu: info.inventory_acu, batches: [] }));
+  shell('reseller', 'Reseller console', `${esc(info.legal_name)} · ${esc(info.country)}`, `
+  <div class="grid g3">
+    <div class="card stat"><b>${fmt(bs.inventory_acu)}</b><span>ACU inventory (issuable)</span></div>
+    <div class="card stat"><b>${fmt((bs.batches || []).reduce((a, b) => a + (b.redeemed || 0), 0))}</b><span>vouchers redeemed</span></div>
+    <div class="card stat"><b><span class="badge ${info.status === 'ACTIVE' ? 'b-ok' : 'b-bad'}">${esc(info.status)}</span></b><span>status</span></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Buy voucher inventory (wholesale)</h3>
+    <p style="font-size:13px;color:var(--dim)">Prepay a block of ACU inventory at your wholesale rate. Every voucher you issue draws it down — you can never issue ACU you haven't paid for.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rsc-block" type="number" placeholder="ACU block (e.g. 5000)" style="flex:1;min-width:160px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <button class="btn btn-gold" onclick="resellerBuy()">Buy inventory</button></div><div id="rsc-buy" style="margin-top:10px"></div></div>
+  <div class="card" style="margin-top:14px"><h3>Issue a voucher batch</h3>
+    <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:520px">
+      <input id="rsc-acu" type="number" placeholder="ACU per voucher (e.g. 100)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <input id="rsc-qty" type="number" placeholder="Quantity (e.g. 10)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <button class="btn btn-gold" onclick="resellerIssue()" style="grid-column:1/-1">Issue &amp; activate batch</button>
+    </div>
+    <p style="font-size:12px;color:var(--dim);margin:8px 0 0">PINs are shown <b>once</b> — copy or download them, then hand one to each merchant. They redeem it in Billing → Redeem voucher.</p>
+    <div id="rsc-out" style="margin-top:12px"></div></div>
+  <div class="card tbl-wrap" style="margin-top:14px"><h3>My batches (${fmt((bs.batches || []).length)})</h3>
+    ${(bs.batches || []).length ? `<table class="tbl"><tr><th>Batch</th><th class="num">ACU</th><th>Lock</th><th class="num">Total</th><th>Dormant/Active/Redeemed</th><th></th></tr>
+    ${bs.batches.map(b => `<tr><td class="mono" style="font-size:11px">${esc(b.batch_id)}</td><td class="num">${fmt(b.acu_amount)}</td><td class="mono">${esc(b.country_lock || '—')}</td><td class="num">${fmt(b.n)}</td>
+      <td class="mono" style="font-size:12px">${fmt(b.dormant)}/${fmt(b.active)}/${fmt(b.redeemed)}</td>
+      <td style="white-space:nowrap">${b.dormant > 0 ? `<button class="btn btn-gold btn-sm" onclick="resellerActivate('${esc(b.batch_id)}')">activate</button> ` : ''}${(b.dormant > 0 || b.active > 0) ? `<button class="btn btn-danger btn-sm" onclick="resellerVoid('${esc(b.batch_id)}')">void</button>` : ''}</td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No batches yet. Buy inventory, then issue your first batch.</p>'}</div>`);
+};
+window.resellerBuy = async () => {
+  const out = document.getElementById('rsc-buy');
+  const block = Number(v('rsc-block'));
+  if (!block) return void (out.innerHTML = '<div class="badge b-bad">Enter an ACU amount.</div>');
+  try { await api('/app/reseller/buy', { body: { acu_block: block } }); out.innerHTML = '<div class="badge b-ok">✓ inventory purchased</div>'; setTimeout(route, 1400); }
+  catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
+window.resellerIssue = async () => {
+  const out = document.getElementById('rsc-out');
+  const acu = Number(v('rsc-acu')), qty = Number(v('rsc-qty'));
+  if (!acu || !qty) return void (out.innerHTML = '<div class="badge b-bad">Enter ACU per voucher and quantity.</div>');
+  try {
+    const r = await api('/app/reseller/batches', { body: { acu_amount: acu, quantity: qty, activate: true } });
+    const pins = (r.vouchers || []).map(p => p.pin || p).filter(Boolean);
+    _lastPins = pins;
+    const stamp = new Date().toISOString().slice(0, 10);
+    out.innerHTML = `<div style="border:1px solid var(--gold);border-radius:10px;padding:14px">
+      <div class="badge b-ok" style="margin-bottom:8px;display:inline-block">✓ ${fmt(pins.length)} PIN(s) issued</div>
+      <div class="badge b-warn" style="display:block;line-height:1.5;white-space:normal;margin-bottom:10px">⚠️ Shown once — capture now. Hand one PIN to each merchant; they redeem it in Billing → Redeem voucher (${fmt(acu)} ACU each).</div>
+      <div class="mono" style="font-size:13px;line-height:1.9;word-break:break-all;max-height:240px;overflow:auto;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;padding:12px">${pins.map(esc).join('<br>')}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-gold btn-sm" onclick="copyPins()">Copy all PINs</button>
+        <button class="btn btn-ghost btn-sm" onclick="downloadPins('${esc(r.batch_id || '')}','${stamp}')">Download .csv</button>
+        <button class="btn btn-ghost btn-sm" onclick="route()">Done</button>
+      </div></div>`;
+  } catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}${e.status === 409 ? ' — buy more inventory first' : ''}</div>`; }
+};
+window.resellerActivate = async (batch) => { try { await api(`/app/reseller/batches/${batch}/activate`, { body: {} }); toast('✓ activated'); route(); } catch (e) { toast('✗ ' + e.message); } };
+window.resellerVoid = async (batch) => {
+  if (!confirm('Void this batch? Every unredeemed PIN stops working; the unused inventory returns to your balance.')) return;
+  try { const r = await api(`/app/reseller/batches/${batch}/void`, { body: {} }); toast('✓ voided ' + fmt(r.voided)); route(); } catch (e) { toast('✗ ' + e.message); }
+};
+
 VIEWS.devices = async () => {
   const rows = await api('/app/devices');
   shell('devices', t('devices'), t('sub_devices'), `
@@ -1075,7 +1139,9 @@ VIEWS.billing = async () => {
     <div id="voucher-out" style="margin-top:10px"></div></div>
   <div class="card" style="margin-top:14px"><h3>${t('bl_distributor')}</h3>
     <p style="font-size:13px;color:var(--dim)">${t('bl_distributor_p')}</p>
-    <a class="btn btn-ghost" href="#kd">${t('kd_console')} →</a></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="btn btn-ghost" href="#kd">${t('kd_console')} →</a>
+      <a class="btn btn-ghost" href="#reseller">Reseller console →</a></div></div>
   <div class="card" style="margin-top:14px"><h3>${t('change_plan')}</h3>
     <div class="pill-row">${plans.map(p => `<button class="pill ${b.plan.label.toLowerCase() === p ? 'on' : ''}" onclick="setPlan('${p}')">${p}</button>`).join('')}</div>
     <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $19 · Commerce $79 · Plateforme $399 · Enterprise custom — one ladder, all five doors.</div>
@@ -2049,13 +2115,19 @@ async function adminResellers() {
     <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:640px;margin-top:10px">
       <input id="rs-name" placeholder="Legal name" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <input id="rs-country" placeholder="Country (CD)" value="CD" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
-      <button class="btn btn-gold" onclick="adminCreateReseller()">Add reseller</button>
-    </div><div id="rs-out" style="margin-top:10px"></div></details>
+      <input id="rs-email" placeholder="Reseller's KODA login email (for self-service console)" style="grid-column:1/-1;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <button class="btn btn-gold" onclick="adminCreateReseller()" style="grid-column:1/-1">Add reseller</button>
+    </div>
+    <p style="font-size:12px;color:var(--dim);margin:10px 0 0;line-height:1.6">A reseller holds <b>prepaid voucher inventory</b> and issues PIN batches that draw it down — so they can never issue ACU they haven't paid for. Link their KODA login to give them a <b>self-service Reseller console</b>, then <b>Fund</b> their inventory once their wholesale payment clears.</p>
+    <div id="rs-out" style="margin-top:10px"></div></details>
   <div class="card tbl-wrap" style="margin-top:14px"><h3>Resellers (${fmt(resellers.length)})</h3>
-    ${resellers.length ? `<table class="tbl"><tr><th>Legal name</th><th>Country</th><th>Status</th><th class="num">Vouchers</th><th></th></tr>
-    ${resellers.map(r => `<tr><td>${esc(r.legal_name)}</td><td class="mono">${esc(r.country)}</td><td><span class="badge ${r.status === 'ACTIVE' ? 'b-ok' : 'b-info'}">${esc(r.status)}</span></td><td class="num">${fmt(r.vouchers)}</td>
-      <td><button class="btn btn-gold btn-sm" onclick="adminIssueVouchers('${r.id}','${esc(r.legal_name)}')">issue batch</button></td></tr>`).join('')}
-    </table>` : '<p style="color:var(--dim);font-size:13px">No resellers yet. Add one, then issue voucher batches.</p>'}</div>
+    ${resellers.length ? `<table class="tbl"><tr><th>Legal name</th><th>Country</th><th>Status</th><th>Login</th><th class="num">Inventory ACU</th><th class="num">Vouchers</th><th></th></tr>
+    ${resellers.map(r => `<tr><td>${esc(r.legal_name)}</td><td class="mono">${esc(r.country)}</td><td><span class="badge ${r.status === 'ACTIVE' ? 'b-ok' : 'b-info'}">${esc(r.status)}</span></td>
+      <td style="font-size:11px">${r.merchant_id ? esc(r.merchant_email || 'linked') : `<button class="btn btn-ghost btn-sm" onclick="adminLinkReseller('${r.id}','${esc(r.legal_name)}')">link login</button>`}</td>
+      <td class="num">${fmt(r.inventory_acu || 0)}</td><td class="num">${fmt(r.vouchers)}</td>
+      <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="adminFundReseller('${r.id}','${esc(r.legal_name)}')">fund</button>
+        <button class="btn btn-ghost btn-sm" onclick="adminIssueVouchers('${r.id}','${esc(r.legal_name)}')">issue batch</button></td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No resellers yet. Add one, link their login, fund inventory, then issue voucher batches.</p>'}</div>
   <div id="vb-out"></div>
   <div class="card tbl-wrap" style="margin-top:14px"><h3>Voucher batches (${fmt(batches.length)})</h3>
     ${batches.length ? `<table class="tbl"><tr><th>Batch</th><th>Product</th><th class="num">ACU</th><th>Lock</th><th class="num">Total</th><th>Dormant/Active/Redeemed</th><th></th></tr>
@@ -2066,9 +2138,22 @@ async function adminResellers() {
 }
 window.adminCreateReseller = async () => {
   const out = document.getElementById('rs-out');
-  try { const r = await api('/app/admin/resellers', { body: { legal_name: v('rs-name'), country: v('rs-country') || 'CD' } });
-    out.innerHTML = `<div class="badge b-ok">✓ created ${esc(r.id)}</div>`; setTimeout(route, 1500); }
+  try { const r = await api('/app/admin/resellers', { body: { legal_name: v('rs-name'), country: v('rs-country') || 'CD', merchant_email: v('rs-email') } });
+    out.innerHTML = `<div class="badge b-ok">✓ created ${esc(r.id)}</div>${r.note ? `<div style="font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5">${esc(r.note)}</div>` : ''}`;
+    setTimeout(route, 2200); }
   catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
+window.adminFundReseller = async (id, name) => {
+  const acu = prompt('Fund ' + name + '’s voucher inventory — how many ACU? (only after their wholesale payment has cleared)', '1000');
+  if (!acu) return;
+  try { const r = await api(`/app/admin/resellers/${id}/fund`, { body: { acu: Number(acu) } }); toast('✓ inventory now ' + fmt(r.inventory_acu)); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
+window.adminLinkReseller = async (id, name) => {
+  const email = prompt('Link ' + name + ' to a KODA account — enter the reseller’s login email:');
+  if (!email) return;
+  try { await api(`/app/admin/resellers/${id}/link`, { body: { merchant_email: email } }); toast('✓ linked'); route(); }
+  catch (e) { toast('✗ ' + e.message); }
 };
 window.adminIssueVouchers = async (id, name) => {
   const qty = prompt('Issue vouchers for ' + name + ' — how many?', '10');

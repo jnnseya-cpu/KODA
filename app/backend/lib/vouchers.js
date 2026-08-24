@@ -106,8 +106,15 @@ function redeem(merchant, pin) {
     const upd = q.run(`UPDATE vouchers SET status='redeemed', redeemed_at=datetime('now'), redeemed_by=? WHERE id=? AND status='active'`, merchant.id, v.id);
     if (upd.changes !== 1) return { lost: true };
     if (v.acu_amount > 0) {
+      // Draw the credit from the reseller's own prepaid inventory ledger when they
+      // are on the inventory model (positive reseller balance); fall back to treasury
+      // for legacy batches issued before resellers held inventory. Either way the
+      // reseller can never credit ACU beyond what they prepaid.
+      const rkey = 'reseller:' + v.reseller_id;
+      const rbal = q.get('SELECT balance_acu FROM billing_accounts WHERE account_key=?', rkey);
+      const funder = (rbal && rbal.balance_acu >= v.acu_amount) ? rkey : 'koda:treasury';
       billing.post([
-        { account_key: 'koda:treasury', entry_type: 'voucher_redeem', acu_delta: -v.acu_amount },
+        { account_key: funder, entry_type: 'voucher_redeem', acu_delta: -v.acu_amount },
         { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: v.acu_amount },
       ], { idempotencyKey: 'voucher:' + v.id, ref: 'voucher' });
       require('./engine').creditAcu(merchant, v.acu_amount, 'topup', v.id);
