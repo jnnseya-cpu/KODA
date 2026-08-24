@@ -2001,11 +2001,17 @@ async function adminDistributors() {
       <input id="kd-name" placeholder="Distributor name" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <input id="kd-country" placeholder="Country (CD)" value="CD" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <input id="kd-msisdn" placeholder="+243 … (their mobile-money pay-to)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
-      <button class="btn btn-gold" onclick="adminCreateKd()">Create distributor</button>
-    </div><div id="kd-out" style="margin-top:10px"></div></details>
+      <input id="kd-email" placeholder="Agent's KODA login email (links their account + Sentinel)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+      <button class="btn btn-gold" onclick="adminCreateKd()" style="grid-column:1/-1">Create distributor</button>
+    </div>
+    <p style="font-size:12px;color:var(--dim);margin:10px 0 0;line-height:1.6">⚙️ <b>To make the KD live:</b> the agent first signs up as a KODA merchant and installs <b>Sentinel</b> on the phone that receives payments. Enter their login email above to link the account — that gives them the <b>Distributor console</b> and lets sales <b>auto-settle</b> the moment their Sentinel confirms a payment. You can add the email now or link it later.</p>
+    <div id="kd-out" style="margin-top:10px"></div></details>
   <div class="card tbl-wrap" style="margin-top:14px"><h3>Distributors (${fmt(rows.length)})</h3>
-    ${rows.length ? `<table class="tbl"><tr><th>Name</th><th>Country</th><th>Pay-to</th><th class="num">Float ACU</th><th class="num">Sold</th><th>Status</th><th></th></tr>
+    ${rows.length ? `<table class="tbl"><tr><th>Name</th><th>Country</th><th>Pay-to</th><th>Agent · Sentinel</th><th class="num">Float ACU</th><th class="num">Sold</th><th>Status</th><th></th></tr>
     ${rows.map(k => `<tr><td>${esc(k.name)}</td><td class="mono">${esc(k.country)}</td><td class="mono" style="font-size:11px">${esc(k.msisdn || '—')}</td>
+      <td style="font-size:11px">${k.merchant_id
+        ? `${esc(k.merchant_email || k.merchant_name || 'linked')}<br><span class="badge ${k.sentinel_active ? 'b-ok' : 'b-warn'}">${k.sentinel_active ? 'Sentinel online' : 'no Sentinel yet'}</span>`
+        : `<button class="btn btn-ghost btn-sm" onclick="adminLinkKd('${k.id}','${esc(k.name)}')">link agent</button>`}</td>
       <td class="num">${fmt(k.float_acu)}</td><td class="num">${fmt(k.sold_acu)} (${fmt(k.sales)})</td>
       <td><span class="badge ${k.status === 'active' ? 'b-ok' : 'b-bad'}">${esc(k.status)}</span></td>
       <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="adminFundKd('${k.id}','${esc(k.name)}')">fund</button>
@@ -2014,9 +2020,17 @@ async function adminDistributors() {
 }
 window.adminCreateKd = async () => {
   const out = document.getElementById('kd-out');
-  try { const r = await api('/app/admin/distributors', { body: { name: v('kd-name'), country: v('kd-country') || 'CD', msisdn: v('kd-msisdn') } });
-    out.innerHTML = `<div class="badge b-ok">✓ created ${esc(r.id)}</div>`; setTimeout(route, 1500); }
+  try { const r = await api('/app/admin/distributors', { body: { name: v('kd-name'), country: v('kd-country') || 'CD', msisdn: v('kd-msisdn'), merchant_email: v('kd-email') } });
+    out.innerHTML = `<div class="badge b-ok">✓ created ${esc(r.id)}</div>${r.note ? `<div style="font-size:12px;color:var(--dim);margin-top:6px;line-height:1.5">${esc(r.note)}</div>` : ''}`;
+    setTimeout(route, 2200); }
   catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
+};
+window.adminLinkKd = async (id, name) => {
+  const email = prompt('Link ' + name + ' to a KODA account — enter the agent\'s login email:');
+  if (!email) return;
+  try { const r = await api(`/app/admin/distributors/${id}/link`, { body: { merchant_email: email } });
+    toast(r.sentinel_active ? '✓ linked · Sentinel online' : '✓ linked · no Sentinel yet'); route(); }
+  catch (e) { toast('✗ ' + e.message); }
 };
 window.adminFundKd = async (id, name) => {
   const acu = prompt('Fund ' + name + ' — how many ACU of float to add?', '1000');
@@ -2047,7 +2061,7 @@ async function adminResellers() {
     ${batches.length ? `<table class="tbl"><tr><th>Batch</th><th>Product</th><th class="num">ACU</th><th>Lock</th><th class="num">Total</th><th>Dormant/Active/Redeemed</th><th></th></tr>
     ${batches.map(b => `<tr><td class="mono" style="font-size:11px">${esc(b.batch_id)}</td><td class="mono">${esc(b.product_code)}</td><td class="num">${fmt(b.acu_amount)}</td><td class="mono">${esc(b.country_lock || '—')}</td><td class="num">${fmt(b.n)}</td>
       <td class="mono" style="font-size:12px">${fmt(b.dormant)}/${fmt(b.active)}/${fmt(b.redeemed)}</td>
-      <td>${b.dormant > 0 ? `<button class="btn btn-gold btn-sm" onclick="adminActivateBatch('${esc(b.batch_id)}')">activate</button>` : ''}</td></tr>`).join('')}
+      <td style="white-space:nowrap">${b.dormant > 0 ? `<button class="btn btn-gold btn-sm" onclick="adminActivateBatch('${esc(b.batch_id)}')">activate</button> ` : ''}${(b.dormant > 0 || b.active > 0) ? `<button class="btn btn-danger btn-sm" onclick="adminVoidBatch('${esc(b.batch_id)}')">void</button>` : ''}</td></tr>`).join('')}
     </table>` : '<p style="color:var(--dim);font-size:13px">No voucher batches yet.</p>'}</div>`);
 }
 window.adminCreateReseller = async () => {
@@ -2063,12 +2077,38 @@ window.adminIssueVouchers = async (id, name) => {
   if (!acu) return;
   try {
     const r = await api(`/app/admin/resellers/${id}/vouchers`, { body: { quantity: Number(qty), acu_amount: Number(acu), activate: true } });
-    const pins = (r.pins || r.vouchers || []).map(p => typeof p === 'string' ? p : (p.pin || p)).join('<br>');
-    document.getElementById('vb-out').innerHTML = `<div class="card" style="margin-top:14px;border-color:var(--gold)"><h3 class="ok">✓ ${fmt(r.count || (r.pins || []).length)} vouchers issued — PINs shown once</h3><div class="mono" style="font-size:12px;line-height:1.9;word-break:break-all">${pins || '(see batch — PINs delivered to reseller)'}</div></div>`;
-    setTimeout(route, 6000);
+    const pins = (r.pins || r.vouchers || []).map(p => typeof p === 'string' ? p : (p.pin || p)).filter(Boolean);
+    _lastPins = pins;                                   // held for copy/download below
+    const batch = r.batch_id || '';
+    const stamp = new Date().toISOString().slice(0, 10);
+    document.getElementById('vb-out').innerHTML = pins.length ? `<div class="card" style="margin-top:14px;border-color:var(--gold)">
+      <h3 class="ok" style="margin:0 0 4px">✓ ${fmt(pins.length)} voucher PIN(s) issued</h3>
+      <div class="badge b-warn" style="display:block;line-height:1.5;white-space:normal;margin-bottom:10px">⚠️ Shown once. KODA stores only a hash — these plaintext PINs cannot be recovered later. <b>Copy or download them now</b>, then give one PIN to each merchant. They redeem it in Billing → Redeem voucher (${fmt(Number(acu))} ACU each).</div>
+      <div class="mono" style="font-size:13px;line-height:1.9;word-break:break-all;max-height:280px;overflow:auto;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;padding:12px">${pins.map(esc).join('<br>')}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-gold btn-sm" onclick="copyPins()">Copy all PINs</button>
+        <button class="btn btn-ghost btn-sm" onclick="downloadPins('${esc(batch)}','${stamp}')">Download .csv</button>
+        <button class="btn btn-ghost btn-sm" onclick="route()">Done</button>
+      </div></div>` : `<div class="card" style="margin-top:14px;border-color:var(--danger)"><div class="mono" style="color:var(--danger)">Batch issued but no PINs returned — check the batch list below.</div></div>`;
   } catch (e) { toast('✗ ' + e.message); }
 };
+let _lastPins = [];
+window.copyPins = () => { const txt = _lastPins.join('\n'); if (navigator.clipboard) navigator.clipboard.writeText(txt); toast('✓ ' + _lastPins.length + ' PINs copied'); };
+window.downloadPins = (batch, stamp) => {
+  const csv = 'voucher_pin\n' + _lastPins.join('\n') + '\n';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `koda-vouchers-${batch || 'batch'}-${stamp}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('✓ downloaded');
+};
 window.adminActivateBatch = async (batch) => { try { const r = await api(`/app/admin/vouchers/${batch}/activate`, { body: {} }); toast('✓ activated ' + fmt(r.activated)); route(); } catch (e) { toast('✗ ' + e.message); } };
+window.adminVoidBatch = async (batch) => {
+  if (!confirm('Void this batch? Every unredeemed PIN in it stops working immediately. Redeemed vouchers are unaffected.')) return;
+  try { const r = await api(`/app/admin/vouchers/${batch}/void`, { body: {} }); toast('✓ voided ' + fmt(r.voided) + ' voucher(s)'); route(); } catch (e) { toast('✗ ' + e.message); }
+};
 
 // ---- Rails config ----
 async function adminRails() {

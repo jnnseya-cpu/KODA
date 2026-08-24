@@ -1246,16 +1246,53 @@ module.exports = function registerRoutes(r) {
   // ---- Distributors (field agents who sell prepaid ACU) ----
   r.get('/app/admin/distributors', admin(() =>
     q.all(`SELECT d.*, (SELECT COUNT(*) FROM topups t WHERE t.distributor_id=d.id AND t.status='settled') sales,
-           (SELECT COALESCE(SUM(acu_amount),0) FROM topups t WHERE t.distributor_id=d.id AND t.status='settled') sold_acu
+           (SELECT COALESCE(SUM(acu_amount),0) FROM topups t WHERE t.distributor_id=d.id AND t.status='settled') sold_acu,
+           (SELECT m.name FROM merchants m WHERE m.id=d.merchant_id) merchant_name,
+           (SELECT u.email FROM users u WHERE u.merchant_id=d.merchant_id AND u.role='owner' ORDER BY u.created_at LIMIT 1) merchant_email,
+           (SELECT COUNT(*) FROM devices v WHERE v.merchant_id=d.merchant_id AND v.status='active') sentinel_active
            FROM distributors d ORDER BY d.created_at DESC`)));
+  // Resolve the KD's own KODA merchant from an owner login email. Linking is what
+  // turns a KD "on": it gives the agent the Distributor console AND lets their
+  // Sentinel's confirmation SMS auto-settle merchant top-ups.
+  const resolveMerchantByEmail = (email) => {
+    const e = String(email || '').trim().toLowerCase();
+    if (!e) return null;
+    return q.get('SELECT merchant_id FROM users WHERE lower(email)=? AND merchant_id IS NOT NULL ORDER BY (role=\'owner\') DESC LIMIT 1', e);
+  };
+  const sentinelCount = (mid) => mid ? q.get(`SELECT COUNT(*) c FROM devices WHERE merchant_id=? AND status='active'`, mid).c : 0;
+  const linkNote = (mid) => !mid
+    ? 'No agent linked yet — link their KODA login email so they get the Distributor console and sales can auto-settle.'
+    : sentinelCount(mid) > 0
+      ? 'Linked · Sentinel online — sales will auto-settle when the agent confirms a payment.'
+      : 'Linked · no active Sentinel yet — have the agent open Payment methods and enroll the phone that receives the money.';
   r.post('/app/admin/distributors', admin((req, user) => {
     const { name, country, msisdn } = req.body;
     if (!name || !country) return [400, { error: { code: 'missing_fields', message: 'name and country required' } }];
+    let merchantId = req.body.merchant_id || null;
+    if (!merchantId && req.body.merchant_email) {
+      const row = resolveMerchantByEmail(req.body.merchant_email);
+      if (!row) return [404, { error: { code: 'merchant_not_found', message: 'No KODA merchant has that login email. Ask the agent to sign up first, then link.' } }];
+      merchantId = row.merchant_id;
+    }
+    if (merchantId && q.get('SELECT id FROM distributors WHERE merchant_id=?', merchantId))
+      return [409, { error: { code: 'merchant_already_kd', message: 'That merchant is already a distributor.' } }];
     const id = U.id('kd');
     q.run(`INSERT INTO distributors (id,merchant_id,name,country,msisdn,wholesale_bps,status) VALUES (?,?,?,?,?,?, 'active')`,
-      id, req.body.merchant_id || null, name, String(country).toUpperCase().slice(0, 2), msisdn || null, Number(req.body.wholesale_bps) || 8500);
-    audit(null, user.id, 'admin.distributor_created', { name, country });
-    return { ok: true, id };
+      id, merchantId, name, String(country).toUpperCase().slice(0, 2), msisdn || null, Number(req.body.wholesale_bps) || 8500);
+    audit(null, user.id, 'admin.distributor_created', { name, country, linked: !!merchantId });
+    return { ok: true, id, merchant_id: merchantId, sentinel_active: sentinelCount(merchantId), note: linkNote(merchantId) };
+  }));
+  // Link (or re-link) an existing distributor to a KODA merchant account by email.
+  r.post('/app/admin/distributors/:id/link', admin((req, user) => {
+    const d = q.get('SELECT * FROM distributors WHERE id=?', req.params.id);
+    if (!d) return [404, { error: { code: 'distributor_not_found' } }];
+    const row = resolveMerchantByEmail(req.body.merchant_email);
+    if (!row) return [404, { error: { code: 'merchant_not_found', message: 'No KODA merchant has that login email.' } }];
+    const clash = q.get('SELECT id FROM distributors WHERE merchant_id=? AND id<>?', row.merchant_id, d.id);
+    if (clash) return [409, { error: { code: 'merchant_already_kd', message: 'That merchant already backs another distributor.' } }];
+    q.run('UPDATE distributors SET merchant_id=? WHERE id=?', row.merchant_id, d.id);
+    audit(null, user.id, 'admin.distributor_linked', { distributor: d.id, merchant: row.merchant_id });
+    return { ok: true, merchant_id: row.merchant_id, sentinel_active: sentinelCount(row.merchant_id), note: linkNote(row.merchant_id) };
   }));
   r.post('/app/admin/distributors/:id/fund', admin((req, user) => {
     const d = q.get('SELECT * FROM distributors WHERE id=?', req.params.id);
@@ -1313,6 +1350,12 @@ module.exports = function registerRoutes(r) {
   r.post('/app/admin/vouchers/:batch/activate', admin((req, user) => {
     try { const n = vouchers.activateBatch(req.params.batch); audit(null, user.id, 'admin.voucher_batch_activated', { batch: req.params.batch }); return { ok: true, activated: n }; }
     catch (e) { return [400, { error: { code: 'activate_failed', message: String(e.message || e) } }]; }
+  }));
+  // Void a whole batch — kills every dormant/active PIN in it at once (already-redeemed
+  // vouchers are untouched). Use it to retire a batch whose one-time PINs were lost.
+  r.post('/app/admin/vouchers/:batch/void', admin((req, user) => {
+    try { const r = vouchers.voidBatch(req.params.batch); audit(null, user.id, 'admin.voucher_batch_voided', { batch: req.params.batch, voided: r.voided }); return r; }
+    catch (e) { return [400, { error: { code: 'void_failed', message: String(e.message || e) } }]; }
   }));
 
   // ---- Rails config (read-only view of the RAILS table + provider/secret env state) ----
