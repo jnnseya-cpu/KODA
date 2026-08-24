@@ -34,5 +34,21 @@ console.log(`  profit   $${profit.toFixed(0)}/mo  →  ${profitPct.toFixed(0)}% 
 if (profitPct < 100) fails++;
 const be = Math.ceil(C.FIXED_TOTAL / (0.024 - C.COST.code));
 console.log(`  overhead break-even without any subscriptions: ~${be.toLocaleString()} verifications/mo`);
+
+// RULE 3 — every ACU SALE price (top-up packs + partner wholesale) clears the
+// enforced 100% floor. This is the same PRICE_FLOOR_USD the runtime guards use, so
+// CI fails the moment any pack or the minimum wholesale rate would sell below 100%.
+const BILL = require('../../shared/billing');
+const PACKS = require('../../shared/plans').TOPUP_PACKS;
+console.log(`\nRULE 3 — ACU sale floor $${BILL.PRICE_FLOOR_USD}/ACU (100% over $${BILL.UNIT_COST_USD} cost):`);
+for (const p of PACKS) {
+  const perAcu = p.usd / p.acu, ok = BILL.clearsFloor(perAcu);
+  if (!ok) fails++;
+  console.log(`  top-up $${p.usd} → ${p.acu} ACU = $${perAcu.toFixed(4)}/ACU  ${((perAcu / BILL.UNIT_COST_USD - 1) * 100).toFixed(0)}%  ${ok ? '✓' : '✗ BELOW 100% FLOOR'}`);
+}
+const minBps = BILL.minWholesaleBps(), wholesaleMin = BILL.ACU_PRICE_USD * (minBps / 10000);
+if (!BILL.clearsFloor(wholesaleMin)) fails++;
+console.log(`  retail $${BILL.ACU_PRICE_USD}/ACU = ${((BILL.ACU_PRICE_USD / BILL.UNIT_COST_USD - 1) * 100).toFixed(0)}% · wholesale 85% = $${(BILL.ACU_PRICE_USD * 0.85).toFixed(4)} = ${((BILL.ACU_PRICE_USD * 0.85 / BILL.UNIT_COST_USD - 1) * 100).toFixed(0)}% · floor at ${minBps / 100}% ${BILL.clearsFloor(wholesaleMin) ? '✓' : '✗'}`);
+
 if (fails) { console.log(`\n${fails} price point(s) violate the rule — fix pricing or costs.`); process.exit(1); }
-console.log('\nAll price points clear the 100%-profit rule ✓');
+console.log('\nAll price points + ACU sale prices clear the 100%-profit rule ✓');

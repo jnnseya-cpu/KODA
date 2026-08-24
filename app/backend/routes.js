@@ -1367,8 +1367,9 @@ module.exports = function registerRoutes(r) {
     const rs = q.get('SELECT * FROM resellers WHERE id=?', req.params.id);
     if (!rs) return [404, { error: { code: 'reseller_not_found' } }];
     let bps = req.body.bps != null ? Math.round(Number(req.body.bps)) : Math.round(Number(req.body.pct) * 100);
-    if (!Number.isFinite(bps) || bps < 5000 || bps > 10000)
-      return [400, { error: { code: 'bad_rate', message: 'Rate must be 50%–100% of retail (5000–10000 bps).' } }];
+    const floorBps = require('../shared/billing').minWholesaleBps();
+    if (!Number.isFinite(bps) || bps > 10000) return [400, { error: { code: 'bad_rate', message: 'Rate cannot exceed 100% of retail.' } }];
+    if (bps < floorBps) return [400, { error: { code: 'pricing_floor', message: `Rate ${bps / 100}% would sell ACU below the 100% margin floor — minimum is ${floorBps / 100}%.` } }];
     q.run('UPDATE resellers SET wholesale_bps=? WHERE id=?', bps, rs.id);
     audit(null, user.id, 'admin.reseller_rate_set', { reseller: rs.id, bps });
     return { ok: true, reseller_id: rs.id, wholesale_bps: bps, wholesale_pct: bps / 100 };

@@ -20,8 +20,10 @@
 
   // prepaid top-up packs (spec §11) — paid via mobile money, verified by the engine itself.
   // Rate: $1 = 100 ACU (1 ACU = $0.01).
+  // Priced at the ACU pricing law ($0.026/ACU = 300% margin) — every pack clears the
+  // enforced 100%-margin floor (see shared/billing PRICE_FLOOR_USD; CI asserts it).
   const TOPUP_PACKS = [
-    { usd: 10, acu: 1000 }, { usd: 50, acu: 5000 }, { usd: 200, acu: 20000 },
+    { usd: 26, acu: 1000 }, { usd: 130, acu: 5000 }, { usd: 520, acu: 20000 },
   ];
 
   return { PLANS, ACU, TOPUP_PACKS };

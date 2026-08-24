@@ -85,7 +85,7 @@ async function main() {
     T('deleted key is gone from the list', !((await j('/app/keys', {}, tk)).d).some(x => x.id === kRow.id));
 
     console.log('— billing loop');
-    const top = (await j('/app/billing/topup', { body: { usd: 10 } }, tk)).d;
+    const top = (await j('/app/billing/topup', { body: { usd: 26 } }, tk)).d;
     T('topup intent', !!top.intent_id);
     const tc = (await j(`/v1/intents/${top.intent_id}/verify`, { body: { reference: 'TEST-OK-28000' } }, key)).d;
     T('topup verified by own engine', tc.status === 'verified');

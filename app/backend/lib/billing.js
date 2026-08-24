@@ -177,6 +177,7 @@ function createTopup(merchant, body = {}) {
   // KODA self-collect: pay by mobile money to KODA's own DRC SIM, verified by KODA.
   if (rail === 'koda') {
     const subtotal = Number(body.usd) > 0 ? Number(body.usd) : Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
+    if (!B.clearsFloor(subtotal / acu)) return [400, { error: { code: 'pricing_floor', message: 'Top-up price is below the 100% margin floor.' } }];
     const idem = body.idempotency_key || null;
     if (idem) { const dup = q.get('SELECT * FROM topups WHERE idempotency_key=?', idem); if (dup) return topupView(dup); }
     const expected = assignExpectedLocal(subtotal);
@@ -203,6 +204,7 @@ function createTopup(merchant, body = {}) {
   // honor a retail pack price when given: subtotal = pack usd, fee added per rail
   if (Number(body.usd) > 0) {
     const sub = Number(body.usd);
+    if (!B.clearsFloor(sub / acu)) return [400, { error: { code: 'pricing_floor', message: 'Top-up price is below the 100% margin floor.' } }];
     quote.subtotal_usd = sub;
     quote.collection_fee_usd = Math.round(sub * (B.RAILS[rail].fee_pct || 0) * 100) / 100;
     quote.total_usd = Math.round((sub + quote.collection_fee_usd) * 100) / 100;
@@ -277,6 +279,8 @@ function wholesalePurchase(kdId, acuBlock, idemKey) {
   if (!d) return [404, { error: { code: 'distributor_not_found' } }];
   const acu = Math.round(Number(acuBlock) || 0);
   if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
+  if (!B.clearsFloor(B.ACU_PRICE_USD * ((d.wholesale_bps || 8500) / 10000)))
+    return [400, { error: { code: 'pricing_floor', message: 'Distributor wholesale rate is below the 100% margin floor.' } }];
   // Idempotency is keyed on the caller's payment reference (NOT a random token), so a
   // double-submitted "I paid for a block" credits float exactly once. The ledger key
   // is the source of truth: if it already posted, the float update must not run either.
@@ -377,6 +381,8 @@ function resellerBuyInventory(rid, acuBlock, idemKey) {
   if (!r) return [404, { error: { code: 'reseller_not_found' } }];
   const acu = Math.round(Number(acuBlock) || 0);
   if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
+  if (!B.clearsFloor(B.ACU_PRICE_USD * ((r.wholesale_bps || 8500) / 10000)))
+    return [400, { error: { code: 'pricing_floor', message: 'Reseller wholesale rate is below the 100% margin floor.' } }];
   const key = 'reseller_wholesale:' + rid + ':' + (idemKey || 'k' + acu + ':' + r.inventory_acu);
   const res = tx(() => {
     const p = post([

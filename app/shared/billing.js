@@ -15,6 +15,23 @@
   const UNIT_COST_USD = 0.0065;         // fully-loaded code-path cost (mirrors costs.js COST.code)
   const ACU_PRICE_USD = round(ACU_MARKUP * UNIT_COST_USD); // ≈ 0.026 / ACU
 
+  // ── 100% MARGIN RULE (ENFORCED) ──────────────────────────────────────────
+  // No ACU may ever be SOLD below 100% profit over cost — not a merchant top-up,
+  // not a partner's wholesale rate. PRICE_FLOOR_USD is that hard floor; the guards
+  // below are called on every sale path and reject anything under it.
+  const MARGIN_FLOOR = 1.0;                                  // 100%
+  const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.013 / ACU
+  const clearsFloor = (usdPerAcu) => Number(usdPerAcu) + 1e-9 >= PRICE_FLOOR_USD;
+  // lowest wholesale rate (bps of retail) that still clears the floor — dynamic, so
+  // it tracks the retail price if that ever changes (at the current law it is 5000 = 50%).
+  const minWholesaleBps = () => Math.ceil((PRICE_FLOOR_USD / ACU_PRICE_USD) * 10000);
+  // throws if a $/ACU price breaks the rule — call at any point ACU is priced for sale.
+  function assertFloor(usdPerAcu, label) {
+    if (!clearsFloor(usdPerAcu))
+      throw new Error(`100%_margin_rule: ${label || 'price'} = $${Number(usdPerAcu).toFixed(4)}/ACU is below the $${PRICE_FLOOR_USD}/ACU floor (100% over $${UNIT_COST_USD} cost)`);
+    return true;
+  }
+
   // ── COLLECTION RAILS (the "provider cost" that is passed through) ─────────
   // fee_pct is the rail's take; flow drives the merchant UX; live=false hides it.
   const RAILS = {
@@ -78,5 +95,6 @@
 
   function round(n) { return Math.round(n * 1e6) / 1e6; }
 
-  return { ACU_MARKUP, UNIT_COST_USD, ACU_PRICE_USD, RAILS, quote, routeProviders, MM_MARKETS };
+  return { ACU_MARKUP, UNIT_COST_USD, ACU_PRICE_USD, RAILS, quote, routeProviders, MM_MARKETS,
+    MARGIN_FLOOR, PRICE_FLOOR_USD, clearsFloor, minWholesaleBps, assertFloor };
 });
