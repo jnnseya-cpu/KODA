@@ -60,8 +60,12 @@ function chargeAcu(merchant, amount, kind, ref) {
   q.run(`INSERT INTO acu_transactions (id,merchant_id,delta,kind,ref,balance_after)
          VALUES (?,?,?,?,?,?)`, id('acu'), merchant.id, -amount, kind, ref || null, bal);
   merchant.acu_balance = bal;
-  if (bal <= 0) notifyOwners(merchant, 'billing.grace_started', {});
-  else if (bal < 100) notifyOwners(merchant, 'billing.low_balance', {});
+  // Alert only when the balance CROSSES a threshold on this charge — not on every
+  // verification below it. Otherwise a low-balance merchant gets one identical
+  // "low balance" notification per verification (inbox spam).
+  const prev = bal + amount;
+  if (bal <= 0 && prev > 0) notifyOwners(merchant, 'billing.grace_started', {});
+  else if (bal < 100 && prev >= 100) notifyOwners(merchant, 'billing.low_balance', {});
   return bal;
 }
 function creditAcu(merchant, amount, kind, ref) {

@@ -18,9 +18,10 @@
   // ACU metering (spec §9) — the billable atom is a successful verification
   const ACU = { code: 1, vision: 3, dispute: 3, trust: 0.5, submerchant: 5 };
 
-  // prepaid top-up packs (spec §11) — paid via mobile money, verified by the engine itself
+  // prepaid top-up packs (spec §11) — paid via mobile money, verified by the engine itself.
+  // Rate: $1 = 100 ACU (1 ACU = $0.01).
   const TOPUP_PACKS = [
-    { usd: 10, acu: 100 }, { usd: 50, acu: 500 }, { usd: 200, acu: 2000 },
+    { usd: 10, acu: 1000 }, { usd: 50, acu: 5000 }, { usd: 200, acu: 20000 },
   ];
 
   return { PLANS, ACU, TOPUP_PACKS };
