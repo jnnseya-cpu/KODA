@@ -307,7 +307,7 @@ const pages = {
     </div>
   </div>
   <p style="margin:16px 0 0;font-size:13px;color:var(--dim)">You always resell at KODA's retail price — or set your own street price and earn even more. Scale it: a reseller moving <b style="color:var(--text)">$1,000</b> a week keeps <b style="color:var(--text)">$250</b>.</p>
-  <div style="margin-top:16px"><a class="cta" href="mailto:koda@kodajnn.com?subject=KODA%20partner%20application" style="display:inline-block">Become a partner →</a></div>
+  <div style="margin-top:16px"><a class="cta" href="#apply" style="display:inline-block">Become a partner →</a></div>
 </div>
 
 <div class="card" style="border-color:rgba(232,161,31,.4)">
@@ -361,16 +361,15 @@ const pages = {
   </ul>
 </div>
 
-<h2>Pricing &amp; margin</h2>
-<p>Every rail sits on one ACU price. Partners buy wholesale and keep the spread; KODA clears at least 100% margin on every unit — a floor the platform <b style="color:var(--text)">enforces in code</b>, so nothing can ever be sold below it.</p>
+<h2>Your pricing</h2>
+<p>You buy verification credit (ACU) below the price merchants pay, and keep the difference on every sale.</p>
 <table>
-  <tr><th>Path</th><th>Price / ACU</th><th>Margin over cost</th></tr>
-  <tr><td>Merchant top-up (retail)</td><td class="mono">$0.026</td><td class="ok">300%</td></tr>
-  <tr><td>Distributor wholesale (85% of retail)</td><td class="mono">$0.0221</td><td class="ok">240%</td></tr>
-  <tr><td>Reseller wholesale (80% of retail)</td><td class="mono">$0.0208</td><td class="ok">220%</td></tr>
-  <tr><td>Enforced floor — no sale below this</td><td class="mono">$0.013</td><td class="warn">100%</td></tr>
+  <tr><th>&nbsp;</th><th>You pay / ACU</th><th>You keep per $100 sold</th></tr>
+  <tr><td>Distributor wholesale</td><td class="mono">$0.0221</td><td class="ok">$17.65</td></tr>
+  <tr><td>Reseller wholesale</td><td class="mono">$0.0208</td><td class="ok">$25.00</td></tr>
+  <tr><td>Retail — what merchants pay you</td><td class="mono">$0.026</td><td>—</td></tr>
 </table>
-<p style="font-size:13px;color:var(--dim)">Distributors buy at 85%, resellers at 80% — their 15–20% is a reselling margin taken from KODA's headroom, never from KODA's cost recovery. An individual partner's rate can be tuned, bounded so it can never dip under the 100% floor.</p>
+<p style="font-size:13px;color:var(--dim)">Resell at KODA's retail price, or set your own street price and keep even more. Prices are per ACU; a typical payment verification is 1 ACU.</p>
 
 <h2>Which rail, when</h2>
 <table>
@@ -383,14 +382,59 @@ const pages = {
   <tr><td><b style="color:var(--text)">Kill switch</b></td><td>Freeze the KD.</td><td>Void the batch / suspend the reseller.</td></tr>
 </table>
 
-<div class="card" style="margin-top:24px;border-color:var(--gold);text-align:center">
-  <h3 style="margin-top:0;font-size:20px">Start earning with KODA this week</h3>
-  <p style="max-width:52ch;margin:0 auto 16px">Tell us your city and how you'd like to sell — in person as a distributor, or with voucher PINs as a reseller. We fund your first inventory the day your wholesale payment clears, and you're live the same day.</p>
-  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-    <a class="cta" href="mailto:koda@kodajnn.com?subject=KODA%20partner%20application">Apply to be a partner →</a>
-    <a class="lnk" href="/app#signup" style="align-self:center">Already a merchant? Open the app</a>
-  </div>
+<style>
+.applyf label{display:grid;gap:5px;font-size:12px;color:var(--dim);font-family:var(--mono);letter-spacing:.02em}
+.applyf input,.applyf select,.applyf textarea{background:var(--ink2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:11px 12px;font-size:14px;font-family:var(--disp);width:100%;box-sizing:border-box}
+.applyf input:focus,.applyf select:focus,.applyf textarea:focus{outline:2px solid var(--gold);outline-offset:1px;border-color:var(--gold)}
+.applyf .submit{background:var(--gold);color:var(--ink);border:none;border-radius:9px;padding:12px 22px;font-weight:800;font-size:14px;cursor:pointer;font-family:var(--disp)}
+.applyf .submit:disabled{opacity:.6;cursor:default}
+.applyf .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+@media(max-width:560px){.applyf .row2{grid-template-columns:1fr!important}}
+</style>
+<div class="card" id="apply" style="margin-top:24px;border-color:var(--gold);scroll-margin-top:84px">
+  <h3 style="margin-top:0;font-size:22px">Apply to become a partner</h3>
+  <p style="max-width:58ch">Tell us where you are and how you'd like to sell. We'll reach out to set you up — most partners are live the same day their first wholesale payment clears.</p>
+  <form class="applyf" id="papply" onsubmit="return kodaPartnerApply(event)" style="display:grid;gap:14px;max-width:600px;margin-top:6px">
+    <input class="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <div class="row2" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <label>Your name*<input name="name" required maxlength="120" placeholder="e.g. Amina Kabeya"></label>
+      <label>Phone / WhatsApp / email*<input name="contact" required maxlength="160" placeholder="+243 …"></label>
+      <label>City<input name="city" maxlength="80" placeholder="Kinshasa"></label>
+      <label>Country<input name="country" maxlength="2" placeholder="CD"></label>
+    </div>
+    <label>How do you want to sell?
+      <select name="kind">
+        <option value="either">Either — recommend what fits me</option>
+        <option value="distributor">Distributor — sell in person (needs a phone)</option>
+        <option value="reseller">Reseller — sell voucher PINs (no device)</option>
+      </select>
+    </label>
+    <label>Anything else? <span style="opacity:.7">(optional)</span>
+      <textarea name="message" rows="3" maxlength="2000" placeholder="Where you'd sell, how many merchants near you, etc."></textarea>
+    </label>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button class="submit" type="submit" id="papply-btn">Submit application</button>
+      <span id="papply-msg" role="status" aria-live="polite" style="font-size:13.5px"></span>
+      <a class="lnk" href="/app#signup" style="margin-left:auto">Already a merchant? Open the app</a>
+    </div>
+  </form>
 </div>
+<script>
+function kodaPartnerApply(e){
+  e.preventDefault();
+  var f=e.target,btn=document.getElementById('papply-btn'),msg=document.getElementById('papply-msg');
+  var body={};new FormData(f).forEach(function(v,k){body[k]=v;});
+  btn.disabled=true;msg.style.color='var(--dim)';msg.textContent='Sending…';
+  fetch('/v1/partner/apply',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)})
+    .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
+    .then(function(x){
+      if(x.ok){f.reset();msg.style.color='#23B884';msg.textContent='✓ Thanks — your application is in. We\\'ll be in touch shortly.';btn.textContent='Submitted ✓';}
+      else{btn.disabled=false;msg.style.color='#e2685a';msg.textContent='✗ '+((x.d&&x.d.error&&x.d.error.message)||'Please check your details and try again.');}
+    })
+    .catch(function(){btn.disabled=false;msg.style.color='#e2685a';msg.textContent='✗ Network error — please try again.';});
+  return false;
+}
+</script>
 `,
   }),
   'pricing': page({

@@ -610,6 +610,52 @@ module.exports = function registerRoutes(r) {
     return { ok: true, id: cid };
   });
 
+  // Partner (distributor/reseller) application — public form on /rails. No auth,
+  // rate-limited, honeypot-guarded; stored and emailed to the KODA inbox.
+  r.post('/v1/partner/apply', (req) => {
+    const b = req.body || {};
+    const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'ip';
+    if (bruteLimited('partner:' + ip, 5, 10 * 60 * 1000))
+      return [429, { error: { code: 'too_many_applications', retry_after: 600 } }];
+    if (String(b.company || '').trim() !== '') return { ok: true }; // honeypot → silently drop bots
+    const kind = ['distributor', 'reseller', 'either'].includes(b.kind) ? b.kind : 'either';
+    const name = String(b.name || '').trim().slice(0, 120);
+    const contact = String(b.contact || '').trim().slice(0, 160);
+    const city = String(b.city || '').trim().slice(0, 80);
+    const country = String(b.country || '').trim().toUpperCase().slice(0, 2);
+    const message = String(b.message || '').trim().slice(0, 2000);
+    if (!name || !contact) return [400, { error: { code: 'name_and_contact_required', message: 'Your name and a way to reach you are required.' } }];
+    const pid = U.id('pap');
+    q.run(`INSERT INTO partner_applications (id,kind,name,contact,city,country,message,source_ip,user_agent)
+           VALUES (?,?,?,?,?,?,?,?,?)`,
+      pid, kind, name, contact, city, country, message, String(ip).slice(0, 60),
+      String(req.headers['user-agent'] || '').slice(0, 300));
+    const inbox = process.env.KODA_CONTACT_INBOX || 'koda@kodajnn.com';
+    const esc = (s) => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const html = `<h2>New partner application — ${esc(kind)}</h2>
+      <p><b>Name:</b> ${esc(name)}<br><b>Contact:</b> ${esc(contact)}<br><b>Where:</b> ${esc(city)} ${esc(country)}</p>
+      <p><b>Message:</b></p><p style="white-space:pre-wrap">${esc(message) || '—'}</p>
+      <hr><p style="color:#888;font-size:12px">ref ${pid}</p>`;
+    try {
+      const senders = require('./comms/senders');
+      Promise.resolve(senders.sendEmail(inbox, `KODA partner application — ${kind}: ${name}`, html))
+        .then(r => { if (r && r.ok) { try { q.run(`UPDATE partner_applications SET delivered=1 WHERE id=?`, pid); } catch {} } })
+        .catch(() => { /* stored regardless */ });
+    } catch { /* comms optional */ }
+    return { ok: true, id: pid };
+  });
+  // Admin: review partner applications.
+  r.get('/app/admin/partner-applications', admin(() =>
+    q.all(`SELECT id,kind,name,contact,city,country,message,status,delivered,created_at
+           FROM partner_applications ORDER BY created_at DESC LIMIT 200`)));
+  r.post('/app/admin/partner-applications/:id/status', admin((req, user) => {
+    const st = ['new', 'contacted', 'approved', 'rejected'].includes(req.body.status) ? req.body.status : null;
+    if (!st) return [400, { error: { code: 'bad_status' } }];
+    q.run('UPDATE partner_applications SET status=? WHERE id=?', st, req.params.id);
+    audit(null, user.id, 'admin.partner_application_status', { id: req.params.id, status: st });
+    return { ok: true };
+  }));
+
   r.get('/app/integrations', auth((req, user, m) =>
     q.all(`SELECT i.id, i.platform, i.store_url, i.created_at, i.revoked,
              k.last4 AS key_last4, k.revoked AS key_revoked, w.url AS webhook_url

@@ -1807,7 +1807,7 @@ const ROLE_KEYS = ['cashier', 'manager', 'owner'];
 const ADMIN_TABS = [
   ['overview', 'Overview'], ['revenue', 'Revenue'], ['collections', 'Collections'],
   ['collection', 'Collection setup'],
-  ['distributors', 'Distributors'], ['vouchers', 'Resellers & vouchers'], ['rails', 'Rails'],
+  ['distributors', 'Distributors'], ['vouchers', 'Resellers & vouchers'], ['partners', 'Partner applications'], ['rails', 'Rails'],
   ['coverage', 'Coverage'], ['doors', 'Doors'], ['agents', 'AI agents'],
   ['fraud', 'Fraud & disputes'], ['verifications', 'Verifications'], ['devices', 'Devices'],
   ['health', 'System health'], ['comms', 'Comms engine'], ['audit', 'Audit log'],
@@ -1828,6 +1828,7 @@ VIEWS.admin = async (params) => {
   if (tab === 'collection') return adminCollection();
   if (tab === 'distributors') return adminDistributors();
   if (tab === 'vouchers') return adminResellers();
+  if (tab === 'partners') return adminPartners();
   if (tab === 'rails') return adminRails();
   if (tab === 'coverage') return adminCoverage();
   if (tab === 'doors') return adminDoors();
@@ -2211,6 +2212,34 @@ window.adminActivateBatch = async (batch) => { try { const r = await api(`/app/a
 window.adminVoidBatch = async (batch) => {
   if (!confirm('Void this batch? Every unredeemed PIN in it stops working immediately. Redeemed vouchers are unaffected.')) return;
   try { const r = await api(`/app/admin/vouchers/${batch}/void`, { body: {} }); toast('✓ voided ' + fmt(r.voided) + ' voucher(s)'); route(); } catch (e) { toast('✗ ' + e.message); }
+};
+
+// ---- Partner applications (from the public /rails form) ----
+async function adminPartners() {
+  const rows = await api('/app/admin/partner-applications');
+  const badge = s => s === 'approved' ? 'b-ok' : s === 'rejected' ? 'b-bad' : s === 'contacted' ? 'b-info' : 'b-warn';
+  const nnew = rows.filter(r => r.status === 'new').length;
+  shell('admin', 'Partner applications', 'KODA staff — distributor & reseller sign-ups from kodajnn.com/rails', adminTabBar('partners') + `
+  <div class="card tbl-wrap"><h3>Applications (${fmt(rows.length)}${nnew ? ` · <span class="warn">${fmt(nnew)} new</span>` : ''})</h3>
+    ${rows.length ? `<table class="tbl"><tr><th>When</th><th>Name</th><th>Contact</th><th>Where</th><th>Wants</th><th>Message</th><th>Status</th><th></th></tr>
+    ${rows.map(r => `<tr>
+      <td class="mono" style="font-size:11px">${when(r.created_at)}</td>
+      <td>${esc(r.name)}</td>
+      <td class="mono" style="font-size:11px">${esc(r.contact)}</td>
+      <td>${esc(r.city || '')}${r.country ? ' <span class="mono" style="color:var(--dim)">' + esc(r.country) + '</span>' : ''}</td>
+      <td><span class="badge b-info">${esc(r.kind)}</span></td>
+      <td style="max-width:240px;font-size:12px;color:var(--dim)">${esc((r.message || '').slice(0, 160))}</td>
+      <td><span class="badge ${badge(r.status)}">${esc(r.status)}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="adminPartnerStatus('${r.id}','contacted')">contacted</button>
+        <button class="btn btn-gold btn-sm" onclick="adminPartnerStatus('${r.id}','approved')">approve</button>
+        <button class="btn btn-danger btn-sm" onclick="adminPartnerStatus('${r.id}','rejected')">reject</button>
+      </td></tr>`).join('')}
+    </table>` : '<p style="color:var(--dim);font-size:13px">No applications yet. They arrive here from the “Become a partner” form on kodajnn.com/rails (and are emailed to your inbox).</p>'}</div>`);
+}
+window.adminPartnerStatus = async (id, status) => {
+  try { await api(`/app/admin/partner-applications/${id}/status`, { body: { status } }); toast('✓ ' + status); route(); }
+  catch (e) { toast('✗ ' + e.message); }
 };
 
 // ---- Rails config ----
