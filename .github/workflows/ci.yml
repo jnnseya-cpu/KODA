@@ -22,6 +22,11 @@ jobs:
       # Mock operator-API adapter so the dual-confirm (crosscheck) path is exercised
       # (mirrors launch-audit.sh). Only activates when a crosscheck is invoked.
       KODA_OPAPI_ORANGE_CD: "mock://confirm"
+      # CI-only: deterministic in-process AI provider (no network key). Makes the AI
+      # gateway report "available" so the metering/gating suites exercise the real
+      # charge path — growth content tools, VisionAgent OCR and DisputeAgent evidence
+      # all run against a fixed mock response instead of a live model.
+      KODA_AI_MOCK: "1"
     defaults:
       run:
         working-directory: app

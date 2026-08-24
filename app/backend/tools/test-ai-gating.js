@@ -36,7 +36,9 @@ const j = async (p, o = {}, tok) => { const r = await fetch(B + p, { method: o.m
   T('agent reconciler blocked (402)', a2.s === 402);
   const d1 = await j('/app/disputes', { body: { reference: 'X', reason: 'y' } }, nu.token);
   T('DisputeAgent evidence blocked (402) at empty balance', d1.s === 402);
-  const v1 = await j('/app/verify', { body: { reference: 'ANYTHING', screenshot: true, screenshot_ref: 'X' } }, nu.token);
+  // VisionAgent OCR fires only when a real image is uploaded AND a vision model is
+  // configured — send a 1px PNG so the gate engages (and would be 402 at empty balance).
+  const v1 = await j('/app/verify', { body: { screenshot: true, image: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC', media_type: 'image/png' } }, nu.token);
   T('Vision screenshot path blocked (402) at empty balance', v1.s === 402, `status ${v1.s}`);
 
   console.log('— WITH ACU: same actions run and meter correctly');

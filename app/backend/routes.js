@@ -208,17 +208,25 @@ module.exports = function registerRoutes(r) {
   }));
 
   // ---------- manual verify console + intents + receipts ----------
-  r.post('/app/verify', auth((req, user, m) => {
+  r.post('/app/verify', auth(async (req, user, m) => {
     const { reference, amount, screenshot } = req.body;
     if (!reference && !screenshot) return [400, { error: 'reference_or_screenshot_required' }];
-    // screenshot path: VisionAgent extraction (sandbox: caller passes extracted ref via screenshot_ref)
-    const ref = reference || req.body.screenshot_ref;
-    if (!ref) return [422, { error: 'vision_could_not_extract' }];
-    // screenshot = VisionAgent (AI action, 3 ACU) — gated; code path is the free-to-fall-back-on money path
-    if (screenshot) {
+    let ref = reference || req.body.screenshot_ref;
+    let didOcr = false, visionAmount = null, visionCurrency = null;
+    // Screenshot path: REAL OCR when an image is uploaded and a vision model is set.
+    // VisionAgent (3 ACU) is charged ONLY when we actually read an image — a bare
+    // "screenshot" toggle with no image no longer surcharges the free code path.
+    const ai = require('./lib/ai');
+    if (screenshot && req.body.image && ai.available()) {
       const gate = engine.gateAI(m, engine.ACU.vision, 'vision-extract');
       if (gate.ok !== true) return gate;
+      try {
+        const ext = await ai.extractPaymentFromImage(req.body.image, req.body.media_type || 'image/jpeg');
+        if (ext.reference) { ref = ext.reference; visionAmount = ext.amount; visionCurrency = ext.currency; didOcr = true; }
+        else return [422, { error: 'vision_could_not_extract', note: 'No reference code could be read from the screenshot.' }];
+      } catch (e) { return [422, { error: 'vision_failed', detail: String(e && e.message || e) }]; }
     }
+    if (!ref) return [422, { error: 'vision_could_not_extract' }];
     let intent = null;
     const amt = Number(amount);
     if (amount !== undefined && amount !== '' && (!Number.isFinite(amt) || amt <= 0)) {
@@ -236,8 +244,10 @@ module.exports = function registerRoutes(r) {
         JSON.stringify({ manual: true }));
       intent = q.get('SELECT * FROM intents WHERE id=?', iid);
     }
-    const res = engine.verify(m, intent, ref, { mode: 'manual', userId: user.id, viaScreenshot: !!screenshot });
-    audit(m.id, user.id, 'manual_verify', { reference: ref, status: res.status });
+    // viaScreenshot (the 3-ACU vision charge) is true ONLY when we really OCR'd an image.
+    const res = engine.verify(m, intent, ref, { mode: 'manual', userId: user.id, viaScreenshot: didOcr });
+    if (didOcr) res.extracted = { reference: ref, amount: visionAmount, currency: visionCurrency };
+    audit(m.id, user.id, 'manual_verify', { reference: ref, status: res.status, ocr: didOcr });
     return res;
   }));
 
@@ -311,23 +321,52 @@ module.exports = function registerRoutes(r) {
   // ---------- disputes ----------
   r.get('/app/disputes', auth((req, user, m) =>
     q.all('SELECT * FROM disputes WHERE merchant_id=? ORDER BY created_at DESC', m.id)));
-  r.post('/app/disputes', auth((req, user, m) => {
-    // DisputeAgent assembles an AI evidence file — metered + gated like every AI action
-    const gate = engine.gateAI(m, engine.ACU.dispute, 'dispute-evidence');
-    if (gate.ok !== true) return gate;
+  r.post('/app/disputes', auth(async (req, user, m) => {
+    const ref = String(req.body.reference || '').trim();
+    const reason = req.body.reason || 'verification_failed';
+    // REAL ledger scan — actually look for the payment instead of a hardcoded verdict.
+    const receipt = ref ? q.get('SELECT amount,currency,operator,verified_at,payer_suffix,risk_score FROM receipts WHERE merchant_id=? AND UPPER(reference)=UPPER(?)', m.id, ref) : null;
+    const seen = ref ? q.all(`SELECT ref_code, amount, currency, operator, received_at FROM sms_ledger WHERE merchant_id=? AND UPPER(ref_code)=UPPER(?) ORDER BY received_at DESC LIMIT 5`, m.id, ref) : [];
+    const scan = receipt
+      ? `A VERIFIED receipt exists for ${ref}: ${receipt.amount} ${receipt.currency} via ${receipt.operator} on ${receipt.verified_at} (fraud score ${receipt.risk_score}).`
+      : seen.length
+        ? `${seen.length} operator SMS match ${ref} in the ledger, but none produced a verified receipt.`
+        : `No operator SMS matching ${ref || '(no reference given)'} was found in this merchant's ledger.`;
+    const recommendation = receipt
+      ? 'Payment is verified in the ledger — likely a customer mistake; share the receipt as proof.'
+      : 'Ask the customer for the payer number, exact amount and time; re-check once the operator SMS arrives.';
+
+    // AI evidence narrative — charged ONLY when a model actually runs.
+    const ai = require('./lib/ai');
+    let aiEvidence = null, aiUsed = false;
+    if (ai.available()) {
+      const gate = engine.gateAI(m, engine.ACU.dispute, 'dispute-evidence');
+      if (gate.ok !== true) return gate;
+      try {
+        aiEvidence = await ai.generate({
+          system: 'You are KODA DisputeAgent, helping an African merchant handle a mobile-money payment dispute. Use ONLY the ledger facts provided — never invent a payment. Be concise, factual and professional.',
+          prompt: `Reference: ${ref || '(none)'}\nCustomer claim: ${reason}\nLedger scan (ground truth): ${scan}\n\nWrite a short evidence file: (1) 2-3 sentences summarising what the ledger shows, (2) one clear recommended action for the merchant.`,
+          maxTokens: 400,
+        });
+        aiUsed = true;
+      } catch (e) { aiEvidence = null; }
+    }
+
     const did = U.id('dsp');
     const evidence = {
-      assembled_by: 'DisputeAgent K-06',
-      reference: req.body.reference || null,
-      customer_claim: req.body.reason,
-      ledger_scan: 'no matching SMS in ±45 min window',
-      recommendation: 'request payer-number confirmation from customer',
+      assembled_by: aiUsed ? 'DisputeAgent K-06 (AI)' : 'DisputeAgent K-06',
+      reference: ref || null,
+      customer_claim: reason,
+      ledger_scan: scan,                    // REAL result now
+      ledger_matches: seen.length,
+      verified_receipt: !!receipt,
+      ai_evidence: aiEvidence,              // real AI narrative when configured
+      recommendation,
     };
     q.run(`INSERT INTO disputes (id,merchant_id,reference,reason,evidence,recommendation)
-           VALUES (?,?,?,?,?,?)`, did, m.id, req.body.reference || null, req.body.reason || 'verification_failed',
-      JSON.stringify(evidence), evidence.recommendation);
-    engine.chargeAcu(m, engine.ACU.dispute, 'dispute', did);
-    notify.fireMerchant('dispute.opened', m, { reference: req.body.reference || did });
+           VALUES (?,?,?,?,?,?)`, did, m.id, ref || null, reason, JSON.stringify(evidence), recommendation);
+    if (aiUsed) engine.chargeAcu(m, engine.ACU.dispute, 'dispute', did); // only charge when AI ran
+    notify.fireMerchant('dispute.opened', m, { reference: ref || did });
     // ADD-ON B: a dispute on a reference contributes the payer's hashed identity to
     // the network so other merchants inherit the signal (no raw value is stored).
     try {

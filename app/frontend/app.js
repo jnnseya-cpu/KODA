@@ -639,7 +639,8 @@ VIEWS.verify = async () => {
       <input id="amt" placeholder="${t('expected_amount')}" inputmode="numeric">
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-gold" onclick="consoleVerify(false)">✓ ${t('verify_btn')}</button>
-        <button class="btn btn-ghost" style="color:var(--paper-ink);border-color:rgba(36,31,20,.25)" onclick="consoleVerify(true)">📷 ${t('v_screenshot')}</button>
+        <button class="btn btn-ghost" style="color:var(--paper-ink);border-color:rgba(36,31,20,.25)" onclick="pickShot()">📷 ${t('v_screenshot')}</button>
+        <input type="file" id="shotfile" accept="image/*" capture="environment" style="display:none" onchange="onShotFile(this)">
       </div>
     </div>
     <div class="verdict" id="verdict"></div>
@@ -664,37 +665,56 @@ VIEWS.verify = async () => {
     </div>
   </details>`);
 };
-window.consoleVerify = async (screenshot) => {
+function renderVerdict(r, el) {
+  const cls = r.status === 'verified' ? 'ok' : r.status === 'pending_review' || r.status === 'not_found_yet' ? 'warn' : 'bad';
+  const icon = cls === 'ok' ? '✓' : cls === 'warn' ? '◔' : '✗';
+  el.className = `verdict show ${cls}`;
+  el.innerHTML = `<div class="big">${icon} ${cls === 'ok' ? t('verified') : r.status === 'pending_review' ? t('pending') : r.status === 'not_found_yet' ? t('not_found') : t('rejected')}</div>
+    ${r.extracted ? `<div class="mono" style="margin-top:4px">📷 read from image: <b>${esc(r.extracted.reference)}</b>${r.extracted.amount != null ? ' · ' + esc(r.extracted.amount) + (r.extracted.currency ? ' ' + esc(r.extracted.currency) : '') : ''}</div>` : ''}
+    <div class="mono">${r.amount_confirmed ? `${t('amount')}: ${fmt(r.amount_confirmed)} · ` : ''}${r.receipt_id ? `receipt ${r.receipt_id} · ` : ''}${r.risk ? `risk ${r.risk.score}` : ''}${r.code ? ` · ${r.code}` : ''}</div>
+    ${(r.trace?.steps || []).map(s => `<div class="mono" style="margin-top:4px">→ ${esc(s)}</div>`).join('')}`;
+}
+window.consoleVerify = async () => {
   const el = document.getElementById('verdict');
-  // The screenshot path cross-checks the reference READ from the customer's screenshot
-  // (real image OCR is not enabled yet). Without a code there is nothing to check, so
-  // guide the operator instead of returning a cryptic "vision_could_not_extract".
-  const fr = (function(){ try { return (document.documentElement.lang || navigator.language || '').toLowerCase().startsWith('fr') || LANG === 'fr'; } catch { return false; } })();
-  if (screenshot && !v('ref').trim()) {
-    el.className = 'verdict show warn';
-    el.innerHTML = `<div class="big">📷 ${fr ? 'Saisissez d’abord le code' : 'Type the code first'}</div>
-      <div class="mono" style="margin-top:6px;white-space:normal">${fr
-        ? 'Lisez le code de référence sur la capture du client, saisissez-le ci-dessus, puis touchez Capture. KODA le recoupe avec le vrai SMS de l’opérateur — c’est ça la preuve, pas l’image.'
-        : "Read the reference code from the customer's screenshot, type it in the field above, then tap Screenshot. KODA cross-checks it against the operator's real SMS — that's the proof, not the image."}</div>`;
-    document.getElementById('ref').focus();
-    return;
-  }
   el.className = 'verdict'; el.textContent = '…';
   try {
-    const body = { reference: v('ref'), amount: v('amt') || undefined };
-    if (screenshot) { body.screenshot = true; body.screenshot_ref = v('ref'); }
-    const r = await api('/app/verify', { body });
-    const cls = r.status === 'verified' ? 'ok' : r.status === 'pending_review' || r.status === 'not_found_yet' ? 'warn' : 'bad';
-    const icon = cls === 'ok' ? '✓' : cls === 'warn' ? '◔' : '✗';
-    el.className = `verdict show ${cls}`;
-    el.innerHTML = `<div class="big">${icon} ${cls === 'ok' ? t('verified') : r.status === 'pending_review' ? t('pending') : r.status === 'not_found_yet' ? t('not_found') : t('rejected')}</div>
-      <div class="mono">${r.amount_confirmed ? `${t('amount')}: ${fmt(r.amount_confirmed)} · ` : ''}${r.receipt_id ? `receipt ${r.receipt_id} · ` : ''}${r.risk ? `risk ${r.risk.score}` : ''}${r.code ? ` · ${r.code}` : ''}</div>
-      ${(r.trace?.steps || []).map(s => `<div class="mono" style="margin-top:4px">→ ${esc(s)}</div>`).join('')}`;
+    const r = await api('/app/verify', { body: { reference: v('ref'), amount: v('amt') || undefined } });
+    renderVerdict(r, el);
     ME = await api('/app/me');
   } catch (e) {
     el.className = 'verdict show bad';
     el.innerHTML = `<div class="big">✗ ${esc(e.message)}</div>`;
   }
+};
+// Real screenshot verification: pick an image → KODA's vision model reads the
+// reference code (3 ACU) → verifies it against the operator SMS.
+window.pickShot = () => { const f = document.getElementById('shotfile'); if (f) { f.value = ''; f.click(); } };
+window.onShotFile = (input) => {
+  const file = input.files && input.files[0]; if (!file) return;
+  const el = document.getElementById('verdict');
+  el.className = 'verdict'; el.textContent = '📷 …';
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = async () => {
+    try {
+      // downscale to keep the upload well under the 2 MB request cap and speed up OCR
+      const maxW = 1100, scale = Math.min(1, maxW / (img.width || maxW));
+      const w = Math.max(1, Math.round((img.width || maxW) * scale)), h = Math.max(1, Math.round((img.height || maxW) * scale));
+      const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+      const b64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+      const r = await api('/app/verify', { body: { screenshot: true, image: b64, media_type: 'image/jpeg', amount: v('amt') || undefined } });
+      renderVerdict(r, el);
+      ME = await api('/app/me');
+    } catch (e) {
+      el.className = 'verdict show bad';
+      el.innerHTML = `<div class="big">✗ ${esc(e.message)}</div>${/vision/.test(e.message) ? '<div class="mono" style="margin-top:6px;white-space:normal">Could not read the code from that image — try a clearer screenshot, or type the code and tap Verify.</div>' : ''}`;
+    }
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); el.className = 'verdict show bad'; el.innerHTML = '<div class="big">✗ could_not_read_image</div>'; };
+  img.src = url;
 };
 // Paste-the-SMS verify — the universal iPhone / no-Sentinel path. Sends the WHOLE
 // operator SMS; KODA ingests it (real proof) and verifies in one step.
