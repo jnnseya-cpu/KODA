@@ -666,6 +666,19 @@ VIEWS.verify = async () => {
 };
 window.consoleVerify = async (screenshot) => {
   const el = document.getElementById('verdict');
+  // The screenshot path cross-checks the reference READ from the customer's screenshot
+  // (real image OCR is not enabled yet). Without a code there is nothing to check, so
+  // guide the operator instead of returning a cryptic "vision_could_not_extract".
+  const fr = (function(){ try { return (document.documentElement.lang || navigator.language || '').toLowerCase().startsWith('fr') || LANG === 'fr'; } catch { return false; } })();
+  if (screenshot && !v('ref').trim()) {
+    el.className = 'verdict show warn';
+    el.innerHTML = `<div class="big">📷 ${fr ? 'Saisissez d’abord le code' : 'Type the code first'}</div>
+      <div class="mono" style="margin-top:6px;white-space:normal">${fr
+        ? 'Lisez le code de référence sur la capture du client, saisissez-le ci-dessus, puis touchez Capture. KODA le recoupe avec le vrai SMS de l’opérateur — c’est ça la preuve, pas l’image.'
+        : "Read the reference code from the customer's screenshot, type it in the field above, then tap Screenshot. KODA cross-checks it against the operator's real SMS — that's the proof, not the image."}</div>`;
+    document.getElementById('ref').focus();
+    return;
+  }
   el.className = 'verdict'; el.textContent = '…';
   try {
     const body = { reference: v('ref'), amount: v('amt') || undefined };
