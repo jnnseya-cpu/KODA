@@ -955,7 +955,10 @@ window.kdBuy = async () => {
   const out = document.getElementById('kd-out');
   const block = Number(v('kd-block'));
   if (!block) return void (out.innerHTML = '<div class="badge b-bad">Enter an ACU amount.</div>');
-  try { const r = await api('/app/kd/wholesale', { body: { acu_block: block } }); out.innerHTML = `<div class="badge b-ok">✓ float purchased</div>`; setTimeout(route, 1500); }
+  try { const r = await api('/app/kd/wholesale', { body: { acu_block: block } });
+    out.innerHTML = `<div style="border:1px solid var(--gold);border-radius:10px;padding:14px">
+      <div style="font-weight:800;font-size:15px;margin-bottom:4px">Pay $${fmt(r.amount_usd)} to add ${fmt(r.acu)} ACU</div>
+      <div style="font-size:13px;color:var(--dim)">${esc(r.instruction)}</div></div>`; }
   catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
 
@@ -995,7 +998,10 @@ window.resellerBuy = async () => {
   const out = document.getElementById('rsc-buy');
   const block = Number(v('rsc-block'));
   if (!block) return void (out.innerHTML = '<div class="badge b-bad">Enter an ACU amount.</div>');
-  try { await api('/app/reseller/buy', { body: { acu_block: block } }); out.innerHTML = '<div class="badge b-ok">✓ inventory purchased</div>'; setTimeout(route, 1400); }
+  try { const r = await api('/app/reseller/buy', { body: { acu_block: block } });
+    out.innerHTML = `<div style="border:1px solid var(--gold);border-radius:10px;padding:14px">
+      <div style="font-weight:800;font-size:15px;margin-bottom:4px">Pay $${fmt(r.amount_usd)} to add ${fmt(r.acu)} ACU</div>
+      <div style="font-size:13px;color:var(--dim)">${esc(r.instruction)}</div></div>`; }
   catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
 window.resellerIssue = async () => {
@@ -2100,7 +2106,7 @@ window.adminLinkKd = async (id, name) => {
   catch (e) { toast('✗ ' + e.message); }
 };
 window.adminFundKd = async (id, name) => {
-  const acu = prompt('Fund ' + name + ' — how many ACU of float to add?', '1000');
+  const acu = prompt('Fund ' + name + '’s float — how many ACU? (only after their wholesale payment to KODA has cleared)', '1000');
   if (!acu) return;
   try { const r = await api(`/app/admin/distributors/${id}/fund`, { body: { acu: Number(acu) } }); toast('✓ float now ' + fmt(r.float)); route(); }
   catch (e) { toast('✗ ' + e.message); }
@@ -2127,6 +2133,7 @@ async function adminResellers() {
       <td style="font-size:11px">${r.merchant_id ? esc(r.merchant_email || 'linked') : `<button class="btn btn-ghost btn-sm" onclick="adminLinkReseller('${r.id}','${esc(r.legal_name)}')">link login</button>`}</td>
       <td class="num">${fmt(r.inventory_acu || 0)}</td><td class="num">${((r.wholesale_bps || 8500) / 100)}%</td><td class="num">${fmt(r.vouchers)}</td>
       <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="adminFundReseller('${r.id}','${esc(r.legal_name)}')">fund</button>
+        <button class="btn btn-ghost btn-sm" onclick="adminSetResellerRate('${r.id}','${esc(r.legal_name)}',${r.wholesale_bps || 8500})">rate</button>
         <button class="btn btn-ghost btn-sm" onclick="adminIssueVouchers('${r.id}','${esc(r.legal_name)}')">issue batch</button></td></tr>`).join('')}
     </table>` : '<p style="color:var(--dim);font-size:13px">No resellers yet. Add one, link their login, fund inventory, then issue voucher batches.</p>'}</div>
   <div id="vb-out"></div>
@@ -2154,6 +2161,12 @@ window.adminLinkReseller = async (id, name) => {
   const email = prompt('Link ' + name + ' to a KODA account — enter the reseller’s login email:');
   if (!email) return;
   try { await api(`/app/admin/resellers/${id}/link`, { body: { merchant_email: email } }); toast('✓ linked'); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
+window.adminSetResellerRate = async (id, name, curBps) => {
+  const pct = prompt('Wholesale rate for ' + name + ' (% of retail, 50–100). Standard is 85; a bigger partner might get 80.', String((curBps || 8500) / 100));
+  if (!pct) return;
+  try { const r = await api(`/app/admin/resellers/${id}/rate`, { body: { pct: Number(pct) } }); toast('✓ rate set to ' + r.wholesale_pct + '%'); route(); }
   catch (e) { toast('✗ ' + e.message); }
 };
 window.adminIssueVouchers = async (id, name) => {

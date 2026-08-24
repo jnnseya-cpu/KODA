@@ -1361,6 +1361,18 @@ module.exports = function registerRoutes(r) {
     audit(null, user.id, 'admin.reseller_linked', { reseller: rs.id, merchant: row.merchant_id });
     return { ok: true, merchant_id: row.merchant_id };
   }));
+  // Set a reseller's wholesale rate. Accepts pct (e.g. 80) or bps (e.g. 8000).
+  // Bounded 50%–100%: never below KODA's ≥100%-margin floor, never above retail.
+  r.post('/app/admin/resellers/:id/rate', admin((req, user) => {
+    const rs = q.get('SELECT * FROM resellers WHERE id=?', req.params.id);
+    if (!rs) return [404, { error: { code: 'reseller_not_found' } }];
+    let bps = req.body.bps != null ? Math.round(Number(req.body.bps)) : Math.round(Number(req.body.pct) * 100);
+    if (!Number.isFinite(bps) || bps < 5000 || bps > 10000)
+      return [400, { error: { code: 'bad_rate', message: 'Rate must be 50%–100% of retail (5000–10000 bps).' } }];
+    q.run('UPDATE resellers SET wholesale_bps=? WHERE id=?', bps, rs.id);
+    audit(null, user.id, 'admin.reseller_rate_set', { reseller: rs.id, bps });
+    return { ok: true, reseller_id: rs.id, wholesale_bps: bps, wholesale_pct: bps / 100 };
+  }));
   r.get('/app/admin/vouchers', admin(() =>
     q.all(`SELECT batch_id, reseller_id, product_code, acu_amount, country_lock, currency_lock,
            COUNT(*) n, SUM(status='dormant') dormant, SUM(status='active') active, SUM(status='redeemed') redeemed, SUM(status='void') void,
@@ -1522,10 +1534,19 @@ module.exports = function registerRoutes(r) {
     return d ? { distributor_id: d.id, name: d.name, country: d.country, float_acu: d.float_acu, status: d.status }
       : [404, { error: { code: 'not_a_distributor' } }];
   }));
+  // Request more float. Does NOT credit — returns the wholesale amount to pay KODA;
+  // float is credited only when KODA confirms the payment (admin records it).
   r.post('/app/kd/wholesale', auth((req, user, m) => {
     const d = q.get('SELECT * FROM distributors WHERE merchant_id=?', m.id);
     if (!d) return [404, { error: { code: 'not_a_distributor' } }];
-    return billing.wholesalePurchase(d.id, req.body.acu_block);   // paid via card/aggregator upstream
+    const acu = Math.round(Number(req.body.acu_block) || 0);
+    if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
+    const retail = require('../shared/billing').ACU_PRICE_USD;
+    const bps = d.wholesale_bps || 8500;
+    const usd = Math.round(acu * retail * (bps / 10000) * 100) / 100;
+    audit(null, user.id, 'kd.float_requested', { distributor: d.id, acu, usd });
+    return { ok: true, quote: true, acu, wholesale_pct: bps / 100, amount_usd: usd,
+      instruction: `To add ${acu.toLocaleString()} ACU of float, pay KODA $${usd} (your ${bps / 100}% wholesale rate). Your float is credited once KODA confirms the payment — never added for free.` };
   }));
   r.get('/app/kd/sales', auth((req, user, m) => {
     const d = q.get('SELECT * FROM distributors WHERE merchant_id=?', m.id);
@@ -1553,11 +1574,20 @@ module.exports = function registerRoutes(r) {
       inventory_acu: rs.inventory_acu, settlement_currency: rs.settlement_currency,
       wholesale_bps: bps, wholesale_pct: bps / 100, wholesale_usd_per_acu: Math.round(retail * (bps / 10000) * 10000) / 10000 };
   }));
-  // Buy voucher inventory (card/aggregator cleared upstream, mirrors the KD wholesale buy).
+  // Request more voucher inventory. This does NOT credit — it returns the wholesale
+  // amount to pay KODA. Inventory is only added when KODA confirms the payment (admin
+  // records it), so a reseller can never mint free inventory.
   r.post('/app/reseller/buy', auth((req, user, m) => {
     const rs = myReseller(m);
     if (!rs) return [404, { error: { code: 'not_a_reseller' } }];
-    return billing.resellerBuyInventory(rs.id, req.body.acu_block);
+    const acu = Math.round(Number(req.body.acu_block) || 0);
+    if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
+    const retail = require('../shared/billing').ACU_PRICE_USD;
+    const bps = rs.wholesale_bps || 8500;
+    const usd = Math.round(acu * retail * (bps / 10000) * 100) / 100;
+    audit(null, user.id, 'reseller.inventory_requested', { reseller: rs.id, acu, usd });
+    return { ok: true, quote: true, acu, wholesale_pct: bps / 100, amount_usd: usd,
+      instruction: `To add ${acu.toLocaleString()} ACU of inventory, pay KODA $${usd} (your ${bps / 100}% wholesale rate). Your inventory is credited once KODA confirms the payment — it is never added for free.` };
   }));
   r.get('/app/reseller/batches', auth((req, user, m) => {
     const rs = myReseller(m);
