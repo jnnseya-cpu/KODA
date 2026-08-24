@@ -97,6 +97,10 @@ function redeem(merchant, pin) {
   if (!payload || payload.voucher_id !== v.id) return [400, { error: { code: 'bad_signature' } }];
   const reseller = q.get('SELECT * FROM resellers WHERE id=?', v.reseller_id);
   if (!reseller || reseller.status !== 'ACTIVE') return [409, { error: { code: 'reseller_inactive' } }];
+  // Anti-loophole: a reseller must not redeem their OWN vouchers into their own
+  // account — that would be buying ACU at wholesale for their own consumption.
+  if (reseller.merchant_id && reseller.merchant_id === merchant.id)
+    return [409, { error: { code: 'self_redeem_forbidden', message: 'A reseller cannot redeem their own vouchers. Sell them to other merchants.' } }];
   if (v.country_lock && v.country_lock !== merchant.country) return [409, { error: { code: 'country_locked', lock: v.country_lock } }];
 
   // All-or-nothing: the guarded CAS flip (a concurrent second redeem loses the race)

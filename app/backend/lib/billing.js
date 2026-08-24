@@ -305,6 +305,10 @@ function createDistributorTopup(merchant, body = {}) {
     ? q.get(`SELECT * FROM distributors WHERE id=? AND status='active'`, body.distributor_id)
     : q.get(`SELECT * FROM distributors WHERE country=? AND status='active' AND float_acu>=? ORDER BY float_acu DESC LIMIT 1`, merchant.country, acu);
   if (!kd) return [409, { error: { code: 'no_distributor', message: 'no active distributor with float in this market' } }];
+  // Anti-loophole: a distributor must not top up their OWN account through their own
+  // float — that would be buying ACU at wholesale for their own consumption.
+  if (kd.merchant_id && kd.merchant_id === merchant.id)
+    return [409, { error: { code: 'self_purchase_forbidden', message: 'A distributor cannot buy ACU through their own float. Sell to other merchants.' } }];
   if (kd.float_acu < acu) return [409, { error: { code: 'insufficient_float', message: 'distributor float too low' } }];
   const quote = B.quote(acu, 'distributor', { currency: merchant.currency });
   const id = U.id('top');
@@ -329,6 +333,9 @@ function settleDistributorTopup(topupId, { verifiedAmountUsd } = {}) {
   if (t.status === 'settled') return { ok: true, already: true, topup_id: t.id };
   const kd = q.get('SELECT * FROM distributors WHERE id=?', t.distributor_id);
   if (!kd) return [404, { error: { code: 'distributor_not_found' } }];
+  // Anti-loophole (defensive): never settle a KD's top-up into the KD's own account.
+  if (kd.merchant_id && kd.merchant_id === t.merchant_id)
+    return [409, { error: { code: 'self_purchase_forbidden' } }];
   // server-side amount authority: a verified payment must match the quoted total
   if (verifiedAmountUsd != null && Math.abs(Number(verifiedAmountUsd) - t.total_usd) > 0.011)
     return [409, { error: { code: 'amount_mismatch', expected: t.total_usd, got: verifiedAmountUsd } }];
