@@ -1546,9 +1546,12 @@ module.exports = function registerRoutes(r) {
   const myReseller = (m) => q.get('SELECT * FROM resellers WHERE merchant_id=?', m.id);
   r.get('/app/reseller', auth((req, user, m) => {
     const rs = myReseller(m);
-    return rs ? { reseller_id: rs.id, legal_name: rs.legal_name, country: rs.country, status: rs.status,
-      inventory_acu: rs.inventory_acu, settlement_currency: rs.settlement_currency }
-      : [404, { error: { code: 'not_a_reseller' } }];
+    if (!rs) return [404, { error: { code: 'not_a_reseller' } }];
+    const retail = require('../shared/billing').ACU_PRICE_USD;
+    const bps = rs.wholesale_bps || 8500;
+    return { reseller_id: rs.id, legal_name: rs.legal_name, country: rs.country, status: rs.status,
+      inventory_acu: rs.inventory_acu, settlement_currency: rs.settlement_currency,
+      wholesale_bps: bps, wholesale_pct: bps / 100, wholesale_usd_per_acu: Math.round(retail * (bps / 10000) * 10000) / 10000 };
   }));
   // Buy voucher inventory (card/aggregator cleared upstream, mirrors the KD wholesale buy).
   r.post('/app/reseller/buy', auth((req, user, m) => {

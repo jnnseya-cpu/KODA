@@ -420,11 +420,13 @@ db.exec(`CREATE TABLE IF NOT EXISTS resellers (
   status TEXT NOT NULL DEFAULT 'ACTIVE',        -- APPLICANT|DUE_DILIGENCE|ACTIVE|SUSPENDED|TERMINATED
   settlement_currency TEXT NOT NULL DEFAULT 'USD',
   inventory_acu INTEGER NOT NULL DEFAULT 0,     -- prepaid voucher inventory (authoritative escrow)
+  wholesale_bps INTEGER NOT NULL DEFAULT 8500,  -- pays 85% of retail = 15% reseller margin (mirrors distributors)
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
 // migrations for existing reseller tables (no-op on fresh DBs)
 try { db.exec(`ALTER TABLE resellers ADD COLUMN merchant_id TEXT REFERENCES merchants(id)`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE resellers ADD COLUMN inventory_acu INTEGER NOT NULL DEFAULT 0`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE resellers ADD COLUMN wholesale_bps INTEGER NOT NULL DEFAULT 8500`); } catch { /* exists */ }
 
 // vouchers: Ed25519-signed, single-use, product+market locked, PIN stored hashed
 db.exec(`CREATE TABLE IF NOT EXISTS vouchers (
