@@ -12,7 +12,7 @@ const j = async (p, o = {}, tok) => { const r = await fetch(B + p, { method: o.m
   const cases = {
     social_post: r => typeof r.text === 'string' && r.text.length > 40 && Array.isArray(r.hashtags),
     advert: r => r.headline && r.primary_text && r.cta_button,
-    email_campaign: r => r.subject && r.body_html.includes('koda'),
+    email_campaign: r => r.subject && typeof r.body_html === 'string' && r.body_html.length > 40,
     landing_page: r => r.hero && Array.isArray(r.sections) && r.sections.length >= 3,
     hashtags: r => Array.isArray(r.hashtags) && r.hashtags.length > 5,
     video_script: r => Array.isArray(r.scenes) && r.scenes.length >= 4,

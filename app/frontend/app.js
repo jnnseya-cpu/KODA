@@ -1515,12 +1515,13 @@ window.suspendSub = async (id) => { await api(`/app/submerchants/${id}/suspend`,
 VIEWS.growth = async () => {
   const d = await api('/app/growth/tools');
   const ref = await api('/app/referrals').catch(() => null);
+  const _ctx = growthCtx();
   const acuBy = Object.fromEntries(d.tools.map(x => [x.id, x.acu]));
   const shareMsg = encodeURIComponent(`I verify my mobile-money payments instantly with KODA — no more fake screenshots. Join free and we both earn credit: `);
   shell('growth', t('growth'), t('growth_sub') + ' · K-11', `
   ${ref ? `<div class="card" style="border-color:var(--gold)">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
-      <h3 style="margin:0">🎁 Refer & earn — grow KODA, get free ACU</h3>
+      <h3 style="margin:0">🎁 Invite a merchant — earn free ACU</h3>
       <span class="mono" style="font-size:12px;color:var(--dim)">${fmt(ref.qualified)} joined · ${fmt(ref.acu_earned)} ACU earned</span></div>
     <p style="font-size:13px;color:var(--dim);margin:8px 0">Share your link. When a merchant you invite verifies their <b>first payment</b>, <b>you both get ${fmt(ref.reward_per)} ACU</b>. No limit.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -1530,8 +1531,22 @@ VIEWS.growth = async () => {
     </div>
     ${ref.list && ref.list.length ? `<div class="mono" style="font-size:11px;color:var(--dim);margin-top:10px">Recent: ${ref.list.slice(0, 5).map(x => `${esc(x.name)} <span class="badge ${x.status === 'qualified' ? 'b-ok' : 'b-info'}">${x.status === 'qualified' ? 'earned' : 'joined'}</span>`).join(' · ')}</div>` : ''}
   </div>` : ''}
+  <div class="card" style="margin-top:14px;border-color:var(--gold)">
+    <h3 style="margin:0 0 4px">🏪 Your business</h3>
+    <div style="font-size:13px;color:var(--dim);margin-bottom:12px">Tell the AI what <b>you</b> sell — every tool below writes marketing for <b>your</b> business, not for KODA.</div>
+    <label style="display:block;font-size:12px;color:var(--dim);margin-bottom:4px">What does your business do?</label>
+    <input id="biz-about" value="${esc(_ctx.business || '')}" placeholder="e.g. Grilled fish & fufu restaurant, delivery in Gombe"
+      style="width:100%;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px;font-size:14px;box-sizing:border-box">
+    <label style="display:block;font-size:12px;color:var(--dim);margin:10px 0 4px">What are you promoting right now? <span style="opacity:.7">(optional)</span></label>
+    <input id="biz-promo" value="${esc(_ctx.promo || '')}" placeholder="e.g. Weekend combo — fish + drink 15,000 CDF"
+      style="width:100%;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px;font-size:14px;box-sizing:border-box">
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-gold btn-sm" onclick="saveGrowthCtx()">Save</button>
+      <span style="font-size:12px;color:var(--dim)">Saved on this device — reused for every tool.</span>
+    </div>
+  </div>
   <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px">
-    <div style="font-size:13.5px;color:var(--dim)">Each tool runs the KODA Growth agent and produces ready-to-use output.
+    <div style="font-size:13.5px;color:var(--dim)">Each tool writes ready-to-use marketing for <b>your</b> business.
       Metered in ACU — <span class="mono" style="color:var(--gold)">${fmt(d.balance)} ACU</span> available.</div>
     <a class="btn btn-ghost btn-sm" href="#billing">${t('topup')}</a>
   </div>
@@ -1563,10 +1578,24 @@ window.runGrowth = async (tool) => {
     out.innerHTML = `<div class="card" style="border-color:var(--danger)"><div class="mono" style="color:var(--danger)">✗ ${esc(e.message)}${e.status === 402 ? ' — top up ACU to use this tool' : ''}</div></div>`;
   }
 };
+// The merchant's own business context (what they sell / what they're promoting),
+// saved per-device and merged into every Growth tool call so the AI writes copy
+// for THEIR business, not for KODA.
+function growthCtx() {
+  try { return JSON.parse(localStorage.getItem('koda_biz') || '{}'); } catch { return {}; }
+}
+window.saveGrowthCtx = () => {
+  const business = (document.getElementById('biz-about') || {}).value || '';
+  const promo = (document.getElementById('biz-promo') || {}).value || '';
+  try { localStorage.setItem('koda_biz', JSON.stringify({ business, promo })); } catch {}
+  toast('✓ business saved');
+};
 function growthOpts(tool) {
-  // sensible defaults; a fuller UI could expose these as fields
-  return { social_post: { channel: 'whatsapp' }, advert: { channel: 'facebook', budget_usd: 20 },
-    hashtags: { topic: 'mobile money', channel: 'instagram' }, video_script: { seconds: 30, platform: 'tiktok' } }[tool] || {};
+  const c = growthCtx();
+  const ctx = { business: c.business || '', offer: c.promo || '', promo: c.promo || '' };
+  const perTool = { social_post: { channel: 'whatsapp' }, advert: { channel: 'facebook', budget_usd: 20 },
+    hashtags: { channel: 'instagram' }, video_script: { seconds: 30, platform: 'tiktok' } }[tool] || {};
+  return { ...ctx, ...perTool };
 }
 function renderGrowth(tool, r) {
   // Live AI copy (when a provider key is configured) shows first; otherwise an honest
