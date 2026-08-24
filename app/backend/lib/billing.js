@@ -324,6 +324,34 @@ function createDistributorTopup(merchant, body = {}) {
   };
 }
 
+// Merchant buys a monthly SUBSCRIPTION via a KD → pending plan sale + pay-to. Priced
+// at the plan's retail USD; the KD's float is charged the plan's ACU-equivalent when
+// their Sentinel confirms the payment, and the plan activates for 30 days.
+function createDistributorPlanSale(merchant, body = {}) {
+  const planKey = body.plan_key;
+  if (!isSellablePlan(planKey)) return [400, { error: { code: 'invalid_plan' } }];
+  const PLANS = require('../../shared/plans').PLANS;
+  const acu = planAcu(planKey);
+  const kd = body.distributor_id
+    ? q.get(`SELECT * FROM distributors WHERE id=? AND status='active'`, body.distributor_id)
+    : q.get(`SELECT * FROM distributors WHERE country=? AND status='active' AND float_acu>=? ORDER BY float_acu DESC LIMIT 1`, merchant.country, acu);
+  if (!kd) return [409, { error: { code: 'no_distributor', message: 'no active distributor with float in this market' } }];
+  if (kd.merchant_id && kd.merchant_id === merchant.id)
+    return [409, { error: { code: 'self_purchase_forbidden', message: 'A distributor cannot buy a subscription through their own float.' } }];
+  if (kd.float_acu < acu) return [409, { error: { code: 'insufficient_float', message: 'distributor float too low' } }];
+  const usd = PLANS[planKey].usd;
+  const id = U.id('top');
+  q.run(`INSERT INTO topups (id,merchant_id,acu_amount,subtotal_usd,collection_fee_usd,tax_usd,total_usd,currency,rail,purpose,plan_key,distributor_id,status)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    id, merchant.id, acu, usd, 0, 0, usd, 'USD', 'distributor', 'plan', planKey, kd.id, 'pending');
+  return {
+    ...topupView(q.get('SELECT * FROM topups WHERE id=?', id)),
+    plan_key: planKey, plan_label: PLANS[planKey].label,
+    pay_to: kd.msisdn, distributor_name: kd.name, expected_amount_usd: usd, expires_in: 900,
+    instruction: `Pay ${usd} to ${kd.name} (${kd.msisdn}) by mobile money. Your ${PLANS[planKey].label} plan activates automatically once their KODA Sentinel confirms it.`,
+  };
+}
+
 // The escrow moment: a KD's verified incoming payment settles the merchant top-up.
 // Atomic: KD float −acu, merchant wallet +acu, double-entry posted, top-up settled.
 function settleDistributorTopup(topupId, { verifiedAmountUsd } = {}) {
@@ -349,6 +377,16 @@ function settleDistributorTopup(topupId, { verifiedAmountUsd } = {}) {
     if (cas.changes !== 1) return { already: true };
     const fd = q.run('UPDATE distributors SET float_acu = float_acu - ? WHERE id=? AND float_acu >= ?', t.acu_amount, kd.id, t.acu_amount);
     if (fd.changes !== 1) throw new Error('float_underflow'); // rolls back the status flip
+    if (t.purpose === 'plan' && t.plan_key) {
+      // SUBSCRIPTION sale: float converts to KODA plan revenue; the merchant gets a
+      // 30-day plan, not ACU.
+      post([
+        { account_key: 'distributor:' + kd.id, entry_type: 'kd_float_debit', acu_delta: -t.acu_amount },
+        { account_key: 'koda:plan_revenue', entry_type: 'plan_sale', acu_delta: t.acu_amount },
+      ], { topupId: t.id, idempotencyKey: 'settle:' + t.id, ref: 'distributor_plan' });
+      activatePlan(merchant.id, t.plan_key);
+      return { plan: t.plan_key };
+    }
     post([
       { account_key: 'distributor:' + kd.id, entry_type: 'kd_float_debit', acu_delta: -t.acu_amount },
       { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: t.acu_amount },
@@ -357,6 +395,10 @@ function settleDistributorTopup(topupId, { verifiedAmountUsd } = {}) {
     return { settled: true };
   });
   if (res.already) return { ok: true, already: true, topup_id: t.id };
+  if (res.plan) {
+    require('./engine').notifyOwners(merchant, 'plan.upgraded', { plan: res.plan });
+    return { ok: true, topup_id: t.id, plan_activated: res.plan, kd_float_after: distributorFloat(kd.id) };
+  }
   require('./engine').notifyOwners(merchant, 'billing.topup.verified', { acu: t.acu_amount });
   return { ok: true, topup_id: t.id, acu_credited: t.acu_amount, kd_float_after: distributorFloat(kd.id) };
 }
@@ -402,24 +444,46 @@ function resellerBuyInventory(rid, acuBlock, idemKey) {
   });
   return { ok: true, already: !!res.already, reseller_id: rid, inventory_acu: resellerInventory(rid), purchased: res.already ? 0 : acu };
 }
+// A subscription's retail value expressed in ACU (its cost against prepaid inventory
+// or float). Partners buy that inventory at wholesale, so their margin on a plan is
+// the same 15–20% as on ACU. Returns 0 for free/enterprise plans.
+function planAcu(planKey) {
+  const P = require('../../shared/plans').PLANS[planKey];
+  if (!P || !(P.usd > 0)) return 0;
+  return Math.ceil(P.usd / B.ACU_PRICE_USD);
+}
+const isSellablePlan = (planKey) => { const P = require('../../shared/plans').PLANS[planKey]; return !!(P && P.usd > 0); };
+// Activate a 30-day subscription for a merchant (shared by every plan-settle path).
+function activatePlan(merchantId, planKey) {
+  const m = q.get('SELECT is_platform FROM merchants WHERE id=?', merchantId);
+  q.run(`UPDATE merchants SET plan=?, is_platform=?, plan_expires_at=datetime('now','+30 days') WHERE id=?`,
+    planKey, planKey === 'plateforme' ? 1 : (m ? m.is_platform : 0), merchantId);
+}
+
 // Inventory-gated batch issuance: draws down prepaid inventory atomically so a
-// reseller can never issue ACU they haven't paid for. Returns the batch (+PINs) or
-// a [status, error] tuple. `activate` flips the batch live in the same breath.
+// reseller can never issue value they haven't paid for. Returns the batch (+PINs)
+// or a [status, error] tuple. `activate` flips the batch live in the same breath.
+// With `plan_key`, issues SUBSCRIPTION vouchers (each redeems to a 30-day plan);
+// otherwise ACU vouchers.
 function issueResellerBatch(reseller, opts = {}) {
   const vouchers = require('./vouchers');
-  const acu = Math.round(Number(opts.acu_amount) || 0);
+  const planKey = (opts.plan_key && isSellablePlan(opts.plan_key)) ? opts.plan_key : null;
+  const acu = planKey ? planAcu(planKey) : Math.round(Number(opts.acu_amount) || 0);
   const qty = Math.min(1000, Math.max(1, Math.round(Number(opts.quantity) || 1)));
   const total = acu * qty;
   if (total > 0 && resellerInventory(reseller.id) < total)
-    return [409, { error: { code: 'insufficient_inventory', required_acu: total, inventory_acu: resellerInventory(reseller.id), message: 'Top up voucher inventory before issuing this batch.' } }];
+    return [409, { error: { code: 'insufficient_inventory', required_acu: total, inventory_acu: resellerInventory(reseller.id), message: planKey ? 'Top up inventory before issuing subscription vouchers.' : 'Top up voucher inventory before issuing this batch.' } }];
   return tx(() => {
     if (total > 0) {
       const u = q.run('UPDATE resellers SET inventory_acu = inventory_acu - ? WHERE id=? AND inventory_acu >= ?', total, reseller.id, total);
       if (u.changes !== 1) throw new Error('inventory_underflow');
     }
-    const batch = vouchers.issueBatch(reseller, { ...opts, acu_amount: acu, quantity: qty });
+    const batch = vouchers.issueBatch(reseller, {
+      ...opts, acu_amount: acu, quantity: qty,
+      product_code: planKey ? 'PLAN_30D' : (opts.product_code || 'ACU'), plan_key: planKey,
+    });
     if (opts.activate) vouchers.activateBatch(batch.batch_id);
-    return batch;
+    return { ...batch, plan_key: planKey };
   });
 }
 // Void a batch AND return its unredeemed ACU to the reseller's issuable inventory —
@@ -546,6 +610,7 @@ module.exports = {
   methods, createTopup, settleTopup, topupView, reconcile, post, acctBalance, verifyWebhook,
   distributorFloat, wholesalePurchase, createDistributorTopup, settleDistributorTopup, matchDistributorPayment,
   resellerInventory, resellerBuyInventory, issueResellerBatch, voidResellerBatch,
+  planAcu, activatePlan, createDistributorPlanSale,
   planMethods, planQuote, createPlanCheckout, startProviderSession,
   matchKodaCollection, assignExpectedLocal, localCurrency,
 };

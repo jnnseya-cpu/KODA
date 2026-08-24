@@ -431,9 +431,13 @@ module.exports = function registerRoutes(r) {
   }));
   // Payment methods to subscribe to a (paid) plan.
   r.get('/app/billing/plan/:plan/methods', auth((req, user, m) => billing.planMethods(req.params.plan)));
-  // Start a plan-subscription checkout via a chosen rail (koda | stripe | bitripay).
+  // Start a plan-subscription checkout via a chosen rail (koda | stripe | bitripay |
+  // distributor). The distributor rail sells the plan through a nearby KD: the merchant
+  // pays the agent, whose Sentinel confirmation activates the 30-day plan.
   r.post('/app/billing/subscribe', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    if (String(req.body.rail) === 'distributor')
+      return billing.createDistributorPlanSale(m, { plan_key: req.body.plan, distributor_id: req.body.distributor_id });
     return billing.createPlanCheckout(m, req.body.plan, req.body.rail || 'koda');
   }));
   r.get('/v1/billing/plan/:plan/methods', apiKey((req, m) => billing.planMethods(req.params.plan), 'read:usage'));
@@ -1430,7 +1434,7 @@ module.exports = function registerRoutes(r) {
     return { ok: true, reseller_id: rs.id, wholesale_bps: bps, wholesale_pct: bps / 100 };
   }));
   r.get('/app/admin/vouchers', admin(() =>
-    q.all(`SELECT batch_id, reseller_id, product_code, acu_amount, country_lock, currency_lock,
+    q.all(`SELECT batch_id, reseller_id, product_code, plan_key, acu_amount, country_lock, currency_lock,
            COUNT(*) n, SUM(status='dormant') dormant, SUM(status='active') active, SUM(status='redeemed') redeemed, SUM(status='void') void,
            MIN(created_at) created_at, MAX(expires_at) expires_at
            FROM vouchers GROUP BY batch_id ORDER BY created_at DESC LIMIT 100`)));
@@ -1439,7 +1443,8 @@ module.exports = function registerRoutes(r) {
     if (!reseller) return [404, { error: { code: 'reseller_not_found' } }];
     try {
       const out = billing.issueResellerBatch(reseller, {
-        product_code: req.body.product_code || 'ACU', acu_amount: Math.round(Number(req.body.acu_amount) || 0),
+        product_code: req.body.product_code || 'ACU', plan_key: req.body.plan_key || null,
+        acu_amount: Math.round(Number(req.body.acu_amount) || 0),
         quantity: Math.min(1000, Math.max(1, Math.round(Number(req.body.quantity) || 1))),
         country_lock: (req.body.country_lock || reseller.country || 'CD').toUpperCase().slice(0, 2),
         currency_lock: req.body.currency_lock || null, expires_at: req.body.expires_at || null,
@@ -1648,7 +1653,7 @@ module.exports = function registerRoutes(r) {
   r.get('/app/reseller/batches', auth((req, user, m) => {
     const rs = myReseller(m);
     if (!rs) return [404, { error: { code: 'not_a_reseller' } }];
-    return { inventory_acu: rs.inventory_acu, batches: q.all(`SELECT batch_id, product_code, acu_amount, country_lock, currency_lock,
+    return { inventory_acu: rs.inventory_acu, batches: q.all(`SELECT batch_id, product_code, plan_key, acu_amount, country_lock, currency_lock,
       COUNT(*) n, SUM(status='dormant') dormant, SUM(status='active') active, SUM(status='redeemed') redeemed, SUM(status='void') void,
       MIN(created_at) created_at, MAX(expires_at) expires_at
       FROM vouchers WHERE reseller_id=? GROUP BY batch_id ORDER BY created_at DESC LIMIT 100`, rs.id) };
@@ -1658,7 +1663,8 @@ module.exports = function registerRoutes(r) {
     if (!rs) return [404, { error: { code: 'not_a_reseller' } }];
     if (rs.status !== 'ACTIVE') return [403, { error: { code: 'reseller_inactive', message: 'Your reseller account is not active.' } }];
     const out = billing.issueResellerBatch(rs, {
-      product_code: req.body.product_code || 'ACU', acu_amount: Math.round(Number(req.body.acu_amount) || 0),
+      product_code: req.body.product_code || 'ACU', plan_key: req.body.plan_key || null,
+      acu_amount: Math.round(Number(req.body.acu_amount) || 0),
       quantity: Math.min(1000, Math.max(1, Math.round(Number(req.body.quantity) || 1))),
       country_lock: (req.body.country_lock || rs.country || 'CD').toUpperCase().slice(0, 2),
       currency_lock: req.body.currency_lock || null, expires_at: req.body.expires_at || null,

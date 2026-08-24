@@ -50,7 +50,7 @@ function makePin(country) {
 }
 
 // ── issue a batch (reseller prepurchase already cleared upstream) ─────────────
-function issueBatch(reseller, { product_code = 'ACU_TOPUP', acu_amount = 0, quantity = 1, country_lock, currency_lock, expires_at } = {}) {
+function issueBatch(reseller, { product_code = 'ACU_TOPUP', plan_key = null, acu_amount = 0, quantity = 1, country_lock, currency_lock, expires_at } = {}) {
   const qty = Math.min(1000, Math.max(1, Math.round(quantity)));
   const acu = Math.round(Number(acu_amount) || 0);
   const batchId = U.id('batch');
@@ -60,17 +60,17 @@ function issueBatch(reseller, { product_code = 'ACU_TOPUP', acu_amount = 0, quan
     const pin = makePin(country_lock);
     const payload = {
       version: 1, voucher_id: vid, batch_id: batchId, reseller_id: reseller.id,
-      product_code, acu_amount: acu, country_lock: country_lock || null,
+      product_code, plan_key: plan_key || null, acu_amount: acu, country_lock: country_lock || null,
       currency_lock: currency_lock || null, expires_at: expires_at || null, nonce: U.token(4),
     };
     const signature = sign(payload);
-    q.run(`INSERT INTO vouchers (id,batch_id,reseller_id,product_code,acu_amount,country_lock,currency_lock,pin_hash,signature,status,expires_at)
-           VALUES (?,?,?,?,?,?,?,?,?, 'dormant', ?)`,
-      vid, batchId, reseller.id, product_code, acu, country_lock || null, currency_lock || null,
+    q.run(`INSERT INTO vouchers (id,batch_id,reseller_id,product_code,plan_key,acu_amount,country_lock,currency_lock,pin_hash,signature,status,expires_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?, 'dormant', ?)`,
+      vid, batchId, reseller.id, product_code, plan_key || null, acu, country_lock || null, currency_lock || null,
       sha256(pin), signature, expires_at || null);
     out.push({ voucher_id: vid, pin });                 // PIN shown ONCE, to the reseller
   }
-  return { batch_id: batchId, product_code, acu_amount: acu, quantity: qty, vouchers: out };
+  return { batch_id: batchId, product_code, plan_key: plan_key || null, acu_amount: acu, quantity: qty, vouchers: out };
 }
 
 // dead stock until the reseller activates the batch (anti-theft of un-distributed PINs)
@@ -110,13 +110,23 @@ function redeem(merchant, pin) {
     const upd = q.run(`UPDATE vouchers SET status='redeemed', redeemed_at=datetime('now'), redeemed_by=? WHERE id=? AND status='active'`, merchant.id, v.id);
     if (upd.changes !== 1) return { lost: true };
     if (v.acu_amount > 0) {
-      // Draw the credit from the reseller's own prepaid inventory ledger when they
-      // are on the inventory model (positive reseller balance); fall back to treasury
-      // for legacy batches issued before resellers held inventory. Either way the
-      // reseller can never credit ACU beyond what they prepaid.
+      // Draw the value from the reseller's own prepaid inventory ledger when they are
+      // on the inventory model (positive reseller balance); fall back to treasury for
+      // legacy batches. Either way the reseller can never give out value they haven't
+      // prepaid for.
       const rkey = 'reseller:' + v.reseller_id;
       const rbal = q.get('SELECT balance_acu FROM billing_accounts WHERE account_key=?', rkey);
       const funder = (rbal && rbal.balance_acu >= v.acu_amount) ? rkey : 'koda:treasury';
+      if (v.plan_key) {
+        // SUBSCRIPTION voucher: activate a 30-day plan instead of crediting ACU. The
+        // prepaid value converts to KODA plan revenue (merchant gets a plan, not ACU).
+        billing.post([
+          { account_key: funder, entry_type: 'voucher_plan_redeem', acu_delta: -v.acu_amount },
+          { account_key: 'koda:plan_revenue', entry_type: 'plan_sale', acu_delta: v.acu_amount },
+        ], { idempotencyKey: 'voucher:' + v.id, ref: 'voucher_plan' });
+        billing.activatePlan(merchant.id, v.plan_key);
+        return { plan: v.plan_key };
+      }
       billing.post([
         { account_key: funder, entry_type: 'voucher_redeem', acu_delta: -v.acu_amount },
         { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: v.acu_amount },
@@ -126,6 +136,10 @@ function redeem(merchant, pin) {
     return { credited: v.acu_amount };
   });
   if (res.lost) return [409, { error: { code: 'already_redeemed' } }];
+  if (res.plan) {
+    require('./engine').notifyOwners(merchant, 'plan.upgraded', { plan: res.plan });
+    return { ok: true, voucher_id: v.id, product_code: v.product_code, plan_activated: res.plan };
+  }
   require('./engine').notifyOwners(merchant, 'billing.topup.verified', { acu: res.credited });
   return { ok: true, voucher_id: v.id, product_code: v.product_code, acu_credited: res.credited };
 }

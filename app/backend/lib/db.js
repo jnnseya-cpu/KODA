@@ -449,7 +449,8 @@ db.exec(`CREATE TABLE IF NOT EXISTS vouchers (
   id TEXT PRIMARY KEY,
   batch_id TEXT NOT NULL,
   reseller_id TEXT REFERENCES resellers(id),
-  product_code TEXT NOT NULL,                   -- ACU_TOPUP|PLAN_30_DAYS|...
+  product_code TEXT NOT NULL,                   -- ACU_TOPUP|PLAN_30D
+  plan_key TEXT,                                -- target plan when product is a subscription
   acu_amount INTEGER NOT NULL DEFAULT 0,
   country_lock TEXT,
   currency_lock TEXT,
@@ -462,6 +463,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS vouchers (
   redeemed_by TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
+try { db.exec(`ALTER TABLE vouchers ADD COLUMN plan_key TEXT`); } catch { /* exists */ }
 
 // Public contact-form submissions. Stored regardless of email-transport config so a
 // message is never lost even when no SMTP/Brevo provider is set (sandbox).

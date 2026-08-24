@@ -981,15 +981,21 @@ VIEWS.reseller = async () => {
       <button class="btn btn-gold" onclick="resellerBuy()">Buy inventory</button></div><div id="rsc-buy" style="margin-top:10px"></div></div>
   <div class="card" style="margin-top:14px"><h3>Issue a voucher batch</h3>
     <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:520px">
+      <select id="rsc-product" onchange="rscToggle()" style="grid-column:1/-1;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
+        <option value="acu">ACU credit voucher</option>
+        <option value="boutique">Subscription — Boutique ($19 / month)</option>
+        <option value="commerce">Subscription — Commerce ($79 / month)</option>
+        <option value="plateforme">Subscription — Plateforme ($399 / month)</option>
+      </select>
       <input id="rsc-acu" type="number" placeholder="ACU per voucher (e.g. 100)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <input id="rsc-qty" type="number" placeholder="Quantity (e.g. 10)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <button class="btn btn-gold" onclick="resellerIssue()" style="grid-column:1/-1">Issue &amp; activate batch</button>
     </div>
-    <p style="font-size:12px;color:var(--dim);margin:8px 0 0">PINs are shown <b>once</b> — copy or download them, then hand one to each merchant. They redeem it in Billing → Redeem voucher.</p>
+    <p style="font-size:12px;color:var(--dim);margin:8px 0 0">Sell ACU credit or a <b>monthly subscription</b>. PINs are shown <b>once</b> — copy or download them, then hand one to each merchant. They redeem it in Billing → Redeem voucher; a subscription PIN activates that plan for 30 days.</p>
     <div id="rsc-out" style="margin-top:12px"></div></div>
   <div class="card tbl-wrap" style="margin-top:14px"><h3>My batches (${fmt((bs.batches || []).length)})</h3>
-    ${(bs.batches || []).length ? `<table class="tbl"><tr><th>Batch</th><th class="num">ACU</th><th>Lock</th><th class="num">Total</th><th>Dormant/Active/Redeemed</th><th></th></tr>
-    ${bs.batches.map(b => `<tr><td class="mono" style="font-size:11px">${esc(b.batch_id)}</td><td class="num">${fmt(b.acu_amount)}</td><td class="mono">${esc(b.country_lock || '—')}</td><td class="num">${fmt(b.n)}</td>
+    ${(bs.batches || []).length ? `<table class="tbl"><tr><th>Batch</th><th>Product</th><th class="num">ACU</th><th>Lock</th><th class="num">Total</th><th>Dormant/Active/Redeemed</th><th></th></tr>
+    ${bs.batches.map(b => `<tr><td class="mono" style="font-size:11px">${esc(b.batch_id)}</td><td>${b.plan_key ? `<span class="badge b-info">${esc(b.plan_key)} plan</span>` : 'ACU'}</td><td class="num">${fmt(b.acu_amount)}</td><td class="mono">${esc(b.country_lock || '—')}</td><td class="num">${fmt(b.n)}</td>
       <td class="mono" style="font-size:12px">${fmt(b.dormant)}/${fmt(b.active)}/${fmt(b.redeemed)}</td>
       <td style="white-space:nowrap">${b.dormant > 0 ? `<button class="btn btn-gold btn-sm" onclick="resellerActivate('${esc(b.batch_id)}')">activate</button> ` : ''}${(b.dormant > 0 || b.active > 0) ? `<button class="btn btn-danger btn-sm" onclick="resellerVoid('${esc(b.batch_id)}')">void</button>` : ''}</td></tr>`).join('')}
     </table>` : '<p style="color:var(--dim);font-size:13px">No batches yet. Buy inventory, then issue your first batch.</p>'}</div>`);
@@ -1004,18 +1010,27 @@ window.resellerBuy = async () => {
       <div style="font-size:13px;color:var(--dim)">${esc(r.instruction)}</div></div>`; }
   catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
+window.rscToggle = () => {
+  const isPlan = (document.getElementById('rsc-product') || {}).value !== 'acu';
+  const acuEl = document.getElementById('rsc-acu');
+  if (acuEl) { acuEl.style.display = isPlan ? 'none' : ''; acuEl.parentElement.style.gridTemplateColumns = isPlan ? '1fr' : '1fr 1fr'; }
+};
 window.resellerIssue = async () => {
   const out = document.getElementById('rsc-out');
+  const product = (document.getElementById('rsc-product') || {}).value || 'acu';
+  const isPlan = product !== 'acu';
   const acu = Number(v('rsc-acu')), qty = Number(v('rsc-qty'));
-  if (!acu || !qty) return void (out.innerHTML = '<div class="badge b-bad">Enter ACU per voucher and quantity.</div>');
+  if (!qty || (!isPlan && !acu)) return void (out.innerHTML = `<div class="badge b-bad">Enter ${isPlan ? 'a quantity' : 'ACU per voucher and quantity'}.</div>`);
   try {
-    const r = await api('/app/reseller/batches', { body: { acu_amount: acu, quantity: qty, activate: true } });
+    const body = isPlan ? { plan_key: product, quantity: qty, activate: true } : { acu_amount: acu, quantity: qty, activate: true };
+    const r = await api('/app/reseller/batches', { body });
     const pins = (r.vouchers || []).map(p => p.pin || p).filter(Boolean);
     _lastPins = pins;
     const stamp = new Date().toISOString().slice(0, 10);
+    const what = isPlan ? `${product} plan (30 days)` : `${fmt(acu)} ACU`;
     out.innerHTML = `<div style="border:1px solid var(--gold);border-radius:10px;padding:14px">
       <div class="badge b-ok" style="margin-bottom:8px;display:inline-block">✓ ${fmt(pins.length)} PIN(s) issued</div>
-      <div class="badge b-warn" style="display:block;line-height:1.5;white-space:normal;margin-bottom:10px">⚠️ Shown once — capture now. Hand one PIN to each merchant; they redeem it in Billing → Redeem voucher (${fmt(acu)} ACU each).</div>
+      <div class="badge b-warn" style="display:block;line-height:1.5;white-space:normal;margin-bottom:10px">⚠️ Shown once — capture now. Hand one PIN to each merchant; they redeem it in Billing → Redeem voucher (each PIN = ${what}).</div>
       <div class="mono" style="font-size:13px;line-height:1.9;word-break:break-all;max-height:240px;overflow:auto;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;padding:12px">${pins.map(esc).join('<br>')}</div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button class="btn btn-gold btn-sm" onclick="copyPins()">Copy all PINs</button>
@@ -2142,7 +2157,7 @@ async function adminResellers() {
   <div id="vb-out"></div>
   <div class="card tbl-wrap" style="margin-top:14px"><h3>Voucher batches (${fmt(batches.length)})</h3>
     ${batches.length ? `<table class="tbl"><tr><th>Batch</th><th>Product</th><th class="num">ACU</th><th>Lock</th><th class="num">Total</th><th>Dormant/Active/Redeemed</th><th></th></tr>
-    ${batches.map(b => `<tr><td class="mono" style="font-size:11px">${esc(b.batch_id)}</td><td class="mono">${esc(b.product_code)}</td><td class="num">${fmt(b.acu_amount)}</td><td class="mono">${esc(b.country_lock || '—')}</td><td class="num">${fmt(b.n)}</td>
+    ${batches.map(b => `<tr><td class="mono" style="font-size:11px">${esc(b.batch_id)}</td><td>${b.plan_key ? `<span class="badge b-info">${esc(b.plan_key)} plan</span>` : `<span class="mono">${esc(b.product_code)}</span>`}</td><td class="num">${fmt(b.acu_amount)}</td><td class="mono">${esc(b.country_lock || '—')}</td><td class="num">${fmt(b.n)}</td>
       <td class="mono" style="font-size:12px">${fmt(b.dormant)}/${fmt(b.active)}/${fmt(b.redeemed)}</td>
       <td style="white-space:nowrap">${b.dormant > 0 ? `<button class="btn btn-gold btn-sm" onclick="adminActivateBatch('${esc(b.batch_id)}')">activate</button> ` : ''}${(b.dormant > 0 || b.active > 0) ? `<button class="btn btn-danger btn-sm" onclick="adminVoidBatch('${esc(b.batch_id)}')">void</button>` : ''}</td></tr>`).join('')}
     </table>` : '<p style="color:var(--dim);font-size:13px">No voucher batches yet.</p>'}</div>`);
