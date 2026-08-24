@@ -2108,7 +2108,9 @@ window.adminLinkKd = async (id, name) => {
 window.adminFundKd = async (id, name) => {
   const acu = prompt('Fund ' + name + '’s float — how many ACU? (only after their wholesale payment to KODA has cleared)', '1000');
   if (!acu) return;
-  try { const r = await api(`/app/admin/distributors/${id}/fund`, { body: { acu: Number(acu) } }); toast('✓ float now ' + fmt(r.float)); route(); }
+  const ref = prompt('Payment reference received (bank txn / mobile-money code). Float is credited only against a real payment:');
+  if (!ref) return void toast('✗ payment reference required');
+  try { const r = await api(`/app/admin/distributors/${id}/fund`, { body: { acu: Number(acu), payment_ref: ref } }); toast('✓ float now ' + fmt(r.float)); route(); }
   catch (e) { toast('✗ ' + e.message); }
 };
 window.adminFreezeKd = async (id) => { try { await api(`/app/admin/distributors/${id}/freeze`, { body: {} }); toast('✓ updated'); route(); } catch (e) { toast('✗ ' + e.message); } };
@@ -2154,7 +2156,9 @@ window.adminCreateReseller = async () => {
 window.adminFundReseller = async (id, name) => {
   const acu = prompt('Fund ' + name + '’s voucher inventory — how many ACU? (only after their wholesale payment has cleared)', '1000');
   if (!acu) return;
-  try { const r = await api(`/app/admin/resellers/${id}/fund`, { body: { acu: Number(acu) } }); toast('✓ inventory now ' + fmt(r.inventory_acu)); route(); }
+  const ref = prompt('Payment reference received (bank txn / mobile-money code). Inventory is credited only against a real payment:');
+  if (!ref) return void toast('✗ payment reference required');
+  try { const r = await api(`/app/admin/resellers/${id}/fund`, { body: { acu: Number(acu), payment_ref: ref } }); toast(r.already ? '↺ already credited for that reference' : '✓ inventory now ' + fmt(r.inventory_acu)); route(); }
   catch (e) { toast('✗ ' + e.message); }
 };
 window.adminLinkReseller = async (id, name) => {

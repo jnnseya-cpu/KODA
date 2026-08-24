@@ -1299,9 +1299,13 @@ module.exports = function registerRoutes(r) {
     if (!d) return [404, { error: { code: 'distributor_not_found' } }];
     const acu = Math.round(Number(req.body.acu));
     if (!Number.isFinite(acu) || acu <= 0) return [400, { error: { code: 'bad_amount' } }];
+    // Payment reference REQUIRED — float is credited only against a real wholesale
+    // payment already received. Idempotent on the reference (no double-credit).
+    const ref = String(req.body.payment_ref || '').trim();
+    if (!ref) return [400, { error: { code: 'payment_ref_required', message: 'Enter the reference of the wholesale payment received — float is only credited against a real payment.' } }];
     try {
-      const r = billing.wholesalePurchase(d.id, acu, 'adminfund:' + d.id + ':' + user.id + ':' + acu + ':' + q.get('SELECT COUNT(*) c FROM topups').c);
-      audit(null, user.id, 'admin.distributor_funded', { distributor: d.id, acu });
+      const r = billing.wholesalePurchase(d.id, acu, 'adminfund:' + d.id + ':' + ref);
+      audit(null, user.id, 'admin.distributor_funded', { distributor: d.id, acu, payment_ref: ref, already: !!r.already });
       return { ok: true, float: q.get('SELECT float_acu FROM distributors WHERE id=?', d.id).float_acu, result: r };
     } catch (e) { return [400, { error: { code: 'fund_failed', message: String(e.message || e) } }]; }
   }));
@@ -1344,10 +1348,15 @@ module.exports = function registerRoutes(r) {
     if (!rs) return [404, { error: { code: 'reseller_not_found' } }];
     const acu = Math.round(Number(req.body.acu));
     if (!Number.isFinite(acu) || acu <= 0) return [400, { error: { code: 'bad_amount' } }];
-    const r = billing.resellerBuyInventory(rs.id, acu, 'adminfund:' + rs.id + ':' + user.id + ':' + acu + ':' + q.get('SELECT COUNT(*) c FROM billing_ledger').c);
+    // A payment reference is REQUIRED: inventory is only ever credited against a real
+    // wholesale payment already received (bank txn / mobile-money code). Idempotent on
+    // that reference, so the same payment can never double-credit.
+    const ref = String(req.body.payment_ref || '').trim();
+    if (!ref) return [400, { error: { code: 'payment_ref_required', message: 'Enter the reference of the wholesale payment received — inventory is only credited against a real payment.' } }];
+    const r = billing.resellerBuyInventory(rs.id, acu, 'adminfund:' + rs.id + ':' + ref);
     if (Array.isArray(r)) return r;
-    audit(null, user.id, 'admin.reseller_funded', { reseller: rs.id, acu });
-    return { ok: true, inventory_acu: r.inventory_acu };
+    audit(null, user.id, 'admin.reseller_funded', { reseller: rs.id, acu, payment_ref: ref, already: !!r.already });
+    return { ok: true, inventory_acu: r.inventory_acu, already: !!r.already };
   }));
   // Link (or re-link) a reseller to a KODA merchant account by email.
   r.post('/app/admin/resellers/:id/link', admin((req, user) => {

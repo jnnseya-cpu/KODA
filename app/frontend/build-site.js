@@ -305,7 +305,7 @@ const pages = {
   <ol>
     <li><b style="color:var(--text)">Create the distributor</b> — name, country, and their mobile-money pay-to number. Starts <span class="ok">active</span> with zero float.</li>
     <li><b style="color:var(--text)">Link a KODA merchant account + Sentinel</b> — a KD is a KODA merchant whose product is ACU. The agent signs up and installs <a href="/sentinel">Sentinel</a> on the phone that receives payments; linking their login email gives them the Distributor console. That phone's confirmation SMS is what auto-settles every sale.</li>
-    <li><b style="color:var(--text)">Fund their float</b> — credited via a double-entry wholesale purchase, only once their wholesale payment has cleared (they pay 85% of retail — a 15% margin).</li>
+    <li><b style="color:var(--text)">Fund their float</b> — credited via a double-entry wholesale purchase, and only against a recorded payment reference once their wholesale payment has cleared (they pay 85% of retail — a 15% reselling margin). Partners can never credit themselves.</li>
   </ol>
   <h3>How a sale works</h3>
   <ol>
@@ -326,8 +326,9 @@ const pages = {
 <div class="card">
   <h3 style="margin-top:0">Set up</h3>
   <ol>
-    <li><b style="color:var(--text)">Add the reseller</b> — legal name, country, settlement currency; moves through KYC to <span class="ok">ACTIVE</span>.</li>
-    <li><b style="color:var(--text)">Issue a voucher batch</b> — product, ACU value, quantity and locks (country / currency / expiry). Each PIN is Ed25519-signed; KODA stores only a hash, so the plaintext PINs are shown <b style="color:var(--text)">once</b> and captured at issue time.</li>
+    <li><b style="color:var(--text)">Add the reseller</b> — legal name, country, and their KODA login email, which unlocks a self-service <b style="color:var(--text)">Reseller console</b>. Moves through KYC to <span class="ok">ACTIVE</span>.</li>
+    <li><b style="color:var(--text)">Fund their inventory</b> — a prepaid ACU balance at their wholesale rate (85% of retail), credited only against a recorded payment reference. Resellers can never credit themselves.</li>
+    <li><b style="color:var(--text)">Issue a voucher batch</b> — product, ACU value, quantity and locks (country / currency / expiry). Each batch <b style="color:var(--text)">draws down inventory</b>, so a reseller can never issue ACU they haven't paid for. Each PIN is Ed25519-signed; KODA stores only a hash, so the plaintext PINs are shown <b style="color:var(--text)">once</b> and captured at issue time.</li>
   </ol>
   <h3>How a redemption works</h3>
   <ol>
@@ -342,6 +343,16 @@ const pages = {
     <li><b style="color:var(--text)">Reseller kill switch</b> — suspend the reseller and all their vouchers stop redeeming instantly.</li>
   </ul>
 </div>
+
+<h2>Pricing &amp; margin</h2>
+<p>Every rail sits on one ACU price. Partners buy wholesale and keep the spread; KODA clears at least 100% margin on every unit — a floor the platform <b style="color:var(--text)">enforces in code</b>, so nothing can ever be sold below it.</p>
+<table>
+  <tr><th>Path</th><th>Price / ACU</th><th>Margin over cost</th></tr>
+  <tr><td>Merchant top-up (retail)</td><td class="mono">$0.026</td><td class="ok">300%</td></tr>
+  <tr><td>Partner wholesale (85% of retail)</td><td class="mono">$0.0221</td><td class="ok">240%</td></tr>
+  <tr><td>Enforced floor — no sale below this</td><td class="mono">$0.013</td><td class="warn">100%</td></tr>
+</table>
+<p style="font-size:13px;color:var(--dim)">A larger partner can be set to a better wholesale rate (e.g. 80%), bounded so it can never dip under the 100% floor. The reseller's 15% (or 20%) is their reselling margin, taken from KODA's headroom — never from KODA's cost recovery.</p>
 
 <h2>Which rail, when</h2>
 <table>
