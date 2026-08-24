@@ -1825,24 +1825,44 @@ module.exports = function registerRoutes(r) {
   })));
   // Referral engine — my share link + who I've brought + rewards earned.
   r.get('/app/referrals', auth((req, user, m) => m ? require('./lib/referrals').stats(m.id) : [400, { error: 'no_merchant' }]));
-  r.post('/app/growth/:tool', auth((req, user, m) => {
+  r.post('/app/growth/:tool', auth(async (req, user, m) => {
     if (!m) return [400, { error: 'no_merchant' }];
-    const tool = growth.TOOLS[req.params.tool];
+    const toolId = req.params.tool;
+    const tool = growth.TOOLS[toolId];
     if (!tool) return [404, { error: 'unknown_tool' }];
-    const gate = engine.gateAI(m, tool.acu, 'growth:' + req.params.tool);
-    if (gate.ok !== true) return gate; // every AI action gated by available ACU
+    const ai = require('./lib/ai');
+    const promptFn = growth.AI_PROMPTS[toolId];
+    // Content tools charge ONLY when a real model can run; data tools always run.
+    const contentTool = !!promptFn;
+    const willCharge = tool.acu > 0 && (!contentTool || ai.available());
+    if (willCharge) {
+      const gate = engine.gateAI(m, tool.acu, 'growth:' + toolId);
+      if (gate.ok !== true) return gate; // gated by available ACU
+    }
     // recommendations reads the merchant's real KODA data
     let input = req.body || {};
-    if (req.params.tool === 'recommendations') {
+    if (toolId === 'recommendations') {
       const month = q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > date('now','start of month')`, m.id).c;
       const unmatched = q.get(`SELECT COUNT(*) c FROM sms_ledger WHERE merchant_id=? AND matched_intent_id IS NULL AND quarantined=0 AND ref_code IS NOT NULL`, m.id).c;
       const disputes = q.get(`SELECT COUNT(*) c FROM disputes WHERE merchant_id=? AND status='open'`, m.id).c;
       input = { acu: m.acu_balance, unmatched, disputes, monthVerifs: month, planQuota: (PLANS[m.plan] || {}).verifs };
     }
-    const result = tool.run(m, input);
-    if (tool.acu > 0) engine.chargeAcu(m, tool.acu, 'growth:' + req.params.tool, null);
-    audit(m.id, user.id, 'growth_tool', { tool: req.params.tool, acu: tool.acu });
-    return { tool: req.params.tool, acu_consumed: tool.acu, result };
+    const result = tool.run(m, input); // template = structure + honest fallback
+    // Real AI generation (live, varies each run) when a provider key is configured.
+    let aiUsed = false;
+    if (contentTool && ai.available()) {
+      try {
+        result.ai_text = await ai.generate({ system: growth.AI_SYSTEM, prompt: promptFn(m, input) });
+        result.ai_provider = ai.provider();
+        aiUsed = true;
+      } catch (e) { result.ai_text = null; result.ai_error = String(e && e.message || e); }
+    }
+    result.ai_available = ai.available();
+    // Only charge when the model actually ran (content tools) or for real data tools.
+    const charge = (aiUsed || (!contentTool && tool.acu > 0)) ? tool.acu : 0;
+    if (charge > 0) engine.chargeAcu(m, tool.acu, 'growth:' + toolId, null);
+    audit(m.id, user.id, 'growth_tool', { tool: toolId, acu: charge, ai: aiUsed });
+    return { tool: toolId, acu_consumed: charge, result };
   }));
 
   // ---------- SEO agent (K-10) + autopilot ----------

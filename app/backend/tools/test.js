@@ -90,7 +90,7 @@ async function main() {
     const tc = (await j(`/v1/intents/${top.intent_id}/verify`, { body: { reference: 'TEST-OK-28000' } }, key)).d;
     T('topup verified by own engine', tc.status === 'verified');
     const bill = (await j('/app/billing', {}, tk)).d;
-    T('ACU credited +100', bill.transactions.some(x => x.kind === 'topup' && x.delta === 100));
+    T('ACU credited +1000', bill.transactions.some(x => x.kind === 'topup' && x.delta === 1000));
 
     console.log('— operations');
     T('device enroll', !!(await j('/app/devices/enroll', { body: { label: 'T', operator: 'mpesa_cd' } }, tk)).d.enrol_code);

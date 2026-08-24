@@ -215,4 +215,28 @@ const TOOLS = {
   posting_time: { label: 'AI best posting time', acu: ACU.posting_time, run: postingTime },
 };
 
-module.exports = { TOOLS, ACU };
+// ── Real-AI prompts ───────────────────────────────────────────────────────────
+// When an AI key is configured, the route uses these to generate LIVE copy (varies
+// each run) instead of the deterministic template above. Content tools only — the
+// data tools (recommendations/analytics/posting_time) stay grounded in real numbers.
+const AI_SYSTEM =
+  'You are KODA\'s growth copywriter. KODA is a mobile-money payment VERIFICATION platform ' +
+  '(a Groupe Nseya product) for African merchants: it confirms a customer\'s mobile-money ' +
+  'payment is real by matching the code against the operator\'s own confirmation SMS in about ' +
+  '3 seconds — no telco contract; works with M-Pesa, Orange Money, Airtel Money, Africell, ' +
+  'MTN MoMo and Wave. KODA never moves or holds money; it verifies. Write punchy, concrete, ' +
+  'culturally-aware copy for African SME merchants. Never invent statistics. Output only the ' +
+  'requested content, ready to paste — no preamble.';
+
+const AI_PROMPTS = {
+  social_post: (m, o = {}) => `Write a ${o.channel || 'WhatsApp'} post for the merchant "${m.name}" (${m.country || 'DR Congo'}) promoting how KODA stops fake payment screenshots. Tone: ${o.tone || 'confident'}. 2–4 short sentences plus a clear call to action. On the final line, add 5–8 relevant hashtags.`,
+  advert: (m, o = {}) => `Write a ${o.channel || 'Facebook'} advert for "${m.name}": a punchy headline (max 40 chars), primary text (2–3 sentences), a CTA button label, and a one-line creative brief. Objective: ${o.objective || 'sign-ups'}. Budget ≈ $${o.budget_usd || 20}/day.`,
+  email_campaign: (m, o = {}) => `Write a marketing email from "${m.name}" to ${o.segment || 'new'} merchants, goal ${o.goal || 'activation'}: a subject line, a preheader, and a 120–180 word body with one clear CTA.`,
+  landing_page: (m, o = {}) => `Write landing-page copy for "${m.name}" offering ${o.offer || 'a free trial'} to ${o.audience || 'merchants'}: a hero headline, a subhead, three benefit bullets, and a CTA button label.`,
+  video_script: (m, o = {}) => `Write a ${o.seconds || 30}-second ${o.platform || 'TikTok'} video script promoting KODA for "${m.name}": scene by scene with on-screen text and voiceover, ending on a call to action.`,
+  sales_kit: (m, o = {}) => `Write a field-sales kit for agents selling KODA to merchants in ${m.country || 'DR Congo'} (currency ${m.currency || 'CDF'}): a 20-second WhatsApp pitch, a 30-second door-to-door script, a printable flyer (headline + 3 bullets + CTA), and three objection→answer pairs.`,
+  audience: (m, o = {}) => `Suggest a Facebook/Instagram ad audience for "${m.name}" promoting KODA in ${m.country || 'DR Congo'}: locations, an age range, and 6–10 interest keywords, with a one-line rationale.`,
+  hashtags: (m, o = {}) => `List 12 high-signal hashtags for promoting KODA payment verification for "${m.name}" on ${o.channel || 'Instagram'} around "${o.topic || 'mobile money'}". Space-separated, each starting with #.`,
+};
+
+module.exports = { TOOLS, ACU, AI_SYSTEM, AI_PROMPTS };
