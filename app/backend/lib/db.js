@@ -406,7 +406,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS distributors (
   msisdn TEXT,                                 -- the KD's own mobile-money number (pay-to)
   device_id TEXT,                              -- the KD's Sentinel
   float_acu INTEGER NOT NULL DEFAULT 0,        -- prepaid inventory (authoritative)
-  wholesale_bps INTEGER NOT NULL DEFAULT 8000, -- standard partner rate: 80% of retail = 20% margin
+  wholesale_bps INTEGER NOT NULL DEFAULT 8500, -- distributor rate: 85% of retail = 15% margin
   parent_kd TEXT REFERENCES distributors(id),
   status TEXT NOT NULL DEFAULT 'active',        -- active|frozen
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -427,15 +427,20 @@ db.exec(`CREATE TABLE IF NOT EXISTS resellers (
 try { db.exec(`ALTER TABLE resellers ADD COLUMN merchant_id TEXT REFERENCES merchants(id)`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE resellers ADD COLUMN inventory_acu INTEGER NOT NULL DEFAULT 0`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE resellers ADD COLUMN wholesale_bps INTEGER NOT NULL DEFAULT 8000`); } catch { /* exists */ }
-// One-time data migration (user_version 1): set the standard reseller rate to 80%
-// for EVERY existing reseller. Guarded by user_version so it runs exactly once and
-// never clobbers a per-reseller rate an admin sets later.
+// One-time data migrations, keyed on user_version so each runs exactly once and
+// never clobbers a per-partner rate an admin sets afterwards.
+//  v1 — resellers standardise to 80% (20% margin).
+//  v2 — distributors stay at 85% (15% margin); restores any distributor an earlier
+//       build of v1 had moved to 80%, so distributors are unaffected by the reseller change.
 try {
   const uv = (db.prepare('PRAGMA user_version').get() || {}).user_version || 0;
   if (uv < 1) {
     db.exec(`UPDATE resellers SET wholesale_bps = 8000`);
-    db.exec(`UPDATE distributors SET wholesale_bps = 8000`);
     db.exec('PRAGMA user_version = 1');
+  }
+  if (uv < 2) {
+    db.exec(`UPDATE distributors SET wholesale_bps = 8500`);
+    db.exec('PRAGMA user_version = 2');
   }
 } catch { /* best-effort one-time migration */ }
 

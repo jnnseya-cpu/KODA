@@ -125,7 +125,7 @@ if (!q.get(`SELECT id FROM users WHERE email='admin@koda.africa'`)) {
   // Maison Kivu doubles as a demo Country Distributor with prepaid ACU float.
   const kdId = U.id('kd');
   q.run(`INSERT INTO distributors (id,merchant_id,name,country,msisdn,float_acu,wholesale_bps,status)
-         VALUES (?,?,'Kivu Distribution','CD','+243812345678',20000,8000,'active')`, kdId, mid);
+         VALUES (?,?,'Kivu Distribution','CD','+243812345678',20000,8500,'active')`, kdId, mid);
   q.run(`INSERT INTO resellers (id,legal_name,country,status,settlement_currency)
          VALUES (?,'Accra Digital Reseller Ltd','GH','ACTIVE','USD')`, U.id('res'));
 

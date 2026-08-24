@@ -305,7 +305,7 @@ const pages = {
   <ol>
     <li><b style="color:var(--text)">Create the distributor</b> — name, country, and their mobile-money pay-to number. Starts <span class="ok">active</span> with zero float.</li>
     <li><b style="color:var(--text)">Link a KODA merchant account + Sentinel</b> — a KD is a KODA merchant whose product is ACU. The agent signs up and installs <a href="/sentinel">Sentinel</a> on the phone that receives payments; linking their login email gives them the Distributor console. That phone's confirmation SMS is what auto-settles every sale.</li>
-    <li><b style="color:var(--text)">Fund their float</b> — credited via a double-entry wholesale purchase, and only against a recorded payment reference once their wholesale payment has cleared (they pay 80% of retail — a 20% reselling margin). Partners can never credit themselves.</li>
+    <li><b style="color:var(--text)">Fund their float</b> — credited via a double-entry wholesale purchase, and only against a recorded payment reference once their wholesale payment has cleared (they pay 85% of retail — a 15% reselling margin). Partners can never credit themselves.</li>
   </ol>
   <h3>How a sale works</h3>
   <ol>
@@ -349,10 +349,11 @@ const pages = {
 <table>
   <tr><th>Path</th><th>Price / ACU</th><th>Margin over cost</th></tr>
   <tr><td>Merchant top-up (retail)</td><td class="mono">$0.026</td><td class="ok">300%</td></tr>
-  <tr><td>Partner wholesale (80% of retail)</td><td class="mono">$0.0208</td><td class="ok">220%</td></tr>
+  <tr><td>Distributor wholesale (85% of retail)</td><td class="mono">$0.0221</td><td class="ok">240%</td></tr>
+  <tr><td>Reseller wholesale (80% of retail)</td><td class="mono">$0.0208</td><td class="ok">220%</td></tr>
   <tr><td>Enforced floor — no sale below this</td><td class="mono">$0.013</td><td class="warn">100%</td></tr>
 </table>
-<p style="font-size:13px;color:var(--dim)">Every partner buys at 80% of retail — a 20% reselling margin taken from KODA's headroom, never from KODA's cost recovery. An individual partner's rate can be tuned, bounded so it can never dip under the 100% floor.</p>
+<p style="font-size:13px;color:var(--dim)">Distributors buy at 85%, resellers at 80% — their 15–20% is a reselling margin taken from KODA's headroom, never from KODA's cost recovery. An individual partner's rate can be tuned, bounded so it can never dip under the 100% floor.</p>
 
 <h2>Which rail, when</h2>
 <table>

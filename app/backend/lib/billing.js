@@ -279,7 +279,7 @@ function wholesalePurchase(kdId, acuBlock, idemKey) {
   if (!d) return [404, { error: { code: 'distributor_not_found' } }];
   const acu = Math.round(Number(acuBlock) || 0);
   if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
-  if (!B.clearsFloor(B.ACU_PRICE_USD * ((d.wholesale_bps || 8000) / 10000)))
+  if (!B.clearsFloor(B.ACU_PRICE_USD * ((d.wholesale_bps || 8500) / 10000)))
     return [400, { error: { code: 'pricing_floor', message: 'Distributor wholesale rate is below the 100% margin floor.' } }];
   // Idempotency is keyed on the caller's payment reference (NOT a random token), so a
   // double-submitted "I paid for a block" credits float exactly once. The ledger key
