@@ -318,47 +318,35 @@ const pages = {
 <h2>Distributor (KD) <span class="badge">Rail 4b · pay an agent</span></h2>
 <p>A trusted field agent or shop holds <b style="color:var(--text)">prepaid float</b> and resells <b style="color:var(--text)">ACU credit or a monthly plan</b> to merchants nearby. The merchant pays the agent by mobile money; the agent's phone confirms it; the credit or subscription lands automatically.</p>
 <div class="card">
-  <h3 style="margin-top:0">Set up</h3>
+  <h3 style="margin-top:0">How you get started</h3>
   <ol>
-    <li><b style="color:var(--text)">Create the distributor</b> — name, country, and their mobile-money pay-to number. Starts <span class="ok">active</span> with zero float.</li>
-    <li><b style="color:var(--text)">Link a KODA merchant account + Sentinel</b> — a KD is a KODA merchant whose product is ACU. The agent signs up and installs <a href="/sentinel">Sentinel</a> on the phone that receives payments; linking their login email gives them the Distributor console. That phone's confirmation SMS is what auto-settles every sale.</li>
-    <li><b style="color:var(--text)">Fund their float</b> — credited via a double-entry wholesale purchase, and only against a recorded payment reference once their wholesale payment has cleared (they pay 85% of retail — a 15% reselling margin). Partners can never credit themselves.</li>
+    <li><b style="color:var(--text)">Apply below</b> — we set you up as a distributor in your area.</li>
+    <li><b style="color:var(--text)">Install <a href="/sentinel">Sentinel</a></b> on the phone that receives payments — it confirms each sale for you automatically.</li>
+    <li><b style="color:var(--text)">Buy your first float</b> at wholesale (85% of retail). You're live the same day.</li>
   </ol>
   <h3>How a sale works</h3>
   <ol>
-    <li>A merchant requests a top-up via the KD → the top-up opens <span class="warn">pending</span> with pay-to instructions.</li>
-    <li>The merchant pays the agent directly by mobile money. <b style="color:var(--text)">KODA is not in the payment path.</b></li>
-    <li>The agent's Sentinel confirms the operator SMS → KODA matches the pending top-up by amount and settles it atomically: KD float −ACU, merchant wallet +ACU. Now <span class="ok">settled</span>.</li>
+    <li>A merchant asks to buy ACU credit or a monthly plan from you.</li>
+    <li>They <b style="color:var(--text)">pay you directly</b> by mobile money — the cash is yours.</li>
+    <li>Your Sentinel confirms the payment → the merchant is credited (or their plan activates) <b style="color:var(--text)">instantly</b>, and your margin is yours to keep.</li>
   </ol>
-  <h3>Control</h3>
-  <ul>
-    <li><b style="color:var(--text)">Freeze / unfreeze</b> — a frozen KD can't be chosen for new top-ups.</li>
-    <li><b style="color:var(--text)">Float is the hard ceiling</b> — settlement can never exceed prepaid float; they can't mint ACU.</li>
-    <li><b style="color:var(--text)">Amount authority</b> — a sale settles only if the verified payment matches the quote.</li>
-  </ul>
 </div>
 
 <h2>Reseller &amp; vouchers <span class="badge">Rail 4a · redeem a PIN</span></h2>
 <p>A legal reseller prepurchases inventory and issues <b style="color:var(--text)">voucher batches</b> — signed, single-use PINs, like airtime scratch cards. A merchant types the PIN and gets <b style="color:var(--text)">ACU credit — or a 30-day subscription</b>. No device needed to redeem.</p>
 <div class="card">
-  <h3 style="margin-top:0">Set up</h3>
+  <h3 style="margin-top:0">How you get started</h3>
   <ol>
-    <li><b style="color:var(--text)">Add the reseller</b> — legal name, country, and their KODA login email, which unlocks a self-service <b style="color:var(--text)">Reseller console</b>. Moves through KYC to <span class="ok">ACTIVE</span>.</li>
-    <li><b style="color:var(--text)">Fund their inventory</b> — a prepaid ACU balance at the reseller wholesale price, <b style="color:var(--text)">80% of retail = $0.0208 / ACU</b> (e.g. 5,000 ACU = $104), credited only against a recorded payment reference. Resellers can never credit themselves.</li>
-    <li><b style="color:var(--text)">Issue a voucher batch</b> — product, ACU value, quantity and locks (country / currency / expiry). Each batch <b style="color:var(--text)">draws down inventory</b>, so a reseller can never issue ACU they haven't paid for. Each PIN is Ed25519-signed; KODA stores only a hash, so the plaintext PINs are shown <b style="color:var(--text)">once</b> and captured at issue time.</li>
+    <li><b style="color:var(--text)">Apply below</b> — we set you up with a self-service Reseller console. No device needed.</li>
+    <li><b style="color:var(--text)">Buy inventory</b> at wholesale (80% of retail) — a prepaid balance you draw from as you sell.</li>
+    <li><b style="color:var(--text)">Issue voucher PINs</b> and sell them — from a kiosk, by SMS, or printed. Each PIN is single-use and can't be copied.</li>
   </ol>
-  <h3>How a redemption works</h3>
+  <h3>How a sale works</h3>
   <ol>
-    <li>Batches ship <span style="color:var(--dim)">dormant</span> (dead stock — a stolen un-issued PIN is worthless). The reseller <b style="color:var(--text)">activates</b> the batch as they distribute it.</li>
-    <li>The merchant redeems the PIN in the app (Billing → Redeem voucher). KODA checks it's active, correctly signed, in the right market and unexpired — then credits ACU or activates the 30-day plan.</li>
-    <li>An atomic flip <span style="color:var(--dim)">active</span> → <span class="ok">redeemed</span> credits the ACU. Reuse is impossible.</li>
+    <li>You hand a merchant a PIN when they pay you — the cash is yours.</li>
+    <li>They enter it in the KODA app (Billing → Redeem voucher).</li>
+    <li>They <b style="color:var(--text)">instantly</b> get ACU credit or a 30-day plan, and your margin is yours to keep. A PIN works exactly once.</li>
   </ol>
-  <h3>Control</h3>
-  <ul>
-    <li><b style="color:var(--text)">Void a batch</b> anytime — kills every unredeemed PIN in it at once.</li>
-    <li><b style="color:var(--text)">Market locks</b> — country, currency, product and expiry.</li>
-    <li><b style="color:var(--text)">Reseller kill switch</b> — suspend the reseller and all their vouchers stop redeeming instantly.</li>
-  </ul>
 </div>
 
 <h2>Your pricing</h2>
