@@ -9,7 +9,13 @@
 # and safe to run by hand: cd /root/koda/app && bash deploy/vps-deploy.sh
 set -euo pipefail
 
-echo "→ building + restarting KODA…"
+# Stamp the real commit + build time so /version reports what's actually running
+# (compose passes these as build args → baked into the image). Without this the
+# image defaults to KODA_BUILD_SHA=dev and you can't tell what's deployed.
+export KODA_BUILD_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo dev)"
+export KODA_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+echo "→ building + restarting KODA ($KODA_BUILD_SHA)…"
 docker compose up -d --build
 
 echo "→ waiting for health…"
