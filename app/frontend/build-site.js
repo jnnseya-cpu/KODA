@@ -123,7 +123,7 @@ const N = COV.total, NC = COV.countries, NR = Object.keys(COV.byRegion).length, 
 
 // the 12 site pages, grouped for the footer (used by landing + every content page)
 const FOOT_GROUPS = [
-  ['Product', [['How it works', 'how-it-works'], ['Pricing', 'pricing'], ['Live demo', 'demo'], ['Coverage', 'coverage'], ['Sentinel app', 'sentinel'], ['Distribution rails', 'rails'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
+  ['Product', [['How it works', 'how-it-works'], ['Pricing', 'pricing'], ['Live demo', 'demo'], ['Coverage', 'coverage'], ['Sentinel app', 'sentinel'], ['Become a partner', 'rails'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
   ['Company', [['About', 'about'], ['Blog', 'blog'], ['Growth & Influencers', 'growth'], ['Contact', 'contact']]],
   ['Developers', [['API documentation', 'developers'], ['API reference', 'api-reference'], ['OpenAPI (raw JSON)', 'v1/openapi.json'], ['Open the app', 'app']]],
   ['Legal', [['Terms of Service', 'terms'], ['Privacy Policy', 'privacy'], ['All policies', 'policies']]],
@@ -289,13 +289,30 @@ footer a{color:var(--dim)}
 
 const pages = {
   'rails': page({
-    title: 'Two ways to buy ACU — without KODA touching the cash.',
-    kicker: 'Distribution rails',
-    lead: 'Beyond direct card and mobile-money top-ups, KODA puts verification credit (ACU) in a merchant\'s hands through people near them: a Distributor who resells prepaid float, and a Reseller who issues redeemable voucher PINs.',
+    title: 'Sell KODA in your area. Keep up to 25%.',
+    kicker: 'Partner programme · Distributors & Resellers',
+    lead: 'Merchants everywhere need verification credit (ACU) to get paid safely. Buy it at wholesale, sell it to the shops around you, and keep the margin. Prepaid, no inventory risk, and you\'re paid the moment they pay you.',
     body: `
+<div class="card" style="border-color:var(--gold);background:linear-gradient(180deg,rgba(232,161,31,.08),transparent)">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+    <div>
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:6px">Reseller</div>
+      <div style="font-size:34px;font-weight:900;line-height:1;color:var(--text)">+25%</div>
+      <p style="margin:8px 0 0;font-size:13.5px">Every <b style="color:var(--text)">$100</b> of voucher inventory (at 80% wholesale) resells for <b style="color:var(--text)">$125</b> — you keep <b style="color:var(--text)">$25</b>. Sell PINs from a kiosk, by SMS, or printed. No device needed.</p>
+    </div>
+    <div>
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:6px">Distributor</div>
+      <div style="font-size:34px;font-weight:900;line-height:1;color:var(--text)">+17.6%</div>
+      <p style="margin:8px 0 0;font-size:13.5px">Every <b style="color:var(--text)">$100</b> of float (at 85% wholesale) resells for <b style="color:var(--text)">$117.65</b> — you keep <b style="color:var(--text)">$17.65</b>. Sell face-to-face; the sale settles the instant the customer pays you.</p>
+    </div>
+  </div>
+  <p style="margin:16px 0 0;font-size:13px;color:var(--dim)">You always resell at KODA's retail price — or set your own street price and earn even more. Scale it: a reseller moving <b style="color:var(--text)">$1,000</b> a week keeps <b style="color:var(--text)">$250</b>.</p>
+  <div style="margin-top:16px"><a class="cta" href="mailto:koda@kodajnn.com?subject=KODA%20partner%20application" style="display:inline-block">Become a partner →</a></div>
+</div>
+
 <div class="card" style="border-color:rgba(232,161,31,.4)">
-  <h3 style="margin-top:0">🔒 The one rule that shapes both rails</h3>
-  <p style="margin-bottom:0"><b style="color:var(--text)">KODA never holds or moves the money.</b> The agent takes the cash; KODA only moves ACU. A distributor can never settle more than the float they prepaid, and a voucher can never credit ACU it wasn't signed for. Inventory is the escrow — so nothing can be minted out of thin air.</p>
+  <h3 style="margin-top:0">🔒 Zero risk — you can't lose money you didn't spend</h3>
+  <p style="margin-bottom:0"><b style="color:var(--text)">KODA never holds or moves the cash — and you never front more than you sell.</b> Your inventory is prepaid credit that only converts when a real merchant buys it. A distributor can never settle more than the float they paid for; a voucher can never be worth more than it was signed for. No stock to spoil, no chargebacks, no telco contract.</p>
 </div>
 
 <h2>Distributor (KD) <span class="badge">Rail 4b · pay an agent</span></h2>
@@ -366,9 +383,13 @@ const pages = {
   <tr><td><b style="color:var(--text)">Kill switch</b></td><td>Freeze the KD.</td><td>Void the batch / suspend the reseller.</td></tr>
 </table>
 
-<div class="card" style="margin-top:24px">
-  <h3 style="margin-top:0">Are you a distributor or reseller?</h3>
-  <p style="margin-bottom:0">KODA sets up distribution partners directly. Reach us at <a href="mailto:koda@kodajnn.com"><code>koda@kodajnn.com</code></a> — or <a href="/app#signup">open the app</a> and ask your KODA contact to enable it.</p>
+<div class="card" style="margin-top:24px;border-color:var(--gold);text-align:center">
+  <h3 style="margin-top:0;font-size:20px">Start earning with KODA this week</h3>
+  <p style="max-width:52ch;margin:0 auto 16px">Tell us your city and how you'd like to sell — in person as a distributor, or with voucher PINs as a reseller. We fund your first inventory the day your wholesale payment clears, and you're live the same day.</p>
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+    <a class="cta" href="mailto:koda@kodajnn.com?subject=KODA%20partner%20application">Apply to be a partner →</a>
+    <a class="lnk" href="/app#signup" style="align-self:center">Already a merchant? Open the app</a>
+  </div>
 </div>
 `,
   }),

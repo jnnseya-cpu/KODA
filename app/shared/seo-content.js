@@ -26,7 +26,7 @@
     },
     "rails": {
       "url": "/rails",
-      "title": "KODA distribution rails — distributors & vouchers"
+      "title": "Become a KODA partner — earn reselling payment verification"
     },
     "industries": {
       "url": "/industries",
