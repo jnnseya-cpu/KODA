@@ -406,7 +406,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS distributors (
   msisdn TEXT,                                 -- the KD's own mobile-money number (pay-to)
   device_id TEXT,                              -- the KD's Sentinel
   float_acu INTEGER NOT NULL DEFAULT 0,        -- prepaid inventory (authoritative)
-  wholesale_bps INTEGER NOT NULL DEFAULT 8500, -- pays 85% of retail = 15% discount
+  wholesale_bps INTEGER NOT NULL DEFAULT 8000, -- standard partner rate: 80% of retail = 20% margin
   parent_kd TEXT REFERENCES distributors(id),
   status TEXT NOT NULL DEFAULT 'active',        -- active|frozen
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -420,13 +420,24 @@ db.exec(`CREATE TABLE IF NOT EXISTS resellers (
   status TEXT NOT NULL DEFAULT 'ACTIVE',        -- APPLICANT|DUE_DILIGENCE|ACTIVE|SUSPENDED|TERMINATED
   settlement_currency TEXT NOT NULL DEFAULT 'USD',
   inventory_acu INTEGER NOT NULL DEFAULT 0,     -- prepaid voucher inventory (authoritative escrow)
-  wholesale_bps INTEGER NOT NULL DEFAULT 8500,  -- pays 85% of retail = 15% reseller margin (mirrors distributors)
+  wholesale_bps INTEGER NOT NULL DEFAULT 8000,  -- standard reseller rate: 80% of retail = 20% margin
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
 // migrations for existing reseller tables (no-op on fresh DBs)
 try { db.exec(`ALTER TABLE resellers ADD COLUMN merchant_id TEXT REFERENCES merchants(id)`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE resellers ADD COLUMN inventory_acu INTEGER NOT NULL DEFAULT 0`); } catch { /* exists */ }
-try { db.exec(`ALTER TABLE resellers ADD COLUMN wholesale_bps INTEGER NOT NULL DEFAULT 8500`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE resellers ADD COLUMN wholesale_bps INTEGER NOT NULL DEFAULT 8000`); } catch { /* exists */ }
+// One-time data migration (user_version 1): set the standard reseller rate to 80%
+// for EVERY existing reseller. Guarded by user_version so it runs exactly once and
+// never clobbers a per-reseller rate an admin sets later.
+try {
+  const uv = (db.prepare('PRAGMA user_version').get() || {}).user_version || 0;
+  if (uv < 1) {
+    db.exec(`UPDATE resellers SET wholesale_bps = 8000`);
+    db.exec(`UPDATE distributors SET wholesale_bps = 8000`);
+    db.exec('PRAGMA user_version = 1');
+  }
+} catch { /* best-effort one-time migration */ }
 
 // vouchers: Ed25519-signed, single-use, product+market locked, PIN stored hashed
 db.exec(`CREATE TABLE IF NOT EXISTS vouchers (

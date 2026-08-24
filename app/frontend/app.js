@@ -972,11 +972,11 @@ VIEWS.reseller = async () => {
   <div class="grid g4">
     <div class="card stat"><b>${fmt(bs.inventory_acu)}</b><span>ACU inventory (issuable)</span></div>
     <div class="card stat"><b>${fmt((bs.batches || []).reduce((a, b) => a + (b.redeemed || 0), 0))}</b><span>vouchers redeemed</span></div>
-    <div class="card stat"><b>${info.wholesale_pct || 85}%</b><span>wholesale rate · $${info.wholesale_usd_per_acu || '0.0221'}/ACU</span></div>
+    <div class="card stat"><b>${info.wholesale_pct || 80}%</b><span>wholesale rate · $${info.wholesale_usd_per_acu || '0.0208'}/ACU</span></div>
     <div class="card stat"><b><span class="badge ${info.status === 'ACTIVE' ? 'b-ok' : 'b-bad'}">${esc(info.status)}</span></b><span>status</span></div>
   </div>
   <div class="card" style="margin-top:14px"><h3>Buy voucher inventory (wholesale)</h3>
-    <p style="font-size:13px;color:var(--dim)">Prepay a block of ACU inventory at your wholesale rate (<b>${info.wholesale_pct || 85}% of retail ≈ $${info.wholesale_usd_per_acu || '0.0221'}/ACU</b>). Every voucher you issue draws it down — you can never issue ACU you haven't paid for.</p>
+    <p style="font-size:13px;color:var(--dim)">Prepay a block of ACU inventory at your wholesale rate (<b>${info.wholesale_pct || 80}% of retail ≈ $${info.wholesale_usd_per_acu || '0.0208'}/ACU</b>). Every voucher you issue draws it down — you can never issue ACU you haven't paid for.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rsc-block" type="number" placeholder="ACU block (e.g. 5000)" style="flex:1;min-width:160px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <button class="btn btn-gold" onclick="resellerBuy()">Buy inventory</button></div><div id="rsc-buy" style="margin-top:10px"></div></div>
   <div class="card" style="margin-top:14px"><h3>Issue a voucher batch</h3>
@@ -2133,9 +2133,9 @@ async function adminResellers() {
     ${resellers.length ? `<table class="tbl"><tr><th>Legal name</th><th>Country</th><th>Status</th><th>Login</th><th class="num">Inventory ACU</th><th class="num">Rate</th><th class="num">Vouchers</th><th></th></tr>
     ${resellers.map(r => `<tr><td>${esc(r.legal_name)}</td><td class="mono">${esc(r.country)}</td><td><span class="badge ${r.status === 'ACTIVE' ? 'b-ok' : 'b-info'}">${esc(r.status)}</span></td>
       <td style="font-size:11px">${r.merchant_id ? esc(r.merchant_email || 'linked') : `<button class="btn btn-ghost btn-sm" onclick="adminLinkReseller('${r.id}','${esc(r.legal_name)}')">link login</button>`}</td>
-      <td class="num">${fmt(r.inventory_acu || 0)}</td><td class="num">${((r.wholesale_bps || 8500) / 100)}%</td><td class="num">${fmt(r.vouchers)}</td>
+      <td class="num">${fmt(r.inventory_acu || 0)}</td><td class="num">${((r.wholesale_bps || 8000) / 100)}%</td><td class="num">${fmt(r.vouchers)}</td>
       <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="adminFundReseller('${r.id}','${esc(r.legal_name)}')">fund</button>
-        <button class="btn btn-ghost btn-sm" onclick="adminSetResellerRate('${r.id}','${esc(r.legal_name)}',${r.wholesale_bps || 8500})">rate</button>
+        <button class="btn btn-ghost btn-sm" onclick="adminSetResellerRate('${r.id}','${esc(r.legal_name)}',${r.wholesale_bps || 8000})">rate</button>
         <button class="btn btn-ghost btn-sm" onclick="adminIssueVouchers('${r.id}','${esc(r.legal_name)}')">issue batch</button></td></tr>`).join('')}
     </table>` : '<p style="color:var(--dim);font-size:13px">No resellers yet. Add one, link their login, fund inventory, then issue voucher batches.</p>'}</div>
   <div id="vb-out"></div>
@@ -2168,7 +2168,7 @@ window.adminLinkReseller = async (id, name) => {
   catch (e) { toast('✗ ' + e.message); }
 };
 window.adminSetResellerRate = async (id, name, curBps) => {
-  const pct = prompt('Wholesale rate for ' + name + ' (% of retail, 50–100). Standard is 85; a bigger partner might get 80.', String((curBps || 8500) / 100));
+  const pct = prompt('Wholesale rate for ' + name + ' (% of retail, 50–100). Standard is 80.', String((curBps || 8000) / 100));
   if (!pct) return;
   try { const r = await api(`/app/admin/resellers/${id}/rate`, { body: { pct: Number(pct) } }); toast('✓ rate set to ' + r.wholesale_pct + '%'); route(); }
   catch (e) { toast('✗ ' + e.message); }
