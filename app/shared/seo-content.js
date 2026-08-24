@@ -24,6 +24,10 @@
       "url": "/coverage",
       "title": "KODA global coverage — operators & countries"
     },
+    "rails": {
+      "url": "/rails",
+      "title": "KODA distribution rails — distributors & vouchers"
+    },
     "industries": {
       "url": "/industries",
       "title": "KODA for restaurants, retail, schools & marketplaces"

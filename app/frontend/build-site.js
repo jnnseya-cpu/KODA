@@ -123,7 +123,7 @@ const N = COV.total, NC = COV.countries, NR = Object.keys(COV.byRegion).length, 
 
 // the 12 site pages, grouped for the footer (used by landing + every content page)
 const FOOT_GROUPS = [
-  ['Product', [['How it works', 'how-it-works'], ['Pricing', 'pricing'], ['Live demo', 'demo'], ['Coverage', 'coverage'], ['Sentinel app', 'sentinel'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
+  ['Product', [['How it works', 'how-it-works'], ['Pricing', 'pricing'], ['Live demo', 'demo'], ['Coverage', 'coverage'], ['Sentinel app', 'sentinel'], ['Distribution rails', 'rails'], ['Industries', 'industries'], ['Get started', 'get-started'], ['Platform status', 'status']]],
   ['Company', [['About', 'about'], ['Blog', 'blog'], ['Growth & Influencers', 'growth'], ['Contact', 'contact']]],
   ['Developers', [['API documentation', 'developers'], ['API reference', 'api-reference'], ['OpenAPI (raw JSON)', 'v1/openapi.json'], ['Open the app', 'app']]],
   ['Legal', [['Terms of Service', 'terms'], ['Privacy Policy', 'privacy'], ['All policies', 'policies']]],
@@ -288,6 +288,78 @@ footer a{color:var(--dim)}
 }
 
 const pages = {
+  'rails': page({
+    title: 'Two ways to buy ACU — without KODA touching the cash.',
+    kicker: 'Distribution rails',
+    lead: 'Beyond direct card and mobile-money top-ups, KODA puts verification credit (ACU) in a merchant\'s hands through people near them: a Distributor who resells prepaid float, and a Reseller who issues redeemable voucher PINs.',
+    body: `
+<div class="card" style="border-color:rgba(232,161,31,.4)">
+  <h3 style="margin-top:0">🔒 The one rule that shapes both rails</h3>
+  <p style="margin-bottom:0"><b style="color:var(--text)">KODA never holds or moves the money.</b> The agent takes the cash; KODA only moves ACU. A distributor can never settle more than the float they prepaid, and a voucher can never credit ACU it wasn't signed for. Inventory is the escrow — so nothing can be minted out of thin air.</p>
+</div>
+
+<h2>Distributor (KD) <span class="badge">Rail 4b · pay an agent</span></h2>
+<p>A trusted field agent or shop holds <b style="color:var(--text)">prepaid ACU float</b> and resells it to merchants nearby. The merchant pays the agent by mobile money; the agent's phone confirms it; ACU lands in the merchant's wallet automatically.</p>
+<div class="card">
+  <h3 style="margin-top:0">Set up</h3>
+  <ol>
+    <li><b style="color:var(--text)">Create the distributor</b> — name, country, and their mobile-money pay-to number. Starts <span class="ok">active</span> with zero float.</li>
+    <li><b style="color:var(--text)">Link a KODA merchant account + Sentinel</b> — a KD is a KODA merchant whose product is ACU. The agent signs up and installs <a href="/sentinel">Sentinel</a> on the phone that receives payments; linking their login email gives them the Distributor console. That phone's confirmation SMS is what auto-settles every sale.</li>
+    <li><b style="color:var(--text)">Fund their float</b> — credited via a double-entry wholesale purchase, only once their wholesale payment has cleared (they pay 85% of retail — a 15% margin).</li>
+  </ol>
+  <h3>How a sale works</h3>
+  <ol>
+    <li>A merchant requests a top-up via the KD → the top-up opens <span class="warn">pending</span> with pay-to instructions.</li>
+    <li>The merchant pays the agent directly by mobile money. <b style="color:var(--text)">KODA is not in the payment path.</b></li>
+    <li>The agent's Sentinel confirms the operator SMS → KODA matches the pending top-up by amount and settles it atomically: KD float −ACU, merchant wallet +ACU. Now <span class="ok">settled</span>.</li>
+  </ol>
+  <h3>Control</h3>
+  <ul>
+    <li><b style="color:var(--text)">Freeze / unfreeze</b> — a frozen KD can't be chosen for new top-ups.</li>
+    <li><b style="color:var(--text)">Float is the hard ceiling</b> — settlement can never exceed prepaid float; they can't mint ACU.</li>
+    <li><b style="color:var(--text)">Amount authority</b> — a sale settles only if the verified payment matches the quote.</li>
+  </ul>
+</div>
+
+<h2>Reseller &amp; vouchers <span class="badge">Rail 4a · redeem a PIN</span></h2>
+<p>A legal reseller prepurchases inventory and issues <b style="color:var(--text)">voucher batches</b> — signed, single-use PINs, like airtime scratch cards. A merchant types the PIN and gets ACU. No device needed to redeem.</p>
+<div class="card">
+  <h3 style="margin-top:0">Set up</h3>
+  <ol>
+    <li><b style="color:var(--text)">Add the reseller</b> — legal name, country, settlement currency; moves through KYC to <span class="ok">ACTIVE</span>.</li>
+    <li><b style="color:var(--text)">Issue a voucher batch</b> — product, ACU value, quantity and locks (country / currency / expiry). Each PIN is Ed25519-signed; KODA stores only a hash, so the plaintext PINs are shown <b style="color:var(--text)">once</b> and captured at issue time.</li>
+  </ol>
+  <h3>How a redemption works</h3>
+  <ol>
+    <li>Batches ship <span style="color:var(--dim)">dormant</span> (dead stock — a stolen un-issued PIN is worthless). The reseller <b style="color:var(--text)">activates</b> the batch as they distribute it.</li>
+    <li>The merchant redeems the PIN in the app (Billing → Redeem voucher). KODA checks it's active, correctly signed, in the right market and unexpired.</li>
+    <li>An atomic flip <span style="color:var(--dim)">active</span> → <span class="ok">redeemed</span> credits the ACU. Reuse is impossible.</li>
+  </ol>
+  <h3>Control</h3>
+  <ul>
+    <li><b style="color:var(--text)">Void a batch</b> anytime — kills every unredeemed PIN in it at once.</li>
+    <li><b style="color:var(--text)">Market locks</b> — country, currency, product and expiry.</li>
+    <li><b style="color:var(--text)">Reseller kill switch</b> — suspend the reseller and all their vouchers stop redeeming instantly.</li>
+  </ul>
+</div>
+
+<h2>Which rail, when</h2>
+<table>
+  <tr><th>&nbsp;</th><th>Distributor (KD)</th><th>Reseller / voucher</th></tr>
+  <tr><td><b style="color:var(--text)">Best for</b></td><td>In-person agents in a market or street.</td><td>Retail &amp; kiosk distribution — printed or SMS PINs.</td></tr>
+  <tr><td><b style="color:var(--text)">Merchant pays</b></td><td>The agent, by mobile money.</td><td>Whoever sold them the PIN — off-platform.</td></tr>
+  <tr><td><b style="color:var(--text)">Needs a device</b></td><td>Yes — the KD's Sentinel confirms.</td><td>No — redemption is just the PIN.</td></tr>
+  <tr><td><b style="color:var(--text)">Settles</b></td><td>Live &amp; automatic on SMS confirmation.</td><td>Instantly when the PIN is entered.</td></tr>
+  <tr><td><b style="color:var(--text)">Inventory unit</b></td><td>Prepaid float (a running balance).</td><td>Signed vouchers (discrete PINs).</td></tr>
+  <tr><td><b style="color:var(--text)">Kill switch</b></td><td>Freeze the KD.</td><td>Void the batch / suspend the reseller.</td></tr>
+</table>
+
+<div class="card" style="margin-top:24px">
+  <h3 style="margin-top:0">Are you a distributor or reseller?</h3>
+  <p style="margin-bottom:0">KODA sets up distribution partners directly. Reach us at <a href="mailto:koda@kodajnn.com"><code>koda@kodajnn.com</code></a> — or <a href="/app#signup">open the app</a> and ask your KODA contact to enable it.</p>
+</div>
+`,
+  }),
   'pricing': page({
     title: 'Free until your merchant actually gets paid.', kicker: 'Pricing',
     lead: 'One ladder, all five doors. Every plan includes a monthly verification quota at no per-use cost — the same whether a human clicked Verify or a webhook fired. Failed matches, rejections, expired intents: free.',
