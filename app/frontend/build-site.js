@@ -327,7 +327,7 @@ const pages = {
   <h3 style="margin-top:0">Set up</h3>
   <ol>
     <li><b style="color:var(--text)">Add the reseller</b> — legal name, country, and their KODA login email, which unlocks a self-service <b style="color:var(--text)">Reseller console</b>. Moves through KYC to <span class="ok">ACTIVE</span>.</li>
-    <li><b style="color:var(--text)">Fund their inventory</b> — a prepaid ACU balance at their wholesale rate (80% of retail), credited only against a recorded payment reference. Resellers can never credit themselves.</li>
+    <li><b style="color:var(--text)">Fund their inventory</b> — a prepaid ACU balance at the reseller wholesale price, <b style="color:var(--text)">80% of retail = $0.0208 / ACU</b> (e.g. 5,000 ACU = $104), credited only against a recorded payment reference. Resellers can never credit themselves.</li>
     <li><b style="color:var(--text)">Issue a voucher batch</b> — product, ACU value, quantity and locks (country / currency / expiry). Each batch <b style="color:var(--text)">draws down inventory</b>, so a reseller can never issue ACU they haven't paid for. Each PIN is Ed25519-signed; KODA stores only a hash, so the plaintext PINs are shown <b style="color:var(--text)">once</b> and captured at issue time.</li>
   </ol>
   <h3>How a redemption works</h3>
