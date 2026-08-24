@@ -7,7 +7,10 @@
 // "AI" features are honest (real generation when configured, clearly-labelled
 // template preview when not). Uses global fetch (Node >=18) with a hard timeout;
 // never throws into a request unless the caller awaits and handles it.
-const MODEL_ANTHROPIC = process.env.KODA_AI_MODEL || 'claude-3-5-haiku-latest';
+// Cost-effective current defaults; override any of them with env if your key targets
+// a different model. If the Anthropic model 404s, KODA falls back to the template
+// (and does not charge) — set KODA_AI_MODEL to a model your key can access.
+const MODEL_ANTHROPIC = process.env.KODA_AI_MODEL || 'claude-haiku-4-5-20251001';
 const MODEL_OPENAI    = process.env.KODA_AI_MODEL_OPENAI || 'gpt-4o-mini';
 const MODEL_GEMINI    = process.env.KODA_AI_MODEL_GEMINI || 'gemini-1.5-flash';
 
