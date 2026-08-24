@@ -150,7 +150,7 @@ if (fs.existsSync(landingSrc)) {
     // pure-CSS hamburger + a Blog link so the homepage menu works on every screen.
     .replace('<div class="nav-links">',
       '<input type="checkbox" id="lnav" class="lnav-t"><label for="lnav" class="lnav-b" aria-label="Menu">☰</label><div class="nav-links">')
-    .replace('<a href="#pricing">Pricing</a>', '<a href="#pricing">Pricing</a><a href="/blog">Blog</a>')
+    .replace('<a href="#pricing">Pricing</a>', '<a href="#pricing">Pricing</a><a href="/blog">Blog</a><a href="/app">Log in</a><a class="nav-getstarted" href="/app#signup">Get started →</a>')
     // point the homepage menu at the real, updated PAGES (not old on-page anchors),
     // so "Coverage" opens /coverage (235 operators), not the inline #world section.
     .replace('<a href="#how">How it works</a>', '<a href="/how-it-works">How it works</a>')
@@ -159,6 +159,7 @@ if (fs.existsSync(landingSrc)) {
     .replace('</head>', `<style>
 html{scroll-behavior:smooth}
 [id]{scroll-margin-top:76px}          /* anchors (#pricing…) clear the sticky 64px nav */
+.nav-links a.nav-getstarted{color:var(--gold);font-weight:800}  /* signup stands out in the menu */
 .lnav-t{display:none}.lnav-b{display:none}
 @media(max-width:840px){
   .lnav-b{display:block;cursor:pointer;font-size:22px;line-height:1;color:var(--text);border:1px solid rgba(233,228,213,.22);border-radius:9px;padding:6px 12px;user-select:none;margin-left:auto}
