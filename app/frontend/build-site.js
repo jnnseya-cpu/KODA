@@ -291,7 +291,7 @@ const pages = {
   'rails': page({
     title: 'Sell KODA in your area. Keep up to 25%.',
     kicker: 'Partner programme · Distributors & Resellers',
-    lead: 'Merchants everywhere need verification credit (ACU) to get paid safely. Buy it at wholesale, sell it to the shops around you, and keep the margin. Prepaid, no inventory risk, and you\'re paid the moment they pay you.',
+    lead: 'Merchants everywhere need KODA to get paid safely — verification credit (ACU) and monthly plans. Buy at wholesale, sell both to the shops around you, and keep the margin. Prepaid, no inventory risk, and you\'re paid the moment they pay you.',
     body: `
 <div class="card" style="border-color:var(--gold);background:linear-gradient(180deg,rgba(232,161,31,.08),transparent)">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
@@ -306,7 +306,7 @@ const pages = {
       <p style="margin:8px 0 0;font-size:13.5px">Every <b style="color:var(--text)">$100</b> of float (at 85% wholesale) resells for <b style="color:var(--text)">$117.65</b> — you keep <b style="color:var(--text)">$17.65</b>. Sell face-to-face; the sale settles the instant the customer pays you.</p>
     </div>
   </div>
-  <p style="margin:16px 0 0;font-size:13px;color:var(--dim)">You always resell at KODA's retail price — or set your own street price and earn even more. Scale it: a reseller moving <b style="color:var(--text)">$1,000</b> a week keeps <b style="color:var(--text)">$250</b>.</p>
+  <p style="margin:16px 0 0;font-size:13px;color:var(--dim)">Sell <b style="color:var(--text)">ACU credit</b> or <b style="color:var(--text)">monthly subscriptions</b> ($19–$399 plans) — same wholesale, same margin. You always resell at KODA's retail price, or set your own street price and earn even more. Scale it: a reseller moving <b style="color:var(--text)">$1,000</b> a week keeps <b style="color:var(--text)">$250</b>.</p>
   <div style="margin-top:16px"><a class="cta" href="#apply" style="display:inline-block">Become a partner →</a></div>
 </div>
 
@@ -316,7 +316,7 @@ const pages = {
 </div>
 
 <h2>Distributor (KD) <span class="badge">Rail 4b · pay an agent</span></h2>
-<p>A trusted field agent or shop holds <b style="color:var(--text)">prepaid ACU float</b> and resells it to merchants nearby. The merchant pays the agent by mobile money; the agent's phone confirms it; ACU lands in the merchant's wallet automatically.</p>
+<p>A trusted field agent or shop holds <b style="color:var(--text)">prepaid float</b> and resells <b style="color:var(--text)">ACU credit or a monthly plan</b> to merchants nearby. The merchant pays the agent by mobile money; the agent's phone confirms it; the credit or subscription lands automatically.</p>
 <div class="card">
   <h3 style="margin-top:0">Set up</h3>
   <ol>
@@ -339,7 +339,7 @@ const pages = {
 </div>
 
 <h2>Reseller &amp; vouchers <span class="badge">Rail 4a · redeem a PIN</span></h2>
-<p>A legal reseller prepurchases inventory and issues <b style="color:var(--text)">voucher batches</b> — signed, single-use PINs, like airtime scratch cards. A merchant types the PIN and gets ACU. No device needed to redeem.</p>
+<p>A legal reseller prepurchases inventory and issues <b style="color:var(--text)">voucher batches</b> — signed, single-use PINs, like airtime scratch cards. A merchant types the PIN and gets <b style="color:var(--text)">ACU credit — or a 30-day subscription</b>. No device needed to redeem.</p>
 <div class="card">
   <h3 style="margin-top:0">Set up</h3>
   <ol>
@@ -350,7 +350,7 @@ const pages = {
   <h3>How a redemption works</h3>
   <ol>
     <li>Batches ship <span style="color:var(--dim)">dormant</span> (dead stock — a stolen un-issued PIN is worthless). The reseller <b style="color:var(--text)">activates</b> the batch as they distribute it.</li>
-    <li>The merchant redeems the PIN in the app (Billing → Redeem voucher). KODA checks it's active, correctly signed, in the right market and unexpired.</li>
+    <li>The merchant redeems the PIN in the app (Billing → Redeem voucher). KODA checks it's active, correctly signed, in the right market and unexpired — then credits ACU or activates the 30-day plan.</li>
     <li>An atomic flip <span style="color:var(--dim)">active</span> → <span class="ok">redeemed</span> credits the ACU. Reuse is impossible.</li>
   </ol>
   <h3>Control</h3>

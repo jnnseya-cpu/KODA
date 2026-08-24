@@ -1318,7 +1318,10 @@ window.setPlan = async (p) => {
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         ${r.methods.map(mth => `<button class="btn ${mth.available ? 'btn-gold' : 'btn-ghost'}" ${mth.available ? '' : 'disabled'} onclick="subscribePlan('${p}','${mth.rail}')">
           ${esc(mth.label)}${mth.quote ? ` — $${fmt(mth.quote.total_usd)}` : ''}${mth.available ? '' : ' (coming soon)'}</button>`).join('')}
-      </div><div id="sub-out" style="margin-top:10px"></div></div>`;
+        <button class="btn btn-ghost" onclick="subscribePlan('${p}','distributor')">🧑‍💼 Pay a KODA agent (distributor)</button>
+      </div>
+      <p style="font-size:12px;color:var(--dim);margin:8px 0 0">Paying an agent? You hand them cash / mobile money and your plan activates the moment their KODA Sentinel confirms it — no card needed.</p>
+      <div id="sub-out" style="margin-top:10px"></div></div>`;
   }
 };
 window.subscribePlan = async (plan, rail) => {
@@ -1326,6 +1329,14 @@ window.subscribePlan = async (plan, rail) => {
   out.innerHTML = '…';
   try {
     const r = await api('/app/billing/subscribe', { body: { plan, rail } });
+    if (rail === 'distributor') {
+      // pay-an-agent: show the pay-to instructions; plan activates on the KD's Sentinel confirm
+      out.innerHTML = `<div style="border:1px solid var(--gold);border-radius:10px;padding:14px">
+        <div style="font-weight:800;font-size:15px;margin-bottom:4px">Pay $${fmt(r.expected_amount_usd)} to ${esc(r.distributor_name || 'your KODA agent')}</div>
+        <div class="mono" style="font-size:13px;color:var(--gold)">${esc(r.pay_to || '')}</div>
+        <div style="font-size:13px;color:var(--dim);margin-top:6px">${esc(r.instruction || '')}</div></div>`;
+      return;
+    }
     const s = r.session || {};
     if (s.flow === 'MOBILE_MONEY_TO_KODA_SIM') {
       const label = (r.plan_label || (plan.charAt(0).toUpperCase() + plan.slice(1))) + ' plan';
