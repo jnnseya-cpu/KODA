@@ -85,10 +85,13 @@ async function main() {
     T('deleted key is gone from the list', !((await j('/app/keys', {}, tk)).d).some(x => x.id === kRow.id));
 
     console.log('— billing loop');
+    // ACU top-up now routes through KODA collection (paid to KODA's SIM, credited only
+    // on a confirmed payment) — no more self-paid mint. Complete it via the admin
+    // force-settle (stands in for KODA's Sentinel confirming the payment).
     const top = (await j('/app/billing/topup', { body: { usd: 26 } }, tk)).d;
-    T('topup intent', !!top.intent_id);
-    const tc = (await j(`/v1/intents/${top.intent_id}/verify`, { body: { reference: 'TEST-OK-28000' } }, key)).d;
-    T('topup verified by own engine', tc.status === 'verified');
+    T('topup created (KODA collection, pending)', !!top.topup_id && top.status === 'pending');
+    const ts = (await j(`/app/admin/topups/${top.topup_id}/settle`, { body: {} }, admin.token)).d;
+    T('topup settles on confirmed payment', ts.ok === true && ts.acu_credited === 1000);
     const bill = (await j('/app/billing', {}, tk)).d;
     T('ACU credited +1000', bill.transactions.some(x => x.kind === 'topup' && x.delta === 1000));
 

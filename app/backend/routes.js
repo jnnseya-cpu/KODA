@@ -38,9 +38,19 @@ module.exports = function registerRoutes(r) {
     const { business, name, email, phone, password, country = 'CD', currency = 'CDF' } = req.body;
     if (!business || !email || !password || !name) return [400, { error: 'missing_fields' }];
     if (q.get('SELECT id FROM users WHERE email=?', email)) return [409, { error: 'email_taken' }];
+    // Anti-farming: the welcome ACU grant below is real spendable AI credit. Cap fresh
+    // accounts per IP so one actor can't mint accounts to harvest free paid-AI credit.
+    // Repeated hits escalate to a SecurityAgent auto-block.
+    if (!security.isLoopback(ip)) {
+      const recentSignups = q.get(`SELECT COUNT(*) c FROM security_events WHERE ip=? AND kind='signup' AND created_at > datetime('now','-1 hour')`, String(ip)).c;
+      if (recentSignups >= 3) { security.record('signup_abuse', ip, { email: String(email || '').slice(0, 60) }); return [429, { error: { code: 'too_many_signups', retry_after: 3600 } }]; }
+    }
     const mid = U.id('mch'), uid = U.id('usr');
-    q.run(`INSERT INTO merchants (id,name,country,currency,msisdn,logo_text) VALUES (?,?,?,?,?,?)`,
-      mid, business, country, currency, phone || null, business);
+    // Welcome trial credit is set EXPLICITLY (not left to a column default that can't be
+    // tuned per deploy): a small taste of paid AI, deliberately too little to farm.
+    const WELCOME_ACU = Number(process.env.KODA_WELCOME_ACU || 10);
+    q.run(`INSERT INTO merchants (id,name,country,currency,msisdn,logo_text,acu_balance) VALUES (?,?,?,?,?,?,?)`,
+      mid, business, country, currency, phone || null, business, WELCOME_ACU);
     q.run(`INSERT INTO users (id,merchant_id,email,name,phone,pass_hash,role) VALUES (?,?,?,?,?,?,'owner')`,
       uid, mid, email.toLowerCase(), name, phone || null, U.hashPassword(password));
     const user = q.get('SELECT * FROM users WHERE id=?', uid);
@@ -48,6 +58,7 @@ module.exports = function registerRoutes(r) {
     // Referral growth loop: give this merchant a share code, and link them to
     // whoever referred them (?ref=CODE) so both are rewarded on first verify.
     try { const referrals = require('./lib/referrals'); referrals.ensureCode(mid); referrals.attach(mid, req.body.ref || req.body.referral_code); } catch { /* growth optional */ }
+    security.record('signup', ip, { mid }); // feed the per-IP signup cap + abuse monitor
     notify.fire('account.registration.requested', { user, merchant });
     notify.fire('cs.onboarding_started', { user, merchant });
     audit(mid, uid, 'signup', { business });
@@ -217,14 +228,26 @@ module.exports = function registerRoutes(r) {
     // VisionAgent (3 ACU) is charged ONLY when we actually read an image — a bare
     // "screenshot" toggle with no image no longer surcharges the free code path.
     const ai = require('./lib/ai');
+    let visionCharged = false;
     if (screenshot && req.body.image && ai.available()) {
       const gate = engine.gateAI(m, engine.ACU.vision, 'vision-extract');
       if (gate.ok !== true) return gate;
+      let ext;
       try {
-        const ext = await ai.extractPaymentFromImage(req.body.image, req.body.media_type || 'image/jpeg');
-        if (ext.reference) { ref = ext.reference; visionAmount = ext.amount; visionCurrency = ext.currency; didOcr = true; }
-        else return [422, { error: 'vision_could_not_extract', note: 'No reference code could be read from the screenshot.' }];
-      } catch (e) { return [422, { error: 'vision_failed', detail: String(e && e.message || e) }]; }
+        ext = await ai.extractPaymentFromImage(req.body.image, req.body.media_type || 'image/jpeg');
+      } catch (e) {
+        // The paid vision model ran and cost KODA real money even though it threw.
+        // Charge for the read anyway, or a stream of unreadable images drains the
+        // provider for free (fails-open leak + a cheap DoS on our AI budget).
+        try { engine.chargeAcu(m, engine.ACU.vision, 'vision', 'vision_failed'); } catch { /* balance already gated */ }
+        return [422, { error: 'vision_failed', detail: String(e && e.message || e) }];
+      }
+      // Charge the OCR the instant the model returns — extraction failing is not a
+      // refund event; KODA already paid the provider for the read. This must happen
+      // BEFORE any early return so an unreadable screenshot is never free.
+      try { engine.chargeAcu(m, engine.ACU.vision, 'vision', ext.reference ? 'vision_extract' : 'vision_no_ref'); visionCharged = true; } catch { /* balance already gated */ }
+      if (ext.reference) { ref = ext.reference; visionAmount = ext.amount; visionCurrency = ext.currency; didOcr = true; }
+      else return [422, { error: 'vision_could_not_extract', note: 'No reference code could be read from the screenshot.' }];
     }
     if (!ref) return [422, { error: 'vision_could_not_extract' }];
     let intent = null;
@@ -245,7 +268,7 @@ module.exports = function registerRoutes(r) {
       intent = q.get('SELECT * FROM intents WHERE id=?', iid);
     }
     // viaScreenshot (the 3-ACU vision charge) is true ONLY when we really OCR'd an image.
-    const res = engine.verify(m, intent, ref, { mode: 'manual', userId: user.id, viaScreenshot: didOcr });
+    const res = engine.verify(m, intent, ref, { mode: 'manual', userId: user.id, viaScreenshot: didOcr, preCharged: visionCharged });
     if (didOcr) res.extracted = { reference: ref, amount: visionAmount, currency: visionCurrency };
     audit(m.id, user.id, 'manual_verify', { reference: ref, status: res.status, ocr: didOcr });
     return res;
@@ -265,6 +288,10 @@ module.exports = function registerRoutes(r) {
   r.get('/app/feed', auth((req, user, m) =>
     q.all(`SELECT * FROM sms_ledger WHERE merchant_id=? ORDER BY received_at DESC, rowid DESC LIMIT 100`, m.id)));
   r.post('/app/sandbox/sms', auth((req, user, m) => {
+    // Test-only SMS injection. In production this is disabled — otherwise any merchant
+    // could inject arbitrary "operator SMS" into their own ledger. Real merchants use
+    // /app/verify-sms (which no longer credits ACU or referral rewards off a bare SMS).
+    if (process.env.KODA_ALLOW_SANDBOX_REFS !== '1') return [403, { error: { code: 'sandbox_disabled' } }];
     const out = engine.ingestSms(m, { raw: req.body.raw, operator: req.body.operator });
     audit(m.id, user.id, 'sandbox_sms_injected', { operator: req.body.operator });
     return out;
@@ -402,14 +429,15 @@ module.exports = function registerRoutes(r) {
     invoices: q.all(`SELECT * FROM invoices WHERE merchant_id=? ORDER BY created_at DESC`, m.id),
   })));
   r.post('/app/billing/topup', auth((req, user, m) => {
+    // ACU top-up = a KODA COLLECTION: the merchant pays KODA's own SIM, and ACU is
+    // credited (treasury double-entry) only when KODA's engine confirms that payment.
+    // (Previously this minted a self-paid intent credited off the merchant's OWN SMS —
+    // a self-fund hole; now it routes through the same settled path as /app/billing/collect.)
     const pack = engine.TOPUP_PACKS.find(p => p.usd === Number(req.body.usd)) || engine.TOPUP_PACKS[0];
-    // top-up = a KODA intent on KODA's own account, purpose=topup
-    const res = createIntent(m, {
-      amount: pack.usd * 2800, currency: 'CDF', operators: ['mpesa_cd', 'orange_cd', 'airtel_cd'],
-      purpose: 'topup', metadata: { usd: pack.usd, acu: pack.acu },
-    });
+    const res = billing.createTopup(m, { amount_acu: pack.acu, usd: pack.usd, rail: 'koda' });
+    if (Array.isArray(res)) return res;
     notify.fire('billing.topup.created', { user, merchant: m, data: { amount: `$${pack.usd}` } });
-    return { ...res, pack, pay_note: 'Pay via mobile money, then submit the confirmation code — verified by KODA itself.' };
+    return { ...res, pack };
   }));
   // Change plan. FREE target (or a downgrade to free) applies immediately. A PAID
   // target requires payment through the mesh first — this returns the payment
@@ -418,11 +446,16 @@ module.exports = function registerRoutes(r) {
   r.post('/app/billing/plan', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
     const plan = PLANS[req.body.plan] ? req.body.plan : m.plan;
-    const priced = PLANS[plan].usd || 0;
-    // free plan, no-op, or a downgrade to a cheaper/equal tier → apply free
-    if (priced <= 0 || priced <= (PLANS[m.plan].usd || 0)) {
-      q.run('UPDATE merchants SET plan=?, is_platform=? WHERE id=?', plan, plan === 'plateforme' ? 1 : m.is_platform, m.id);
-      notify.fire(priced > (PLANS[m.plan].usd || 0) ? 'plan.upgraded' : 'plan.downgraded', { user, merchant: m, data: { plan: PLANS[plan].label } });
+    // A null price = custom/sales-gated (Enterprise). It is NEVER self-serviceable —
+    // treating null as $0 was a hole that let any merchant grant themselves unlimited.
+    const targetUsd = PLANS[plan].usd;
+    if (targetUsd == null) return [403, { error: { code: 'contact_sales', message: 'This plan is set up by KODA — please contact sales.' } }];
+    const curUsd = PLANS[m.plan].usd == null ? Infinity : PLANS[m.plan].usd; // enterprise counts as most expensive
+    // Free (Marché $0), a same-tier no-op, or a genuine downgrade to a cheaper tier
+    // applies immediately. Any paid UPGRADE must collect payment first.
+    if (targetUsd === 0 || targetUsd <= curUsd) {
+      q.run('UPDATE merchants SET plan=?, is_platform=? WHERE id=?', plan, plan === 'plateforme' ? 1 : 0, m.id);
+      if (targetUsd < curUsd) notify.fire('plan.downgraded', { user, merchant: m, data: { plan: PLANS[plan].label } });
       audit(m.id, user.id, 'plan_changed', { plan });
       return { ok: true, plan };
     }
@@ -1699,7 +1732,8 @@ module.exports = function registerRoutes(r) {
     if (v.paid === false) return { ok: true, ignored: true, event: v.event };
     const tid = v.topup_id || (req.body && req.body.topup_id);
     if (!tid) return [400, { error: { code: 'topup_id_required' } }];
-    return billing.settleTopup(tid);
+    // Pass the PSP-reported capture so settleTopup can reject a materially under-paid one.
+    return billing.settleTopup(tid, { capturedAmount: v.amount != null ? v.amount : null, capturedCurrency: v.currency || null });
   });
 
   // Buyer-facing redirect: turns a pending card/PSP checkout into the provider's real

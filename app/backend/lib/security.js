@@ -78,7 +78,7 @@ function record(kind, ip, detail) {
     q.run(`INSERT INTO security_events (id,kind,ip,detail) VALUES (?,?,?,?)`,
       U.id('sec'), String(kind).slice(0, 40), String(ip || '').slice(0, 60), JSON.stringify(detail || {}).slice(0, 500));
   } catch { /* never break the request path */ }
-  if (!isLoopback(ip) && ['pow_fail', 'honeypot', 'injection', 'bad_login', 'scan'].includes(kind)) {
+  if (!isLoopback(ip) && ['pow_fail', 'honeypot', 'injection', 'bad_login', 'scan', 'signup_abuse'].includes(kind)) {
     try {
       const n = q.get(`SELECT COUNT(*) c FROM security_events WHERE ip=? AND created_at > datetime('now','-10 minutes')`, String(ip)).c;
       if (n >= BLOCK_THRESHOLD) block(ip, kind);

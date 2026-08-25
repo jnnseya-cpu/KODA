@@ -62,7 +62,7 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   const kdId = U.id('kd');
   q.run(`INSERT INTO distributors (id,merchant_id,name,country,msisdn,float_acu,status) VALUES (?,?,?,?,?,0,'active')`,
     kdId, kdMerchant.id, 'Kivu Distrib', payer.country, '+243810000001');
-  const wp = billing.wholesalePurchase(kdId, 5000);
+  const wp = billing.wholesalePurchase(kdId, 5000, 'test-wholesale-1');
   ok(!isErr(wp) && billing.distributorFloat(kdId) === 5000, 'KD wholesale prepurchase credits float', `float ${billing.distributorFloat(kdId)}`);
 
   const before = bal(payer.id), floatBefore = billing.distributorFloat(kdId);
@@ -75,11 +75,30 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   ok(isErr(badAmt) && badAmt[1].error.code === 'amount_mismatch', 'wrong verified amount is rejected (server-side authority)');
   ok(bal(payer.id) === before, 'no credit on amount mismatch');
 
-  // the escrow moment: a verified KD payment settles it — atomic float↔wallet move
-  const settled = billing.matchDistributorPayment(kdMerchant.id, dt.expected_amount_usd);
+  // the escrow moment: a verified KD payment settles it — atomic float↔wallet move.
+  // The KD's Sentinel SMS carries the LOCAL amount + currency (not USD) — the matcher
+  // converts total_usd→local and requires the currency to match.
+  const settled = billing.matchDistributorPayment(kdMerchant.id, dt.expected_amount_local, payer.currency);
   ok(settled && bal(payer.id) === before + 600, 'verified KD payment auto-credits the merchant', `+${bal(payer.id) - before}`);
   ok(billing.distributorFloat(kdId) === floatBefore - 600, 'KD float debited by the same amount', `float ${billing.distributorFloat(kdId)}`);
   ok(billing.reconcile().balanced, 'ledger still reconciles to zero after distributor settle');
+
+  // REGRESSION (currency confusion): a tiny LOCAL payment must NOT settle a USD-quoted
+  // top-up. Old code compared raw local (e.g. 600) to total_usd and settled a ~$16 order
+  // for ~600 units of soft currency (~$0.21). Now the amount is checked in-currency.
+  const cc = billing.createDistributorTopup(payer, { distributor_id: kdId, amount_acu: 600 });
+  const tiny = billing.matchDistributorPayment(kdMerchant.id, cc.expected_amount_usd, payer.currency); // pay the USD number as if it were local
+  ok(tiny === null, 'tiny local payment does NOT settle a USD-quoted distributor top-up (currency-safe)');
+  ok(bal(payer.id) === before + 600, 'no extra credit from the currency-confusion attempt');
+  // REGRESSION: no currency on the SMS ⇒ cannot verify amount ⇒ hold (never settle)
+  ok(billing.matchDistributorPayment(kdMerchant.id, cc.expected_amount_local, null) === null, 'no-currency SMS holds (never settles)');
+  // the correct local amount + currency settles it
+  const good = billing.matchDistributorPayment(kdMerchant.id, cc.expected_amount_local, payer.currency);
+  ok(good && bal(payer.id) === before + 1200, 'correct local amount + currency settles the distributor top-up');
+
+  // REGRESSION (idempotency): wholesale float credit requires a stable idem key —
+  // deriving it from the mutable float was a replay-double-credit hole.
+  ok(isErr(billing.wholesalePurchase(kdId, 100)) , 'wholesale purchase without an idempotency key is refused');
 
   // a KD can never mint ACU beyond its prepaid float
   const huge = billing.createDistributorTopup(payer, { distributor_id: kdId, amount_acu: 999999 });
@@ -116,6 +135,12 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   vouchers.activateBatch(b3.batch_id);
   const locked = vouchers.redeem(payer, b3.vouchers[0].pin);
   ok(isErr(locked) && locked[1].error.code === 'country_locked', 'country-locked voucher rejected outside its market');
+
+  // currency lock (REGRESSION: was stored at issue but never enforced at redeem)
+  const b3c = vouchers.issueBatch(reseller, { product_code: 'ACU_TOPUP', acu_amount: 100, quantity: 1, country_lock: payer.country, currency_lock: 'ZWL' });
+  vouchers.activateBatch(b3c.batch_id);
+  const curLocked = vouchers.redeem(payer, b3c.vouchers[0].pin);
+  ok(isErr(curLocked) && curLocked[1].error.code === 'currency_locked', 'currency-locked voucher rejected in the wrong currency');
 
   // expiry
   const b4 = vouchers.issueBatch(reseller, { product_code: 'ACU_TOPUP', acu_amount: 100, quantity: 1, country_lock: payer.country, expires_at: '2020-01-01T00:00:00' });

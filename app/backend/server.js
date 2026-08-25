@@ -228,4 +228,12 @@ server.listen(PORT, () => {
   indexnow.autosubmit(); // announce all sitemap URLs to IndexNow (production only)
   try { require('./lib/fx_live').start(); } catch { /* fx refresh optional */ } // keep USD→local rates fresh
   try { require('./comms/newsletter').start(); } catch { /* newsletter optional */ } // weekly product newsletter
+  // Revenue integrity: expired paid plans must fall back to marché so lapsed
+  // merchants stop enjoying paid quota for free. Sweep on boot + hourly.
+  try {
+    const engine = require('./lib/engine');
+    const sweep = () => { try { const n = engine.downgradeExpiredPlans(); if (n) console.log(`  → plan sweep    downgraded ${n} expired plan(s)`); } catch { /* sweep optional */ } };
+    sweep();
+    setInterval(sweep, 60 * 60 * 1000).unref();
+  } catch { /* plan sweep optional */ }
 });

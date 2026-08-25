@@ -47,7 +47,9 @@ function verifyStripe(req, raw, body) {
   const obj = (body && body.data && body.data.object) || {};
   const tid = obj.client_reference_id || (obj.metadata && obj.metadata.topup_id) || null;
   const paid = body.type === 'checkout.session.completed' && (obj.payment_status ? obj.payment_status === 'paid' : true);
-  return { ok: true, topup_id: tid, paid, event: body.type };
+  const amount = obj.amount_total != null ? Number(obj.amount_total) / 100 : null; // Stripe minor units
+  const currency = obj.currency ? String(obj.currency).toUpperCase() : null;
+  return { ok: true, topup_id: tid, paid, event: body.type, amount, currency };
 }
 // Paystack: header `x-paystack-signature` = HMAC-SHA512 of the raw body with the secret key.
 function verifyPaystack(req, raw, body) {
@@ -57,7 +59,9 @@ function verifyPaystack(req, raw, body) {
   const data = (body && body.data) || {};
   const tid = data.reference || (data.metadata && data.metadata.topup_id) || null;
   const paid = body.event === 'charge.success' && (data.status ? data.status === 'success' : true);
-  return { ok: true, topup_id: tid, paid, event: body.event };
+  const amount = data.amount != null ? Number(data.amount) / 100 : null; // Paystack minor units
+  const currency = data.currency ? String(data.currency).toUpperCase() : null;
+  return { ok: true, topup_id: tid, paid, event: body.event, amount, currency };
 }
 // Flutterwave: header `verif-hash` must equal the configured secret hash (constant compare).
 function verifyFlutterwave(req, body) {
@@ -66,7 +70,9 @@ function verifyFlutterwave(req, body) {
   const data = (body && body.data) || {};
   const tid = data.tx_ref || (data.meta && data.meta.topup_id) || null;
   const paid = (data.status || '').toLowerCase() === 'successful';
-  return { ok: true, topup_id: tid, paid, event: body.event || 'charge.completed' };
+  const amount = data.amount != null ? Number(data.amount) : null; // Flutterwave major units
+  const currency = data.currency ? String(data.currency).toUpperCase() : null;
+  return { ok: true, topup_id: tid, paid, event: body.event || 'charge.completed', amount, currency };
 }
 
 // ── ledger: append-only, double-entry, balance_after chained per account ──────
@@ -230,11 +236,20 @@ function topupView(t) {
 
 // ── settle a top-up: credit the merchant wallet + post double-entry (idempotent) ──
 // issuing account is KODA treasury for card/aggregator/voucher rails.
-function settleTopup(topupId, { issuer = 'koda:treasury', entryType = 'koda_issuance' } = {}) {
+function settleTopup(topupId, { issuer = 'koda:treasury', entryType = 'koda_issuance', capturedAmount = null, capturedCurrency = null } = {}) {
   const t = q.get('SELECT * FROM topups WHERE id=?', topupId);
   if (!t) return [404, { error: { code: 'topup_not_found' } }];
   if (t.status === 'settled') return { ok: true, already: true, topup_id: t.id };
   if (t.status !== 'pending' && t.status !== 'initiated') return [409, { error: { code: 'bad_state', status: t.status } }];
+  // Provider amount authority: when the PSP webhook reports the captured amount in the
+  // SAME currency the top-up was quoted in, a MATERIALLY UNDER-paid capture must never
+  // credit the full ACU (a $19 capture can't settle a $399 order). Over-payment and
+  // cross-currency captures are left to reconciliation — we only block clear underpay.
+  if (capturedAmount != null && capturedCurrency
+      && String(t.currency || '').toUpperCase() === String(capturedCurrency).toUpperCase()
+      && Number(capturedAmount) + 0.011 < Number(t.total_usd)) {
+    return [409, { error: { code: 'amount_mismatch', expected: t.total_usd, got: Number(capturedAmount), currency: capturedCurrency } }];
+  }
   const merchant = q.get('SELECT * FROM merchants WHERE id=?', t.merchant_id);
   // Plan-subscription collection: activate the plan (30-day period) instead of
   // crediting ACU. Same exactly-once CAS gate.
@@ -248,6 +263,9 @@ function settleTopup(topupId, { issuer = 'koda:treasury', entryType = 'koda_issu
     });
     if (res.already) return { ok: true, already: true, topup_id: t.id };
     require('./engine').notifyOwners(q.get('SELECT * FROM merchants WHERE id=?', merchant.id), 'plan.upgraded', { plan: t.plan_key });
+    // Referral reward fires only on a REAL PAID event (a KODA-collected subscription),
+    // never on a bare verification — so a fabricated/self-pasted SMS can't farm ACU.
+    try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ }
     return { ok: true, topup_id: t.id, plan_activated: t.plan_key };
   }
   // Exactly-once + all-or-nothing: the CAS status flip is the atomic gate (a retry
@@ -265,6 +283,8 @@ function settleTopup(topupId, { issuer = 'koda:treasury', entryType = 'koda_issu
   });
   if (res.already) return { ok: true, already: true, topup_id: t.id };
   require('./engine').notifyOwners(merchant, 'billing.topup.verified', { acu: t.acu_amount });
+  // Referral reward on the referred merchant's first REAL PAID top-up (KODA-collected).
+  try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ }
   return { ok: true, topup_id: t.id, acu_credited: t.acu_amount };
 }
 
@@ -279,12 +299,16 @@ function wholesalePurchase(kdId, acuBlock, idemKey) {
   if (!d) return [404, { error: { code: 'distributor_not_found' } }];
   const acu = Math.round(Number(acuBlock) || 0);
   if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
+  // Idempotency key is MANDATORY and must be a stable payment reference. Deriving it
+  // from the mutable float_acu (the old fallback) meant a replayed credit computed a
+  // DIFFERENT key each time (float already moved) and double-credited. No key → refuse.
+  if (!idemKey || !String(idemKey).trim()) return [400, { error: { code: 'idempotency_key_required' } }];
   if (!B.clearsFloor(B.ACU_PRICE_USD * ((d.wholesale_bps || 8500) / 10000)))
     return [400, { error: { code: 'pricing_floor', message: 'Distributor wholesale rate is below the 100% margin floor.' } }];
   // Idempotency is keyed on the caller's payment reference (NOT a random token), so a
   // double-submitted "I paid for a block" credits float exactly once. The ledger key
   // is the source of truth: if it already posted, the float update must not run either.
-  const key = 'wholesale:' + kdId + ':' + (idemKey || 'k' + acu + ':' + (d.float_acu));
+  const key = 'wholesale:' + kdId + ':' + String(idemKey).trim();
   const res = tx(() => {
     const r = post([
       { account_key: 'koda:treasury', entry_type: 'wholesale_credit', acu_delta: -acu },
@@ -316,11 +340,15 @@ function createDistributorTopup(merchant, body = {}) {
          VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     id, merchant.id, acu, quote.subtotal_usd, quote.collection_fee_usd, quote.tax_usd, quote.total_usd,
     quote.currency, 'distributor', kd.id, 'pending');
+  const rate = usdToLocalRate(quote.currency);
+  const localAmt = rate != null ? Math.round(Number(quote.total_usd) * rate) : null;
   return {
     ...topupView(q.get('SELECT * FROM topups WHERE id=?', id)),
     pay_to: kd.msisdn, distributor_name: kd.name,
-    expected_amount_usd: quote.total_usd, expires_in: 900,
-    instruction: `Pay ${quote.total_usd} to ${kd.name} (${kd.msisdn}) by mobile money. Your ACU credits automatically once their KODA Sentinel confirms it.`,
+    expected_amount_usd: quote.total_usd, expected_amount_local: localAmt, expires_in: 900,
+    instruction: localAmt != null
+      ? `Pay EXACTLY ${localAmt} ${quote.currency} (≈ $${quote.total_usd}) to ${kd.name} (${kd.msisdn}) by mobile money. Your ACU credits automatically once their KODA Sentinel confirms it.`
+      : `Pay $${quote.total_usd} to ${kd.name} (${kd.msisdn}) by mobile money. Your ACU credits automatically once their KODA Sentinel confirms it.`,
   };
 }
 
@@ -341,14 +369,22 @@ function createDistributorPlanSale(merchant, body = {}) {
   if (kd.float_acu < acu) return [409, { error: { code: 'insufficient_float', message: 'distributor float too low' } }];
   const usd = PLANS[planKey].usd;
   const id = U.id('top');
+  // Store the merchant's LOCAL currency (not a bare 'USD'): the KD's Sentinel SMS is in
+  // local currency, and the currency-safe matcher converts total_usd→local at settle. A
+  // hardcoded 'USD' here made every distributor plan sale un-matchable (SMS is CDF/XOF…).
+  const cur = String(merchant.currency || 'USD').toUpperCase();
   q.run(`INSERT INTO topups (id,merchant_id,acu_amount,subtotal_usd,collection_fee_usd,tax_usd,total_usd,currency,rail,purpose,plan_key,distributor_id,status)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    id, merchant.id, acu, usd, 0, 0, usd, 'USD', 'distributor', 'plan', planKey, kd.id, 'pending');
+    id, merchant.id, acu, usd, 0, 0, usd, cur, 'distributor', 'plan', planKey, kd.id, 'pending');
+  const rate = usdToLocalRate(cur);
+  const localAmt = rate != null ? Math.round(Number(usd) * rate) : null;
   return {
     ...topupView(q.get('SELECT * FROM topups WHERE id=?', id)),
     plan_key: planKey, plan_label: PLANS[planKey].label,
-    pay_to: kd.msisdn, distributor_name: kd.name, expected_amount_usd: usd, expires_in: 900,
-    instruction: `Pay ${usd} to ${kd.name} (${kd.msisdn}) by mobile money. Your ${PLANS[planKey].label} plan activates automatically once their KODA Sentinel confirms it.`,
+    pay_to: kd.msisdn, distributor_name: kd.name, expected_amount_usd: usd, expected_amount_local: localAmt, expires_in: 900,
+    instruction: localAmt != null
+      ? `Pay EXACTLY ${localAmt} ${cur} (≈ $${usd}) to ${kd.name} (${kd.msisdn}) by mobile money. Your ${PLANS[planKey].label} plan activates automatically once their KODA Sentinel confirms it.`
+      : `Pay $${usd} to ${kd.name} (${kd.msisdn}) by mobile money. Your ${PLANS[planKey].label} plan activates automatically once their KODA Sentinel confirms it.`,
   };
 }
 
@@ -403,15 +439,46 @@ function settleDistributorTopup(topupId, { verifiedAmountUsd } = {}) {
   return { ok: true, topup_id: t.id, acu_credited: t.acu_amount, kd_float_after: distributorFloat(kd.id) };
 }
 
-// Called from the engine when a KD's Sentinel SMS verifies a payment: match the
-// oldest pending distributor top-up on that KD by amount and settle it.
-function matchDistributorPayment(kdMerchantId, amountUsd) {
+// Indicative USD→local rate for a currency (live → static default). Returns null
+// when we have no rate — in which case we must NOT auto-settle (guessing is a loss).
+function usdToLocalRate(currency) {
+  const c = String(currency || 'USD').toUpperCase();
+  if (c === 'USD') return 1;
+  try { const live = require('./fx_live').rateFor(c); if (live) return live; } catch { /* live optional */ }
+  try { const r = require('../../shared/fx').defaultRate(c); if (r) return r; } catch { /* static optional */ }
+  return null;
+}
+
+// Called from the engine when a KD's Sentinel SMS verifies a payment: match a pending
+// distributor top-up on that KD and settle it.
+//
+// CURRENCY SAFETY (was a real loss): the KD's Sentinel SMS carries a LOCAL amount
+// (e.g. 53 200 CDF) while the top-up is quoted in USD (e.g. $19). The old code
+// compared the raw local number to total_usd — so a 19-CDF payment (~$0.007) settled
+// a $19 top-up, draining KD float and minting ~730 ACU for nothing. We now require the
+// SMS currency to equal the top-up currency AND compare in the SAME currency by
+// converting the quoted USD to local at the indicative rate. If zero or MORE THAN ONE
+// pending top-up matches, we HOLD (return null) rather than guess — the KD confirms
+// manually. This also stops one SMS from settling the wrong same-amount top-up.
+function matchDistributorPayment(kdMerchantId, amountLocal, smsCurrency) {
   const kd = q.get('SELECT * FROM distributors WHERE merchant_id=?', kdMerchantId);
   if (!kd) return null;
+  const cur = String(smsCurrency || '').toUpperCase();
+  if (!cur) return null; // no currency on the SMS → cannot verify amount safely → hold
+  const amt = Number(amountLocal);
+  if (!Number.isFinite(amt) || amt <= 0) return null;
   const rows = q.all(`SELECT * FROM topups WHERE distributor_id=? AND rail='distributor' AND status='pending' ORDER BY created_at ASC`, kd.id);
-  const match = rows.find(t => Math.abs(t.total_usd - Number(amountUsd)) <= 0.011);
-  if (!match) return null;
-  const r = settleDistributorTopup(match.id, { verifiedAmountUsd: amountUsd });
+  const candidates = rows.filter(t => {
+    if (String(t.currency || '').toUpperCase() !== cur) return false;
+    const rate = usdToLocalRate(t.currency);
+    if (rate == null) return false;
+    const expected = Number(t.total_usd) * rate;
+    const tol = Math.max(1, expected * 0.005); // 0.5% for rounding/rate drift
+    return Math.abs(expected - amt) <= tol;
+  });
+  if (candidates.length !== 1) return null; // none, or ambiguous → hold for manual confirm
+  const match = candidates[0];
+  const r = settleDistributorTopup(match.id, { verifiedAmountUsd: match.total_usd });
   return Array.isArray(r) ? null : r;
 }
 
@@ -430,9 +497,12 @@ function resellerBuyInventory(rid, acuBlock, idemKey) {
   if (!r) return [404, { error: { code: 'reseller_not_found' } }];
   const acu = Math.round(Number(acuBlock) || 0);
   if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
+  // Idempotency key MANDATORY (stable payment ref). The old fallback derived it from
+  // the mutable inventory_acu, so a replay computed a fresh key and double-credited.
+  if (!idemKey || !String(idemKey).trim()) return [400, { error: { code: 'idempotency_key_required' } }];
   if (!B.clearsFloor(B.ACU_PRICE_USD * ((r.wholesale_bps || 8000) / 10000)))
     return [400, { error: { code: 'pricing_floor', message: 'Reseller wholesale rate is below the 100% margin floor.' } }];
-  const key = 'reseller_wholesale:' + rid + ':' + (idemKey || 'k' + acu + ':' + r.inventory_acu);
+  const key = 'reseller_wholesale:' + rid + ':' + String(idemKey).trim();
   const res = tx(() => {
     const p = post([
       { account_key: 'koda:treasury', entry_type: 'reseller_wholesale', acu_delta: -acu },

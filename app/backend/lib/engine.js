@@ -34,9 +34,23 @@ function acuUnlimited(merchant) {
   if (!merchant || !merchant.id) return false;
   return !!q.get('SELECT 1 FROM users WHERE merchant_id=? AND is_admin=1 LIMIT 1', merchant.id);
 }
+// A paid plan whose 30-day period has lapsed reverts to Marché (free) until renewed —
+// otherwise a single payment buys the plan's quota forever. NULL expiry = admin comp,
+// never downgraded.
+function planExpired(merchant) {
+  return merchant.plan && merchant.plan !== 'marche' && merchant.plan_expires_at
+    && new Date(String(merchant.plan_expires_at).replace(' ', 'T') + 'Z').getTime() < Date.now();
+}
+function downgradeExpiredPlans() {
+  try {
+    return q.run(`UPDATE merchants SET plan='marche', is_platform=0
+                  WHERE plan != 'marche' AND plan_expires_at IS NOT NULL
+                  AND plan_expires_at < datetime('now')`).changes;
+  } catch { return 0; }
+}
 function withinQuota(merchant) {
   if (acuUnlimited(merchant)) return true;
-  const plan = PLANS[merchant.plan] || PLANS.marche;
+  const plan = planExpired(merchant) ? PLANS.marche : (PLANS[merchant.plan] || PLANS.marche);
   if (plan.verifs == null) return true;
   const used = q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > date('now','start of month')`, merchant.id).c;
   return used < plan.verifs;
@@ -162,7 +176,7 @@ function ingestSms(merchant, { raw, operator, device_id }) {
 
   // Distributor rail (System B): if this merchant is a KODA distributor, a verified
   // incoming payment may settle a pending merchant top-up — the engine IS the escrow.
-  try { require('./billing').matchDistributorPayment(merchant.id, parsed.amount); } catch { /* billing optional */ }
+  try { require('./billing').matchDistributorPayment(merchant.id, parsed.amount, parsed.currency); } catch { /* billing optional */ }
   // KODA self-collection: if this SIM is KODA's own collection phone, a verified
   // incoming payment auto-settles a matching pending plan/top-up (exact local amount).
   try { if (require('./settings').collectMerchantId() === merchant.id) require('./billing').matchKodaCollection(parsed.amount); } catch { /* billing optional */ }
@@ -233,7 +247,7 @@ function emitOutcome(merchantId, status, code, ctx = {}) {
   } catch { /* a webhook must never break verification */ }
 }
 
-function verify(merchant, intent, reference, { mode = 'api', userId = null, viaScreenshot = false, late = false } = {}) {
+function verify(merchant, intent, reference, { mode = 'api', userId = null, viaScreenshot = false, late = false, preCharged = false } = {}) {
   reference = String(reference || '').trim().toUpperCase();
   const trace = { steps: [], template_version: VERSION.trace_template, model_version: VERSION.fraud_model };
 
@@ -340,7 +354,10 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
     String(sms.ref_code || reference).toUpperCase(), merchant.id, rcp);
   q.run(`UPDATE sms_ledger SET matched_intent_id=? WHERE id=?`, intent ? intent.id : 'manual', sms.id);
   if (intent) q.run(`UPDATE intents SET status=? WHERE id=?`, late ? 'verified_late' : 'verified', intent.id);
-  if (acuCost > 0) chargeAcu(merchant, acuCost, viaScreenshot ? 'vision' : 'verification', rcp);
+  // preCharged: the vision OCR was already metered at the call site (routes.js) the
+  // moment the paid model ran, so it is charged even when extraction/verify fails.
+  // Don't double-charge it here — the receipt still records acuCost for reporting.
+  if (acuCost > 0 && !preCharged) chargeAcu(merchant, acuCost, viaScreenshot ? 'vision' : 'verification', rcp);
 
   recordNetwork(sms, 'verified'); // ADD-ON B: contribute the hashed payer to the network
   maybeFirstVerified(merchant.id);
@@ -356,16 +373,12 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   emitOutcome(merchant.id, late ? 'verified_late' : 'verified', null, { receipt_id: rcp, reference: payload.reference, amount: sms.amount, currency: sms.currency, metadata: payload.metadata });
   notifyOwners(merchant, event, { amount: `${fmtAmt(sms.amount)} ${sms.currency}`, reference: payload.reference });
 
-  // top-up intents credit the wallet on verification — the product bills itself with itself
-  if (intent && intent.purpose === 'topup') {
-    const meta = JSON.parse(intent.metadata || '{}');
-    const pack = TOPUP_PACKS.find(p => p.usd === meta.usd) || { acu: Math.round((meta.usd || 10) * 10) };
-    creditAcu(merchant, pack.acu, 'topup', intent.id);
-    notifyOwners(merchant, 'billing.topup.verified', { acu: pack.acu });
-  }
-
+  // NOTE: ACU top-ups are NEVER credited here. A verified SMS in the MERCHANT'S OWN
+  // ledger proves nothing about money reaching KODA — crediting off it was a self-mint
+  // hole. ACU is credited only by settleTopup (treasury-backed double-entry) when a
+  // payment is confirmed on KODA's own collection SIM. Referral rewards likewise moved
+  // to the paid-settle path so a fabricated/self-pasted SMS can never farm ACU.
   metric('verifications');
-  try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ } // first verify rewards the referrer
   return { status: late ? 'verified_late' : 'verified', receipt_id: rcp, risk, trace,
            confirmation_level: 'sms_anchored',
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
@@ -418,7 +431,6 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
   notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(sms.amount)} ${sms.currency}`, reference: sms.ref_code });
 
   metric('verifications'); metric('verifications_auto');
-  try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ }
   return { status: 'verified', receipt_id: rcp, risk, trace, confirmation_level: 'sms_anchored',
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
 }
@@ -437,12 +449,7 @@ function sandboxVerify(merchant, intent, reference, { mode, userId, trace }) {
     intent?.currency || merchant.currency, 'sandbox', 'T*** U.', mode, JSON.stringify(trace), userId);
   if (intent) {
     q.run(`UPDATE intents SET status='verified' WHERE id=?`, intent.id);
-    if (intent.purpose === 'topup') {
-      const meta = JSON.parse(intent.metadata || '{}');
-      const pack = TOPUP_PACKS.find(p => p.usd === meta.usd) || { acu: Math.round((meta.usd || 10) * 10) };
-      creditAcu(merchant, pack.acu, 'topup', intent.id);
-      notifyOwners(merchant, 'billing.topup.verified', { acu: pack.acu });
-    }
+    // (topup crediting removed — see verify(): ACU is credited only by settleTopup.)
   }
   const sbMeta = intent?.metadata ? JSON.parse(intent.metadata) : {};
   webhooks.dispatch(merchant.id, 'payment.verified', {
@@ -450,7 +457,6 @@ function sandboxVerify(merchant, intent, reference, { mode, userId, trace }) {
   });
   emitOutcome(merchant.id, 'verified', null, { receipt_id: rcp, reference, amount, currency: intent?.currency || null, metadata: sbMeta });
   notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(amount)} ${intent?.currency || ''}`, reference });
-  try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ }
   return { status: 'verified', receipt_id: rcp, sandbox: true, amount_confirmed: amount, trace };
 }
 
@@ -465,4 +471,4 @@ function editDistance(a, b) {
 }
 function fmtAmt(n) { return Number(n || 0).toLocaleString('fr-FR'); }
 
-module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, emitOutcome };
+module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, planExpired, downgradeExpiredPlans, emitOutcome };

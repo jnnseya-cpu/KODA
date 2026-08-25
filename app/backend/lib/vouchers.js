@@ -102,6 +102,11 @@ function redeem(merchant, pin) {
   if (reseller.merchant_id && reseller.merchant_id === merchant.id)
     return [409, { error: { code: 'self_redeem_forbidden', message: 'A reseller cannot redeem their own vouchers. Sell them to other merchants.' } }];
   if (v.country_lock && v.country_lock !== merchant.country) return [409, { error: { code: 'country_locked', lock: v.country_lock } }];
+  // A currency-locked voucher may only be redeemed by a merchant collecting in that
+  // currency — the lock was set at issue but never checked, so a voucher priced for a
+  // soft-currency market could be redeemed anywhere (value/pricing leak).
+  if (v.currency_lock && String(v.currency_lock).toUpperCase() !== String(merchant.currency || '').toUpperCase())
+    return [409, { error: { code: 'currency_locked', lock: v.currency_lock } }];
 
   // All-or-nothing: the guarded CAS flip (a concurrent second redeem loses the race)
   // AND the entitlement live in one transaction — if crediting throws, the redeemed
