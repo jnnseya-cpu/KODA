@@ -2445,12 +2445,15 @@ function rateLimited(keyId, plan) {
   if (_hits.size > 20000) for (const [k, v] of _hits) if (!v.some(t => now - t < 1000)) _hits.delete(k);
   return arr.length > limit;
 }
-// Throughput guard for the merchant CONSOLE verify doors (session-authed, previously
-// unlimited). Same per-merchant rps as the API. A small burst allowance is added on top
-// of rps so ordinary UI double-taps aren't rejected.
+// Anti-runaway guard for the merchant CONSOLE verify door (session-authed). This is NOT
+// the per-plan API rps (that gates programmatic throughput on the /v1 API): a human at a
+// busy counter — or a market rush — must never be throttled to their plan's API rps. So
+// the console gets a generous fixed per-merchant burst cap that no human/legit burst
+// approaches but a runaway script would hit. Economic abuse is separately bounded by the
+// ACU reserve + hard credit floor, so this is a pure DoS backstop.
 function verifyRateLimited(m) {
   if (!m) return false;
-  return rateLimited('v:' + m.id, m.plan);
+  return bruteLimited('verify:' + m.id, Number(process.env.KODA_CONSOLE_VERIFY_BURST || 300), 10000);
 }
 // brute-force limiter for unauthenticated/credential endpoints (login, voucher, checkout).
 // Sliding window keyed by identity+IP; blocks credential-stuffing / PIN / code guessing.
