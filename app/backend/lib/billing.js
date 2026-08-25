@@ -158,7 +158,7 @@ function methods(merchant, ctx = {}) {
   const acu = Math.max(1, Math.round(Number(ctx.amount_acu) || 0));
   const ranked = B.routeProviders({ country, amount_acu: acu, recurring: !!ctx.recurring });
   // Retail base price: the pack price (ctx.usd) is authoritative when given (e.g.
-  // $10 → 100 ACU); otherwise fall back to the per-ACU rate. The rail's collection
+  // $33 → 1,000 ACU); otherwise fall back to the 5× per-ACU rate. The rail's collection
   // fee is added on top (passed through to the buyer, never absorbed).
   const retail = Number(ctx.usd) > 0 ? Number(ctx.usd) : Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
   const withFee = (railCode) => {

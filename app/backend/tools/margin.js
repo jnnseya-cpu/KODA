@@ -1,5 +1,6 @@
-// KODA — margin guard (npm run margin). Enforces the 100%-profit rule:
-// every retail price point must be ≥ 2× fully-loaded cost. Exits 1 on violation.
+// KODA — margin guard (npm run margin). Enforces the 4× floor: every ACU KODA sells
+// (plan-included, top-up/overage/AI, and partner wholesale) nets ≥4× fully-loaded cost.
+// Plans sell at 4×, ad-hoc ACU at 5×, partner wholesale 4–4.25×. Exits 1 on violation.
 'use strict';
 const C = require('../../shared/costs');
 const VOLUMES = [10000, 50000, 250000, 1000000]; // monthly verifications

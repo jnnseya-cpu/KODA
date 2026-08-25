@@ -353,9 +353,9 @@ const pages = {
 <p>You buy verification credit (ACU) below the price merchants pay, and keep the difference on every sale.</p>
 <table>
   <tr><th>&nbsp;</th><th>You pay / ACU</th><th>You keep per $100 sold</th></tr>
-  <tr><td>Distributor wholesale</td><td class="mono">$0.0221</td><td class="ok">$17.65</td></tr>
-  <tr><td>Reseller wholesale</td><td class="mono">$0.0208</td><td class="ok">$25.00</td></tr>
-  <tr><td>Retail — what merchants pay you</td><td class="mono">$0.026</td><td>—</td></tr>
+  <tr><td>Distributor wholesale</td><td class="mono">$0.0276</td><td class="ok">$15.00</td></tr>
+  <tr><td>Reseller wholesale</td><td class="mono">$0.0260</td><td class="ok">$20.00</td></tr>
+  <tr><td>Retail — what merchants pay you</td><td class="mono">$0.0325</td><td>—</td></tr>
 </table>
 <p style="font-size:13px;color:var(--dim)">Resell at KODA's retail price, or set your own street price and keep even more. Prices are per ACU; a typical payment verification is 1 ACU.</p>
 
@@ -446,20 +446,20 @@ function kodaPartnerApply(e){
   <div class="pl"><h3>Marché</h3><div class="price">$0</div><div class="per">forever · 10 verifs/mo</div>
     <ul><li>All five doors</li><li>1 Sentinel device</li><li>Verify Console + Live Feed</li><li>Replay protection</li></ul>
     <a class="pbtn solid" href="/app#signup?plan=marche">Start free</a></div>
-  <div class="pl"><h3>Boutique</h3><div class="price">$19<small>/mo</small></div><div class="per">300 verifs · $0.035 over</div>
+  <div class="pl"><h3>Boutique</h3><div class="price">$19<small>/mo</small></div><div class="per">700 verifs · $0.0325 over</div>
     <ul><li>Manual + WhatsApp + API</li><li>2 devices · 3 seats</li><li>Customer receipts</li><li>Web widget + webhooks</li></ul>
     <a class="pbtn" href="/app#signup?plan=boutique">Choose Boutique</a></div>
-  <div class="pl hot"><h3>Commerce</h3><div class="price">$79<small>/mo</small></div><div class="per">1,750 verifs · $0.028 over</div>
+  <div class="pl hot"><h3>Commerce</h3><div class="price">$79<small>/mo</small></div><div class="per">3,000 verifs · $0.0325 over</div>
     <ul><li>Everything in Boutique</li><li>5 devices · 10 seats</li><li>Vision + screenshot forensics</li><li>DisputeAgent · WhatsApp SLA</li></ul>
     <a class="pbtn solid" href="/app#signup?plan=commerce">Choose Commerce</a></div>
-  <div class="pl"><h3>Plateforme</h3><div class="price">$399<small>/mo</small></div><div class="per">12,500 verifs · $0.020 over</div>
-    <ul><li>Sub-merchant API + scoped keys</li><li>Unlimited devices</li><li>Trust-score API</li><li>Wholesale to $0.014</li></ul>
+  <div class="pl"><h3>Plateforme</h3><div class="price">$399<small>/mo</small></div><div class="per">15,000 verifs · $0.0325 over</div>
+    <ul><li>Sub-merchant API + scoped keys</li><li>Unlimited devices</li><li>Trust-score API</li><li>Distributor / reseller access</li></ul>
     <a class="pbtn" href="/app#signup?plan=plateforme">Choose Plateforme</a></div>
   <div class="pl"><h3>Enterprise / Gov</h3><div class="price">Custom</div><div class="per">committed volume</div>
     <ul><li>In-country residency</li><li>Dedicated corridor models</li><li>White-label</li><li>99.9% SLA, credited if missed</li></ul>
     <a class="pbtn" href="/contact">Talk to us</a></div>
 </div>
-<p><b>Pay-as-you-go:</b> prepaid ACU from $10 → 100 ACU, topped up via mobile money and verified by KODA's own engine. ACU is drawn only by AI features and by verifications beyond your plan quota. Wholesale floor $0.014 (2× fully-loaded cost).</p>
+<p><b>Pay-as-you-go:</b> prepaid ACU packs from <b>$33 → 1,000 ACU</b> ($165 → 5,000 · $650 → 20,000), topped up via mobile money and verified by KODA's own engine. 1 ACU = one verification beyond your plan quota; ACU also powers AI features (Vision, DisputeAgent). A plan's included rate ($0.026/verif) is always cheaper than pay-as-you-go ($0.0325/ACU) — so committing to a plan always saves.</p>
 <p style="color:var(--dim);font-size:13.5px">Prices in USD, billed monthly, and a paid plan activates the moment KODA confirms your mobile-money payment. Upgrade, downgrade or cancel anytime — no lock-in. Already have an account? Choose or change your plan in <a href="/app#pricing">the app → Plans &amp; pricing</a>.</p>`,
   }),
   'about': page({
@@ -1055,7 +1055,7 @@ function kodaContactSubmit(e){
     body: `
 <h2>1. The service</h2><p>KODA provides Payment Verification-as-a-Service: structuring merchant-side operator confirmations and matching customer-submitted references against them. KODA is not a payment processor, wallet, aggregator, escrow or money transmitter; funds move operator → merchant exactly as without KODA.</p>
 <h2>2. Accounts & keys</h2><p>You are responsible for your credentials, API keys and team seats. Keys can be rotated and revoked instantly; notify us of suspected compromise.</p>
-<h2>3. Billing</h2><p>Each plan includes a monthly verification quota at no per-use cost; failed matches, rejections and expired intents are free. Verifications beyond the quota, and AI features (Vision, agents, disputes), draw on prepaid ACU — topped up via mobile money and verified by KODA's own engine, with a 72-hour grace buffer at zero balance.</p>
+<h2>3. Billing</h2><p>Each plan includes a monthly verification quota at no per-use cost; failed matches, rejections and expired intents are free. Verifications beyond the quota, and AI features (Vision, agents, disputes), draw on prepaid ACU — topped up via mobile money and verified by KODA's own engine, with a small goodwill credit buffer so a live checkout is never cut off the moment your balance reaches zero.</p>
 <h2>4. Acceptable use</h2><p>No use for money laundering, fraud, sanctioned activity or any unlawful commerce. FraudSentinel velocity rules apply to all tiers. We may suspend accounts pending investigation of abuse.</p>
 <h2>5. Honest limitations</h2><p>Verification latency floors are set by operator SMS delivery, not by KODA. KODA verifies payments, not business ethics, and cannot prevent operator-side reversals — it makes you first to know. See the full limitations list in the product documentation.</p>
 <h2>6. Liability</h2><p>Service provided "as is" within the SLA of your plan (Commerce+: 99.9% API availability, credited if missed). Aggregate liability is capped at fees paid in the preceding 12 months.</p>

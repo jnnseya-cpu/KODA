@@ -316,27 +316,36 @@ Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per mark
 
 ## 10. The unified plan ladder
 
+**Pricing law (binding):** the billable atom is one verification = 1 ACU. Two retail rates over a single hard floor of **4× fully-loaded cost ($0.026/verif)** — nothing is ever sold below 4×:
+- **Plan rate = 4× ($0.026/verif)** — the committed, cheaper rate you get *only* inside a plan's included quota.
+- **Ad-hoc ACU = 5× ($0.0325/ACU)** — pay-as-you-go top-ups, plan overage, and AI actions. So ad-hoc always costs more than a plan; there is no way to get the 4× rate without a plan.
+
 | Plan | Price | Door(s) | Includes | Overage |
 |---|---|---|---|---|
-| **Marché** | $0 | Manual + Chat | 20 verifications/mo, 1 Sentinel, Verify Console, Live Feed, replay protection, daily digest | — |
-| **Boutique** | $19/mo | Manual + Chat + API | 600 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.035 |
-| **Commerce** | $79/mo | All | 3,500 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.028 |
-| **Plateforme** | $399/mo | All + sub-merchants | 25,000 verifications, unlimited devices, sub-merchant API + scoped keys, trust-score API, re-billing endpoints | $0.020 |
+| **Marché** | $0 | Manual + Chat | 10 verifications/mo, 1 Sentinel, Verify Console, Live Feed, replay protection, daily digest | — (top up) |
+| **Boutique** | $19/mo | Manual + Chat + API | 700 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.0325 |
+| **Commerce** | $79/mo | All | 3,000 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.0325 |
+| **Plateforme** | $399/mo | All + sub-merchants | 15,000 verifications, unlimited devices, sub-merchant API + scoped keys, trust-score API, re-billing endpoints | $0.0325 |
 | **Enterprise/Gov** | Custom | All | Volume, in-country residency, dedicated corridor models, white-label (+20% wholesale), SLA | Custom |
 
-**Pay-as-you-go (no subscription):** $10→300 ACU ($0.033) · $50→1,750 ($0.029) · $200→8,000 ($0.025).
-**Wholesale (Platform class, committed monthly):** 25k+ $0.018 · 100k+ $0.014 · 500k+ $0.014 · 2M+ custom — **absolute floor $0.014**, cost-indexed (never below 2× fully-loaded variable cost).
+**Pay-as-you-go (no subscription, 5×):** $33→1,000 ACU · $165→5,000 · $650→20,000 (all $0.0325/ACU). Deliberately above the 4× plan rate so committing to a plan always saves.
+**Partner wholesale (buy float/inventory, resell at the 5× retail, keep the spread):** distributor 85% of retail = $0.0276/ACU (KODA nets 4.25×, partner keeps 15%); reseller 80% = $0.026/ACU (KODA nets the 4× floor, partner keeps 20%). Below 80% (which would breach the 4× floor) is rejected. Because retail is 5×, the whole partner margin lives above the floor — everyone wins: merchant, partner, and KODA (≥4× on every ACU).
 **Partners:** BSP/bot-builders 15% rev-share 24 mo or wholesale resale; agencies 10% referral + certified directory. Telco posture: none needed — if an operator wants to white-label KODA as their SME tool, that's enterprise licensing from a position of strength.
 
 ## 11. Prepaid-first billing — the product bills itself with itself
 
-Card-on-file fails in these markets. KODA is **prepaid ACU wallet first**: merchants top up **via mobile money** (or BitriPay, card, bank transfer) — and **the top-up is verified by KODA's own engine**. `POST /billing/topup` creates a KODA intent on KODA's own account; the merchant pays, drops the code, credits land in seconds. Every top-up is a live demo of the product being paid for. Auto-top-up rules; low-balance WhatsApp alerts; **grace buffer** at zero balance (72 h / 100 verifications negative) so a checkout never dies at the till; postpaid invoicing for Plateforme/Enterprise contracts only.
+Card-on-file fails in these markets. KODA is **prepaid ACU wallet first**: merchants top up **via mobile money** (or BitriPay, card, bank transfer) — and **the top-up is verified by KODA's own engine**. `POST /billing/topup` creates a KODA intent on KODA's own account; the merchant pays, drops the code, credits land in seconds. Every top-up is a live demo of the product being paid for. Auto-top-up rules; low-balance WhatsApp alerts; a small **goodwill credit buffer** (a bounded ACU overdraft, `KODA_GRACE_ACU`, default 50) so a live checkout is never cut off the instant the balance hits zero; beyond the buffer, chargeable verification is refused (atomically) rather than run into unbounded negative. Postpaid invoicing for Plateforme/Enterprise contracts only.
 
-**Free-tier anti-abuse:** one Marché account per attested device + KYB msisdn; FraudSentinel velocity applies identically; conversion nudges from real usage ("You verified 48 payments this month — Boutique costs $0.63/day").
+**Free-tier anti-abuse:** one Marché account per attested device + KYB msisdn; per-IP signup cap that escalates to a SecurityAgent auto-block; FraudSentinel velocity applies identically; conversion nudges from real usage ("You verified 48 payments this month — Boutique costs $0.63/day").
 
-## 12. Unit economics (per verification, scale, blended)
+## 12. Unit economics (per verification, scale, blended) — INTERNAL ONLY, never shown publicly
 
-Revenue $0.026 · COGS: cloud+inference $0.004, Vision blended $0.002, support/dispute $0.003 → **gross margin ≈ $0.017 (~65%)**. Sensitivity stated honestly: screenshot-heavy corridors compress margin; code-path share rises as customers learn the flow (it does). Manual-mode verifications carry the same margin — the Console is a thin client on the same engine. Wholesale floor $0.007 still clears COGS at volume.
+Fully-loaded cost ≈ **$0.0065** (code path) / **$0.0213** (vision). The pricing law fixes the floor at **4× that cost**:
+- **Plan verification** sells at $0.026 → **4× (300% profit, ~$0.0195 gross)**.
+- **Ad-hoc ACU** (top-up / overage / AI) sells at $0.0325 → **5× (400% profit, ~$0.026 gross)**.
+- **Partner-channel ACU**: KODA nets 4×–4.25× (partner keeps the 15–20% spread out of the 5× retail).
+
+CI (`tools/margin.js`) fails the build the moment any pack, plan rate, overage, or wholesale rate would sell below 4×, so the floor can never silently erode. Screenshot-heavy corridors are covered by the vision path being metered at 3 ACU (≥4× on its own higher cost). **These cost/margin figures are internal only** — public surfaces show price, verifications, and RPS, never cost or markup.
 
 **P4 prize (unchanged, now global):** a merchant's verified KODA ledger is the cleanest SME cash-flow dataset in every market it touches — the underwriting substrate for merchant lending across the portfolio.
 

@@ -86,11 +86,11 @@ Server-authoritative pricing, idempotent settlement, **double-entry ledger that 
 | Plan | Price | Verifications/mo | Throughput | For |
 |---|---|---|---|---|
 | **Marché** | Free forever | 10 | 2 req/s | Market traders |
-| **Boutique** | $19/mo | 300 (+$0.035 over) | 10 req/s | Small shops |
-| **Commerce** | $79/mo | 1,750 (+$0.028 over) | 25 req/s | Growing businesses |
-| **Plateforme** | $399/mo | 12,500 (+$0.020 over) | 100 req/s | Platforms/marketplaces |
+| **Boutique** | $19/mo | 700 (+$0.0325 over) | 10 req/s | Small shops |
+| **Commerce** | $79/mo | 3,000 (+$0.0325 over) | 25 req/s | Growing businesses |
+| **Plateforme** | $399/mo | 15,000 (+$0.0325 over) | 100 req/s | Platforms/marketplaces |
 | **Enterprise / Gov** | Custom | Committed volume | 1,000 req/s | In-country residency, SLA, white-label |
-Verifications within quota are **free** (no per-use cost). ACU (prepaid credit, ~$0.026/unit at 4× cost) is drawn only by AI features and over-quota verifications. Prepaid **ACU vouchers** and a **distributor/agent float** model let field agents resell credit.
+Verifications within quota are **free** (no per-use cost). ACU (prepaid credit, $0.0325/unit) is drawn only by AI features and over-quota verifications; a plan's included rate ($0.026/verif) always beats pay-as-you-go. Prepaid **ACU vouchers** and a **distributor/agent float** model let field agents resell credit and keep a 15–20% margin.
 
 ## 13. COMMUNICATION EVENT ARCHITECTURE
 One event engine — **158 events across 18 categories** fan out over **5 channels** (email · in-app · WhatsApp · push · SMS). 40 mandatory notices (security/fraud/legal) always deliver. Branded, templated, multilingual; per-merchant channel preferences.

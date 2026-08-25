@@ -177,24 +177,24 @@ Card-on-file monthly billing fails in these markets (card penetration, FX, charg
 
 **Pay-as-you-go (no subscription — the on-ramp)**
 
+Pay-as-you-go ACU is priced at **5× cost ($0.0325/ACU)** — deliberately above the 4× plan rate so a plan always saves.
+
 | Top-up | Effective per verification |
 |---|---|
-| $10 → 300 ACU | $0.033 |
-| $50 → 1,750 ACU | $0.029 |
-| $200 → 8,000 ACU | $0.025 |
+| $33 → 1,000 ACU | $0.0325 |
+| $165 → 5,000 ACU | $0.0325 |
+| $650 → 20,000 ACU | $0.0325 |
 
-**Plans (subscription = cheaper units + features)** — unchanged from Master Spec §12: Marché $0 · Boutique $19 · Commerce $79 · Plateforme $399 · Enterprise custom. Plan quotas are denominated in ACU under the hood; overage draws from the prepaid wallet at plan rates.
+**Plans (subscription = the 4× rate + features)** — Marché $0 (10/mo) · Boutique $19 (700) · Commerce $79 (3,000) · Plateforme $399 (15,000) · Enterprise custom. Included quota sells at the **4× plan rate ($0.026/verif)** — the only place a merchant gets 4×; overage draws from the prepaid wallet at the 5× ad-hoc rate ($0.0325).
 
-**Wholesale (Platform class)**
+**Partner wholesale (buy float/inventory, resell at the 5× retail, keep the spread)**
 
-| Committed monthly volume | Per verification |
-|---|---|
-| 25k+ | $0.018 |
-| 100k+ | $0.014 |
-| 500k+ | $0.010 |
-| 2M+ | Custom (floor ~$0.007) |
+| Partner | Buys at | KODA nets | Partner margin |
+|---|---|---|---|
+| Distributor | 85% of retail = $0.0276/ACU | 4.25× | 15% |
+| Reseller | 80% of retail = $0.0260/ACU | 4.0× (floor) | 20% |
 
-Platforms may mark up to their merchants freely, absorb it as a feature, or use KODA's **re-billing API** (`/submerchants/{id}/usage`) to pass through at cost. White-label ("Powered by KODA" removable) at Plateforme+ for +20% on wholesale rate.
+Below 80% (which would breach the **4× floor**) is rejected in code + CI. Platforms may mark up to their merchants freely, absorb it as a feature, or use KODA's **re-billing API** (`/submerchants/{id}/usage`). White-label ("Powered by KODA" removable) at Plateforme+ for +20% on wholesale rate.
 
 ### 4.4 Revenue share & partner programme
 
@@ -208,17 +208,16 @@ Marché tier: 20 verifications/mo, 1 device, device-attestation required, one fr
 
 ### 4.6 Unit economics (investor page)
 
-Per verification, at scale, DRC corridor:
+Per verification, at scale, DRC corridor (**internal only — never shown publicly**):
 
 | Line | $ |
 |---|---|
-| Retail revenue (blended) | 0.026 |
-| COGS: cloud + inference (agent mesh, amortised) | 0.004 |
-| COGS: Vision path blended share | 0.002 |
-| Support/dispute ops blended | 0.003 |
-| **Gross margin** | **~0.017 (≈65%)** |
+| Fully-loaded cost (code path) | 0.0065 |
+| Plan verification (4× rate) | 0.026 → **gross ~0.0195 (300% profit)** |
+| Ad-hoc ACU: top-up / overage / AI (5× rate) | 0.0325 → **gross ~0.026 (400% profit)** |
+| Partner-channel ACU (KODA net) | 0.026–0.0276 → **4×–4.25×** (partner keeps 15–20%) |
 
-Sensitivity honestly stated: margin compresses on screenshot-heavy corridors (Vision COGS) and expands as code-path share rises — which it does naturally as customers learn the flow. Wholesale floor $0.007 still clears COGS at scale volumes.
+The **4× floor is enforced in code and CI** (`tools/margin.js`): no pack, plan rate, overage, or wholesale rate can ever sell below 4× cost. Vision is metered at 3 ACU so the pricier vision path ($0.0213 cost) still clears 4× ($0.0975 = 4.6×). Margin expands as code-path share rises (it does, as customers learn the flow).
 
 ---
 

@@ -334,10 +334,10 @@ Metered in **AI Compute Units**; verification is the billable atom.
 
 | Plan | Price | Includes | Overage |
 |---|---|---|---|
-| **Marché** (free) | $0 | 20 verifications/mo, 1 Sentinel device, WhatsApp Chat Mode | — |
-| **Boutique** | $19/mo | 600 verifications, 2 devices, web widget, webhooks, reconciliation reports | $0.035/verif |
-| **Commerce** | $79/mo | 3,500 verifications, 5 devices, DisputeAgent, screenshot Vision, priority parsing | $0.028/verif |
-| **Plateforme** | $399/mo | 25,000 verifications, unlimited devices, marketplace trust-score API, sub-merchant onboarding API, SLA | $0.020/verif |
+| **Marché** (free) | $0 | 10 verifications/mo, 1 Sentinel device, WhatsApp Chat Mode | — (top up) |
+| **Boutique** | $19/mo | 700 verifications, 2 devices, web widget, webhooks, reconciliation reports | $0.0325/verif |
+| **Commerce** | $79/mo | 3,000 verifications, 5 devices, DisputeAgent, screenshot Vision, priority parsing | $0.0325/verif |
+| **Plateforme** | $399/mo | 15,000 verifications, unlimited devices, marketplace trust-score API, sub-merchant onboarding API, SLA | $0.0325/verif |
 | **Enterprise/Gov** | Custom | Volume, in-country residency, dedicated corridor models, white-label | Custom |
 
 Agent-intensive operations (Vision forensics, dispute evidence files) meter at 3× base ACU per the portfolio billing law. Anchor line for sales: *a verification costs less than the airtime the merchant currently burns calling customers to ask "tu as payé?"*

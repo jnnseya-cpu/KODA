@@ -972,11 +972,11 @@ VIEWS.reseller = async () => {
   <div class="grid g4">
     <div class="card stat"><b>${fmt(bs.inventory_acu)}</b><span>ACU inventory (issuable)</span></div>
     <div class="card stat"><b>${fmt((bs.batches || []).reduce((a, b) => a + (b.redeemed || 0), 0))}</b><span>vouchers redeemed</span></div>
-    <div class="card stat"><b>${info.wholesale_pct || 80}%</b><span>wholesale rate · $${info.wholesale_usd_per_acu || '0.0208'}/ACU</span></div>
+    <div class="card stat"><b>${info.wholesale_pct || 80}%</b><span>wholesale rate · $${info.wholesale_usd_per_acu || '0.026'}/ACU</span></div>
     <div class="card stat"><b><span class="badge ${info.status === 'ACTIVE' ? 'b-ok' : 'b-bad'}">${esc(info.status)}</span></b><span>status</span></div>
   </div>
   <div class="card" style="margin-top:14px"><h3>Buy voucher inventory (wholesale)</h3>
-    <p style="font-size:13px;color:var(--dim)">Prepay a block of ACU inventory at your wholesale rate (<b>${info.wholesale_pct || 80}% of retail ≈ $${info.wholesale_usd_per_acu || '0.0208'}/ACU</b>). Every voucher you issue draws it down — you can never issue ACU you haven't paid for.</p>
+    <p style="font-size:13px;color:var(--dim)">Prepay a block of ACU inventory at your wholesale rate (<b>${info.wholesale_pct || 80}% of retail ≈ $${info.wholesale_usd_per_acu || '0.026'}/ACU</b>). Every voucher you issue draws it down — you can never issue ACU you haven't paid for.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="rsc-block" type="number" placeholder="ACU block (e.g. 5000)" style="flex:1;min-width:160px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <button class="btn btn-gold" onclick="resellerBuy()">Buy inventory</button></div><div id="rsc-buy" style="margin-top:10px"></div></div>
   <div class="card" style="margin-top:14px"><h3>Issue a voucher batch</h3>
@@ -1097,9 +1097,9 @@ window.revokeDevice = async (id) => { await api(`/app/devices/${id}/revoke`, { b
 // what each plan gives you — display copy keyed to the shared plan ladder
 const PLAN_FEATURES = {
   marche:     ['All five doors (Manual, WhatsApp, API, USSD, SMS)', 'Automatic SMS-anchored verification', 'Live payments feed & receipts', '1 Sentinel device'],
-  boutique:   ['Everything in Marché', 'Higher throughput (10 req/s)', 'WhatsApp + API doors at scale', 'Disputes & multi-device', 'Overage $0.035 / extra verification'],
-  commerce:   ['Everything in Boutique', '25 req/s', 'Sub-merchant accounts', 'Priority support', 'Overage $0.028 / extra verification'],
-  plateforme: ['Everything in Commerce', '100 req/s', 'White-label & sub-merchant API', 'SLA-backed response times', 'Overage $0.020 / extra verification'],
+  boutique:   ['Everything in Marché', 'Higher throughput (10 req/s)', 'WhatsApp + API doors at scale', 'Disputes & multi-device', 'Overage $0.0325 / extra verification'],
+  commerce:   ['Everything in Boutique', '25 req/s', 'Sub-merchant accounts', 'Priority support', 'Overage $0.0325 / extra verification'],
+  plateforme: ['Everything in Commerce', '100 req/s', 'White-label & sub-merchant API', 'SLA-backed response times', 'Overage $0.0325 / extra verification'],
   enterprise: ['Everything in Plateforme', '1000 req/s', 'Custom volume & contracts', 'Dedicated onboarding', 'Talk to us for pricing'],
 };
 // Plans & Pricing — see the whole ladder and choose/upgrade from inside the app.
