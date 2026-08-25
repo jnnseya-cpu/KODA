@@ -28,6 +28,12 @@ function loadKeys() {
 const KEYS = loadKeys();
 const b64u = (buf) => Buffer.from(buf).toString('base64url');
 const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
+// A plan is sellable via a partner rail only if it is a genuine PAID, finite tier —
+// never free Marché and never sales-gated Enterprise (usd:null). Mirrors billing's gate.
+function isSellablePlan(planKey) {
+  const P = require('../../shared/plans').PLANS[planKey];
+  return !!(P && typeof P.usd === 'number' && P.usd > 0);
+}
 
 function sign(payload) {
   const body = b64u(JSON.stringify(payload));
@@ -44,9 +50,15 @@ function verifySignature(token) {
 }
 
 // human PIN, e.g. KODA-GH-7PX9-2RMD-8KWA (country + 12 chars). We store only its hash.
+// Draw from a fixed 32-symbol Crockford-style alphabet (no I/L/O/U — unambiguous) using
+// rejection-free uniform bytes, so each char carries a full 5 bits. The old approach
+// uppercased base64url, collapsing a–z onto A–Z and shrinking effective entropy.
+const PIN_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'; // 32 symbols
 function makePin(country) {
-  const chunk = () => U.token(3).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4).padEnd(4, 'X');
-  return `KODA-${(country || 'XX').toUpperCase()}-${chunk()}-${chunk()}-${chunk()}`;
+  const bytes = crypto.randomBytes(12);
+  const chars = Array.from(bytes, b => PIN_ALPHABET[b & 31]).join(''); // 12 chars × 5 bits = 60 bits
+  const chunk = (i) => chars.slice(i * 4, i * 4 + 4);
+  return `KODA-${(country || 'XX').toUpperCase()}-${chunk(0)}-${chunk(1)}-${chunk(2)}`;
 }
 
 // ── issue a batch (reseller prepurchase already cleared upstream) ─────────────
@@ -95,51 +107,74 @@ function redeem(merchant, pin) {
   }
   const payload = verifySignature(v.signature);          // cryptographic authenticity
   if (!payload || payload.voucher_id !== v.id) return [400, { error: { code: 'bad_signature' } }];
-  const reseller = q.get('SELECT * FROM resellers WHERE id=?', v.reseller_id);
+  // TRUST THE SIGNATURE, NOT THE ROW. Every value-bearing field is read from the SIGNED
+  // payload; the DB row is then cross-checked against it and any mismatch is rejected.
+  // Previously redeem() acted on v.acu_amount / v.plan_key / locks straight from the row,
+  // so the Ed25519 signature (which binds all of these) protected nothing — tampering the
+  // row minted arbitrary ACU or granted Enterprise for pennies.
+  const acuAmount = Math.round(Number(payload.acu_amount) || 0);
+  const planKey = payload.plan_key || null;
+  const countryLock = payload.country_lock || null;
+  const currencyLock = payload.currency_lock || null;
+  const resellerId = payload.reseller_id;
+  const rowMatches = resellerId === v.reseller_id
+    && acuAmount === Math.round(Number(v.acu_amount) || 0)
+    && (planKey || null) === (v.plan_key || null)
+    && (countryLock || null) === (v.country_lock || null)
+    && (currencyLock || null) === (v.currency_lock || null);
+  if (!rowMatches) return [409, { error: { code: 'voucher_tampered', message: 'Voucher data does not match its signature.' } }];
+  // A subscription voucher may only carry a genuinely sellable plan — re-assert here so a
+  // tampered/forged plan_key (e.g. 'enterprise') can never be activated via redeem, which
+  // otherwise writes straight into merchants.plan with no sellable-gate.
+  if (planKey && !isSellablePlan(planKey)) return [409, { error: { code: 'plan_not_sellable', plan: planKey } }];
+  const reseller = q.get('SELECT * FROM resellers WHERE id=?', resellerId);
   if (!reseller || reseller.status !== 'ACTIVE') return [409, { error: { code: 'reseller_inactive' } }];
   // Anti-loophole: a reseller must not redeem their OWN vouchers into their own
   // account — that would be buying ACU at wholesale for their own consumption.
   if (reseller.merchant_id && reseller.merchant_id === merchant.id)
     return [409, { error: { code: 'self_redeem_forbidden', message: 'A reseller cannot redeem their own vouchers. Sell them to other merchants.' } }];
-  if (v.country_lock && v.country_lock !== merchant.country) return [409, { error: { code: 'country_locked', lock: v.country_lock } }];
-  // A currency-locked voucher may only be redeemed by a merchant collecting in that
-  // currency — the lock was set at issue but never checked, so a voucher priced for a
-  // soft-currency market could be redeemed anywhere (value/pricing leak).
-  if (v.currency_lock && String(v.currency_lock).toUpperCase() !== String(merchant.currency || '').toUpperCase())
-    return [409, { error: { code: 'currency_locked', lock: v.currency_lock } }];
+  if (countryLock && countryLock !== merchant.country) return [409, { error: { code: 'country_locked', lock: countryLock } }];
+  if (currencyLock && String(currencyLock).toUpperCase() !== String(merchant.currency || '').toUpperCase())
+    return [409, { error: { code: 'currency_locked', lock: currencyLock } }];
 
   // All-or-nothing: the guarded CAS flip (a concurrent second redeem loses the race)
   // AND the entitlement live in one transaction — if crediting throws, the redeemed
   // flag rolls back and the voucher stays legitimately redeemable (no lost value).
-  const res = tx(() => {
+  let res;
+  try {
+    res = tx(() => {
     const upd = q.run(`UPDATE vouchers SET status='redeemed', redeemed_at=datetime('now'), redeemed_by=? WHERE id=? AND status='active'`, merchant.id, v.id);
     if (upd.changes !== 1) return { lost: true };
-    if (v.acu_amount > 0) {
-      // Draw the value from the reseller's own prepaid inventory ledger when they are
-      // on the inventory model (positive reseller balance); fall back to treasury for
-      // legacy batches. Either way the reseller can never give out value they haven't
-      // prepaid for.
-      const rkey = 'reseller:' + v.reseller_id;
+    if (acuAmount > 0) {
+      // FAIL CLOSED: value is drawn ONLY from the reseller's own prepaid inventory. The
+      // old treasury fallback let a reseller (or a tampered voucher) hand out value KODA
+      // paid for — the exact opposite of "never give value they haven't prepaid for".
+      const rkey = 'reseller:' + resellerId;
       const rbal = q.get('SELECT balance_acu FROM billing_accounts WHERE account_key=?', rkey);
-      const funder = (rbal && rbal.balance_acu >= v.acu_amount) ? rkey : 'koda:treasury';
-      if (v.plan_key) {
+      if (!rbal || rbal.balance_acu < acuAmount) throw new Error('unbacked'); // rolls back the CAS flip
+      if (planKey) {
         // SUBSCRIPTION voucher: activate a 30-day plan instead of crediting ACU. The
         // prepaid value converts to KODA plan revenue (merchant gets a plan, not ACU).
         billing.post([
-          { account_key: funder, entry_type: 'voucher_plan_redeem', acu_delta: -v.acu_amount },
-          { account_key: 'koda:plan_revenue', entry_type: 'plan_sale', acu_delta: v.acu_amount },
+          { account_key: rkey, entry_type: 'voucher_plan_redeem', acu_delta: -acuAmount },
+          { account_key: 'koda:plan_revenue', entry_type: 'plan_sale', acu_delta: acuAmount },
         ], { idempotencyKey: 'voucher:' + v.id, ref: 'voucher_plan' });
-        billing.activatePlan(merchant.id, v.plan_key);
-        return { plan: v.plan_key };
+        billing.activatePlan(merchant.id, planKey);
+        return { plan: planKey };
       }
       billing.post([
-        { account_key: funder, entry_type: 'voucher_redeem', acu_delta: -v.acu_amount },
-        { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: v.acu_amount },
+        { account_key: rkey, entry_type: 'voucher_redeem', acu_delta: -acuAmount },
+        { account_key: 'merchant:' + merchant.id, entry_type: 'topup_credit', acu_delta: acuAmount },
       ], { idempotencyKey: 'voucher:' + v.id, ref: 'voucher' });
-      require('./engine').creditAcu(merchant, v.acu_amount, 'topup', v.id);
+      require('./engine').creditAcu(merchant, acuAmount, 'topup', v.id);
     }
-    return { credited: v.acu_amount };
-  });
+    return { credited: acuAmount };
+    });
+  } catch (e) {
+    if (String(e && e.message) === 'unbacked')
+      return [409, { error: { code: 'insufficient_reseller_backing', message: 'This voucher is not backed by prepaid reseller inventory.' } }];
+    throw e;
+  }
   if (res.lost) return [409, { error: { code: 'already_redeemed' } }];
   if (res.plan) {
     require('./engine').notifyOwners(merchant, 'plan.upgraded', { plan: res.plan });

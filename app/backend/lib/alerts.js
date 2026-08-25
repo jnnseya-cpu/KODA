@@ -44,11 +44,27 @@ function checkLedger() {
   } catch (e) { return { balanced: null, error: String(e && e.message || e) }; }
 }
 
-// Start periodic self-monitoring (ledger reconcile). Called once at boot.
+// Consumption (verifications, AI) debits merchants.acu_balance but is NOT posted to the
+// double-entry ledger, so reconcile() alone can't see burned/negative ACU. This surfaces
+// the real outstanding exposure: total ACU delivered on grace/credit that was never paid
+// for. A large or growing total is the early warning of a metering leak or grace abuse.
+function checkOutstandingGrace() {
+  try {
+    const { q } = require('./db');
+    const row = q.get(`SELECT COALESCE(SUM(-acu_balance),0) owed, COUNT(*) n FROM merchants WHERE acu_balance < 0`);
+    const owedAcu = Number(row.owed || 0);
+    const capAcu = Number(process.env.KODA_GRACE_ALERT_ACU || 5000); // ~$130 retail of unpaid service
+    if (owedAcu > capAcu) alert('warn', 'ACU grace exposure high', { outstanding_acu: owedAcu, merchants: row.n, threshold: capAcu });
+    return { owedAcu, merchants: row.n };
+  } catch (e) { return { owedAcu: null, error: String(e && e.message || e) }; }
+}
+
+// Start periodic self-monitoring (ledger reconcile + grace exposure). Called once at boot.
 function startSelfMonitor(intervalMs = 10 * 60 * 1000) {
-  const t = setInterval(checkLedger, intervalMs);
+  const tick = () => { checkLedger(); checkOutstandingGrace(); };
+  const t = setInterval(tick, intervalMs);
   if (t.unref) t.unref();   // don't keep the process alive for the timer
   return t;
 }
 
-module.exports = { alert, checkLedger, startSelfMonitor };
+module.exports = { alert, checkLedger, checkOutstandingGrace, startSelfMonitor };

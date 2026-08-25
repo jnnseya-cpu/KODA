@@ -32,6 +32,9 @@ const { ACU, TOPUP_PACKS, PLANS } = require('../../shared/plans');
 // limit" — the operator's own accounts are exempt from metering.
 function acuUnlimited(merchant) {
   if (!merchant || !merchant.id) return false;
+  // Unlimited = a KODA staff-admin owns this account. No runtime route writes is_admin
+  // (only offline make-admin / seed), and sub-merchants + team invites never inherit it,
+  // so a consumer merchant cannot make itself unmetered. Kept as a single ownership test.
   return !!q.get('SELECT 1 FROM users WHERE merchant_id=? AND is_admin=1 LIMIT 1', merchant.id);
 }
 // A paid plan whose 30-day period has lapsed reverts to Marché (free) until renewed —
@@ -52,8 +55,49 @@ function withinQuota(merchant) {
   if (acuUnlimited(merchant)) return true;
   const plan = planExpired(merchant) ? PLANS.marche : (PLANS[merchant.plan] || PLANS.marche);
   if (plan.verifs == null) return true;
-  const used = q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > date('now','start of month')`, merchant.id).c;
+  // POOLED quota: a platform parent's plan quota covers its sub-merchants' verifications
+  // too — counted here across the whole family so sub-merchants can't each mint a separate
+  // free quota (the old boutique-per-sub laundering). Callers pass the BILLING payer
+  // (billingPayer) for a sub, so `merchant` here is already the parent for a family.
+  const used = q.get(`SELECT COUNT(*) c FROM receipts
+     WHERE (merchant_id=? OR merchant_id IN (SELECT id FROM merchants WHERE parent_id=?))
+     AND verified_at > date('now','start of month')`, merchant.id, merchant.id).c;
   return used < plan.verifs;
+}
+// The account that PAYS for a merchant's metered usage: a sub-merchant's verifications
+// bill against its platform parent (pooled quota + parent's ACU balance), so a platform
+// funds its resellers' volume instead of each sub-merchant getting free quota.
+function billingPayer(merchant) {
+  if (merchant && merchant.parent_id) return getMerchant(merchant.parent_id) || merchant;
+  return merchant;
+}
+// The merchant's EFFECTIVE plan key (Marché once a paid plan has lapsed).
+function effectivePlanKey(merchant) {
+  if (!merchant) return 'marche';
+  if (planExpired(merchant)) return 'marche';
+  return PLANS[merchant.plan] ? merchant.plan : 'marche';
+}
+// ACU cost of ONE overage verification for this merchant's effective plan. Marché / any
+// plan without a tiered overage bills the full 1 ACU (pay-as-you-go, the priciest rate);
+// paid tiers bill their advertised overage converted to ACU (cheaper up the ladder), so
+// the number CHARGED equals the number ADVERTISED. Never below the ACU margin floor.
+const _ACU_PRICE = require('../../shared/billing').ACU_PRICE_USD;
+const _ACU_FLOOR = require('../../shared/billing').PRICE_FLOOR_USD;
+function overageAcu(merchant) {
+  const p = PLANS[effectivePlanKey(merchant)];
+  if (!p || p.overage == null) return ACU.code;                 // Marché / PAYG = full 1 ACU
+  const usd = Math.max(Number(p.overage), _ACU_FLOOR);          // never sell below the floor
+  return Math.round((usd / _ACU_PRICE) * 1000) / 1000;          // USD → ACU, 3dp
+}
+// Prepaid credit floor. Overage/AI is charged in ACU; a merchant may dip to
+// −GRACE_ACU (a small goodwill overdraft so a live checkout isn't hard-cut at the
+// worst moment), then verification/AI is refused. Previously the verify() path had
+// NO floor at all — a free-tier merchant could run unlimited verifications into deep
+// negative balance ($0 collected, real cost delivered). This is the hard cap.
+const GRACE_ACU = Number(process.env.KODA_GRACE_ACU != null ? process.env.KODA_GRACE_ACU : 50);
+function canSpend(merchant, cost) {
+  if (acuUnlimited(merchant)) return true;
+  return (Number(merchant.acu_balance) - Number(cost)) >= -GRACE_ACU;
 }
 const VERSION = require('../../shared/version');
 
@@ -81,6 +125,31 @@ function chargeAcu(merchant, amount, kind, ref) {
   if (bal <= 0 && prev > 0) notifyOwners(merchant, 'billing.grace_started', {});
   else if (bal < 100 && prev >= 100) notifyOwners(merchant, 'billing.low_balance', {});
   return bal;
+}
+// ATOMIC conditional debit — the TOCTOU-safe way to spend ACU. Unlike chargeAcu, the
+// UPDATE only applies when it will NOT breach `floor` (default −GRACE_ACU). Because
+// node:sqlite runs the UPDATE...WHERE as one synchronous statement, two concurrent
+// handlers that both passed a stale balance read cannot both succeed: the first debit
+// moves the balance and the second's WHERE fails (changes=0). Callers MUST reserve
+// BEFORE doing paid work (esp. real-cash AI) and treat {ok:false} as insufficient_credit.
+function reserve(merchant, amount, kind, ref, floor) {
+  if (acuUnlimited(merchant)) return { ok: true, balance: merchant.acu_balance };
+  const amt = Number(amount);
+  const f = (floor == null) ? -GRACE_ACU : Number(floor);
+  const res = q.run('UPDATE merchants SET acu_balance = acu_balance - ? WHERE id=? AND (acu_balance - ?) >= ?',
+    amt, merchant.id, amt, f);
+  if (res.changes !== 1) {
+    const cur = q.get('SELECT acu_balance FROM merchants WHERE id=?', merchant.id);
+    return { ok: false, balance: cur ? cur.acu_balance : 0 };
+  }
+  const bal = q.get('SELECT acu_balance FROM merchants WHERE id=?', merchant.id).acu_balance;
+  q.run(`INSERT INTO acu_transactions (id,merchant_id,delta,kind,ref,balance_after)
+         VALUES (?,?,?,?,?,?)`, id('acu'), merchant.id, -amt, kind, ref || null, bal);
+  merchant.acu_balance = bal;
+  const prev = bal + amt;
+  if (bal <= 0 && prev > 0) notifyOwners(merchant, 'billing.grace_started', {});
+  else if (bal < 100 && prev >= 100) notifyOwners(merchant, 'billing.low_balance', {});
+  return { ok: true, balance: bal };
 }
 function creditAcu(merchant, amount, kind, ref) {
   q.run('UPDATE merchants SET acu_balance = acu_balance + ? WHERE id=?', amount, merchant.id);
@@ -137,6 +206,14 @@ function ingestSms(merchant, { raw, operator, device_id }) {
   checkOwnershipProof(merchant.id, raw);
   const parsed = parseSms(raw, operator);
   const smsId = id('sms');
+  // SMS-REPLAY DEDUP: the same operator SMS re-forwarded (Sentinel retry, double WhatsApp
+  // forward) must not create a second ledger row that could re-trigger a settlement match.
+  // The verify replay_index and unique-amount matching already prevent double-credit; this
+  // stops the redundant work and closes the replay vector at the door.
+  if (parsed && parsed.ref) {
+    const dup = q.get(`SELECT id FROM sms_ledger WHERE merchant_id=? AND ref_code=? AND received_at > datetime('now','-10 minutes') LIMIT 1`, merchant.id, parsed.ref);
+    if (dup) return { id: dup.id, parsed: true, duplicate: true };
+  }
   if (!parsed) {
     q.run(`INSERT INTO sms_ledger (id,merchant_id,device_id,operator,raw,chain_ok,quarantined)
            VALUES (?,?,?,?,?,1,0)`, smsId, merchant.id, device_id || null, operator || 'unknown', raw);
@@ -179,7 +256,7 @@ function ingestSms(merchant, { raw, operator, device_id }) {
   try { require('./billing').matchDistributorPayment(merchant.id, parsed.amount, parsed.currency); } catch { /* billing optional */ }
   // KODA self-collection: if this SIM is KODA's own collection phone, a verified
   // incoming payment auto-settles a matching pending plan/top-up (exact local amount).
-  try { if (require('./settings').collectMerchantId() === merchant.id) require('./billing').matchKodaCollection(parsed.amount); } catch { /* billing optional */ }
+  try { if (require('./settings').collectMerchantId() === merchant.id) require('./billing').matchKodaCollection(parsed.amount, parsed.currency); } catch { /* billing optional */ }
 
   // FULLY-AUTOMATIC walk-in verification — the merchant does NOTHING. A clean operator
   // SMS on the merchant's own device that no order is awaiting is a counter sale: verify
@@ -340,8 +417,23 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
 
   // 4. verified — receipt, replay lock, billing, webhook, comms
   const rcp = id('rcp');
-  // free within quota; Vision (AI) always metered; code-path overage charged.
-  const acuCost = viaScreenshot ? ACU.vision : (withinQuota(merchant) ? 0 : ACU.code);
+  // free within quota; Vision (AI) always metered; code-path overage charged. A
+  // sub-merchant bills against its platform parent (pooled quota + parent balance).
+  const payer = billingPayer(merchant);
+  const acuCost = viaScreenshot ? ACU.vision : (withinQuota(payer) ? 0 : overageAcu(payer));
+  // ATOMIC prepaid-credit reservation (floor = −GRACE): debits now and REFUSES when the
+  // payer is out of credit beyond the goodwill grace. Was previously ungated on this
+  // path → a free-tier merchant could run unlimited overage into deep negative balance.
+  // preCharged (vision) already reserved at the call site, so skip the second debit.
+  if (acuCost > 0 && !preCharged) {
+    const r = reserve(payer, acuCost, viaScreenshot ? 'vision' : 'verification', rcp);
+    if (!r.ok) {
+      notifyOwners(merchant, 'billing.grace_exhausted', { required_acu: acuCost });
+      emitOutcome(merchant.id, 'blocked', 'insufficient_credit', { reference });
+      metric('credit_blocks');
+      return { status: 'blocked', code: 'insufficient_credit', required_acu: acuCost, balance: r.balance, trace };
+    }
+  }
   const masked = sms.counterparty_name
     ? sms.counterparty_name.split(' ').map((w, i) => i === 0 ? w[0] + '***' : w[0] + '.').join(' ') : null;
   q.run(`INSERT INTO receipts (id,merchant_id,intent_id,sms_id,reference,amount,currency,operator,
@@ -354,10 +446,8 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
     String(sms.ref_code || reference).toUpperCase(), merchant.id, rcp);
   q.run(`UPDATE sms_ledger SET matched_intent_id=? WHERE id=?`, intent ? intent.id : 'manual', sms.id);
   if (intent) q.run(`UPDATE intents SET status=? WHERE id=?`, late ? 'verified_late' : 'verified', intent.id);
-  // preCharged: the vision OCR was already metered at the call site (routes.js) the
-  // moment the paid model ran, so it is charged even when extraction/verify fails.
-  // Don't double-charge it here — the receipt still records acuCost for reporting.
-  if (acuCost > 0 && !preCharged) chargeAcu(merchant, acuCost, viaScreenshot ? 'vision' : 'verification', rcp);
+  // NOTE: the overage/vision charge was already applied atomically by reserve() above
+  // (or pre-charged at the vision call site). The receipt records acuCost for reporting.
 
   recordNetwork(sms, 'verified'); // ADD-ON B: contribute the hashed payer to the network
   maybeFirstVerified(merchant.id);
@@ -408,7 +498,17 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
   if (risk.band === 'challenge') { notifyOwners(merchant, 'payment.pending_review', { reference }); emitOutcome(merchant.id, 'pending_review', 'needs_review', { reference }); return { status: 'pending_review', code: 'needs_review', risk, trace }; }
 
   const rcp = id('rcp');
-  const acuCost = withinQuota(merchant) ? 0 : ACU.code;
+  const payer = billingPayer(merchant);
+  const acuCost = withinQuota(payer) ? 0 : overageAcu(payer);
+  if (acuCost > 0) {
+    const r = reserve(payer, acuCost, 'verification', rcp);
+    if (!r.ok) {
+      notifyOwners(merchant, 'billing.grace_exhausted', { required_acu: acuCost });
+      emitOutcome(merchant.id, 'blocked', 'insufficient_credit', { reference });
+      metric('credit_blocks');
+      return { status: 'blocked', code: 'insufficient_credit', required_acu: acuCost, balance: r.balance, trace };
+    }
+  }
   const masked = sms.counterparty_name
     ? sms.counterparty_name.split(' ').map((w, i) => i === 0 ? w[0] + '***' : w[0] + '.').join(' ') : null;
   q.run(`INSERT INTO receipts (id,merchant_id,intent_id,sms_id,reference,amount,currency,operator,
@@ -418,7 +518,7 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
     masked, sms.counterparty_suffix, risk.score, 'manual', JSON.stringify(trace), acuCost, userId);
   q.run(`INSERT OR REPLACE INTO replay_index (reference, merchant_id, receipt_id) VALUES (?,?,?)`, reference, merchant.id, rcp);
   q.run(`UPDATE sms_ledger SET matched_intent_id='manual' WHERE id=?`, sms.id);
-  if (acuCost > 0) chargeAcu(merchant, acuCost, 'verification', rcp);
+  // acuCost was already reserved (atomically debited) above.
 
   recordNetwork(sms, 'verified'); // ADD-ON B
   maybeFirstVerified(merchant.id);
@@ -471,4 +571,4 @@ function editDistance(a, b) {
 }
 function fmtAmt(n) { return Number(n || 0).toLocaleString('fr-FR'); }
 
-module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, planExpired, downgradeExpiredPlans, emitOutcome };
+module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, reserve, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, canSpend, overageAcu, billingPayer, planExpired, downgradeExpiredPlans, emitOutcome };

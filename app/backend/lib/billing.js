@@ -29,7 +29,12 @@ function verifyWebhook(provider, req) {
   const expected = crypto.createHmac('sha256', secret).update(raw).digest('hex');
   const a = Buffer.from(sig), e = Buffer.from(expected);
   const ok = a.length === e.length && crypto.timingSafeEqual(a, e);
-  return { ok, topup_id: (body && body.topup_id) || null };
+  // Carry any amount/currency the caller signed so the underpayment guard can apply to
+  // the generic rails too (paddle_mor/dlocal/bank_transfer/tests) — not just Stripe et al.
+  const amount = body && body.amount != null ? Number(body.amount) : null;
+  const currency = body && body.currency ? String(body.currency).toUpperCase() : null;
+  const paid = body && body.paid != null ? !!body.paid : undefined;
+  return { ok, topup_id: (body && body.topup_id) || null, amount, currency, paid };
 }
 function safeJson(raw) { try { return JSON.parse(raw.toString()); } catch { return {}; } }
 function timingEqHex(aHex, bHex) {
@@ -49,7 +54,10 @@ function verifyStripe(req, raw, body) {
   const paid = body.type === 'checkout.session.completed' && (obj.payment_status ? obj.payment_status === 'paid' : true);
   const amount = obj.amount_total != null ? Number(obj.amount_total) / 100 : null; // Stripe minor units
   const currency = obj.currency ? String(obj.currency).toUpperCase() : null;
-  return { ok: true, topup_id: tid, paid, event: body.type, amount, currency };
+  // Refund / dispute → claw back a previously-settled top-up.
+  const reversed = ['charge.refunded', 'charge.dispute.created', 'charge.dispute.funds_withdrawn'].includes(body.type);
+  const rtid = reversed ? (obj.metadata && obj.metadata.topup_id) || obj.client_reference_id || null : tid;
+  return { ok: true, topup_id: rtid, paid, event: body.type, amount, currency, reversed };
 }
 // Paystack: header `x-paystack-signature` = HMAC-SHA512 of the raw body with the secret key.
 function verifyPaystack(req, raw, body) {
@@ -61,7 +69,9 @@ function verifyPaystack(req, raw, body) {
   const paid = body.event === 'charge.success' && (data.status ? data.status === 'success' : true);
   const amount = data.amount != null ? Number(data.amount) / 100 : null; // Paystack minor units
   const currency = data.currency ? String(data.currency).toUpperCase() : null;
-  return { ok: true, topup_id: tid, paid, event: body.event, amount, currency };
+  const reversed = ['refund.processed', 'charge.dispute.create', 'refund.pending'].includes(body.event);
+  const rtid = reversed ? (data.metadata && data.metadata.topup_id) || data.reference || null : tid;
+  return { ok: true, topup_id: rtid, paid, event: body.event, amount, currency, reversed };
 }
 // Flutterwave: header `verif-hash` must equal the configured secret hash (constant compare).
 function verifyFlutterwave(req, body) {
@@ -72,7 +82,9 @@ function verifyFlutterwave(req, body) {
   const paid = (data.status || '').toLowerCase() === 'successful';
   const amount = data.amount != null ? Number(data.amount) : null; // Flutterwave major units
   const currency = data.currency ? String(data.currency).toUpperCase() : null;
-  return { ok: true, topup_id: tid, paid, event: body.event || 'charge.completed', amount, currency };
+  const reversed = /refund|chargeback|dispute/i.test(String(body.event || ''));
+  const rtid = reversed ? (data.meta && data.meta.topup_id) || data.tx_ref || null : tid;
+  return { ok: true, topup_id: rtid, paid, event: body.event || 'charge.completed', amount, currency, reversed };
 }
 
 // ── ledger: append-only, double-entry, balance_after chained per account ──────
@@ -182,16 +194,29 @@ function createTopup(merchant, body = {}) {
   const rail = String(body.rail || body.method || 'koda');
   // KODA self-collect: pay by mobile money to KODA's own DRC SIM, verified by KODA.
   if (rail === 'koda') {
-    const subtotal = Number(body.usd) > 0 ? Number(body.usd) : Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
+    // SERVER-AUTHORITATIVE retail price. A client-supplied `usd` may only ever RAISE the
+    // price (rounding/tax), never lower it — honoring an arbitrary low `usd` let any
+    // merchant buy ACU at the wholesale floor (~50% off). Retail = acu × ACU_PRICE_USD;
+    // wholesale is reserved for the authenticated distributor/reseller rails only.
+    const retail = Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
+    const subtotal = Number(body.usd) > retail ? Number(body.usd) : retail;
     if (!B.clearsFloor(subtotal / acu)) return [400, { error: { code: 'pricing_floor', message: 'Top-up price is below the 100% margin floor.' } }];
     const idem = body.idempotency_key || null;
     if (idem) { const dup = q.get('SELECT * FROM topups WHERE idempotency_key=?', idem); if (dup) return topupView(dup); }
+    // Cap live pending collections per merchant — creating them is free, and a flood was
+    // the lever for the expected_local collision-theft. A handful of concurrent checkouts
+    // is plenty for any real merchant.
+    expireStalePendingTopups();
+    const pendingN = q.get(`SELECT COUNT(*) c FROM topups WHERE merchant_id=? AND rail='koda' AND status='pending'`, merchant.id).c;
+    if (pendingN >= Number(process.env.KODA_MAX_PENDING_TOPUPS || 5))
+      return [429, { error: { code: 'too_many_pending', message: 'Finish or wait for your pending top-ups to expire before starting another.' } }];
     const expected = assignExpectedLocal(subtotal);
     const cur = localCurrency();
+    if (expected == null) return [409, { error: { code: 'collection_slot_unavailable', message: 'Unable to assign a unique payment amount right now — please retry shortly.' } }];
     const id = U.id('top');
     q.run(`INSERT INTO topups (id,merchant_id,acu_amount,subtotal_usd,collection_fee_usd,tax_usd,total_usd,currency,rail,purpose,idempotency_key,routing_snapshot,status)
            VALUES (?,?,?,?,?,?,?,?,?, 'acu', ?, ?, 'pending')`,
-      id, merchant.id, acu, subtotal, 0, 0, subtotal, 'USD', 'koda', idem, JSON.stringify({ rail: 'koda', expected_local: expected }));
+      id, merchant.id, acu, subtotal, 0, 0, subtotal, 'USD', 'koda', idem, JSON.stringify({ rail: 'koda', expected_local: expected, currency: cur }));
     const num = settings.primaryNumber() || '(no KODA receiving number set — add one in Admin → Collection)';
     const numbers = settings.activeNumbers().map(n => ({ operator: n.operator || '', msisdn: n.msisdn, label: n.label || '' }));
     return {
@@ -207,10 +232,10 @@ function createTopup(merchant, body = {}) {
     if (dup) return topupView(dup); // retry-safe: same key returns the same topup
   }
   const quote = B.quote(acu, rail, { currency: body.currency });
-  // honor a retail pack price when given: subtotal = pack usd, fee added per rail
-  if (Number(body.usd) > 0) {
+  // A client-supplied `usd` may only RAISE the retail subtotal, never lower it (was the
+  // wholesale-floor self-pricing leak). The server quote (acu × ACU_PRICE_USD) is the floor.
+  if (Number(body.usd) > quote.subtotal_usd) {
     const sub = Number(body.usd);
-    if (!B.clearsFloor(sub / acu)) return [400, { error: { code: 'pricing_floor', message: 'Top-up price is below the 100% margin floor.' } }];
     quote.subtotal_usd = sub;
     quote.collection_fee_usd = Math.round(sub * (B.RAILS[rail].fee_pct || 0) * 100) / 100;
     quote.total_usd = Math.round((sub + quote.collection_fee_usd) * 100) / 100;
@@ -286,6 +311,43 @@ function settleTopup(topupId, { issuer = 'koda:treasury', entryType = 'koda_issu
   // Referral reward on the referred merchant's first REAL PAID top-up (KODA-collected).
   try { require('./referrals').qualify(merchant.id); } catch { /* growth optional */ }
   return { ok: true, topup_id: t.id, acu_credited: t.acu_amount };
+}
+
+// CHARGEBACK / REFUND CLAWBACK. When a card/PSP payment that already settled is later
+// refunded or disputed, the merchant keeps ACU they no longer paid for — a pure loss.
+// This reverses the settlement: pulls the granted ACU back out of the wallet (into
+// negative/grace) with a balanced 'reversal' double-entry, and for a plan purchase drops
+// the plan back to Marché. Idempotent on 'reverse:'+id. Only a SETTLED topup can reverse.
+function reverseTopup(topupId, reason) {
+  const t = q.get('SELECT * FROM topups WHERE id=?', topupId);
+  if (!t) return [404, { error: { code: 'topup_not_found' } }];
+  if (t.status === 'reversed') return { ok: true, already: true, topup_id: t.id };
+  if (t.status !== 'settled') return [409, { error: { code: 'not_settled', status: t.status } }];
+  const merchant = q.get('SELECT * FROM merchants WHERE id=?', t.merchant_id);
+  const res = tx(() => {
+    const cas = q.run(`UPDATE topups SET status='reversed' WHERE id=? AND status='settled'`, t.id);
+    if (cas.changes !== 1) return { already: true };
+    if (t.purpose === 'plan' && t.plan_key) {
+      // revoke the plan (revenue reversed), drop to Marché
+      post([
+        { account_key: 'koda:plan_revenue', entry_type: 'reversal', acu_delta: -t.acu_amount },
+        { account_key: 'koda:treasury', entry_type: 'reversal', acu_delta: t.acu_amount },
+      ], { topupId: t.id, idempotencyKey: 'reverse:' + t.id, ref: 'chargeback' });
+      q.run(`UPDATE merchants SET plan='marche', is_platform=0, plan_expires_at=NULL WHERE id=?`, merchant.id);
+      return { plan_reversed: true };
+    }
+    // ACU top-up: pull the granted ACU back out of the wallet.
+    post([
+      { account_key: 'merchant:' + merchant.id, entry_type: 'reversal', acu_delta: -t.acu_amount },
+      { account_key: 'koda:treasury', entry_type: 'reversal', acu_delta: t.acu_amount },
+    ], { topupId: t.id, idempotencyKey: 'reverse:' + t.id, ref: 'chargeback' });
+    require('./engine').chargeAcu(merchant, t.acu_amount, 'chargeback', t.id);
+    return { reversed: true };
+  });
+  if (res.already) return { ok: true, already: true, topup_id: t.id };
+  try { require('./alerts').alert('warn', 'Top-up reversed (chargeback/refund)', { topup: t.id, merchant: merchant.id, acu: t.acu_amount, reason: reason || null }); } catch { /* alert optional */ }
+  require('./engine').notifyOwners(merchant, 'billing.chargeback', { acu: t.acu_amount });
+  return { ok: true, topup_id: t.id, reversed_acu: t.acu_amount, plan_reversed: !!res.plan_reversed };
 }
 
 // ── DISTRIBUTOR RAIL (Rail 4b) — the engine is the escrow ─────────────────────
@@ -639,8 +701,11 @@ function sessionFor(topup, rail, quote) {
     let expected;
     try { expected = JSON.parse(topup.routing_snapshot || '{}').expected_local; } catch { expected = null; }
     if (expected == null) {
-      expected = assignExpectedLocal(quote.total_usd);
-      q.run('UPDATE topups SET routing_snapshot=? WHERE id=?', JSON.stringify({ rail: 'koda', quote, expected_local: expected }), topup.id);
+      // Prefer a unique slot; if the window is momentarily full fall back to the base
+      // amount — the matcher settles only on an UNAMBIGUOUS single match, so a collision
+      // degrades safely to a manual settle, never a mis-credit.
+      expected = assignExpectedLocal(quote.total_usd) ?? Math.round(Number(quote.total_usd) * localRate());
+      q.run('UPDATE topups SET routing_snapshot=? WHERE id=?', JSON.stringify({ rail: 'koda', quote, expected_local: expected, currency: cur }), topup.id);
     }
     return { flow: 'MOBILE_MONEY_TO_KODA_SIM', pay_to: num, pay_to_numbers: settings.activeNumbers().map(n => ({ operator: n.operator || '', msisdn: n.msisdn, label: n.label || '' })), amount_usd: quote.total_usd, amount_local: expected, currency: cur, reference: topup.id,
       instructions: `Pay EXACTLY ${expected} ${cur} (≈ $${quote.total_usd}) by mobile money to KODA at ${num}. Your ${quote.plan_label} plan activates automatically once KODA sees the payment.` };
@@ -659,28 +724,51 @@ function sessionFor(topup, rail, quote) {
 // normal merchant's customer SMS can never settle a KODA collection.
 function localRate() { return settings.usdToLocal(); } // admin-managed (DB → KODA_USD_TO_LOCAL → 2800)
 function localCurrency() { return settings.collectCurrency(); }
+// Expire stale pending KODA collections so their expected_local amount is freed and can
+// never be settled by a much-later coincidental payment. A pending collection is only
+// valid for a short window (the buyer pays right after checkout).
+const KODA_PENDING_TTL_MIN = Number(process.env.KODA_TOPUP_TTL_MIN || 120);
+function expireStalePendingTopups() {
+  try {
+    return q.run(`UPDATE topups SET status='expired' WHERE rail='koda' AND status='pending'
+                  AND created_at < datetime('now', ?)`, `-${KODA_PENDING_TTL_MIN} minutes`).changes;
+  } catch { return 0; }
+}
+// Assign a UNIQUE expected local amount among live pending collections. Returns null when
+// no free slot exists in the window — the caller MUST then refuse to create the topup
+// rather than mint a COLLIDING amount (the old fallthrough returned `base`, which let one
+// payment settle the wrong/attacker's topup and enabled a flood-collision theft).
 function assignExpectedLocal(usd) {
+  expireStalePendingTopups();
   const base = Math.round(Number(usd) * localRate());
+  if (!(base > 0)) return null; // a sub-unit / zero local amount is never assignable
   const used = new Set(q.all(`SELECT routing_snapshot FROM topups WHERE rail='koda' AND status='pending'`)
     .map(r => { try { return JSON.parse(r.routing_snapshot || '{}').expected_local; } catch { return null; } })
     .filter(x => x != null));
-  for (let off = 0; off < 100; off++) if (!used.has(base + off)) return base + off;
-  return base;
+  for (let off = 0; off < 1000; off++) if (!used.has(base + off)) return base + off;
+  return null; // window exhausted → refuse (never collide)
 }
-function matchKodaCollection(amountLocal) {
+function matchKodaCollection(amountLocal, smsCurrency) {
+  expireStalePendingTopups();
+  // Currency safety (mirrors the distributor rail): KODA's collection SIM can hold both a
+  // local and an international currency, so a bare integer match is unsafe. The SMS
+  // currency must equal the collection currency the expected_local was computed in.
+  const cur = String(smsCurrency || '').toUpperCase();
+  if (cur && String(localCurrency() || '').toUpperCase() !== cur) return null;
   const amt = Math.round(Number(amountLocal));
+  if (!(amt > 0)) return null;
   const rows = q.all(`SELECT * FROM topups WHERE rail='koda' AND status='pending' ORDER BY created_at ASC`);
-  const match = rows.find(t => { try { return JSON.parse(t.routing_snapshot || '{}').expected_local === amt; } catch { return false; } });
-  if (!match) return null;
-  const r = settleTopup(match.id);   // plan → activate · acu → credit
+  const matches = rows.filter(t => { try { return JSON.parse(t.routing_snapshot || '{}').expected_local === amt; } catch { return false; } });
+  if (matches.length !== 1) return null; // none, or (defensively) ambiguous → hold for manual settle
+  const r = settleTopup(matches[0].id);   // plan → activate · acu → credit
   return Array.isArray(r) ? null : r;
 }
 
 module.exports = {
-  methods, createTopup, settleTopup, topupView, reconcile, post, acctBalance, verifyWebhook,
+  methods, createTopup, settleTopup, reverseTopup, topupView, reconcile, post, acctBalance, verifyWebhook,
   distributorFloat, wholesalePurchase, createDistributorTopup, settleDistributorTopup, matchDistributorPayment,
   resellerInventory, resellerBuyInventory, issueResellerBatch, voidResellerBatch,
   planAcu, activatePlan, createDistributorPlanSale,
   planMethods, planQuote, createPlanCheckout, startProviderSession,
-  matchKodaCollection, assignExpectedLocal, localCurrency,
+  matchKodaCollection, assignExpectedLocal, expireStalePendingTopups, localCurrency,
 };

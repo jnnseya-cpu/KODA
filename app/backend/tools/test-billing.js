@@ -108,6 +108,9 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   const resId = U.id('res');
   q.run(`INSERT INTO resellers (id,legal_name,country,status) VALUES (?,?,?,'ACTIVE')`, resId, 'GH Reseller', 'GH');
   const reseller = q.get('SELECT * FROM resellers WHERE id=?', resId);
+  // Fail-closed invariant: vouchers must be backed by PREPAID reseller inventory (no
+  // treasury fallback). Fund the reseller ledger before issuing.
+  billing.resellerBuyInventory(resId, 5000, 'test-reseller-1');
   const batch = vouchers.issueBatch(reseller, { product_code: 'ACU_TOPUP', acu_amount: 500, quantity: 2, country_lock: payer.country });
   ok(batch.vouchers.length === 2 && batch.vouchers[0].pin, 'voucher batch issued (PINs shown once)');
 
@@ -160,6 +163,56 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   ok(!billing.verifyWebhook('stripe', mkReq(bodyW, 'deadbeef')).ok, 'webhook rejects a forged signature');
   ok(!billing.verifyWebhook('stripe', mkReq(bodyW, null)).ok, 'webhook rejects a missing signature');
   delete process.env.KODA_WEBHOOK_SECRET;
+
+  // ── MONEY-SEAL REGRESSIONS (deep-audit fixes) ───────────────────────────────
+  const engine = require('../lib/engine');
+
+  // 1. Retail top-up cannot be self-priced below list (wholesale-floor leak).
+  const cheap = billing.createTopup(payer, { rail: 'koda', amount_acu: 1000, usd: 13.01 });
+  ok(!isErr(cheap) && cheap.subtotal_usd >= Math.round(1000 * BILL.ACU_PRICE_USD * 100) / 100,
+    'retail top-up is repriced to list, not the client-supplied floor', `$${cheap && cheap.subtotal_usd}`);
+
+  // 2. Voucher signature binds value: tampering acu_amount on the row is rejected.
+  billing.resellerBuyInventory(resId, 100000, 'test-reseller-2');
+  const tb = vouchers.issueBatch(reseller, { product_code: 'ACU_TOPUP', acu_amount: 10, quantity: 1, country_lock: payer.country });
+  vouchers.activateBatch(tb.batch_id);
+  q.run(`UPDATE vouchers SET acu_amount=1000000 WHERE batch_id=?`, tb.batch_id);
+  ok(isErr(vouchers.redeem(payer, tb.vouchers[0].pin)) , 'tampered voucher acu_amount rejected (signature binds value)');
+
+  // 3. Voucher plan escalation to Enterprise is rejected even if the row is mutated.
+  const pv = vouchers.issueBatch(reseller, { product_code: 'PLAN', plan_key: 'boutique', acu_amount: 800, quantity: 1, country_lock: payer.country });
+  vouchers.activateBatch(pv.batch_id);
+  q.run(`UPDATE vouchers SET plan_key='enterprise' WHERE batch_id=?`, pv.batch_id);
+  ok(isErr(vouchers.redeem(payer, pv.vouchers[0].pin)), 'tampered voucher plan_key=enterprise rejected');
+
+  // 4. Voucher must be backed by prepaid reseller inventory (no treasury fail-open).
+  const resId2 = U.id('res');
+  q.run(`INSERT INTO resellers (id,legal_name,country,status) VALUES (?,?,?,'ACTIVE')`, resId2, 'Unfunded', payer.country);
+  const ub = vouchers.issueBatch(q.get('SELECT * FROM resellers WHERE id=?', resId2), { product_code: 'ACU_TOPUP', acu_amount: 500, quantity: 1, country_lock: payer.country });
+  vouchers.activateBatch(ub.batch_id);
+  const ubRes = vouchers.redeem(payer, ub.vouchers[0].pin);
+  ok(isErr(ubRes) && ubRes[1].error.code === 'insufficient_reseller_backing', 'unbacked voucher rejected (no treasury fallback)');
+
+  // 5. Hard credit floor: verifications beyond quota/grace are refused (not unlimited negative).
+  const brokeMid = U.id('mch');
+  q.run(`INSERT INTO merchants (id,name,country,currency,plan,acu_balance) VALUES (?,?,?,?, 'marche', ?)`, brokeMid, 'Broke', payer.country, payer.currency, -1000);
+  const broke = q.get('SELECT * FROM merchants WHERE id=?', brokeMid);
+  ok(engine.canSpend(broke, engine.ACU.code) === false, 'credit floor: a deeply-negative merchant cannot spend');
+
+  // 6. Tiered overage: cheaper up the ladder, all below PAYG (1 ACU), never below floor.
+  const PL = require('../../shared/plans').PLANS;
+  ok(engine.overageAcu({ plan: 'plateforme', acu_balance: 0 }) < engine.overageAcu({ plan: 'boutique', acu_balance: 0 })
+    && engine.overageAcu({ plan: 'boutique', acu_balance: 0 }) < engine.ACU.code, 'engine charges tiered overage (plateforme < boutique < 1 ACU)');
+  ok(PL.boutique.overage < BILL.ACU_PRICE_USD && PL.commerce.overage < PL.boutique.overage && PL.plateforme.overage < PL.commerce.overage
+    && PL.plateforme.overage >= BILL.PRICE_FLOOR_USD, 'overage tiers: below PAYG, monotonic down, above floor');
+
+  // 7. Chargeback clawback: a settled card top-up reversed pulls the ACU back; ledger = 0.
+  const cbTop = billing.createTopup(payer, { rail: 'stripe', amount_acu: 1000 });
+  billing.settleTopup(cbTop.topup_id);
+  const afterCredit = bal(payer.id);
+  const rev = billing.reverseTopup(cbTop.topup_id, 'charge.refunded');
+  ok(!isErr(rev) && bal(payer.id) === afterCredit - 1000, 'chargeback claws back the granted ACU', `${afterCredit} → ${bal(payer.id)}`);
+  ok(billing.reconcile().balanced, 'ledger reconciles after a chargeback reversal');
 
   // ── FINAL RECONCILIATION ────────────────────────────────────────────────────
   ok(billing.reconcile().balanced, 'FINAL: entire billing ledger reconciles to zero', `Σ=${billing.reconcile().sum}`);

@@ -220,6 +220,7 @@ module.exports = function registerRoutes(r) {
 
   // ---------- manual verify console + intents + receipts ----------
   r.post('/app/verify', auth(async (req, user, m) => {
+    if (verifyRateLimited(m)) return [429, { error: { code: 'rate_limited', retry_after: 1, message: 'Verification rate exceeds your plan — upgrade for higher throughput.' } }];
     const { reference, amount, screenshot } = req.body;
     if (!reference && !screenshot) return [400, { error: 'reference_or_screenshot_required' }];
     let ref = reference || req.body.screenshot_ref;
@@ -230,22 +231,19 @@ module.exports = function registerRoutes(r) {
     const ai = require('./lib/ai');
     let visionCharged = false;
     if (screenshot && req.body.image && ai.available()) {
-      const gate = engine.gateAI(m, engine.ACU.vision, 'vision-extract');
-      if (gate.ok !== true) return gate;
+      // RESERVE (atomic debit) BEFORE calling the paid model — this is both the credit
+      // gate AND the TOCTOU close: concurrent requests can't all pass a stale balance
+      // read, and the charge stands whether the model extracts, fails to read, or throws
+      // (KODA already paid the provider). floor 0 = real cash, no grace on AI.
+      const rv = engine.reserve(m, engine.ACU.vision, 'vision', 'vision-extract', 0);
+      if (!rv.ok) return [402, { error: { code: 'insufficient_credit', required_acu: engine.ACU.vision, balance: rv.balance, message: 'Top up ACU to run screenshot OCR.' } }];
+      visionCharged = true;
       let ext;
       try {
         ext = await ai.extractPaymentFromImage(req.body.image, req.body.media_type || 'image/jpeg');
       } catch (e) {
-        // The paid vision model ran and cost KODA real money even though it threw.
-        // Charge for the read anyway, or a stream of unreadable images drains the
-        // provider for free (fails-open leak + a cheap DoS on our AI budget).
-        try { engine.chargeAcu(m, engine.ACU.vision, 'vision', 'vision_failed'); } catch { /* balance already gated */ }
         return [422, { error: 'vision_failed', detail: String(e && e.message || e) }];
       }
-      // Charge the OCR the instant the model returns — extraction failing is not a
-      // refund event; KODA already paid the provider for the read. This must happen
-      // BEFORE any early return so an unreadable screenshot is never free.
-      try { engine.chargeAcu(m, engine.ACU.vision, 'vision', ext.reference ? 'vision_extract' : 'vision_no_ref'); visionCharged = true; } catch { /* balance already gated */ }
       if (ext.reference) { ref = ext.reference; visionAmount = ext.amount; visionCurrency = ext.currency; didOcr = true; }
       else return [422, { error: 'vision_could_not_extract', note: 'No reference code could be read from the screenshot.' }];
     }
@@ -363,23 +361,25 @@ module.exports = function registerRoutes(r) {
       ? 'Payment is verified in the ledger — likely a customer mistake; share the receipt as proof.'
       : 'Ask the customer for the payer number, exact amount and time; re-check once the operator SMS arrives.';
 
-    // AI evidence narrative — charged ONLY when a model actually runs.
+    // AI evidence narrative — charged when the model RUNS (not only on success).
+    const did = U.id('dsp');
     const ai = require('./lib/ai');
     let aiEvidence = null, aiUsed = false;
     if (ai.available()) {
-      const gate = engine.gateAI(m, engine.ACU.dispute, 'dispute-evidence');
-      if (gate.ok !== true) return gate;
+      // Atomic reserve BEFORE the await: fails-closed (a model that runs then errors is
+      // not free) and closes the concurrent-request TOCTOU. floor 0 = real cash, no grace.
+      const rv = engine.reserve(m, engine.ACU.dispute, 'dispute', did, 0);
+      if (!rv.ok) return [402, { error: { code: 'insufficient_credit', required_acu: engine.ACU.dispute, balance: rv.balance, message: 'Top up ACU to run the DisputeAgent.' } }];
+      aiUsed = true;
       try {
         aiEvidence = await ai.generate({
           system: 'You are KODA DisputeAgent, helping an African merchant handle a mobile-money payment dispute. Use ONLY the ledger facts provided — never invent a payment. Be concise, factual and professional.',
           prompt: `Reference: ${ref || '(none)'}\nCustomer claim: ${reason}\nLedger scan (ground truth): ${scan}\n\nWrite a short evidence file: (1) 2-3 sentences summarising what the ledger shows, (2) one clear recommended action for the merchant.`,
           maxTokens: 400,
         });
-        aiUsed = true;
       } catch (e) { aiEvidence = null; }
     }
 
-    const did = U.id('dsp');
     const evidence = {
       assembled_by: aiUsed ? 'DisputeAgent K-06 (AI)' : 'DisputeAgent K-06',
       reference: ref || null,
@@ -392,7 +392,7 @@ module.exports = function registerRoutes(r) {
     };
     q.run(`INSERT INTO disputes (id,merchant_id,reference,reason,evidence,recommendation)
            VALUES (?,?,?,?,?,?)`, did, m.id, ref || null, reason, JSON.stringify(evidence), recommendation);
-    if (aiUsed) engine.chargeAcu(m, engine.ACU.dispute, 'dispute', did); // only charge when AI ran
+    // (dispute AI already reserved atomically before the model ran)
     notify.fireMerchant('dispute.opened', m, { reference: ref || did });
     // ADD-ON B: a dispute on a reference contributes the payer's hashed identity to
     // the network so other merchants inherit the signal (no raw value is stored).
@@ -451,15 +451,25 @@ module.exports = function registerRoutes(r) {
     const targetUsd = PLANS[plan].usd;
     if (targetUsd == null) return [403, { error: { code: 'contact_sales', message: 'This plan is set up by KODA — please contact sales.' } }];
     const curUsd = PLANS[m.plan].usd == null ? Infinity : PLANS[m.plan].usd; // enterprise counts as most expensive
-    // Free (Marché $0), a same-tier no-op, or a genuine downgrade to a cheaper tier
-    // applies immediately. Any paid UPGRADE must collect payment first.
-    if (targetUsd === 0 || targetUsd <= curUsd) {
+    // Marché (free) always applies immediately and clears any expiry.
+    if (targetUsd === 0) {
+      q.run(`UPDATE merchants SET plan='marche', is_platform=0, plan_expires_at=NULL WHERE id=?`, m.id);
+      if (curUsd > 0) notify.fire('plan.downgraded', { user, merchant: m, data: { plan: PLANS.marche.label } });
+      audit(m.id, user.id, 'plan_changed', { plan: 'marche' });
+      return { ok: true, plan: 'marche' };
+    }
+    // A genuine downgrade to a CHEAPER PAID tier while holding an ACTIVE, PAID subscription
+    // applies for the remainder of the paid period (keeps the existing expiry). We require
+    // a real paid subscription (plan_expires_at set) and a finite current price — otherwise
+    // an admin-comped / Enterprise account (NULL expiry, curUsd=Infinity) could ride its
+    // unlimited window down to a permanent free Plateforme. Those go through payment.
+    if (targetUsd < curUsd && curUsd !== Infinity && m.plan_expires_at) {
       q.run('UPDATE merchants SET plan=?, is_platform=? WHERE id=?', plan, plan === 'plateforme' ? 1 : 0, m.id);
-      if (targetUsd < curUsd) notify.fire('plan.downgraded', { user, merchant: m, data: { plan: PLANS[plan].label } });
-      audit(m.id, user.id, 'plan_changed', { plan });
+      notify.fire('plan.downgraded', { user, merchant: m, data: { plan: PLANS[plan].label } });
+      audit(m.id, user.id, 'plan_changed', { plan, downgrade: true });
       return { ok: true, plan };
     }
-    // paid upgrade → must collect payment
+    // paid upgrade, or a paid target without an active paid subscription → collect payment
     return { ok: false, payment_required: true, ...billing.planMethods(plan) };
   }));
   // Payment methods to subscribe to a (paid) plan.
@@ -481,6 +491,12 @@ module.exports = function registerRoutes(r) {
     q.all('SELECT id,prefix,last4,label,revoked,created_at FROM api_keys WHERE merchant_id=? AND submerchant_id IS NULL', m.id)));
   r.post('/app/keys', auth((req, user, m) => {
     if (!needRole(user, ['manager'])) return [403, { error: 'manager_or_owner_only' }];
+    // Cap active keys per plan — the rps limiter is per-merchant, but an unbounded number
+    // of keys is still an abuse/credential-sprawl surface. Scales with tier.
+    const KEY_CAP = { marche: 2, boutique: 5, commerce: 15, plateforme: 50, enterprise: 200 };
+    const cap = KEY_CAP[m.plan] || 2;
+    const activeKeys = q.get(`SELECT COUNT(*) c FROM api_keys WHERE merchant_id=? AND revoked=0 AND submerchant_id IS NULL`, m.id).c;
+    if (activeKeys >= cap) return [403, { error: { code: 'key_limit_reached', cap, message: `Your plan allows ${cap} API keys. Revoke one or upgrade.` } }];
     // koda_ key scheme (spec §4/§32). Legacy sk_/pk_/rk_ names are accepted as
     // aliases so existing integrations keep working — auth is hash-based, so no
     // previously-issued key ever breaks.
@@ -793,9 +809,17 @@ module.exports = function registerRoutes(r) {
   r.post('/app/submerchants', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
     if (m.plan !== 'plateforme' && m.plan !== 'enterprise') return [402, { error: 'plateforme_plan_required' }];
+    // Cap sub-merchants per parent — creating them costs only 5 ACU, so an uncapped count
+    // was a lever for quota laundering. Enterprise gets a high ceiling, Plateforme a sane one.
+    const SUB_CAP = m.plan === 'enterprise' ? 1000 : Number(process.env.KODA_SUBMERCHANT_CAP || 100);
+    const subN = q.get(`SELECT COUNT(*) c FROM merchants WHERE parent_id=? AND status!='suspended'`, m.id).c;
+    if (subN >= SUB_CAP) return [403, { error: { code: 'submerchant_limit', cap: SUB_CAP } }];
     const sid = U.id('mch');
+    // Sub-merchants get NO independent free plan quota (was 'boutique' = 300 free/mo each,
+    // never expiring — a quota-laundering hole). They run on 'marche', and their metered
+    // usage bills against the parent's POOLED quota + ACU balance (engine.billingPayer).
     q.run(`INSERT INTO merchants (id,name,country,currency,msisdn,parent_id,plan,acu_balance)
-           VALUES (?,?,?,?,?,?, 'boutique', 0)`,
+           VALUES (?,?,?,?,?,?, 'marche', 0)`,
       sid, req.body.name, req.body.country || m.country, req.body.currency || m.currency,
       req.body.msisdn || null, m.id);
     const secret = `koda_live_sub_${U.token(24)}`;
@@ -1360,8 +1384,14 @@ module.exports = function registerRoutes(r) {
     if (merchantId && q.get('SELECT id FROM distributors WHERE merchant_id=?', merchantId))
       return [409, { error: { code: 'merchant_already_kd', message: 'That merchant is already a distributor.' } }];
     const id = U.id('kd');
+    // Validate the wholesale rate at creation (symmetry with the reseller rate route):
+    // never persist a bps below the 100%-margin floor or above 100% of retail.
+    const bps = Number(req.body.wholesale_bps) || 8500;
+    const minBps = require('../shared/billing').minWholesaleBps();
+    if (bps < minBps || bps > 10000)
+      return [400, { error: { code: 'bad_wholesale_rate', min_bps: minBps, max_bps: 10000, message: `Wholesale rate must be between ${minBps} and 10000 bps.` } }];
     q.run(`INSERT INTO distributors (id,merchant_id,name,country,msisdn,wholesale_bps,status) VALUES (?,?,?,?,?,?, 'active')`,
-      id, merchantId, name, String(country).toUpperCase().slice(0, 2), msisdn || null, Number(req.body.wholesale_bps) || 8500);
+      id, merchantId, name, String(country).toUpperCase().slice(0, 2), msisdn || null, bps);
     audit(null, user.id, 'admin.distributor_created', { name, country, linked: !!merchantId });
     return { ok: true, id, merchant_id: merchantId, sentinel_active: sentinelCount(merchantId), note: linkNote(merchantId) };
   }));
@@ -1727,11 +1757,13 @@ module.exports = function registerRoutes(r) {
     // signature before doing anything. No secret / bad signature ⇒ never settle.
     const v = billing.verifyWebhook(req.params.provider, req);
     if (!v.ok) return [401, { error: { code: 'webhook_unverified' } }];
+    const tid = v.topup_id || (req.body && req.body.topup_id);
+    if (!tid) return [400, { error: { code: 'topup_id_required' } }];
+    // Refund / dispute → claw back the previously-granted ACU (or revoke the plan).
+    if (v.reversed) return billing.reverseTopup(tid, v.event);
     // Real providers send their own event; only a successful-payment event settles.
     // (paid===false ⇒ acknowledge so the provider stops retrying, but credit nothing.)
     if (v.paid === false) return { ok: true, ignored: true, event: v.event };
-    const tid = v.topup_id || (req.body && req.body.topup_id);
-    if (!tid) return [400, { error: { code: 'topup_id_required' } }];
     // Pass the PSP-reported capture so settleTopup can reject a materially under-paid one.
     return billing.settleTopup(tid, { capturedAmount: v.amount != null ? v.amount : null, capturedCurrency: v.currency || null });
   });
@@ -2137,9 +2169,12 @@ module.exports = function registerRoutes(r) {
     // Content tools charge ONLY when a real model can run; data tools always run.
     const contentTool = !!promptFn;
     const willCharge = tool.acu > 0 && (!contentTool || ai.available());
+    let growthCharged = false;
     if (willCharge) {
-      const gate = engine.gateAI(m, tool.acu, 'growth:' + toolId);
-      if (gate.ok !== true) return gate; // gated by available ACU
+      // Atomic reserve before the await: fails-closed + closes the concurrent TOCTOU.
+      const rv = engine.reserve(m, tool.acu, 'growth:' + toolId, null, 0);
+      if (!rv.ok) return [402, { error: { code: 'insufficient_credit', required_acu: tool.acu, balance: rv.balance, message: 'Top up ACU to run this growth tool.' } }];
+      growthCharged = true;
     }
     // recommendations reads the merchant's real KODA data
     let input = req.body || {};
@@ -2160,9 +2195,9 @@ module.exports = function registerRoutes(r) {
       } catch (e) { result.ai_text = null; result.ai_error = String(e && e.message || e); }
     }
     result.ai_available = ai.available();
-    // Only charge when the model actually ran (content tools) or for real data tools.
-    const charge = (aiUsed || (!contentTool && tool.acu > 0)) ? tool.acu : 0;
-    if (charge > 0) engine.chargeAcu(m, tool.acu, 'growth:' + toolId, null);
+    // Already charged up-front when willCharge was true (see above). This covers both
+    // content tools (model ran) and data tools; no post-hoc charge-on-success gap.
+    const charge = growthCharged ? tool.acu : 0;
     audit(m.id, user.id, 'growth_tool', { tool: toolId, acu: charge, ai: aiUsed });
     return { tool: toolId, acu_consumed: charge, result };
   }));
@@ -2301,7 +2336,10 @@ function SITE_BASE() { return process.env.KODA_PUBLIC_URL || 'http://localhost:4
 // ---------- shared helpers ----------
 function createIntent(m, body, idemKey, livemode = 1) {
   if (m.status !== 'active') return [403, { error: { code: 'merchant_suspended' } }];
-  if (m.acu_balance <= -100) return [402, { error: { code: 'insufficient_credit' } }];
+  // Block new intents once the merchant is out of prepaid credit beyond grace AND
+  // beyond their free quota — same floor the verify path now enforces (single source).
+  if (!engine.withinQuota(m) && !engine.canSpend(m, engine.ACU.code))
+    return [402, { error: { code: 'insufficient_credit', message: 'Top up ACU to keep verifying beyond your plan quota.' } }];
   // Idempotency (spec §26): a repeat create with the same key returns the ORIGINAL
   // verification instead of creating a second one. Scoped per merchant.
   idemKey = (typeof idemKey === 'string' && idemKey.trim()) ? idemKey.trim().slice(0, 128) : null;
@@ -2397,13 +2435,22 @@ function buildPayTo(merchantId, msisdn, operators, currency) {
 function admin(handler) {
   return auth((req, user, merchant) => user.is_admin ? handler(req, user, merchant) : [403, { error: 'admin_only' }]);
 }
-// per-key sliding-window rate limiter (per plan: Free 2 rps · Boutique 10 · Commerce 25 · Plateforme 100)
+// per-MERCHANT sliding-window rate limiter (per plan: Free 2 rps · Boutique 10 · Commerce
+// 25 · Plateforme 100). Keyed on merchant so extra API keys / sessions can't multiply it.
 const _hits = new Map();
 function rateLimited(keyId, plan) {
   const now = Date.now(), limit = (PLANS[plan] && PLANS[plan].rps) || 2;
   const arr = (_hits.get(keyId) || []).filter(t => now - t < 1000);
   arr.push(now); _hits.set(keyId, arr);
+  if (_hits.size > 20000) for (const [k, v] of _hits) if (!v.some(t => now - t < 1000)) _hits.delete(k);
   return arr.length > limit;
+}
+// Throughput guard for the merchant CONSOLE verify doors (session-authed, previously
+// unlimited). Same per-merchant rps as the API. A small burst allowance is added on top
+// of rps so ordinary UI double-taps aren't rejected.
+function verifyRateLimited(m) {
+  if (!m) return false;
+  return rateLimited('v:' + m.id, m.plan);
 }
 // brute-force limiter for unauthenticated/credential endpoints (login, voucher, checkout).
 // Sliding window keyed by identity+IP; blocks credential-stuffing / PIN / code guessing.
@@ -2427,7 +2474,9 @@ function apiKey(handler, scope) {
     const scopes = JSON.parse(row.scopes || '["*"]');
     if (scope && !scopes.includes('*') && !scopes.includes(scope))
       return [403, { error: { code: 'insufficient_scope', required: scope, granted: scopes } }];
-    if (rateLimited(row.id, m.plan))
+    // Bucket the limiter PER MERCHANT, not per key — the plan's rps is a merchant-level
+    // throughput allowance, so minting extra API keys must not multiply it.
+    if (rateLimited('m:' + m.id, m.plan))
       return [429, { error: { code: 'rate_limited', retry_after: 1 } }];
     req.keyPrefix = row.prefix;
     return handler(req, m);

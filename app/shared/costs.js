@@ -47,9 +47,9 @@
   const PRICE_POINTS = [
     { label: 'PAYG $10 pack', usd: 0.033, path: 'code' },
     { label: 'PAYG $200 pack', usd: 0.025, path: 'code' },
-    { label: 'Boutique overage', usd: 0.035, path: 'code' },
-    { label: 'Commerce overage', usd: 0.028, path: 'code' },
-    { label: 'Plateforme overage', usd: 0.020, path: 'code' },
+    { label: 'Boutique overage', usd: 0.023, path: 'code' },
+    { label: 'Commerce overage', usd: 0.019, path: 'code' },
+    { label: 'Plateforme overage', usd: 0.016, path: 'code' },
     { label: 'Wholesale 25k+', usd: 0.018, path: 'code' },
     { label: 'Wholesale 100k+', usd: 0.014, path: 'code' },
     { label: 'Wholesale 500k+ (floor)', usd: 0.014, path: 'code' },   // raised from 0.010

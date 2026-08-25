@@ -6,12 +6,20 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  // the unified plan ladder (spec §10) — one ladder, all five doors
+  // the unified plan ladder (spec §10) — one ladder, all five doors.
+  //
+  // PRICING LAW (subscription ≻ pay-as-you-go). Raw ACU top-up is the pay-as-you-go (PAYG)
+  // escape hatch at $0.026/verif. To stop merchants dodging subscriptions by living on free
+  // Marché + ACU top-ups (a revenue-cannibalisation inversion), every paid tier is priced
+  // so that BOTH its included rate (usd/verifs) AND its overage are strictly CHEAPER than
+  // PAYG, get cheaper up the ladder, and never drop below the $0.013/ACU margin floor.
+  // (CI asserts all of this in tools/margin.js.) Overage is billed in ACU at the tier's
+  // rate (engine.overageAcu), so a higher plan literally spends fewer ACU per overage verif.
   const PLANS = {
     marche:     { label: 'Marché',     usd: 0,    verifs: 10,    overage: null,  rps: 2 },
-    boutique:   { label: 'Boutique',   usd: 19,   verifs: 300,   overage: 0.035, rps: 10 },
-    commerce:   { label: 'Commerce',   usd: 79,   verifs: 1750,  overage: 0.028, rps: 25 },
-    plateforme: { label: 'Plateforme', usd: 399,  verifs: 12500, overage: 0.020, rps: 100 },
+    boutique:   { label: 'Boutique',   usd: 19,   verifs: 800,   overage: 0.023, rps: 10 },
+    commerce:   { label: 'Commerce',   usd: 79,   verifs: 3800,  overage: 0.019, rps: 25 },
+    plateforme: { label: 'Plateforme', usd: 399,  verifs: 22000, overage: 0.016, rps: 100 },
     enterprise: { label: 'Enterprise', usd: null, verifs: null,  overage: null,  rps: 1000 },
   };
 
