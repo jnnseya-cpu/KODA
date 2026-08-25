@@ -583,6 +583,40 @@ module.exports = function registerRoutes(r) {
       deliveries: q.all('SELECT * FROM webhook_deliveries WHERE merchant_id=? ORDER BY created_at DESC LIMIT 50', m.id),
     };
   }));
+  // Per-endpoint detail + delivery log (the click-through from the webhooks table). Returns
+  // the endpoint (with its full signing secret, for the owner), summary stats, filter
+  // counts, and up to 100 recent deliveries with their signed payload + response detail.
+  r.get('/app/webhooks/:id', auth((req, user, m) => {
+    const ep = q.get('SELECT * FROM webhook_endpoints WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    if (!ep) return [404, { error: { code: 'endpoint_not_found' } }];
+    const f = String((req.query && req.query.status) || 'all');
+    const clause = f === 'succeeded' ? ` AND status='sent'`
+      : f === 'failed' ? ` AND status IN ('failed','dead')`
+      : f === 'pending' ? ` AND status IN ('pending')` : '';
+    const deliveries = q.all(`SELECT id,event,status,response_status,duration_ms,attempts,last_error,created_at,delivered_at,payload
+       FROM webhook_deliveries WHERE endpoint_id=?${clause} ORDER BY created_at DESC LIMIT 100`, ep.id);
+    const counts = q.get(`SELECT COUNT(*) total,
+        SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END) succeeded,
+        SUM(CASE WHEN status IN ('failed','dead') THEN 1 ELSE 0 END) failed,
+        SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) pending
+      FROM webhook_deliveries WHERE endpoint_id=?`, ep.id);
+    const recent = q.get(`SELECT AVG(duration_ms) avg_ms, COUNT(*) c,
+        SUM(CASE WHEN status IN ('failed','dead') THEN 1 ELSE 0 END) failed
+      FROM webhook_deliveries WHERE endpoint_id=? AND created_at > datetime('now','-7 days')`, ep.id);
+    let events; try { events = JSON.parse(ep.events || '["*"]'); } catch { events = ['*']; }
+    return {
+      endpoint: {
+        id: ep.id, name: ep.name || null, url: ep.url, active: !!ep.active,
+        secret: ep.secret, secret_last4: ep.secret.slice(-4),
+        payload_style: ep.payload_style || 'snapshot', destination: ep.destination || null,
+        listening_to: events.includes('*') ? { all: true } : { all: false, count: events.length, events },
+        created_at: ep.created_at,
+        response_ms: recent.avg_ms != null ? Math.round(recent.avg_ms) : null,
+        error_rate: recent.c ? Math.round((recent.failed || 0) / recent.c * 1000) / 10 : 0,
+      },
+      counts, filter: f, deliveries,
+    };
+  }));
   r.post('/app/webhooks', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
     const wid = U.id('whe'), secret = `whsec_${U.token(24)}`;

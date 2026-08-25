@@ -1426,7 +1426,7 @@ VIEWS.developers = async () => {
           const errColor = e.error_rate >= 50 ? '#e5484d' : e.error_rate > 0 ? 'var(--gold)' : 'var(--dim)';
           const sparkColor = e.error_rate >= 50 ? '#e5484d' : 'var(--gold)';
           return `<tr>
-            <td style="min-width:190px"><div class="t" style="font-weight:700;font-size:13px">${esc(e.name || e.url.replace(/^https?:\/\//, '').split('/')[0])}</div>
+            <td style="min-width:190px"><div class="t" style="font-weight:700;font-size:13px;cursor:pointer;color:var(--gold)" onclick="location.hash='#webhook?id=${e.id}'" title="Open delivery log">${esc(e.name || e.url.replace(/^https?:\/\//, '').split('/')[0])} →</div>
               <div class="mono" style="font-size:11.5px;color:var(--dim);word-break:break-all">${esc(e.url)}</div>
               <div class="mono" style="font-size:11px;color:var(--dim);margin-top:2px;cursor:pointer" title="Copy signing secret" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(e.secret)}');toast('✓ Signing secret copied')">whsec_···${esc(e.secret_last4)} <span style="opacity:.6">⧉</span></div></td>
             <td><span class="badge ${e.active ? 'b-ok' : 'b-warn'}">${e.active ? 'Active' : 'Disabled'}</span></td>
@@ -1437,6 +1437,7 @@ VIEWS.developers = async () => {
             <td style="text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px">${e.response_ms != null ? e.response_ms + ' ms' : '—'}</td>
             <td style="text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px;color:${errColor};font-weight:600">${e.error_rate}%</td>
             <td style="text-align:right;white-space:nowrap">
+              <button class="btn btn-ghost btn-sm" onclick="location.hash='#webhook?id=${e.id}'" title="Delivery log">Logs</button>
               <button class="btn btn-ghost btn-sm" onclick="testWebhook('${e.id}')" title="Send a test event">${t('test')}</button>
               <button class="btn btn-ghost btn-sm" onclick="toggleWebhook('${e.id}')">${e.active ? 'Disable' : 'Enable'}</button>
               <button class="btn btn-danger btn-sm" onclick="deleteWebhook('${e.id}')">✕</button>
@@ -1495,6 +1496,13 @@ window.addWebhook = async () => {
   } catch (e) { toast('✗ ' + (e.message || 'could not add')); }
 };
 window.testWebhook = async (id) => { await api(`/app/webhooks/${id}/test`, { body: {} }); toast('✓ Signed test event dispatched'); route(); };
+window.rotateWebhook = async (id) => {
+  if (!confirm('Rotate the signing secret? The old secret stops working immediately — update your endpoint with the new key.')) return;
+  try { const r = await api(`/app/webhooks/${id}/rotate`, { body: {} });
+    if (r.secret && navigator.clipboard) navigator.clipboard.writeText(r.secret);
+    toast('✓ New signing secret copied — ' + (r.secret ? r.secret.slice(0, 12) + '…' : '')); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
 window.toggleWebhook = async (id) => {
   try { const r = await api(`/app/webhooks/${id}/toggle`, { body: {} }); toast(r.active ? '✓ Endpoint enabled' : '✓ Endpoint disabled'); route(); }
   catch (e) { toast('✗ ' + e.message); }
@@ -1507,6 +1515,76 @@ window.deleteWebhook = async (id) => {
 window.retryDelivery = async (id) => {
   try { await api(`/app/webhooks/deliveries/${id}/retry`, { body: {} }); toast('✓ Delivery re-queued'); route(); }
   catch (e) { toast('✗ ' + e.message); }
+};
+
+// Per-endpoint delivery log (click-through from the webhooks table). Shows the endpoint
+// header, its signing secret (reveal + copy), summary stats, status-filter tabs, and the
+// full delivery log with expandable signed payloads + retry.
+VIEWS.webhook = async (params) => {
+  const id = params.get('id'); const status = params.get('status') || 'all';
+  let d; try { d = await api(`/app/webhooks/${id}?status=${encodeURIComponent(status)}`); }
+  catch { location.hash = '#developers'; return; }
+  const e = d.endpoint, c = d.counts || {};
+  const listen = e.listening_to.all ? 'All events' : `${e.listening_to.count} event${e.listening_to.count === 1 ? '' : 's'}`;
+  const errColor = e.error_rate >= 50 ? '#e5484d' : e.error_rate > 0 ? 'var(--gold)' : 'var(--dim)';
+  const tab = (key, label, n) => `<button class="btn ${status === key ? 'btn-gold' : 'btn-ghost'} btn-sm" onclick="location.hash='#webhook?id=${e.id}&status=${key}'">${label}${n != null ? ` <span style="opacity:.7">${n}</span>` : ''}</button>`;
+  const dot = (s) => s === 'sent' ? '<span class="feed-ic f-ok" style="width:22px;height:22px;font-size:12px">✓</span>'
+    : (s === 'failed' || s === 'dead') ? '<span class="feed-ic f-bad" style="width:22px;height:22px;font-size:12px">✗</span>'
+    : '<span class="feed-ic f-dim" style="width:22px;height:22px;font-size:12px">·</span>';
+  const rows = (d.deliveries || []).map(x => {
+    let pretty = x.payload; try { pretty = JSON.stringify(JSON.parse(x.payload), null, 2); } catch {}
+    const failed = x.status === 'failed' || x.status === 'dead';
+    return `<div style="border-bottom:1px solid var(--line);padding:10px 2px">
+      <div style="display:flex;align-items:center;gap:10px">
+        ${dot(x.status)}
+        <div style="min-width:0;flex:1">
+          <div class="mono" style="font-size:12.5px;font-weight:600">${esc(x.event)}</div>
+          <div class="m" style="font-size:11.5px;color:var(--dim)">${esc(x.status)}${x.response_status ? ' · HTTP ' + x.response_status : ''}${x.duration_ms != null ? ' · ' + x.duration_ms + ' ms' : ''} · ${x.attempts} attempt${x.attempts === 1 ? '' : 's'} · ${when(x.created_at)}${x.last_error ? ' · <span style="color:var(--danger)">' + esc(String(x.last_error).slice(0, 60)) + '</span>' : ''}</div>
+        </div>
+        ${failed ? `<button class="btn btn-ghost btn-sm" onclick="retryDelivery('${x.id}')">Retry</button>` : ''}
+      </div>
+      <details style="margin:6px 0 0 32px"><summary style="cursor:pointer;font-size:11.5px;color:var(--gold)">View payload</summary>
+        <pre class="mono" style="white-space:pre-wrap;word-break:break-word;background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:11px;margin:6px 0 0;max-height:300px;overflow:auto">${esc(pretty)}</pre></details>
+    </div>`;
+  }).join('') || '<div class="empty">No deliveries in this filter yet.</div>';
+
+  shell('developers', e.name || 'Webhook endpoint', 'Event destination · delivery log', `
+  <div style="margin-bottom:12px"><a onclick="location.hash='#developers'" style="color:var(--gold);cursor:pointer;font-size:13px">← Back to Developers</a></div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+      <div style="min-width:0">
+        <h3 style="margin:0">${esc(e.name || 'Endpoint')} <span class="badge ${e.active ? 'b-ok' : 'b-warn'}">${e.active ? 'Active' : 'Disabled'}</span></h3>
+        <div class="mono" style="font-size:12px;color:var(--dim);word-break:break-all;margin-top:4px">${esc(e.url)}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="testWebhook('${e.id}')">${t('test')}</button>
+        <button class="btn btn-ghost btn-sm" onclick="rotateWebhook('${e.id}')">Rotate secret</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleWebhook('${e.id}')">${e.active ? 'Disable' : 'Enable'}</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">
+      <div class="card stat"><b>${esc(listen)}</b><span>Listening to</span></div>
+      <div class="card stat"><b>Your account</b><span>Events from</span></div>
+      <div class="card stat"><b style="text-transform:capitalize">${esc(e.payload_style)}</b><span>Payload style</span></div>
+      <div class="card stat"><b>${e.response_ms != null ? e.response_ms + ' ms' : '—'}</b><span>Response time · 7d</span></div>
+      <div class="card stat"><b style="color:${errColor}">${e.error_rate}%</b><span>Error rate · 7d</span></div>
+    </div>
+    <div style="margin-top:16px;padding:12px 14px;background:var(--surface-2,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:10px">
+      <div style="font-size:12px;color:var(--dim);margin-bottom:6px">Signing secret — verify every payload's <span class="mono">Koda-Signature</span> header with this key.</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <code id="whsecret" class="mono" style="font-size:12.5px;background:var(--ink);border:1px solid var(--line-strong);border-radius:7px;padding:8px 10px;user-select:all;flex:1;min-width:200px;word-break:break-all">whsec_···${esc(e.secret_last4)}</code>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('whsecret').textContent='${esc(e.secret)}'">Reveal</button>
+        <button class="btn btn-gold btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(e.secret)}');toast('✓ Signing secret copied')">Copy key</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <h3 style="margin:0">Delivery log</h3>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${tab('all', 'All', c.total)}${tab('succeeded', 'Succeeded', c.succeeded)}${tab('failed', 'Failed', c.failed)}${tab('pending', 'Pending', c.pending)}</div>
+    </div>
+    ${rows}
+  </div>`);
 };
 
 // MERCHANT-facing: only your own inbox + how you're reached. The full event
