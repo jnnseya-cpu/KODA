@@ -51,17 +51,31 @@ function downgradeExpiredPlans() {
                   AND plan_expires_at < datetime('now')`).changes;
   } catch { return 0; }
 }
+// Start of the current quota period for a merchant. USE-IT-OR-LOSE-IT: the included
+// quota does NOT roll over — every 30-day billing cycle the remaining verifications reset
+// to 0 (unused ones are forfeited, never accumulated). For a LIVE paid plan the window is
+// the current 30-day cycle, aligned to plan_expires_at (i.e. the 30 days ending at expiry),
+// so a mid-month subscriber gets a full cycle rather than a short calendar-month stub, and
+// each renewal (plan_expires_at jumps +30 days) starts a fresh window. For the free Marché
+// tier there is no billing cycle, so its 10/mo reset on the calendar month.
+function quotaPeriodStart(merchant) {
+  if (!planExpired(merchant) && merchant.plan && merchant.plan !== 'marche' && merchant.plan_expires_at) {
+    return q.get(`SELECT datetime(?, '-30 days') s`, String(merchant.plan_expires_at)).s;
+  }
+  return q.get(`SELECT date('now','start of month') s`).s;
+}
 function withinQuota(merchant) {
   if (acuUnlimited(merchant)) return true;
   const plan = planExpired(merchant) ? PLANS.marche : (PLANS[merchant.plan] || PLANS.marche);
   if (plan.verifs == null) return true;
   // POOLED quota: a platform parent's plan quota covers its sub-merchants' verifications
-  // too — counted here across the whole family so sub-merchants can't each mint a separate
-  // free quota (the old boutique-per-sub laundering). Callers pass the BILLING payer
+  // too — counted across the whole family so sub-merchants can't each mint a separate free
+  // quota (the old boutique-per-sub laundering). Callers pass the BILLING payer
   // (billingPayer) for a sub, so `merchant` here is already the parent for a family.
+  const since = quotaPeriodStart(merchant);
   const used = q.get(`SELECT COUNT(*) c FROM receipts
      WHERE (merchant_id=? OR merchant_id IN (SELECT id FROM merchants WHERE parent_id=?))
-     AND verified_at > date('now','start of month')`, merchant.id, merchant.id).c;
+     AND verified_at > ?`, merchant.id, merchant.id, since).c;
   return used < plan.verifs;
 }
 // The account that PAYS for a merchant's metered usage: a sub-merchant's verifications
@@ -571,4 +585,4 @@ function editDistance(a, b) {
 }
 function fmtAmt(n) { return Number(n || 0).toLocaleString('fr-FR'); }
 
-module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, reserve, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, canSpend, overageAcu, billingPayer, planExpired, downgradeExpiredPlans, emitOutcome };
+module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, reserve, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, quotaPeriodStart, canSpend, overageAcu, billingPayer, planExpired, downgradeExpiredPlans, emitOutcome };

@@ -217,6 +217,20 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   ok(!isErr(rev) && bal(payer.id) === afterCredit - 1000, 'chargeback claws back the granted ACU', `${afterCredit} → ${bal(payer.id)}`);
   ok(billing.reconcile().balanced, 'ledger reconciles after a chargeback reversal');
 
+  // 8. Included quota is USE-IT-OR-LOSE-IT on the 30-day cycle — remaining → 0 at renewal.
+  const qm = U.id('mch');
+  q.run(`INSERT INTO merchants (id,name,country,currency,plan,plan_expires_at,acu_balance) VALUES (?,?,?,?, 'boutique', datetime('now','+5 days'), 0)`, qm, 'Cycle', payer.country, payer.currency);
+  const qMer = () => q.get('SELECT * FROM merchants WHERE id=?', qm);
+  const tsIn = q.get(`SELECT datetime('now','-1 day') t`).t;    // inside the current cycle (started ~25d ago)
+  const tsOld = q.get(`SELECT datetime('now','-27 days') t`).t; // before this cycle's start
+  const addRcp = (at, n) => { for (let i = 0; i < n; i++) q.run(`INSERT INTO receipts (id,merchant_id,intent_id,reference,amount,currency,verified_at) VALUES (?,?, 'int_manual', ?, 100, 'USD', ?)`, U.id('rcp'), qm, U.token(8), at); };
+  addRcp(tsOld, 400);
+  ok(engine.withinQuota(qMer()) === true, 'prior-cycle verifications do not count against the new cycle quota');
+  addRcp(tsIn, PL.boutique.verifs); // fill this cycle's 700
+  ok(engine.withinQuota(qMer()) === false, 'quota exhausted inside the 30-day cycle stops free verification');
+  q.run(`UPDATE merchants SET plan_expires_at=datetime('now','+30 days') WHERE id=?`, qm); // renewal
+  ok(engine.withinQuota(qMer()) === true, 'renewal resets the cycle — remaining verifs go to 0, a fresh full quota starts (no rollover)');
+
   // ── FINAL RECONCILIATION ────────────────────────────────────────────────────
   ok(billing.reconcile().balanced, 'FINAL: entire billing ledger reconciles to zero', `Σ=${billing.reconcile().sum}`);
 

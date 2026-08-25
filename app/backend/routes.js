@@ -206,8 +206,10 @@ module.exports = function registerRoutes(r) {
     }
     const today = q.get(`SELECT COUNT(*) c, COALESCE(SUM(amount),0) s FROM receipts
       WHERE merchant_id=? AND verified_at > date('now')`, m.id);
+    // "month" tracks the CURRENT billing cycle (quota resets every 30 days, use-it-or-lose-it),
+    // so the dashboard quota bar matches the verify gate rather than a calendar month.
     const month = q.get(`SELECT COUNT(*) c, COALESCE(SUM(amount),0) s FROM receipts
-      WHERE merchant_id=? AND verified_at > date('now','start of month')`, m.id);
+      WHERE merchant_id=? AND verified_at > ?`, m.id, engine.quotaPeriodStart(m));
     const unmatched = q.get(`SELECT COUNT(*) c, COALESCE(SUM(amount),0) s FROM sms_ledger
       WHERE merchant_id=? AND matched_intent_id IS NULL AND quarantined=0 AND ref_code IS NOT NULL`, m.id);
     const disputes = q.get(`SELECT COUNT(*) c FROM disputes WHERE merchant_id=? AND status='open'`, m.id).c;
@@ -2000,15 +2002,21 @@ module.exports = function registerRoutes(r) {
     return { ok: true, contributed: true, note: 'Flag added to the KODA trust network (hashed; no raw value stored).' };
   }, 'write:intents'));
 
-  // ---- usage: monthly quota, consumption and ACU balance ----
+  // ---- usage: current-cycle quota, consumption and ACU balance ----
   r.get('/v1/usage', apiKey((req, m) => {
     const plan = PLANS[m.plan] || PLANS.marche;
-    const month = q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > date('now','start of month')`, m.id).c;
-    const burned = q.get(`SELECT COALESCE(SUM(-delta),0) s FROM acu_transactions WHERE merchant_id=? AND delta<0 AND created_at > date('now','start of month')`, m.id).s;
+    // Count against the CURRENT billing cycle (use-it-or-lose-it: quota resets every 30
+    // days, remaining → 0 at renewal, no rollover) so quota_remaining matches the gate.
+    const since = engine.quotaPeriodStart(m);
+    const used = q.get(`SELECT COUNT(*) c FROM receipts WHERE merchant_id=? AND verified_at > ?`, m.id, since).c;
+    const burned = q.get(`SELECT COALESCE(SUM(-delta),0) s FROM acu_transactions WHERE merchant_id=? AND delta<0 AND created_at > ?`, m.id, since).s;
     return {
-      plan: m.plan, monthly_quota: plan.verifs, verifications_this_month: month,
-      quota_remaining: plan.verifs == null ? null : Math.max(0, plan.verifs - month),
-      overage_rate_usd: plan.overage, acu_balance: m.acu_balance, acu_burned_this_month: burned,
+      plan: m.plan, quota: plan.verifs, verifications_this_cycle: used,
+      quota_remaining: plan.verifs == null ? null : Math.max(0, plan.verifs - used),
+      cycle_started: since, cycle_resets_at: m.plan_expires_at || null,
+      overage_rate_usd: plan.overage, acu_balance: m.acu_balance, acu_burned_this_cycle: burned,
+      // legacy field names kept for existing integrations
+      monthly_quota: plan.verifs, verifications_this_month: used,
     };
   }, 'read:usage'));
 
