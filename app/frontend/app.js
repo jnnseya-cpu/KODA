@@ -1438,6 +1438,7 @@ VIEWS.developers = async () => {
             <td style="text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px;color:${errColor};font-weight:600">${e.error_rate}%</td>
             <td style="text-align:right;white-space:nowrap">
               <button class="btn btn-ghost btn-sm" onclick="location.hash='#webhook?id=${e.id}'" title="Delivery log">Logs</button>
+              <button class="btn btn-ghost btn-sm" onclick="location.hash='#webhook?id=${e.id}&edit=1'" title="Edit url, name & events">Edit</button>
               <button class="btn btn-ghost btn-sm" onclick="testWebhook('${e.id}')" title="Send a test event">${t('test')}</button>
               <button class="btn btn-ghost btn-sm" onclick="toggleWebhook('${e.id}')">${e.active ? 'Disable' : 'Enable'}</button>
               <button class="btn btn-danger btn-sm" onclick="deleteWebhook('${e.id}')">✕</button>
@@ -1531,8 +1532,12 @@ window.saveWebhook = async (id) => {
     if (!events.length) { toast('✗ Pick at least one event, or choose “All events”'); return; }
   }
   const body = { url, name: (document.getElementById('whe_name').value || '').trim(), events };
-  try { await api(`/app/webhooks/${id}`, { method: 'PATCH', body }); toast('✓ Endpoint updated'); route(); }
-  catch (e) { toast('✗ ' + e.message); }
+  try {
+    await api(`/app/webhooks/${id}`, { method: 'PATCH', body });
+    toast('✓ Endpoint updated');
+    // drop the &edit=1 deep-link so the panel closes; changing the hash re-renders
+    if (location.hash.includes('edit=1')) location.hash = `#webhook?id=${id}`; else route();
+  } catch (e) { toast('✗ ' + e.message); }
 };
 
 // Per-endpoint delivery log (click-through from the webhooks table). Shows the endpoint
@@ -1540,6 +1545,7 @@ window.saveWebhook = async (id) => {
 // full delivery log with expandable signed payloads + retry.
 VIEWS.webhook = async (params) => {
   const id = params.get('id'); const status = params.get('status') || 'all';
+  const openEdit = params.get('edit') === '1';   // deep-link from the list-row Edit button
   let d; try { d = await api(`/app/webhooks/${id}?status=${encodeURIComponent(status)}`); }
   catch { location.hash = '#developers'; return; }
   const e = d.endpoint, c = d.counts || {};
@@ -1582,7 +1588,7 @@ VIEWS.webhook = async (params) => {
         <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteWebhook('${e.id}')">Delete</button>
       </div>
     </div>
-    <div id="whedit" style="display:none;margin-top:14px;padding:14px;background:var(--surface-2,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:10px">
+    <div id="whedit" style="display:${openEdit ? 'block' : 'none'};margin-top:14px;padding:14px;background:var(--surface-2,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:10px">
       <h4 style="margin:0 0 10px">Edit endpoint</h4>
       <label style="display:block;font-size:11.5px;color:var(--dim);margin-bottom:3px">Name</label>
       <input id="whe_name" value="${esc(e.name || '')}" placeholder="Optional label" style="width:100%;box-sizing:border-box;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;margin-bottom:10px">
