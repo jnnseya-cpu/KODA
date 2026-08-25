@@ -406,7 +406,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS distributors (
   msisdn TEXT,                                 -- the KD's own mobile-money number (pay-to)
   device_id TEXT,                              -- the KD's Sentinel
   float_acu INTEGER NOT NULL DEFAULT 0,        -- prepaid inventory (authoritative)
-  wholesale_bps INTEGER NOT NULL DEFAULT 8500, -- distributor rate: 85% of retail = 15% margin
+  wholesale_bps INTEGER NOT NULL DEFAULT 10000, -- 4× floor: partners buy float at retail, earn via fee on top
   parent_kd TEXT REFERENCES distributors(id),
   status TEXT NOT NULL DEFAULT 'active',        -- active|frozen
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -420,18 +420,19 @@ db.exec(`CREATE TABLE IF NOT EXISTS resellers (
   status TEXT NOT NULL DEFAULT 'ACTIVE',        -- APPLICANT|DUE_DILIGENCE|ACTIVE|SUSPENDED|TERMINATED
   settlement_currency TEXT NOT NULL DEFAULT 'USD',
   inventory_acu INTEGER NOT NULL DEFAULT 0,     -- prepaid voucher inventory (authoritative escrow)
-  wholesale_bps INTEGER NOT NULL DEFAULT 8000,  -- standard reseller rate: 80% of retail = 20% margin
+  wholesale_bps INTEGER NOT NULL DEFAULT 10000, -- 4× floor: resellers buy inventory at retail, earn via fee on top
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
 // migrations for existing reseller tables (no-op on fresh DBs)
 try { db.exec(`ALTER TABLE resellers ADD COLUMN merchant_id TEXT REFERENCES merchants(id)`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE resellers ADD COLUMN inventory_acu INTEGER NOT NULL DEFAULT 0`); } catch { /* exists */ }
-try { db.exec(`ALTER TABLE resellers ADD COLUMN wholesale_bps INTEGER NOT NULL DEFAULT 8000`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE resellers ADD COLUMN wholesale_bps INTEGER NOT NULL DEFAULT 10000`); } catch { /* exists */ }
 // One-time data migrations, keyed on user_version so each runs exactly once and
 // never clobbers a per-partner rate an admin sets afterwards.
-//  v1 — resellers standardise to 80% (20% margin).
-//  v2 — distributors stay at 85% (15% margin); restores any distributor an earlier
-//       build of v1 had moved to 80%, so distributors are unaffected by the reseller change.
+//  v1 — resellers standardise to 80% (20% margin).   [superseded by v3]
+//  v2 — distributors stay at 85% (15% margin).        [superseded by v3]
+//  v3 — 4× FLOOR: no ACU is sold below retail, including partner wholesale. Move every
+//       partner still below 100% up to 10000 bps (buy at retail; earn via fee on top).
 try {
   const uv = (db.prepare('PRAGMA user_version').get() || {}).user_version || 0;
   if (uv < 1) {
@@ -441,6 +442,11 @@ try {
   if (uv < 2) {
     db.exec(`UPDATE distributors SET wholesale_bps = 8500`);
     db.exec('PRAGMA user_version = 2');
+  }
+  if (uv < 3) {
+    db.exec(`UPDATE distributors SET wholesale_bps = 10000 WHERE wholesale_bps < 10000`);
+    db.exec(`UPDATE resellers SET wholesale_bps = 10000 WHERE wholesale_bps < 10000`);
+    db.exec('PRAGMA user_version = 3');
   }
 } catch { /* best-effort one-time migration */ }
 

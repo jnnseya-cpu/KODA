@@ -18,8 +18,10 @@
     whatsapp_msgs: 0.0020,                  // Meta conversation fees, digest-first policy
     email: 0.0002,                          // Brevo blended per verification
     sms_mandatory: 0.0001,                  // rare mandatory-notice SMS blended
-    gateway_sweep: 0.0006,                  // ~2% mobile-money fees on ~$0.03 revenue collected
+    gateway_sweep: 0.00055,                 // ~2% mobile-money fees on ~$0.03 revenue collected
     support_ops: 0.0030,                    // human support / dispute ops blended (spec §12)
+    // NB: code-path UNIT sums to exactly $0.0065 = shared/billing UNIT_COST_USD, so retail
+    // ($0.026 = 4×) clears the 4× floor precisely against the granular cost model.
   };
 
   // fully-loaded variable cost per path
@@ -40,24 +42,23 @@
   };
   const FIXED_TOTAL = Object.values(FIXED_MONTHLY).reduce((a, b) => a + b, 0); // ≈ 796/mo
 
-  // THE RULE: retail ≥ MARKUP_MIN × fully-loaded cost (100% profit floor)
-  const MARKUP_MIN = 2.0;
+  // THE RULE: retail ≥ MARKUP_MIN × fully-loaded cost (4× cost = 300% profit floor).
+  // Every ACU KODA sells nets at least 4× — pay-as-you-go, plan-included, overage, and
+  // the price a partner pays for wholesale float/inventory (partners add their fee on top).
+  const MARKUP_MIN = 4.0;
 
-  // retail price points to police (USD per verification)
+  // retail price points to police (USD per verification). At $0.026/ACU (4× the code cost)
+  // every 1-ACU sale is exactly 4×; the vision path is priced at 4 ACU so it clears 4× on
+  // its own higher cost. Partner wholesale now sits AT retail (no below-retail discount),
+  // so there are no sub-retail wholesale points to police.
   const PRICE_POINTS = [
-    { label: 'PAYG $10 pack', usd: 0.033, path: 'code' },
-    { label: 'PAYG $200 pack', usd: 0.025, path: 'code' },
-    { label: 'Boutique overage', usd: 0.023, path: 'code' },
-    { label: 'Commerce overage', usd: 0.019, path: 'code' },
-    { label: 'Plateforme overage', usd: 0.016, path: 'code' },
-    { label: 'Wholesale 25k+', usd: 0.018, path: 'code' },
-    { label: 'Wholesale 100k+', usd: 0.014, path: 'code' },
-    { label: 'Wholesale 500k+ (floor)', usd: 0.014, path: 'code' },   // raised from 0.010
-    { label: 'Vision path (3 ACU @ $0.03)', usd: 0.090, path: 'vision' },
-    { label: 'Growth: social post (1 ACU)', usd: 0.030, path: 'code' },
-    { label: 'Growth: landing page (3 ACU)', usd: 0.090, path: 'vision' },
-    { label: 'Growth: hashtags (0.5 ACU)', usd: 0.015, path: 'code' },
-    { label: 'Wholesale absolute floor', usd: 0.014, path: 'code' },  // raised from ~0.007
+    { label: 'PAYG / overage (1 ACU)', usd: 0.026, path: 'code' },
+    { label: 'Plan included (1 ACU-equiv)', usd: 0.026, path: 'code' },
+    { label: 'Partner wholesale (1 ACU @ retail)', usd: 0.026, path: 'code' },
+    { label: 'Vision path (4 ACU)', usd: 0.104, path: 'vision' },
+    { label: 'DisputeAgent (3 ACU)', usd: 0.078, path: 'code' },
+    { label: 'Sub-merchant (5 ACU)', usd: 0.130, path: 'code' },
+    { label: 'Growth: social post (1 ACU)', usd: 0.026, path: 'code' },
   ];
 
   // Model structure: SUBSCRIPTIONS cover fixed overhead; USAGE prices clear

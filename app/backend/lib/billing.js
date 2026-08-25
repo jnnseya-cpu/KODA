@@ -365,7 +365,7 @@ function wholesalePurchase(kdId, acuBlock, idemKey) {
   // from the mutable float_acu (the old fallback) meant a replayed credit computed a
   // DIFFERENT key each time (float already moved) and double-credited. No key → refuse.
   if (!idemKey || !String(idemKey).trim()) return [400, { error: { code: 'idempotency_key_required' } }];
-  if (!B.clearsFloor(B.ACU_PRICE_USD * ((d.wholesale_bps || 8500) / 10000)))
+  if (!B.clearsFloor(B.ACU_PRICE_USD * ((d.wholesale_bps || 10000) / 10000)))
     return [400, { error: { code: 'pricing_floor', message: 'Distributor wholesale rate is below the 100% margin floor.' } }];
   // Idempotency is keyed on the caller's payment reference (NOT a random token), so a
   // double-submitted "I paid for a block" credits float exactly once. The ledger key
@@ -562,7 +562,7 @@ function resellerBuyInventory(rid, acuBlock, idemKey) {
   // Idempotency key MANDATORY (stable payment ref). The old fallback derived it from
   // the mutable inventory_acu, so a replay computed a fresh key and double-credited.
   if (!idemKey || !String(idemKey).trim()) return [400, { error: { code: 'idempotency_key_required' } }];
-  if (!B.clearsFloor(B.ACU_PRICE_USD * ((r.wholesale_bps || 8000) / 10000)))
+  if (!B.clearsFloor(B.ACU_PRICE_USD * ((r.wholesale_bps || 10000) / 10000)))
     return [400, { error: { code: 'pricing_floor', message: 'Reseller wholesale rate is below the 100% margin floor.' } }];
   const key = 'reseller_wholesale:' + rid + ':' + String(idemKey).trim();
   const res = tx(() => {

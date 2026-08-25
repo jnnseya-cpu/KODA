@@ -199,12 +199,13 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   const broke = q.get('SELECT * FROM merchants WHERE id=?', brokeMid);
   ok(engine.canSpend(broke, engine.ACU.code) === false, 'credit floor: a deeply-negative merchant cannot spend');
 
-  // 6. Tiered overage: cheaper up the ladder, all below PAYG (1 ACU), never below floor.
+  // 6. 4× FLOOR on every plan: included rate AND overage are ≥ retail ($0.026 = 4× cost),
+  //    and overage always costs a full 1 ACU regardless of tier (no sub-4× discount).
   const PL = require('../../shared/plans').PLANS;
-  ok(engine.overageAcu({ plan: 'plateforme', acu_balance: 0 }) < engine.overageAcu({ plan: 'boutique', acu_balance: 0 })
-    && engine.overageAcu({ plan: 'boutique', acu_balance: 0 }) < engine.ACU.code, 'engine charges tiered overage (plateforme < boutique < 1 ACU)');
-  ok(PL.boutique.overage < BILL.ACU_PRICE_USD && PL.commerce.overage < PL.boutique.overage && PL.plateforme.overage < PL.commerce.overage
-    && PL.plateforme.overage >= BILL.PRICE_FLOOR_USD, 'overage tiers: below PAYG, monotonic down, above floor');
+  ok(engine.overageAcu({ plan: 'plateforme', acu_balance: 0 }) === engine.ACU.code
+    && engine.overageAcu({ plan: 'boutique', acu_balance: 0 }) === engine.ACU.code, 'overage is a flat 1 ACU (4×) on every tier');
+  ok(['boutique', 'commerce', 'plateforme'].every(k => BILL.clearsFloor(PL[k].usd / PL[k].verifs) && BILL.clearsFloor(PL[k].overage)),
+    'every paid plan included + overage rate clears the 4× floor');
 
   // 7. Chargeback clawback: a settled card top-up reversed pulls the ACU back; ledger = 0.
   const cbTop = billing.createTopup(payer, { rail: 'stripe', amount_acu: 1000 });

@@ -1386,7 +1386,7 @@ module.exports = function registerRoutes(r) {
     const id = U.id('kd');
     // Validate the wholesale rate at creation (symmetry with the reseller rate route):
     // never persist a bps below the 100%-margin floor or above 100% of retail.
-    const bps = Number(req.body.wholesale_bps) || 8500;
+    const bps = Number(req.body.wholesale_bps) || 10000;
     const minBps = require('../shared/billing').minWholesaleBps();
     if (bps < minBps || bps > 10000)
       return [400, { error: { code: 'bad_wholesale_rate', min_bps: minBps, max_bps: 10000, message: `Wholesale rate must be between ${minBps} and 10000 bps.` } }];
@@ -1666,7 +1666,7 @@ module.exports = function registerRoutes(r) {
     const acu = Math.round(Number(req.body.acu_block) || 0);
     if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
     const retail = require('../shared/billing').ACU_PRICE_USD;
-    const bps = d.wholesale_bps || 8500;
+    const bps = d.wholesale_bps || 10000;
     const usd = Math.round(acu * retail * (bps / 10000) * 100) / 100;
     audit(null, user.id, 'kd.float_requested', { distributor: d.id, acu, usd });
     return { ok: true, quote: true, acu, wholesale_pct: bps / 100, amount_usd: usd,
@@ -1693,7 +1693,7 @@ module.exports = function registerRoutes(r) {
     const rs = myReseller(m);
     if (!rs) return [404, { error: { code: 'not_a_reseller' } }];
     const retail = require('../shared/billing').ACU_PRICE_USD;
-    const bps = rs.wholesale_bps || 8000;
+    const bps = rs.wholesale_bps || 10000;
     return { reseller_id: rs.id, legal_name: rs.legal_name, country: rs.country, status: rs.status,
       inventory_acu: rs.inventory_acu, settlement_currency: rs.settlement_currency,
       wholesale_bps: bps, wholesale_pct: bps / 100, wholesale_usd_per_acu: Math.round(retail * (bps / 10000) * 10000) / 10000 };
@@ -1707,7 +1707,7 @@ module.exports = function registerRoutes(r) {
     const acu = Math.round(Number(req.body.acu_block) || 0);
     if (!(acu > 0)) return [400, { error: { code: 'invalid_block' } }];
     const retail = require('../shared/billing').ACU_PRICE_USD;
-    const bps = rs.wholesale_bps || 8000;
+    const bps = rs.wholesale_bps || 10000;
     const usd = Math.round(acu * retail * (bps / 10000) * 100) / 100;
     audit(null, user.id, 'reseller.inventory_requested', { reseller: rs.id, acu, usd });
     return { ok: true, quote: true, acu, wholesale_pct: bps / 100, amount_usd: usd,

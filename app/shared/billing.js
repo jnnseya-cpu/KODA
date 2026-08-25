@@ -8,27 +8,31 @@
   'use strict';
 
   // ── PRICING LAW (binding) ────────────────────────────────────────────────
-  // 1. ACU retail = 4× the underlying unit cost  → 300% markup, always ≥100% profit.
+  // 1. ACU retail = 4× the underlying unit cost  → 300% profit. This 4× is the HARD
+  //    FLOOR on every ACU KODA sells: pay-as-you-go, plan-included, overage, AND the
+  //    price a distributor/reseller pays for wholesale float/inventory. Nothing is sold
+  //    below 4×; partners earn their margin as a FEE ON TOP of retail, not a discount.
   // 2. The rail's collection fee is PASSED THROUGH to the merchant as a transparent
-  //    line item — KODA never absorbs it, so margin holds on every rail.
+  //    line item — KODA never absorbs it, so the 4× net holds on every rail.
   const ACU_MARKUP = 4;                 // ACU price = 4 × provider/unit cost
   const UNIT_COST_USD = 0.0065;         // fully-loaded code-path cost (mirrors costs.js COST.code)
   const ACU_PRICE_USD = round(ACU_MARKUP * UNIT_COST_USD); // ≈ 0.026 / ACU
 
-  // ── 100% MARGIN RULE (ENFORCED) ──────────────────────────────────────────
-  // No ACU may ever be SOLD below 100% profit over cost — not a merchant top-up,
-  // not a partner's wholesale rate. PRICE_FLOOR_USD is that hard floor; the guards
-  // below are called on every sale path and reject anything under it.
-  const MARGIN_FLOOR = 1.0;                                  // 100%
-  const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.013 / ACU
+  // ── 4× MARGIN RULE (ENFORCED) ────────────────────────────────────────────
+  // No ACU may ever be SOLD below 4× cost (300% profit) — not a merchant top-up, not a
+  // plan's included/overage rate, not a partner's wholesale rate. The floor equals the
+  // retail price, so retail IS the floor: every sale nets exactly 4× (or more). The
+  // guards below are called on every sale path and reject anything under it.
+  const MARGIN_FLOOR = 3.0;                                  // 300% profit = 4× cost
+  const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.026 / ACU = retail
   const clearsFloor = (usdPerAcu) => Number(usdPerAcu) + 1e-9 >= PRICE_FLOOR_USD;
-  // lowest wholesale rate (bps of retail) that still clears the floor — dynamic, so
-  // it tracks the retail price if that ever changes (at the current law it is 5000 = 50%).
+  // lowest wholesale rate (bps of retail) that still clears the floor — now 10000 (100%
+  // of retail): partners buy float/inventory at full retail and add their fee on top.
   const minWholesaleBps = () => Math.ceil((PRICE_FLOOR_USD / ACU_PRICE_USD) * 10000);
   // throws if a $/ACU price breaks the rule — call at any point ACU is priced for sale.
   function assertFloor(usdPerAcu, label) {
     if (!clearsFloor(usdPerAcu))
-      throw new Error(`100%_margin_rule: ${label || 'price'} = $${Number(usdPerAcu).toFixed(4)}/ACU is below the $${PRICE_FLOOR_USD}/ACU floor (100% over $${UNIT_COST_USD} cost)`);
+      throw new Error(`4x_margin_rule: ${label || 'price'} = $${Number(usdPerAcu).toFixed(4)}/ACU is below the $${PRICE_FLOOR_USD}/ACU floor (4× the $${UNIT_COST_USD} cost)`);
     return true;
   }
 
