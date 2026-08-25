@@ -1516,6 +1516,24 @@ window.retryDelivery = async (id) => {
   try { await api(`/app/webhooks/deliveries/${id}/retry`, { body: {} }); toast('✓ Delivery re-queued'); route(); }
   catch (e) { toast('✗ ' + e.message); }
 };
+// Events a merchant can subscribe an endpoint to (mirrors what engine.js dispatches).
+const WH_EVENTS = ['payment.verified', 'payment.verified.late', 'verification.succeeded',
+  'verification.failed', 'verification.duplicate_detected', 'verification.amount_mismatch',
+  'verification.manual_review_required', 'verification.expired'];
+window.toggleWhEdit = () => { const p = document.getElementById('whedit'); if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none'; };
+window.saveWebhook = async (id) => {
+  const url = (document.getElementById('whe_url').value || '').trim();
+  if (!/^https?:\/\/.+/i.test(url)) { toast('✗ URL must start with http:// or https://'); return; }
+  const mode = (document.querySelector('input[name="whevmode"]:checked') || {}).value;
+  let events = ['*'];
+  if (mode === 'pick') {
+    events = Array.from(document.querySelectorAll('.whev:checked')).map(c => c.value);
+    if (!events.length) { toast('✗ Pick at least one event, or choose “All events”'); return; }
+  }
+  const body = { url, name: (document.getElementById('whe_name').value || '').trim(), events };
+  try { await api(`/app/webhooks/${id}`, { method: 'PATCH', body }); toast('✓ Endpoint updated'); route(); }
+  catch (e) { toast('✗ ' + e.message); }
+};
 
 // Per-endpoint delivery log (click-through from the webhooks table). Shows the endpoint
 // header, its signing secret (reveal + copy), summary stats, status-filter tabs, and the
@@ -1557,9 +1575,28 @@ VIEWS.webhook = async (params) => {
         <div class="mono" style="font-size:12px;color:var(--dim);word-break:break-all;margin-top:4px">${esc(e.url)}</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="toggleWhEdit()">Edit</button>
         <button class="btn btn-ghost btn-sm" onclick="testWebhook('${e.id}')">${t('test')}</button>
         <button class="btn btn-ghost btn-sm" onclick="rotateWebhook('${e.id}')">Rotate secret</button>
         <button class="btn btn-ghost btn-sm" onclick="toggleWebhook('${e.id}')">${e.active ? 'Disable' : 'Enable'}</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteWebhook('${e.id}')">Delete</button>
+      </div>
+    </div>
+    <div id="whedit" style="display:none;margin-top:14px;padding:14px;background:var(--surface-2,rgba(255,255,255,.03));border:1px solid var(--line);border-radius:10px">
+      <h4 style="margin:0 0 10px">Edit endpoint</h4>
+      <label style="display:block;font-size:11.5px;color:var(--dim);margin-bottom:3px">Name</label>
+      <input id="whe_name" value="${esc(e.name || '')}" placeholder="Optional label" style="width:100%;box-sizing:border-box;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;margin-bottom:10px">
+      <label style="display:block;font-size:11.5px;color:var(--dim);margin-bottom:3px">Endpoint URL</label>
+      <input id="whe_url" value="${esc(e.url)}" placeholder="https://yourapp.com/webhooks/koda" style="width:100%;box-sizing:border-box;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:9px 12px;font-family:var(--mono);font-size:12px;margin-bottom:10px">
+      <label style="display:block;font-size:11.5px;color:var(--dim);margin-bottom:5px">Events to listen to</label>
+      <div style="margin-bottom:6px"><label style="font-size:12.5px;cursor:pointer"><input type="radio" name="whevmode" value="all" ${e.listening_to.all ? 'checked' : ''} onchange="document.getElementById('whevlist').style.display=this.checked?'none':'block'"> All events</label>
+      <label style="font-size:12.5px;cursor:pointer;margin-left:14px"><input type="radio" name="whevmode" value="pick" ${e.listening_to.all ? '' : 'checked'} onchange="document.getElementById('whevlist').style.display='block'"> Specific events</label></div>
+      <div id="whevlist" style="display:${e.listening_to.all ? 'none' : 'block'};margin:0 0 10px;padding-left:4px">
+        ${WH_EVENTS.map(ev => `<label style="display:block;font-size:12px;padding:2px 0;cursor:pointer"><input type="checkbox" class="whev" value="${ev}" ${(e.events || []).includes(ev) ? 'checked' : ''}> <span class="mono">${ev}</span></label>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-gold btn-sm" onclick="saveWebhook('${e.id}')">Save changes</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleWhEdit()">Cancel</button>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">

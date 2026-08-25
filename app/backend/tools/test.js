@@ -133,6 +133,16 @@ async function main() {
     T('webhook list carries dashboard stats (activity/response/errors)', !!listed && Array.isArray(listed.activity) && listed.activity.length === 14 && 'response_ms' in listed && 'error_rate' in listed && listed.payload_style === 'snapshot');
     const detail = (await j(`/app/webhooks/${named.id}`, {}, tk)).d;
     T('per-endpoint detail returns endpoint + counts + deliveries + full secret', !!detail.endpoint && detail.endpoint.secret === named.secret && !!detail.counts && Array.isArray(detail.deliveries));
+    T('per-endpoint detail exposes raw events array (for the edit form)', Array.isArray(detail.endpoint.events));
+    // PATCH edits url/name/events in place — secret and delivery history are untouched
+    const edited = (await j(`/app/webhooks/${named.id}`, { method: 'PATCH', body: { url: 'http://localhost:9/edited', name: 'Renamed', events: ['payment.verified', 'verification.failed'] } }, tk)).d;
+    T('webhook PATCH edits url/name/events', edited.ok && edited.endpoint.url === 'http://localhost:9/edited' && edited.endpoint.name === 'Renamed');
+    const afterEdit = (await j(`/app/webhooks/${named.id}`, {}, tk)).d;
+    T('edit persists + keeps the same signing secret', afterEdit.endpoint.url === 'http://localhost:9/edited' && afterEdit.endpoint.secret === named.secret && JSON.stringify(afterEdit.endpoint.events) === JSON.stringify(['payment.verified', 'verification.failed']));
+    const badEdit = await j(`/app/webhooks/${named.id}`, { method: 'PATCH', body: { url: 'ftp://nope' } }, tk);
+    T('webhook PATCH rejects a non-http url', badEdit.s === 400 && badEdit.d.error && badEdit.d.error.code === 'invalid_url');
+    const noopEdit = await j(`/app/webhooks/${named.id}`, { method: 'PATCH', body: {} }, tk);
+    T('webhook PATCH with no fields is a 400 nothing_to_update', noopEdit.s === 400 && noopEdit.d.error.code === 'nothing_to_update');
     // verification.* event namespace fires ADDITIVELY (payment.verified still fires)
     await j('/app/webhooks', { body: { url: 'http://localhost:9/whv', events: ['*'] } }, tk);
     const vok = (await j('/v1/intents', { body: { amount: 5000, currency: 'CDF', operators: ['orange_cd'] } }, key)).d;

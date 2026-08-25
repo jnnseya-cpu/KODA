@@ -57,7 +57,7 @@ const MIME = {
 // ---- tiny router ----
 const routes = [];
 const method = (m) => (p, h) => routes.push({ m, p: pattern(p), h });
-const router = { get: method('GET'), post: method('POST'), put: method('PUT'), delete: method('DELETE') };
+const router = { get: method('GET'), post: method('POST'), put: method('PUT'), patch: method('PATCH'), delete: method('DELETE') };
 function pattern(p) {
   const keys = [];
   const re = new RegExp('^' + p.replace(/:[^/]+/g, (s) => { keys.push(s.slice(1)); return '([^/]+)'; }) + '$');
@@ -125,7 +125,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'OPTIONS') {
-    return send(204, '', { 'access-control-allow-methods': 'GET,POST,PUT,DELETE', 'access-control-allow-headers': 'authorization,content-type,x-api-key' });
+    return send(204, '', { 'access-control-allow-methods': 'GET,POST,PUT,PATCH,DELETE', 'access-control-allow-headers': 'authorization,content-type,x-api-key' });
   }
 
   // API routes

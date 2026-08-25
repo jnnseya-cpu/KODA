@@ -609,6 +609,7 @@ module.exports = function registerRoutes(r) {
         id: ep.id, name: ep.name || null, url: ep.url, active: !!ep.active,
         secret: ep.secret, secret_last4: ep.secret.slice(-4),
         payload_style: ep.payload_style || 'snapshot', destination: ep.destination || null,
+        events,
         listening_to: events.includes('*') ? { all: true } : { all: false, count: events.length, events },
         created_at: ep.created_at,
         response_ms: recent.avg_ms != null ? Math.round(recent.avg_ms) : null,
@@ -826,6 +827,35 @@ module.exports = function registerRoutes(r) {
     q.run('UPDATE webhook_endpoints SET active=? WHERE id=? AND merchant_id=?', active, ep.id, m.id);
     audit(m.id, user.id, active ? 'webhook_enabled' : 'webhook_disabled', { endpoint_id: ep.id });
     return { ok: true, id: ep.id, active };
+  }));
+  // Edit ONE endpoint in place — url / name / destination / subscribed events / payload
+  // style — WITHOUT rotating the secret or losing the delivery history. Owner-only.
+  // Only fields present in the body are touched; a bad url is rejected, not stored.
+  r.patch('/app/webhooks/:id', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    const ep = q.get('SELECT * FROM webhook_endpoints WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    if (!ep) return [404, { error: 'endpoint_not_found' }];
+    const b = req.body || {}, sets = [], vals = [];
+    if (b.url !== undefined) {
+      const url = String(b.url || '').trim();
+      if (!/^https?:\/\/.+/i.test(url)) return [400, { error: { code: 'invalid_url', message: 'url must start with http:// or https://' } }];
+      sets.push('url=?'); vals.push(url.slice(0, 300));
+    }
+    if (b.name !== undefined) { const n = String(b.name || '').trim().slice(0, 80); sets.push('name=?'); vals.push(n || null); }
+    if (b.destination !== undefined) { const d = String(b.destination || '').trim().slice(0, 64); sets.push('destination=?'); vals.push(d || null); }
+    if (b.events !== undefined) {
+      const ev = Array.isArray(b.events) && b.events.length ? b.events.map(x => String(x).slice(0, 60)) : ['*'];
+      sets.push('events=?'); vals.push(JSON.stringify(ev));
+    }
+    if (b.payload_style !== undefined) {
+      const ps = b.payload_style === 'flat' ? 'flat' : 'snapshot';
+      sets.push('payload_style=?'); vals.push(ps);
+    }
+    if (!sets.length) return [400, { error: { code: 'nothing_to_update' } }];
+    q.run(`UPDATE webhook_endpoints SET ${sets.join(',')} WHERE id=? AND merchant_id=?`, ...vals, ep.id, m.id);
+    audit(m.id, user.id, 'webhook_updated', { endpoint_id: ep.id, fields: sets.map(s => s.split('=')[0]) });
+    const upd = q.get('SELECT id,url,name,destination,events,payload_style,active FROM webhook_endpoints WHERE id=?', ep.id);
+    return { ok: true, endpoint: upd };
   }));
   // Delete an endpoint and its delivery history (FK-safe, one transaction). Owner-only.
   r.delete('/app/webhooks/:id', auth((req, user, m) => {
