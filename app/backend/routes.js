@@ -541,10 +541,48 @@ module.exports = function registerRoutes(r) {
   }));
 
   // ---------- webhooks ----------
-  r.get('/app/webhooks', auth((req, user, m) => ({
-    endpoints: q.all('SELECT * FROM webhook_endpoints WHERE merchant_id=?', m.id),
-    deliveries: q.all('SELECT * FROM webhook_deliveries WHERE merchant_id=? ORDER BY created_at DESC LIMIT 50', m.id),
-  })));
+  r.get('/app/webhooks', auth((req, user, m) => {
+    const rawEndpoints = q.all('SELECT * FROM webhook_endpoints WHERE merchant_id=?', m.id);
+    // Per-endpoint dashboard stats (Stripe-Workbench style): what it listens to, where
+    // events come from, payload style, a 14-day activity sparkline, average response time,
+    // and the error rate — all computed from the real delivery telemetry.
+    const endpoints = rawEndpoints.map(e => {
+      const agg = q.get(`SELECT COUNT(*) total,
+          SUM(CASE WHEN status IN ('failed','dead') THEN 1 ELSE 0 END) failed,
+          SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END) sent
+        FROM webhook_deliveries WHERE endpoint_id=?`, e.id);
+      const recent = q.get(`SELECT AVG(duration_ms) avg_ms, COUNT(*) c,
+          SUM(CASE WHEN status IN ('failed','dead') THEN 1 ELSE 0 END) failed
+        FROM webhook_deliveries WHERE endpoint_id=? AND created_at > datetime('now','-7 days')`, e.id);
+      const days = q.all(`SELECT date(created_at) d, COUNT(*) c FROM webhook_deliveries
+        WHERE endpoint_id=? AND created_at > datetime('now','-14 days') GROUP BY 1`, e.id);
+      const byDay = {}; days.forEach(r => { byDay[r.d] = r.c; });
+      const activity = [];
+      for (let i = 13; i >= 0; i--) {
+        const key = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+        activity.push(byDay[key] || 0);
+      }
+      let events; try { events = JSON.parse(e.events || '["*"]'); } catch { events = ['*']; }
+      const total = agg.total || 0;
+      const windowN = recent.c || 0;
+      return {
+        id: e.id, name: e.name || null, url: e.url, active: !!e.active,
+        secret: e.secret, secret_last4: e.secret.slice(-4), // owner can copy their own signing secret
+        destination: e.destination || null, created_at: e.created_at,
+        listening_to: events.includes('*') ? { all: true } : { all: false, count: events.length, events },
+        events_from: m.name,                                   // "Your account"
+        payload_style: e.payload_style || 'snapshot',
+        total_events: total, sent: agg.sent || 0,
+        activity,                                              // 14-day daily delivery counts
+        response_ms: recent.avg_ms != null ? Math.round(recent.avg_ms) : null,
+        error_rate: windowN ? Math.round((recent.failed || 0) / windowN * 1000) / 10 : 0,
+      };
+    });
+    return {
+      endpoints,
+      deliveries: q.all('SELECT * FROM webhook_deliveries WHERE merchant_id=? ORDER BY created_at DESC LIMIT 50', m.id),
+    };
+  }));
   r.post('/app/webhooks', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
     const wid = U.id('whe'), secret = `whsec_${U.token(24)}`;

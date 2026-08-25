@@ -37,27 +37,32 @@ function signHeaders(secret, body, dlvId) {
 }
 
 function attempt(dlvId, url, body, secret, n) {
-  const finish = (status, err) => {
-    q.run(`UPDATE webhook_deliveries SET status=?, attempts=?, last_error=?,
+  const finish = (status, err, ms, code) => {
+    q.run(`UPDATE webhook_deliveries SET status=?, attempts=?, last_error=?, duration_ms=?, response_status=?,
            delivered_at=CASE WHEN ?='sent' THEN datetime('now') ELSE delivered_at END WHERE id=?`,
-      status, n, err || null, status, dlvId);
+      status, n, err || null, ms == null ? null : Math.round(ms), code == null ? null : code, status, dlvId);
   };
   // localhost/sandbox endpoints marked sent without network; real URLs get fetch + retry
   let host = ''; try { host = new URL(url).hostname; } catch { return finish('failed', 'invalid_url'); }
   if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.test') || host === 'example.com') {
-    return finish('sent', null);
+    return finish('sent', null, 0, 200);
   }
+  const t0 = Date.now();
   fetch(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...signHeaders(secret, body, dlvId) },
     body, signal: AbortSignal.timeout(8000),
   }).then(r => {
-    if (r.ok) return finish('sent');
+    const ms = Date.now() - t0;
+    if (r.ok) return finish('sent', null, ms, r.status);
+    // record the response time + status even on an error response, then retry/dead-letter
+    q.run(`UPDATE webhook_deliveries SET duration_ms=?, response_status=? WHERE id=?`, Math.round(ms), r.status, dlvId);
     throw new Error(`http_${r.status}`);
   }).catch(e => {
-    if (n >= MAX_ATTEMPTS) return finish('dead', String(e.message || e));
-    q.run(`UPDATE webhook_deliveries SET status='pending', attempts=?, last_error=? WHERE id=?`,
-      n, String(e.message || e), dlvId);
+    const ms = Date.now() - t0;
+    if (n >= MAX_ATTEMPTS) return finish('dead', String(e.message || e), ms, null);
+    q.run(`UPDATE webhook_deliveries SET status='pending', attempts=?, last_error=?, duration_ms=? WHERE id=?`,
+      n, String(e.message || e), Math.round(ms), dlvId);
     setTimeout(() => attempt(dlvId, url, body, secret, n + 1),
       Math.min(60000, 1000 * 2 ** n)).unref?.();
   });

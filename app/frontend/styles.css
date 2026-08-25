@@ -80,6 +80,12 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px}
 .tbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
 .tbl tr:hover td{background:rgba(255,255,255,.015)}
 .tbl .num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12.5px}
+/* Webhook dashboard table (Stripe-Workbench style) */
+table.wh-tbl{width:100%;border-collapse:collapse;font-size:13px;min-width:820px}
+.wh-tbl th{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-align:left;padding:8px 12px;border-bottom:1px solid var(--line-strong);white-space:nowrap}
+.wh-tbl td{padding:12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.wh-tbl tr:hover td{background:rgba(255,255,255,.015)}
+.wh-tbl tr:last-child td{border-bottom:none}
 .tbl-wrap{overflow-x:auto}
 
 .badge{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;padding:3px 9px;border-radius:99px;text-transform:uppercase}

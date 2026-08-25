@@ -588,6 +588,11 @@ db.exec(`CREATE INDEX IF NOT EXISTS idx_referrals_referred ON referrals(referred
 try { db.exec(`ALTER TABLE webhook_endpoints ADD COLUMN destination TEXT`); } catch { /* exists */ }
 // Human-readable name/label so merchants can tell endpoints apart (spec §9).
 try { db.exec(`ALTER TABLE webhook_endpoints ADD COLUMN name TEXT`); } catch { /* exists */ }
+// Payload style shown in the webhook dashboard (KODA sends the full event object = 'snapshot').
+try { db.exec(`ALTER TABLE webhook_endpoints ADD COLUMN payload_style TEXT NOT NULL DEFAULT 'snapshot'`); } catch { /* exists */ }
+// Delivery telemetry for the dashboard: HTTP response time (ms) and status of each attempt.
+try { db.exec(`ALTER TABLE webhook_deliveries ADD COLUMN duration_ms INTEGER`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE webhook_deliveries ADD COLUMN response_status INTEGER`); } catch { /* exists */ }
 
 // Idempotency-Key on verification (intent) creation: a repeated create with the
 // same key returns the original result instead of making a second verification.

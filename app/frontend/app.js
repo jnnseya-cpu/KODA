@@ -252,6 +252,14 @@ function toast(msg, ms = 3200) {
   clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), ms);
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// Tiny inline-SVG sparkline (webhook activity), theme-safe (stroke uses a CSS var/color).
+function whSpark(arr, color = 'var(--gold)') {
+  if (!Array.isArray(arr) || !arr.length) return '<span style="color:var(--dim);font-size:11px">no activity</span>';
+  const w = 92, h = 24, max = Math.max(1, ...arr), step = w / (arr.length - 1 || 1);
+  const pts = arr.map((v, i) => `${(i * step).toFixed(1)},${(h - (v / max) * (h - 4) - 2).toFixed(1)}`).join(' ');
+  const dot = arr.length ? `<circle cx="${w.toFixed(1)}" cy="${(h - (arr[arr.length - 1] / max) * (h - 4) - 2).toFixed(1)}" r="2" fill="${color}"/>` : '';
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block;overflow:visible"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>${dot}</svg>`;
+}
 // Number/date locale per language (francophone langs group by fr, anglophone by en/sw).
 const NUM_LOCALE = { fr: 'fr-FR', en: 'en-US', sw: 'sw-KE', ln: 'fr-FR', wo: 'fr-FR', ak: 'en-GH' };
 const DATE_LOCALE = { fr: 'fr-FR', en: 'en-GB', sw: 'sw-KE', ln: 'fr-FR', wo: 'fr-FR', ak: 'en-GH' };
@@ -1400,22 +1408,41 @@ VIEWS.developers = async () => {
       </table>
       <div id="key-out" style="margin-top:10px"></div>
     </div>
-    <div class="card"><h3>Webhooks — HMAC-SHA256 signed</h3>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <div class="card"><h3>Webhooks — event destinations</h3>
+      <p style="font-size:12.5px;color:var(--dim);margin:-2px 0 10px">Send KODA events to your endpoints. Every payload is HMAC-SHA256 signed (<span class="mono">Koda-Signature</span>, replay-protected).</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
         <input id="whname" placeholder="Name (e.g. WooCommerce production)" style="min-width:170px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:9px 12px;font-size:12.5px">
         <input id="whurl" placeholder="https://yourapp.com/webhooks/koda" style="flex:1;min-width:200px;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:9px 12px;font-family:var(--mono);font-size:12px">
         <button class="btn btn-gold btn-sm" onclick="addWebhook()">${t('add_webhook')}</button>
       </div>
-      ${wh.endpoints.map(e => `<div class="feed-row"><div class="feed-ic ${e.active ? 'f-ok' : 'f-dim'}">⇄</div>
-        <div style="min-width:0">
-        ${e.name ? `<div class="t" style="font-weight:800;font-size:13px">${esc(e.name)}</div><div class="mono" style="font-size:12px;color:var(--dim);word-break:break-all">${esc(e.url)}</div>` : `<div class="t mono" style="font-size:12.5px;word-break:break-all">${esc(e.url)}</div>`}
-        <div class="m">secret <span class="mono">whsec_···${esc(e.secret.slice(-4))}</span> · <span class="badge ${e.active ? 'b-ok' : 'b-warn'}">${e.active ? 'active' : 'disabled'}</span></div></div>
-        <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(e.secret)}');toast('✓ Signing secret copied')">Copy secret</button>
-          <button class="btn btn-ghost btn-sm" onclick="testWebhook('${e.id}')">${t('test')}</button>
-          <button class="btn btn-ghost btn-sm" onclick="toggleWebhook('${e.id}')">${e.active ? 'Disable' : 'Enable'}</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteWebhook('${e.id}')">Delete</button>
-        </div></div>`).join('') || '<div class="empty">No endpoints yet.</div>'}
+      ${wh.endpoints.length ? `<div style="overflow-x:auto"><table class="wh-tbl">
+        <thead><tr>
+          <th>Destination</th><th></th><th>Listening to</th><th>Events from</th><th>Payload</th>
+          <th>Activity · 14d</th><th style="text-align:right">Response</th><th style="text-align:right">Errors</th><th></th>
+        </tr></thead>
+        <tbody>
+        ${wh.endpoints.map(e => {
+          const listen = e.listening_to.all ? 'All events' : `${e.listening_to.count} event${e.listening_to.count === 1 ? '' : 's'}`;
+          const errColor = e.error_rate >= 50 ? '#e5484d' : e.error_rate > 0 ? 'var(--gold)' : 'var(--dim)';
+          const sparkColor = e.error_rate >= 50 ? '#e5484d' : 'var(--gold)';
+          return `<tr>
+            <td style="min-width:190px"><div class="t" style="font-weight:700;font-size:13px">${esc(e.name || e.url.replace(/^https?:\/\//, '').split('/')[0])}</div>
+              <div class="mono" style="font-size:11.5px;color:var(--dim);word-break:break-all">${esc(e.url)}</div>
+              <div class="mono" style="font-size:11px;color:var(--dim);margin-top:2px;cursor:pointer" title="Copy signing secret" onclick="navigator.clipboard&&navigator.clipboard.writeText('${esc(e.secret)}');toast('✓ Signing secret copied')">whsec_···${esc(e.secret_last4)} <span style="opacity:.6">⧉</span></div></td>
+            <td><span class="badge ${e.active ? 'b-ok' : 'b-warn'}">${e.active ? 'Active' : 'Disabled'}</span></td>
+            <td style="font-size:12.5px">${esc(listen)}<div style="font-size:11px;color:var(--dim)">${e.total_events} delivered</div></td>
+            <td style="font-size:12.5px">Your account</td>
+            <td><span class="badge b-dim" style="text-transform:capitalize">${esc(e.payload_style)}</span></td>
+            <td>${whSpark(e.activity, sparkColor)}</td>
+            <td style="text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px">${e.response_ms != null ? e.response_ms + ' ms' : '—'}</td>
+            <td style="text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px;color:${errColor};font-weight:600">${e.error_rate}%</td>
+            <td style="text-align:right;white-space:nowrap">
+              <button class="btn btn-ghost btn-sm" onclick="testWebhook('${e.id}')" title="Send a test event">${t('test')}</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleWebhook('${e.id}')">${e.active ? 'Disable' : 'Enable'}</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteWebhook('${e.id}')">✕</button>
+            </td></tr>`;
+        }).join('')}
+        </tbody></table></div>` : '<div class="empty">No endpoints yet — add your first destination above.</div>'}
       <h3 style="margin-top:16px">Recent deliveries</h3>
       ${(wh.deliveries || []).slice(0, 12).map(d => {
         const ep = (wh.endpoints || []).find(e => e.id === d.endpoint_id);
@@ -1423,7 +1450,7 @@ VIEWS.developers = async () => {
         const failed = d.status === 'failed' || d.status === 'dead';
         return `<div class="feed-row"><div class="feed-ic ${d.status === 'sent' ? 'f-ok' : d.status === 'pending' ? 'f-dim' : 'f-bad'}">${d.status === 'sent' ? '✓' : failed ? '✗' : '·'}</div>
         <div style="min-width:0"><div class="t mono" style="font-size:12px">${esc(d.event)} <span style="color:var(--dim)">→ ${urlTail}</span></div>
-        <div class="m">${esc(d.status)} · ${d.attempts} attempt${d.attempts === 1 ? '' : 's'} · ${when(d.created_at)}${d.last_error ? ' · <span style="color:var(--danger)">' + esc(String(d.last_error).slice(0, 40)) + '</span>' : ''}</div></div>
+        <div class="m">${esc(d.status)}${d.response_status ? ' · HTTP ' + d.response_status : ''}${d.duration_ms != null ? ' · ' + d.duration_ms + ' ms' : ''} · ${d.attempts} attempt${d.attempts === 1 ? '' : 's'} · ${when(d.created_at)}${d.last_error ? ' · <span style="color:var(--danger)">' + esc(String(d.last_error).slice(0, 40)) + '</span>' : ''}</div></div>
         ${failed ? `<button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="retryDelivery('${d.id}')">Retry</button>` : ''}</div>`;
       }).join('') || '<div class="empty">None yet.</div>'}
     </div>
