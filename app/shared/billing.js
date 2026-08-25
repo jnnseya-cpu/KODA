@@ -8,26 +8,32 @@
   'use strict';
 
   // ── PRICING LAW (binding) ────────────────────────────────────────────────
-  // 1. ACU retail = 4× the underlying unit cost  → 300% profit. This 4× is the HARD
-  //    FLOOR on every ACU KODA sells: pay-as-you-go, plan-included, overage, AND the
-  //    price a distributor/reseller pays for wholesale float/inventory. Nothing is sold
-  //    below 4×; partners earn their margin as a FEE ON TOP of retail, not a discount.
-  // 2. The rail's collection fee is PASSED THROUGH to the merchant as a transparent
-  //    line item — KODA never absorbs it, so the 4× net holds on every rail.
-  const ACU_MARKUP = 4;                 // ACU price = 4 × provider/unit cost
+  // TWO RETAIL RATES, one hard floor:
+  //  · PLAN rate = 4× cost ($0.026/verif) — the committed, cheaper rate you get inside a
+  //    monthly plan's included quota. This equals the ABSOLUTE FLOOR: nothing is ever sold
+  //    below 4×.
+  //  · ACU / TOP-UP rate = 5× cost ($0.0325/ACU) — pay-as-you-go ACU: retail top-ups, plan
+  //    overage, AI actions, and the price a partner pays for wholesale float/inventory.
+  // So ad-hoc ACU always costs MORE than a plan (5× vs 4×): committing to a plan is the
+  // rational choice, and there is no way to obtain the 4× rate without a plan. Partners
+  // buy ACU at the 5× retail and earn their margin as a FEE ON TOP, not a discount.
+  // The rail's collection fee is PASSED THROUGH to the merchant, so KODA's net never dips.
   const UNIT_COST_USD = 0.0065;         // fully-loaded code-path cost (mirrors costs.js COST.code)
-  const ACU_PRICE_USD = round(ACU_MARKUP * UNIT_COST_USD); // ≈ 0.026 / ACU
+  const ACU_MARKUP = 5;                 // ACU / top-up price = 5 × unit cost
+  const PLAN_MARKUP = 4;                // plan-included verification rate = 4 × unit cost (= floor)
+  const ACU_PRICE_USD = round(ACU_MARKUP * UNIT_COST_USD);   // ≈ 0.0325 / ACU (PAYG / top-up / overage)
+  const PLAN_PRICE_USD = round(PLAN_MARKUP * UNIT_COST_USD);  // ≈ 0.026 / verif (plan included)
 
-  // ── 4× MARGIN RULE (ENFORCED) ────────────────────────────────────────────
-  // No ACU may ever be SOLD below 4× cost (300% profit) — not a merchant top-up, not a
-  // plan's included/overage rate, not a partner's wholesale rate. The floor equals the
-  // retail price, so retail IS the floor: every sale nets exactly 4× (or more). The
-  // guards below are called on every sale path and reject anything under it.
+  // ── 4× MARGIN FLOOR (ENFORCED) ───────────────────────────────────────────
+  // No ACU may ever be SOLD below 4× cost (300% profit) — not a top-up, not a plan's
+  // included/overage rate, not a partner's wholesale rate. The floor equals the PLAN rate,
+  // so a plan sits exactly at the floor and everything ad-hoc sits above it at 5×.
   const MARGIN_FLOOR = 3.0;                                  // 300% profit = 4× cost
-  const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.026 / ACU = retail
+  const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.026 / ACU = plan rate
   const clearsFloor = (usdPerAcu) => Number(usdPerAcu) + 1e-9 >= PRICE_FLOOR_USD;
-  // lowest wholesale rate (bps of retail) that still clears the floor — now 10000 (100%
-  // of retail): partners buy float/inventory at full retail and add their fee on top.
+  // lowest wholesale rate (bps of the 5× ACU retail) that still clears the 4× floor. The
+  // DEFAULT partner rate is 10000 (buy at the full 5× retail, earn via fee on top); an
+  // admin may discount down to this minimum, never below the 4× floor.
   const minWholesaleBps = () => Math.ceil((PRICE_FLOOR_USD / ACU_PRICE_USD) * 10000);
   // throws if a $/ACU price breaks the rule — call at any point ACU is priced for sale.
   function assertFloor(usdPerAcu, label) {
@@ -99,6 +105,6 @@
 
   function round(n) { return Math.round(n * 1e6) / 1e6; }
 
-  return { ACU_MARKUP, UNIT_COST_USD, ACU_PRICE_USD, RAILS, quote, routeProviders, MM_MARKETS,
+  return { ACU_MARKUP, PLAN_MARKUP, UNIT_COST_USD, ACU_PRICE_USD, PLAN_PRICE_USD, RAILS, quote, routeProviders, MM_MARKETS,
     MARGIN_FLOOR, PRICE_FLOOR_USD, clearsFloor, minWholesaleBps, assertFloor };
 });

@@ -36,36 +36,36 @@ const BILL = require('../../shared/billing');
 const be = Math.ceil(C.FIXED_TOTAL / (BILL.ACU_PRICE_USD - C.COST.code));
 console.log(`  overhead break-even without any subscriptions: ~${be.toLocaleString()} verifications/mo`);
 
-// RULE 3 — every ACU SALE price (top-up packs + partner wholesale) clears the enforced
-// 4× floor. This is the same PRICE_FLOOR_USD the runtime guards use, so CI fails the
-// moment any pack or the minimum wholesale rate would sell below 4× cost.
+// RULE 3 — ad-hoc ACU (top-up packs + partner wholesale) sells at the 5× rate, and every
+// point clears the 4× floor. Top-ups MUST be ≥5× (strictly above the 4× plan rate) so
+// pay-as-you-go always costs more than committing to a plan.
 const PACKS = require('../../shared/plans').TOPUP_PACKS;
-console.log(`\nRULE 3 — ACU sale floor $${BILL.PRICE_FLOOR_USD}/ACU (4× the $${BILL.UNIT_COST_USD} cost):`);
+console.log(`\nRULE 3 — ad-hoc ACU rate ${(BILL.ACU_PRICE_USD / BILL.UNIT_COST_USD).toFixed(0)}× ($${BILL.ACU_PRICE_USD}/ACU) · floor 4× ($${BILL.PRICE_FLOOR_USD}):`);
 for (const p of PACKS) {
-  const perAcu = p.usd / p.acu, ok = BILL.clearsFloor(perAcu);
+  const perAcu = p.usd / p.acu, mult = perAcu / BILL.UNIT_COST_USD;
+  const ok = mult + 1e-9 >= BILL.ACU_MARKUP; // top-ups must clear the full 5× ACU rate
   if (!ok) fails++;
-  console.log(`  top-up $${p.usd} → ${p.acu} ACU = $${perAcu.toFixed(4)}/ACU  ${(perAcu / BILL.UNIT_COST_USD).toFixed(1)}×  ${ok ? '✓' : '✗ BELOW 4× FLOOR'}`);
+  console.log(`  top-up $${p.usd} → ${p.acu} ACU = $${perAcu.toFixed(4)}/ACU  ${mult.toFixed(1)}×  ${ok ? '✓' : `✗ BELOW ${BILL.ACU_MARKUP}× TOP-UP RATE`}`);
 }
 const minBps = BILL.minWholesaleBps(), wholesaleMin = BILL.ACU_PRICE_USD * (minBps / 10000);
 if (!BILL.clearsFloor(wholesaleMin)) fails++;
-console.log(`  retail $${BILL.ACU_PRICE_USD}/ACU = ${(BILL.ACU_PRICE_USD / BILL.UNIT_COST_USD).toFixed(1)}× · min wholesale ${minBps / 100}% = $${wholesaleMin.toFixed(4)} = ${(wholesaleMin / BILL.UNIT_COST_USD).toFixed(1)}× (partners buy at retail, earn via fee on top) ${BILL.clearsFloor(wholesaleMin) ? '✓' : '✗'}`);
+console.log(`  ACU retail $${BILL.ACU_PRICE_USD}/ACU = ${(BILL.ACU_PRICE_USD / BILL.UNIT_COST_USD).toFixed(1)}× · min wholesale ${minBps / 100}% = $${wholesaleMin.toFixed(4)} = ${(wholesaleMin / BILL.UNIT_COST_USD).toFixed(1)}× (≥ 4× floor; partners default to full retail, earn via fee on top) ${BILL.clearsFloor(wholesaleMin) ? '✓' : '✗'}`);
 
-// RULE 4 — 4× FLOOR ON EVERY PLAN VERIFICATION. Plans win on quota + throughput +
-// features, NEVER on a cheaper unit rate: a paid plan's included rate (usd/verifs) and
-// its overage must each be ≥ the $PRICE_FLOOR (= 4× cost = the PAYG price). So every
-// verification nets ≥4× whether bought PAYG or on a plan, and there is no rate arbitrage
-// either way. CI fails if any tier is priced below the floor.
-console.log(`\nRULE 4 — 4× floor on plans (PAYG = $${BILL.ACU_PRICE_USD}/verif = the floor):`);
+// RULE 4 — plans sit at the 4× floor, ad-hoc ACU sits above at 5×. A plan's INCLUDED rate
+// (usd/verifs) must clear the 4× floor AND be strictly cheaper than the ad-hoc ACU rate
+// (so a plan is always the better deal); overage falls back to the ad-hoc ACU rate (5×).
+console.log(`\nRULE 4 — plan rate 4× ($${BILL.PLAN_PRICE_USD}) < ad-hoc ACU 5× ($${BILL.ACU_PRICE_USD}):`);
+if (!(BILL.PLAN_PRICE_USD + 1e-9 < BILL.ACU_PRICE_USD)) { fails++; console.log('  ✗ plan rate is not below the ad-hoc ACU rate'); }
 const LADDER = ['boutique', 'commerce', 'plateforme'];
 for (const key of LADDER) {
   const p = PLANS[key];
   const incl = p.usd / p.verifs;
   const over = p.overage;
-  const inclOk = BILL.clearsFloor(incl);
+  const inclOk = BILL.clearsFloor(incl) && incl + 1e-9 < BILL.ACU_PRICE_USD; // ≥4× AND cheaper than PAYG
   const overOk = over != null && BILL.clearsFloor(over);
   if (!inclOk || !overOk) fails++;
   console.log(`  ${p.label.padEnd(11)} incl $${incl.toFixed(4)}/verif (${p.verifs}/mo) ${(incl / BILL.UNIT_COST_USD).toFixed(1)}× ${inclOk ? '✓' : '✗'}  ·  overage $${over.toFixed(4)} ${(over / BILL.UNIT_COST_USD).toFixed(1)}× ${overOk ? '✓' : '✗'}`);
 }
 
 if (fails) { console.log(`\n${fails} price point(s) violate the rule — fix pricing or costs.`); process.exit(1); }
-console.log('\nAll price points + ACU sale prices clear the 4×-profit rule ✓');
+console.log('\nAll price points clear the rule: plans ≥4×, ad-hoc ACU ≥5× ✓');

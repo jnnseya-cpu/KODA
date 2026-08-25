@@ -47,18 +47,17 @@
   // the price a partner pays for wholesale float/inventory (partners add their fee on top).
   const MARKUP_MIN = 4.0;
 
-  // retail price points to police (USD per verification). At $0.026/ACU (4× the code cost)
-  // every 1-ACU sale is exactly 4×; the vision path is priced at 4 ACU so it clears 4× on
-  // its own higher cost. Partner wholesale now sits AT retail (no below-retail discount),
-  // so there are no sub-retail wholesale points to police.
+  // retail price points to police (USD per verification). Plan-included sells at 4×
+  // ($0.026); ad-hoc ACU — top-up, overage, AI, partner wholesale — sells at 5× ($0.0325).
+  // Every point clears the 4× floor; the top-up/ACU points clear 5×.
   const PRICE_POINTS = [
-    { label: 'PAYG / overage (1 ACU)', usd: 0.026, path: 'code' },
-    { label: 'Plan included (1 ACU-equiv)', usd: 0.026, path: 'code' },
-    { label: 'Partner wholesale (1 ACU @ retail)', usd: 0.026, path: 'code' },
-    { label: 'Vision path (4 ACU)', usd: 0.104, path: 'vision' },
-    { label: 'DisputeAgent (3 ACU)', usd: 0.078, path: 'code' },
-    { label: 'Sub-merchant (5 ACU)', usd: 0.130, path: 'code' },
-    { label: 'Growth: social post (1 ACU)', usd: 0.026, path: 'code' },
+    { label: 'Plan included (4× rate)', usd: 0.026, path: 'code' },
+    { label: 'PAYG top-up / overage (1 ACU, 5×)', usd: 0.0325, path: 'code' },
+    { label: 'Partner wholesale (1 ACU @ 5× retail)', usd: 0.0325, path: 'code' },
+    { label: 'Vision path (3 ACU)', usd: 0.0975, path: 'vision' },
+    { label: 'DisputeAgent (3 ACU)', usd: 0.0975, path: 'code' },
+    { label: 'Sub-merchant (5 ACU)', usd: 0.1625, path: 'code' },
+    { label: 'Growth: social post (1 ACU)', usd: 0.0325, path: 'code' },
   ];
 
   // Model structure: SUBSCRIPTIONS cover fixed overhead; USAGE prices clear
