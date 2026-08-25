@@ -49,7 +49,13 @@ for (const p of PACKS) {
 }
 const minBps = BILL.minWholesaleBps(), wholesaleMin = BILL.ACU_PRICE_USD * (minBps / 10000);
 if (!BILL.clearsFloor(wholesaleMin)) fails++;
-console.log(`  ACU retail $${BILL.ACU_PRICE_USD}/ACU = ${(BILL.ACU_PRICE_USD / BILL.UNIT_COST_USD).toFixed(1)}× · min wholesale ${minBps / 100}% = $${wholesaleMin.toFixed(4)} = ${(wholesaleMin / BILL.UNIT_COST_USD).toFixed(1)}× (≥ 4× floor; partners default to full retail, earn via fee on top) ${BILL.clearsFloor(wholesaleMin) ? '✓' : '✗'}`);
+console.log(`  ACU retail $${BILL.ACU_PRICE_USD}/ACU = ${(BILL.ACU_PRICE_USD / BILL.UNIT_COST_USD).toFixed(1)}× (merchant/agent price)`);
+for (const [who, bps] of [['distributor', 8500], ['reseller', 8000]]) {
+  const cost = BILL.ACU_PRICE_USD * (bps / 10000), ok = BILL.clearsFloor(cost);
+  if (!ok) fails++;
+  const spread = ((BILL.ACU_PRICE_USD - cost) / BILL.ACU_PRICE_USD * 100).toFixed(0);
+  console.log(`  ${who.padEnd(11)} wholesale ${bps / 100}% = $${cost.toFixed(4)} = ${(cost / BILL.UNIT_COST_USD).toFixed(2)}× → KODA nets ≥4×, partner keeps ${spread}% spread ${ok ? '✓' : '✗ BELOW 4× FLOOR'}`);
+}
 
 // RULE 4 — plans sit at the 4× floor, ad-hoc ACU sits above at 5×. A plan's INCLUDED rate
 // (usd/verifs) must clear the 4× floor AND be strictly cheaper than the ad-hoc ACU rate

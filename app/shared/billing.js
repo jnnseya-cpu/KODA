@@ -7,16 +7,19 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  // ── PRICING LAW (binding) ────────────────────────────────────────────────
-  // TWO RETAIL RATES, one hard floor:
-  //  · PLAN rate = 4× cost ($0.026/verif) — the committed, cheaper rate you get inside a
-  //    monthly plan's included quota. This equals the ABSOLUTE FLOOR: nothing is ever sold
-  //    below 4×.
-  //  · ACU / TOP-UP rate = 5× cost ($0.0325/ACU) — pay-as-you-go ACU: retail top-ups, plan
-  //    overage, AI actions, and the price a partner pays for wholesale float/inventory.
-  // So ad-hoc ACU always costs MORE than a plan (5× vs 4×): committing to a plan is the
-  // rational choice, and there is no way to obtain the 4× rate without a plan. Partners
-  // buy ACU at the 5× retail and earn their margin as a FEE ON TOP, not a discount.
+  // ── PRICING LAW (binding) — balanced so EVERYONE wins ─────────────────────
+  // TWO RETAIL RATES + a wholesale rate, one hard floor. KODA nets ≥4× on every ACU.
+  //  · PLAN rate = 4× cost ($0.026/verif) — the committed, cheaper rate a MERCHANT gets
+  //    inside a monthly plan's included quota. This equals the ABSOLUTE FLOOR.
+  //  · ACU / TOP-UP retail = 5× cost ($0.0325/ACU) — pay-as-you-go ACU: retail top-ups,
+  //    plan overage, AI actions, and the price a MERCHANT pays an agent for ACU.
+  //  · PARTNER WHOLESALE = 4×–4.25× (80–85% of the 5× retail) — what a distributor/reseller
+  //    PREPAYS for float/inventory. They resell to merchants at the 5× retail and keep the
+  //    15–20% spread as their margin. Because retail is 5×, this spread sits ENTIRELY above
+  //    the 4× floor: KODA still nets ≥4× on partner-channel ACU, the partner earns a real
+  //    margin, and the merchant pays the same retail as buying direct. Everyone wins.
+  // So ad-hoc ACU always costs a merchant MORE than a plan (5× vs 4×) — committing to a
+  // plan is the rational choice — while partners have a genuine wholesale margin.
   // The rail's collection fee is PASSED THROUGH to the merchant, so KODA's net never dips.
   const UNIT_COST_USD = 0.0065;         // fully-loaded code-path cost (mirrors costs.js COST.code)
   const ACU_MARKUP = 5;                 // ACU / top-up price = 5 × unit cost
@@ -31,9 +34,10 @@
   const MARGIN_FLOOR = 3.0;                                  // 300% profit = 4× cost
   const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.026 / ACU = plan rate
   const clearsFloor = (usdPerAcu) => Number(usdPerAcu) + 1e-9 >= PRICE_FLOOR_USD;
-  // lowest wholesale rate (bps of the 5× ACU retail) that still clears the 4× floor. The
-  // DEFAULT partner rate is 10000 (buy at the full 5× retail, earn via fee on top); an
-  // admin may discount down to this minimum, never below the 4× floor.
+  // lowest wholesale rate (bps of the 5× ACU retail) that still clears the 4× floor = 8000
+  // (80% of retail → exactly 4×). Distributors default to 8500 (KODA nets 4.25×, partner
+  // margin 15%), resellers to 8000 (KODA nets 4× floor, partner margin 20%). An admin may
+  // set any rate in [8000, 10000]; below 8000 would breach the 4× floor and is rejected.
   const minWholesaleBps = () => Math.ceil((PRICE_FLOOR_USD / ACU_PRICE_USD) * 10000);
   // throws if a $/ACU price breaks the rule — call at any point ACU is priced for sale.
   function assertFloor(usdPerAcu, label) {

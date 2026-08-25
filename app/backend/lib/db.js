@@ -406,7 +406,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS distributors (
   msisdn TEXT,                                 -- the KD's own mobile-money number (pay-to)
   device_id TEXT,                              -- the KD's Sentinel
   float_acu INTEGER NOT NULL DEFAULT 0,        -- prepaid inventory (authoritative)
-  wholesale_bps INTEGER NOT NULL DEFAULT 10000, -- 4× floor: partners buy float at retail, earn via fee on top
+  wholesale_bps INTEGER NOT NULL DEFAULT 8500,  -- 85% of the 5× retail: KODA nets 4.25×, distributor keeps a 15% spread
   parent_kd TEXT REFERENCES distributors(id),
   status TEXT NOT NULL DEFAULT 'active',        -- active|frozen
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -420,13 +420,13 @@ db.exec(`CREATE TABLE IF NOT EXISTS resellers (
   status TEXT NOT NULL DEFAULT 'ACTIVE',        -- APPLICANT|DUE_DILIGENCE|ACTIVE|SUSPENDED|TERMINATED
   settlement_currency TEXT NOT NULL DEFAULT 'USD',
   inventory_acu INTEGER NOT NULL DEFAULT 0,     -- prepaid voucher inventory (authoritative escrow)
-  wholesale_bps INTEGER NOT NULL DEFAULT 10000, -- 4× floor: resellers buy inventory at retail, earn via fee on top
+  wholesale_bps INTEGER NOT NULL DEFAULT 8000,  -- 80% of the 5× retail: KODA nets the 4× floor, reseller keeps a 20% spread
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`);
 // migrations for existing reseller tables (no-op on fresh DBs)
 try { db.exec(`ALTER TABLE resellers ADD COLUMN merchant_id TEXT REFERENCES merchants(id)`); } catch { /* exists */ }
 try { db.exec(`ALTER TABLE resellers ADD COLUMN inventory_acu INTEGER NOT NULL DEFAULT 0`); } catch { /* exists */ }
-try { db.exec(`ALTER TABLE resellers ADD COLUMN wholesale_bps INTEGER NOT NULL DEFAULT 10000`); } catch { /* exists */ }
+try { db.exec(`ALTER TABLE resellers ADD COLUMN wholesale_bps INTEGER NOT NULL DEFAULT 8000`); } catch { /* exists */ }
 // One-time data migrations, keyed on user_version so each runs exactly once and
 // never clobbers a per-partner rate an admin sets afterwards.
 //  v1 — resellers standardise to 80% (20% margin).   [superseded by v3]
@@ -447,6 +447,14 @@ try {
     db.exec(`UPDATE distributors SET wholesale_bps = 10000 WHERE wholesale_bps < 10000`);
     db.exec(`UPDATE resellers SET wholesale_bps = 10000 WHERE wholesale_bps < 10000`);
     db.exec('PRAGMA user_version = 3');
+  }
+  if (uv < 4) {
+    // Balanced model: retail rose to 5×, so the standard 85%/80% wholesale rates once
+    // again clear the 4× floor AND give partners a real 15%/20% margin. Restore them
+    // (v3 had forced everyone to 100% when retail was 4× and any discount broke the floor).
+    db.exec(`UPDATE distributors SET wholesale_bps = 8500 WHERE wholesale_bps >= 10000`);
+    db.exec(`UPDATE resellers SET wholesale_bps = 8000 WHERE wholesale_bps >= 10000`);
+    db.exec('PRAGMA user_version = 4');
   }
 } catch { /* best-effort one-time migration */ }
 
