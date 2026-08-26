@@ -125,6 +125,7 @@ Canonical codes developers will actually hit: `code_already_used` · `code_not_f
 | Boutique | 10 rps | 50 |
 | Commerce | 25 rps | 120 |
 | Plateforme | 100 rps | 500 |
+| Scale | 250 rps | 1000 |
 | Enterprise | Custom | Custom |
 
 `429` returns `Retry-After`. Verification submissions are additionally velocity-limited **per customer msisdn** (fraud control, not billing).

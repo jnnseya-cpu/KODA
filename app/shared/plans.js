@@ -19,18 +19,10 @@
   // Ad-hoc ACU / top-ups / overage stay at 5× ($0.0325). CI asserts: direct plan rate ≥4× AND
   // < the 5× ACU rate (RULE 4); partner resale of list nets ≥4× (RULE 5); ACU ≥5× (RULE 3).
   // verifs = usd/$0.026 (rounded down). Marché is the free acquisition tier (10 on us).
-  // ONE-RATE MODEL (partner-resellable, 4× floor everywhere). Every unit — a pay-as-you-go
-  // ACU, a plan-included verification, and an overage verification — carries the SAME retail
-  // rate: 5× cost = $0.0325/verif. Partners buy at a fixed wholesale: reseller 80% ($0.026 =
-  // the 4× floor, keeps 20%), distributor 85% ($0.02762 = 4.25×, keeps 15%). Because the
-  // retail rate is 5×, reselling ANY unit — ACU or a whole plan — still nets KODA ≥4×. This
-  // is why plans are priced at the 5× rate (verifs = usd/$0.0325, rounded down): a 4×-priced
-  // plan would net KODA below 4× once a partner takes their cut. A plan's value is its
-  // committed monthly quota + features + throughput + agent-resale reach — not a unit
-  // discount. Prices: Boutique $5/150 · Commerce $20/600 · Plateforme $100/3000 · Scale
-  // $399/12000 (all $0.033/verif ≈ 5.1×; resold at 80% = 4.1×, at 85% = 4.36×). Platform
-  // capabilities (sub-merchant API, trust-score, re-billing, distributor access) live at
-  // SCALE ($399); Plateforme ($100) is a throughput/scale tier only.
+  // Prices: Boutique $5/190 · Commerce $20/760 · Plateforme $100/3800 · Scale $399/15200
+  // (direct = $0.026/verif ≈ 4×; agent list = usd/0.8 ≈ 5×). Platform capabilities
+  // (sub-merchant API, trust-score, re-billing, distributor access) live at SCALE ($399);
+  // Plateforme ($100) is a throughput/scale tier only.
   //
   // *_legacy entries are NOT shown on the pricing ladder and are never resold (partner
   // resale always mints a CURRENT-ladder plan). They preserve the OLD economics for merchants
@@ -55,9 +47,9 @@
   const ACU = { code: 1, vision: 3, dispute: 3, trust: 0.5, submerchant: 5 };
 
   // prepaid top-up packs (spec §11) — paid via mobile money, verified by the engine itself.
-  // Pay-as-you-go ACU is priced at 5× cost ($0.0325/ACU) — the same retail rate as a plan's
-  // included verification. Every pack clears the 5× retail rate (CI asserts ≥5× in
-  // tools/margin.js RULE 3), so partner resale at 80%/85% still nets KODA ≥4×.
+  // Pay-as-you-go ACU is priced at 5× cost ($0.0325/ACU) — ABOVE a plan's 4× direct rate
+  // ($0.026), so committing to a plan (paid direct) always saves. Every pack clears the 5×
+  // rate (CI asserts ≥5× in tools/margin.js RULE 3), matching the partner LIST rate.
   const TOPUP_PACKS = [
     { usd: 33, acu: 1000 }, { usd: 165, acu: 5000 }, { usd: 650, acu: 20000 },
   ];

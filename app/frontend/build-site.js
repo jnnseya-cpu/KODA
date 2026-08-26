@@ -689,7 +689,7 @@ Koda.pay({ key: 'pk_live_…', amount: 25000, currency: 'CDF',
 <h2>Limits & pricing</h2>
 <ul>
 <li>Your plan includes a <b>monthly verification quota at no per-use cost</b>; failed matches, rejections and expired intents are always free. <b>Prepaid ACU</b> is drawn only by AI features (Vision, agents, disputes) and by verifications beyond your quota (overage).</li>
-<li>Per-key rate limits (Free 2 rps · Boutique 10 · Commerce 25 · Plateforme 100); exceed and you get HTTP 429 with <code>Retry-After</code>.</li>
+<li>Per-key rate limits (Free 2 rps · Boutique 10 · Commerce 25 · Plateforme 100 · Scale 250); exceed and you get HTTP 429 with <code>Retry-After</code>.</li>
 <li>Agent runs (<code>run:agents</code>) consume prepaid ACU at the agent's published rate; an empty balance returns HTTP 402 — after a 72 h merchant-protective grace buffer.</li>
 <li>Keys are environment-scoped (test/live), scope-restricted where you want them, and revocable instantly.</li>
 </ul>
