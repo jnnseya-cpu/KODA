@@ -2155,31 +2155,50 @@ module.exports = function registerRoutes(r) {
           if (msg.type !== 'text') continue;
           const from = msg.from;                                  // customer wa_id
           const text = String(msg.text?.body || '');
-          // merchant routing: display number ↔ merchant msisdn, else the first active merchant
-          const display = val.metadata?.display_phone_number || '';
-          const m = q.get(`SELECT * FROM merchants WHERE replace(msisdn,'+','') = ? AND status='active'`, display.replace(/[^\d]/g, ''))
-                 || q.get(`SELECT * FROM merchants WHERE status='active' AND parent_id IS NULL ORDER BY created_at LIMIT 1`);
-          if (!m) continue;
           const ref = (text.toUpperCase().match(/[A-Z0-9][A-Z0-9.\-]{6,}/g) || []).find(t => /\d/.test(t));
+          // Merchant routing (§ shared-number Door 2). KODA runs ONE WhatsApp number for
+          // MANY merchants, so the inbound number can't identify the merchant. Resolve, in
+          // order: (1) a merchant running their OWN dedicated number (display ↔ msisdn),
+          // else (2) the transaction code itself — a code lives in exactly one merchant's
+          // ledger, so it names the merchant. No fallback to "first merchant": that would
+          // cross-post one merchant's customers onto another.
+          const display = val.metadata?.display_phone_number || '';
+          let m = display ? q.get(`SELECT * FROM merchants WHERE replace(msisdn,'+','') = ? AND status='active'`, display.replace(/[^\d]/g, '')) : null;
+          if (!m && ref) m = engine.merchantForReference(ref);
           let reply;
-          if (!ref) {
+          if (!m) {
+            // Merchant not resolvable yet. If they sent a code we can't place, the payment
+            // simply isn't visible to KODA (network hasn't shown it, or wrong number). If
+            // no code, ask for one. Language unknown here → bilingual FR/EN.
+            reply = ref
+              ? `⏳ Ton paiement est en route — on te confirme dès que le réseau nous le montre.\n⏳ Your payment is on the way — we'll confirm as soon as the network shows it.`
+              : `Envoie le code de transaction de ta confirmation de paiement.\nSend the transaction code from your payment confirmation.`;
+          } else if (!ref) {
             reply = m.language === 'en'
               ? 'Send the transaction code from your payment confirmation to verify your payment.'
               : 'Envoie le code de transaction de ta confirmation de paiement pour vérifier ton paiement.';
           } else {
-            const res = engine.verify(q.get('SELECT * FROM merchants WHERE id=?', m.id), null, ref, { mode: 'chat' });
+            const res = engine.verify(m, null, ref, { mode: 'chat' });
+            const en = m.language === 'en';
             reply = res.status === 'verified'
-              ? `✅ Paiement confirmé — ${Number(res.amount_confirmed).toLocaleString('fr-FR')} ${m.currency}. Merci !`
+              ? (en ? `✅ Payment confirmed — ${Number(res.amount_confirmed).toLocaleString('fr-FR')} ${m.currency}. Thank you!`
+                    : `✅ Paiement confirmé — ${Number(res.amount_confirmed).toLocaleString('fr-FR')} ${m.currency}. Merci !`)
+              : res.status === 'already_verified'
+              ? (en ? `✅ This payment was already confirmed${res.amount_confirmed != null ? ` — ${Number(res.amount_confirmed).toLocaleString('fr-FR')} ${m.currency}` : ''}.`
+                    : `✅ Ce paiement a déjà été confirmé${res.amount_confirmed != null ? ` — ${Number(res.amount_confirmed).toLocaleString('fr-FR')} ${m.currency}` : ''}.`)
               : res.status === 'not_found_yet'
-              ? `⏳ Ton paiement est en route — on te confirme dès que le réseau nous le montre.`
+              ? (en ? `⏳ Your payment is on the way — we'll confirm as soon as the network shows it.`
+                    : `⏳ Ton paiement est en route — on te confirme dès que le réseau nous le montre.`)
               : res.code === 'code_already_used'
-              ? `⚠️ Ce code a déjà été utilisé. Vérifie ta référence.`
-              : `❌ Nous n'avons pas pu confirmer ce paiement. Vérifie le code, le montant et le numéro de réception.`;
+              ? (en ? `⚠️ This code has already been used. Check your reference.`
+                    : `⚠️ Ce code a déjà été utilisé. Vérifie ta référence.`)
+              : (en ? `❌ We couldn't confirm this payment. Check the code, the amount and the receiving number.`
+                    : `❌ Nous n'avons pas pu confirmer ce paiement. Vérifie le code, le montant et le numéro de réception.`);
           }
           if (meta.configured()) meta.sendText(from, reply).catch(() => {});
           q.run(`INSERT INTO comm_deliveries (id,merchant_id,user_id,event_key,channel,recipient,subject,provider,status)
                  VALUES (?,?,NULL,'chat.inbound_reply','whatsapp',?,?,?,?)`,
-            U.id('dlv'), m.id, from, reply.slice(0, 120), meta.configured() ? 'meta' : 'sandbox', meta.configured() ? 'sent' : 'logged');
+            U.id('dlv'), m ? m.id : null, from, reply.slice(0, 120), meta.configured() ? 'meta' : 'sandbox', meta.configured() ? 'sent' : 'logged');
         }
       }
     }

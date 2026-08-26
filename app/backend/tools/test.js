@@ -298,6 +298,19 @@ async function main() {
     // the WhatsApp door then acts as a confirmation channel. Either way the payment
     // must end verified with a receipt for this reference.
     T('chat-door verification', receipts.some(r => r.reference === 'OM.999999.TEST.SUITE1'));
+    // SHARED-number routing: KODA runs ONE WhatsApp number for many merchants. A message
+    // arriving on a number that matches NO merchant must still route by the transaction
+    // code (which lives in exactly one merchant's ledger) — NOT to some fallback merchant.
+    const last2 = feed.find(s => s.operator === 'orange_cd' && !s.quarantined && s.balance_after != null);
+    const bal2 = (last2 ? last2.balance_after : 280000) + 40000;
+    await j('/app/sandbox/sms', { body: { raw: `Vous avez recu 40 000 FC de SHARED ROUTE (+243897777). Ref: OM.555000.SHARED.NUM. Solde: ${bal2.toLocaleString('fr-FR')}`, operator: 'orange_cd' } }, tk);
+    const shared = await j('/webhooks/whatsapp', { body: { entry: [{ changes: [{ value: { metadata: { display_phone_number: '000000000000' }, messages: [{ type: 'text', from: '243897777', text: { body: 'OM.555000.SHARED.NUM' } }] } }] }] } });
+    T('shared-number chat is accepted', shared.s === 200 && shared.d.received === true);
+    const receipts2 = (await j('/app/receipts', {}, tk)).d;
+    T('shared-number routes by reference to the right merchant', receipts2.some(r => r.reference === 'OM.555000.SHARED.NUM'));
+    // And a code no merchant has → resolves to nobody, so no cross-posting / no crash
+    const orphan = await j('/webhooks/whatsapp', { body: { entry: [{ changes: [{ value: { metadata: { display_phone_number: '000000000000' }, messages: [{ type: 'text', from: '243890000', text: { body: 'OM.000000.NOBODY.HAS' } }] } }] }] } });
+    T('unknown code on shared number is handled (no merchant, still 200)', orphan.s === 200 && orphan.d.received === true);
 
     console.log('— platform & admin');
     const plat = (await j('/app/auth/login', { body: { email: 'platform@koda.africa', password: 'koda-demo' } })).d;

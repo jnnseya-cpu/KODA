@@ -585,4 +585,23 @@ function editDistance(a, b) {
 }
 function fmtAmt(n) { return Number(n || 0).toLocaleString('fr-FR'); }
 
-module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, reserve, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, quotaPeriodStart, canSpend, overageAcu, billingPayer, planExpired, downgradeExpiredPlans, emitOutcome };
+// Resolve which merchant a transaction code belongs to — for SHARED-number chat
+// routing (Door 2): KODA runs ONE WhatsApp number for many merchants, so the
+// inbound number can't say who the payment is for. The reference can: a mobile-money
+// transaction code lands in exactly ONE merchant's sms_ledger (the merchant whose
+// own device forwarded that confirmation SMS), so the code itself names the merchant.
+// Returns the active merchant, or null when the code isn't visible to KODA yet.
+function merchantForReference(reference) {
+  const ref = String(reference || '').trim().toUpperCase();
+  if (!ref) return null;
+  // (a) a code already sitting in some merchant's SMS ledger (exact match, freshest first)
+  let row = q.get(`SELECT merchant_id FROM sms_ledger
+    WHERE UPPER(ref_code)=? AND quarantined=0 ORDER BY received_at DESC LIMIT 1`, ref);
+  // (b) or a code already verified earlier (so a status re-check still routes home)
+  if (!row) row = q.get(`SELECT merchant_id FROM replay_index
+    WHERE reference=? AND receipt_id IS NOT NULL LIMIT 1`, ref);
+  if (!row) return null;
+  return q.get(`SELECT * FROM merchants WHERE id=? AND status='active'`, row.merchant_id) || null;
+}
+
+module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, reserve, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, quotaPeriodStart, canSpend, overageAcu, billingPayer, planExpired, downgradeExpiredPlans, emitOutcome, merchantForReference };

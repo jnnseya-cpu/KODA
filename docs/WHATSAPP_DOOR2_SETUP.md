@@ -187,12 +187,23 @@ Expected reply in-thread:
 4. KODA extracts a **reference code** from the text — first token matching
    `[A-Z0-9][A-Z0-9.\-]{6,}` that contains a digit (case-insensitive).
    - No code found → KODA asks the customer to send their transaction code.
-5. **Merchant routing:** the inbound `display_phone_number` is matched to a merchant's
-   registered `msisdn`; if none matches, it falls back to the first active (top-level)
-   merchant.
+5. **Merchant routing (multi-tenant — one KODA number, many merchants).** KODA resolves
+   which merchant the payment belongs to, in order:
+   1. **Dedicated number** — a merchant running their *own* WhatsApp number: the inbound
+      `display_phone_number` matches that merchant's registered `msisdn`.
+   2. **Shared KODA number** — otherwise KODA routes by the **transaction code itself**.
+      A mobile-money code lands in exactly one merchant's `sms_ledger` (the merchant whose
+      device forwarded that confirmation SMS), so the code names the merchant
+      (`engine.merchantForReference`).
+   - If the code matches no merchant's ledger yet → KODA replies "payment on its way" and
+     routes to **nobody** (no cross-posting to a fallback merchant).
 6. KODA runs `engine.verify(merchant, null, ref, { mode: 'chat' })` and replies in-thread
    (via `meta.sendText`) with the ✅/⏳/⚠️/❌ result. Every reply is written to
    `comm_deliveries` (`provider: meta` when live, `sandbox` when not).
+
+> **This is why one KODA WhatsApp number serves every merchant.** Customers of all
+> merchants message the same number; the transaction code disambiguates. You do **not**
+> need a separate number per merchant (though a merchant *may* bring their own — case 5.1).
 
 **Language:** replies are French by default, English when the merchant's `language` is `en`.
 
@@ -214,7 +225,8 @@ approved.
 | Handshake works but no replies sent | Not subscribed to the `messages` field, or still sandbox | Subscribe to `messages`; confirm Door 2 `status: live` in `/app/admin/rails` |
 | Reply computed but customer gets nothing | `META_WA_TOKEN` invalid/expired, or wrong `META_WA_PHONE_ID` | Regenerate a **permanent** system-user token; recheck the Phone Number ID |
 | `graph_http_401` / `graph_http_190` in logs | Access token expired or lacks scopes | Regenerate with `whatsapp_business_messaging` + `whatsapp_business_management`, expiry **Never** |
-| Right customer, wrong merchant matched | No merchant `msisdn` matches the inbound `display_phone_number` | Set the merchant's registered phone to the WhatsApp business number |
+| Customer always told "payment on its way", never confirmed | The transaction code isn't in any merchant's `sms_ledger` — the merchant's device/SMS forwarding isn't reaching KODA | Confirm the merchant's SMS/device is registered and forwarding confirmations to KODA |
+| A merchant wants their own dedicated number instead of the shared one | Optional | Add that number under the WABA and set the merchant's registered `msisdn` to it — routing case 5.1 takes over automatically |
 
 ---
 
