@@ -54,7 +54,7 @@ s.parentNode.insertBefore(t,s)}(window, document,'script',
 fbq('init', '${META_PIXEL_ID}');
 fbq('track', 'PageView');
 </script>
-<noscript><img height="1" width="1" style="display:none"
+<noscript><img height="1" width="1" alt="" style="display:none"
 src="https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1"
 /></noscript>
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${GTM_ID}"
@@ -221,9 +221,15 @@ function footerLinks() {
 
 // ---- shared layout for content pages ----
 function page({ title, kicker, lead, body }) {
+  // Per-page meta description from the lead (tags stripped, ≤160 chars) so every content
+  // page has its own search snippet + social description instead of none.
+  const metaDesc = String(lead || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 160).replace(/"/g, '&quot;');
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title} — KODA</title>${ANALYTICS}
+<meta name="description" content="${metaDesc}">
+<meta property="og:description" content="${metaDesc}">
+<meta name="twitter:description" content="${metaDesc}">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icon.svg">
 <meta property="og:type" content="website">
