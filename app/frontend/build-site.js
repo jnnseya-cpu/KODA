@@ -491,7 +491,7 @@ function kodaPartnerApply(e){
     <ul><li>Manual + Chat + API</li><li>2 devices · 3 team seats</li><li>Customer receipts</li><li>Web widget + webhooks</li><li>Reconciliation</li></ul>
     <a class="pbtn" href="/app#signup?plan=boutique">Choose Boutique</a></div>
   <div class="plan hot"><h3>Commerce</h3><div class="pr">$20<small>/mo</small></div><div class="per">760 verifs · $0.0325 over</div>
-    <ul><li>Everything in Boutique</li><li>5 devices · 10 seats</li><li>Vision + screenshot forensics</li><li>DisputeAgent</li><li>Priority parsing · WhatsApp SLA</li></ul>
+    <ul><li>Everything in Boutique</li><li>5 devices · 10 seats</li><li>Vision + screenshot forensics</li><li>Dispute assistant</li><li>Priority parsing · WhatsApp SLA</li></ul>
     <a class="pbtn" href="/app#signup?plan=commerce">Choose Commerce</a></div>
   <div class="plan"><h3>Plateforme</h3><div class="pr">$100<small>/mo</small></div><div class="per">3,800 verifs · $0.0325 over</div>
     <ul><li>Everything in Commerce</li><li>Unlimited devices</li><li>Highest throughput (100 req/s)</li><li>SLA-backed response times</li></ul>
@@ -505,7 +505,7 @@ function kodaPartnerApply(e){
 </div>
 <div class="moral">"Pay only when your merchant gets paid." <em>— the moral centre of the pricing.</em>
   <small>A plan's included rate always beats pay-as-you-go · prepaid top-ups verified by the engine itself</small></div>
-<p><b>Pay-as-you-go:</b> prepaid ACU packs from <b>$33 → 1,000 ACU</b> ($165 → 5,000 · $650 → 20,000), topped up via mobile money and verified by KODA's own engine. 1 ACU = one verification beyond your plan quota; ACU also powers AI features (Vision, DisputeAgent). A plan's included rate ($0.026/verif) always beats pay-as-you-go ($0.0325) — so subscribing saves ~20%.</p>
+<p><b>Pay-as-you-go:</b> prepaid ACU packs from <b>$33 → 1,000 ACU</b> ($165 → 5,000 · $650 → 20,000), topped up via mobile money and verified by KODA's own engine. 1 ACU = one verification beyond your plan quota; ACU also powers AI features (screenshot reading, dispute assistant). A plan's included rate ($0.026/verif) always beats pay-as-you-go ($0.0325) — so subscribing saves ~20%.</p>
 <p style="color:var(--dim);font-size:12.5px">Pay KODA directly by card or mobile money for the prices above. <b style="color:var(--text)">No card or bank?</b> A local KODA agent can set you up and activate any plan with cash — find one near you.</p>
 <p style="color:var(--dim);font-size:13.5px">Prices in USD, billed monthly, and a paid plan activates the moment KODA confirms your mobile-money payment. Upgrade, downgrade or cancel anytime — no lock-in. Already have an account? Choose or change your plan in <a href="/app#pricing">the app → Plans &amp; pricing</a>.</p>`,
   }),
@@ -560,7 +560,7 @@ function kodaPartnerApply(e){
 <li>The operator's <b>own confirmation SMS</b> for this payment reached your phone.</li>
 <li>The customer's code <b>matches</b> it — amount, reference and window line up.</li>
 <li>The code has <b>never been used before</b> (single-use forever).</li>
-<li>It passed the <b>fraud checks</b> (balance-chain, sender, suffix).</li>
+<li>It passed the <b>fraud checks</b>.</li>
 </ul></div>
 <div class="card"><h3 class="warn">⚠ Verified does not mean</h3><ul>
 <li>A guarantee the payment <b>can never be reversed</b> by the operator — no one downstream of the operator can promise that.</li>
@@ -583,7 +583,7 @@ function kodaPartnerApply(e){
 <div class="card"><h3>${NFAM}</h3><p>Template families that unlock them all</p></div>
 </div>
 <h2>Why families, not countries, are the unit</h2>
-<p>One brand almost always sends <b>one SMS grammar</b> across every market it runs in. M-Pesa's confirmation looks the same in Kenya, Tanzania, DRC and five other markets — so a single template pack lights up all of them at once. That is why <b>${NFAM} families cover ${N} operators</b>: coverage compounds. The most valuable families first:</p>
+<p>One brand almost always uses <b>one message format</b> across every market it runs in. M-Pesa's confirmation looks the same in Kenya, Tanzania, DRC and five other markets — so adding it once lights up all of them at once. That is why <b>${NFAM} families cover ${N} operators</b>: coverage compounds. The most valuable families first:</p>
 <table>
 <tr><th>Family</th><th>Tier</th><th>Countries it unlocks</th></tr>
 ${FAM.filter(f => f.tier !== 'C').slice(0, 12).map(f =>
@@ -662,10 +662,10 @@ curl -H "Authorization: Bearer sk_test_..." https://kodajnn.com/v1/ping</pre>
 <tr><td>GET</td><td><code>/checkout/{id}?cs=</code></td><td>Customer-facing intent read, authorised by the intent's own <code>client_secret</code> — no API key. Powers the hosted page &amp; widget.</td></tr>
 <tr><td>POST</td><td><code>/checkout/{id}/verify</code></td><td>The customer submits their SMS code; on success returns the <code>redirect</code> so the order moves forward automatically.</td></tr>
 <tr><td>GET</td><td><code>/receipts</code></td><td>Filterable ledger of verified payments with audit traces.</td></tr>
-<tr><td>POST</td><td><code>/sandbox/sms</code></td><td>Inject an operator-formatted SMS and watch ParserAgent structure it.</td></tr>
+<tr><td>POST</td><td><code>/sandbox/sms</code></td><td>Inject an operator-formatted SMS and watch KODA structure it.</td></tr>
 <tr><td>GET</td><td><code>/billing/balance</code></td><td>Prepaid ACU balance. <em>(read:usage)</em></td></tr>
 <tr><td>GET</td><td><code>/agents</code></td><td>List the AI agents you can run and their ACU cost. <em>(read:agents)</em></td></tr>
-<tr><td>POST</td><td><code>/agents/{type}/run</code></td><td>Run an agent — ReconcilerAgent report, trust lookup, dispute evidence, Vision extraction. Consumes prepaid ACU. <em>(run:agents)</em></td></tr>
+<tr><td>POST</td><td><code>/agents/{type}/run</code></td><td>Run a KODA agent — reconciliation report, trust lookup, dispute evidence, or screenshot extraction. Consumes prepaid ACU. <em>(run:agents)</em></td></tr>
 <tr><td>GET</td><td><code>/usage</code></td><td>Your monthly quota, usage and ACU balance. <em>(read:usage)</em></td></tr>
 </table>
 <h2>Scopes</h2>
@@ -825,7 +825,7 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
     <span class="badge" style="align-self:flex-start;margin:0 0 8px">Recommended · most secure</span>
     <h3 style="margin:0 0 8px">✉ SMS build</h3>
     <ul style="margin:0 0 14px 18px">
-      <li><b>Most reliable &amp; hardest to fake</b> — reads the real operator SMS, telephony-gated, with full balance-chain fraud protection.</li>
+      <li><b>Most reliable &amp; hardest to fake</b> — reads the real operator SMS, telephony-gated, with our strongest fraud protection.</li>
       <li>Recovers payments missed during a reboot; works even if notifications are off.</li>
       <li><b>Needs the Play Protect step</b> below (one minute, once).</li>
       <li>Use for all real merchants and high-value tills.</li>
@@ -1103,7 +1103,7 @@ function kodaContactSubmit(e){
 <h2>1. The service</h2><p>KODA provides Payment Verification-as-a-Service: structuring merchant-side operator confirmations and matching customer-submitted references against them. KODA is not a payment processor, wallet, aggregator, escrow or money transmitter; funds move operator → merchant exactly as without KODA.</p>
 <h2>2. Accounts & keys</h2><p>You are responsible for your credentials, API keys and team seats. Keys can be rotated and revoked instantly; notify us of suspected compromise.</p>
 <h2>3. Billing</h2><p>Each plan includes a monthly verification quota at no per-use cost; failed matches, rejections and expired intents are free. Verifications beyond the quota, and AI features (Vision, agents, disputes), draw on prepaid ACU — topped up via mobile money and verified by KODA's own engine, with a small goodwill credit buffer so a live checkout is never cut off the moment your balance reaches zero.</p>
-<h2>4. Acceptable use</h2><p>No use for money laundering, fraud, sanctioned activity or any unlawful commerce. FraudSentinel velocity rules apply to all tiers. We may suspend accounts pending investigation of abuse.</p>
+<h2>4. Acceptable use</h2><p>No use for money laundering, fraud, sanctioned activity or any unlawful commerce. Fraud and velocity controls apply to all tiers. We may suspend accounts pending investigation of abuse.</p>
 <h2>5. Honest limitations</h2><p>Verification latency floors are set by operator SMS delivery, not by KODA. KODA verifies payments, not business ethics, and cannot prevent operator-side reversals — it makes you first to know. See the full limitations list in the product documentation.</p>
 <h2>6. Liability</h2><p>Service provided "as is" within the SLA of your plan (Commerce+: 99.9% API availability, credited if missed). Aggregate liability is capped at fees paid in the preceding 12 months.</p>
 <h2>7. Governing law</h2><p>Democratic Republic of the Congo, with per-market annexes where local law requires. Disputes go to good-faith negotiation first.</p>`,

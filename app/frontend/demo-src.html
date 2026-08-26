@@ -103,7 +103,7 @@
   <section class="hero">
     <div class="kick" id="t-kick">Démonstration en direct</div>
     <h1 id="t-h1">Regardez KODA vérifier un paiement.</h1>
-    <p id="t-sub">Le même paiement mobile money, vérifié par les cinq portes de KODA. Tout tourne avec le vrai moteur de KODA, dans votre navigateur — sans compte, sans argent réel.</p>
+    <p id="t-sub">Le même paiement mobile money, vérifié par les cinq portes de KODA. Tout tourne en direct dans votre navigateur — sans compte, sans argent réel.</p>
   </section>
 
   <div class="scenario">
@@ -137,10 +137,10 @@
   var STR = {
     fr: {
       demo:'Démo', kick:'Démonstration en direct', h1:'Regardez KODA vérifier un paiement.',
-      sub:"Le même paiement mobile money, vérifié par les cinq portes de KODA. Tout tourne avec le vrai moteur de KODA, dans votre navigateur — sans compte, sans argent réel.",
+      sub:"Le même paiement mobile money, vérifié par les cinq portes de KODA. Tout tourne en direct dans votre navigateur — sans compte, sans argent réel.",
       scn:'Scénario :', merchant:'votre commerce', how:'Comment ça marche', signup:'Créer un compte',
       foot:'service de vérification de paiements. KODA ne détient ni ne déplace jamais les fonds.',
-      realnote:'Le moteur d’analyse (parsing) de cette page est le CODE DE PRODUCTION réel de KODA (shared/parser.js), inséré tel quel. Les verdicts de fraude reprennent les mêmes bandes de risque que le moteur FraudSentinel. Les portes API et USSD montrent des échanges représentatifs.',
+      realnote:'Cette page fait tourner une démo de vérification en direct. Les portes API et USSD montrent des échanges représentatifs.',
       doors:{manual:'Porte 1 · Manuel',whatsapp:'Porte 2 · WhatsApp',api:'Porte 3 · API',ussd:'Porte 4 · USSD',sms:'Porte 5 · SMS entrant',fraud:'🛡 Labo anti-fraude'},
       manual_h:'Porte 1 — Mode manuel', manual_l:'Le commerçant colle le code du client dans la console. Verdict ancré sur le SMS opérateur en ~3 s.',
       sms_from:'SMS reçu sur le téléphone du commerçant', code_lbl:'Code de transaction saisi par le client',
@@ -166,7 +166,7 @@
       sub:"The same mobile-money payment, verified through all five KODA doors. Everything runs on KODA's real engine, in your browser — no account, no real money.",
       scn:'Scenario:', merchant:'your shop', how:'How it works', signup:'Create account',
       foot:'a payment verification service. KODA never holds or moves funds.',
-      realnote:'The parsing engine on this page is KODA’s REAL production code (shared/parser.js), inlined verbatim. Fraud verdicts use the same risk bands as the FraudSentinel engine. The API and USSD doors show representative exchanges.',
+      realnote:'This page runs a live verification demo. The API and USSD doors show representative exchanges.',
       doors:{manual:'Door 1 · Manual',whatsapp:'Door 2 · WhatsApp',api:'Door 3 · API',ussd:'Door 4 · USSD',sms:'Door 5 · Inbound SMS',fraud:'🛡 Fraud Lab'},
       manual_h:'Door 1 — Manual mode', manual_l:'The merchant pastes the customer code into the console. Operator-SMS-anchored verdict in ~3s.',
       sms_from:'SMS received on the merchant’s phone', code_lbl:'Transaction code entered by the customer',

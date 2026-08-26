@@ -659,8 +659,8 @@ risk 0.02 · &lt;10 s</div>
     <h2>Coverage is a parsing template, not a contract.</h2>
     <p class="sec-sub">
       KODA works wherever the operator sends the merchant a confirmation SMS with a reference and amount —
-      the standard behaviour of GSMA-model mobile money on <strong>every continent</strong>. Each operator is a
-      versioned template pack, shipped over the air, drift-monitored, regenerated automatically.
+      the standard behaviour of GSMA-model mobile money on <strong>every continent</strong>. New operators are
+      added centrally and kept current automatically as their formats change — no per-country contract, no integration.
     </p>
     <div class="waves">
       <div class="wave"><span class="w">WAVE 1 · HOME</span><h4>DR Congo</h4><p>M-Pesa (Vodacom) · Orange Money · Airtel Money · Africell Money</p></div>
@@ -697,19 +697,19 @@ risk 0.02 · &lt;10 s</div>
           </div>
           <div class="attack">
             <div class="attack-name">Stolen code</div>
-            <div class="attack-def">Payer-number suffix must match the checkout identity, with exact amount and a tight time window. Mismatch → challenge: <em>"confirm the last 3 digits of the paying number."</em></div>
+            <div class="attack-def">A code doesn't travel — it's tied to the payment it belongs to. Anything that doesn't line up triggers an extra identity check instead of a confirmation.</div>
           </div>
           <div class="attack">
             <div class="attack-name">Forged screenshot</div>
-            <div class="attack-def">A screenshot is never accepted as proof on its own. Vision forensics feed the risk score — <strong>the truth is always the merchant-side ledger</strong>.</div>
+            <div class="attack-def">A screenshot is never accepted as proof on its own — <strong>the truth is always the merchant-side record</strong> the network itself issued.</div>
           </div>
           <div class="attack">
             <div class="attack-name">Spoofed SMS</div>
-            <div class="attack-def">Sender-ID allowlist, grammar validation, and the <strong>balance-chain defence</strong> (shown right) → the fake message is quarantined and the merchant alerted.</div>
+            <div class="attack-def">A forged message is cross-checked against the operator's own record and <strong>quarantined</strong> — and you're alerted, rather than paid on a lie.</div>
           </div>
           <div class="attack">
             <div class="attack-name">Pay, then reverse</div>
-            <div class="attack-def">Reversal SMS are parsed too and fire <code style="font-family:var(--mono);font-size:12.5px">payment.reversed</code>. KODA can't stop an operator reversal — it makes you <strong>the first to know</strong>.</div>
+            <div class="attack-def">A later reversal fires <code style="font-family:var(--mono);font-size:12.5px">payment.reversed</code>. KODA can't stop an operator reversal — it makes you <strong>the first to know</strong>.</div>
           </div>
         </div>
         <div>
@@ -737,21 +737,20 @@ risk 0.02 · &lt;10 s</div>
 <!-- ============ AGENT MESH ============ -->
 <section class="sec-alt">
   <div class="wrap">
-    <div class="sec-kicker">The agent mesh</div>
-    <h2>Nine agents. Every decision auditable.</h2>
-    <p class="sec-sub">A LangGraph mesh supervises every verification. <strong>Agent law:</strong> every autonomous
-    confirmation writes its full decision trace to an append-only store — <em>a verification you cannot audit
-    is a verification you cannot defend.</em></p>
+    <div class="sec-kicker">Under the hood</div>
+    <h2>Intelligent — and auditable by design.</h2>
+    <p class="sec-sub">An AI layer runs every verification end to end. <strong>The rule we hold ourselves to:</strong>
+    every automatic confirmation writes a full, append-only decision trace — <em>a verification you cannot
+    audit is a verification you cannot defend.</em></p>
     <div class="agents">
-      <div class="agent"><span class="id">K-01</span><h4>ParserAgent</h4><p>Structures SMS; detects operator format drift; regenerates + canary-ships template packs worldwide, OTA.</p></div>
-      <div class="agent"><span class="id">K-02</span><h4>MatchMaker</h4><p>Code↔ledger↔intent↔amount↔window↔suffix matching. Repairs customer typos up to edit distance 2.</p></div>
-      <div class="agent"><span class="id">K-03</span><h4>FraudSentinel</h4><p>Risk score per match, retrained per corridor — Kinshasa fraud ≠ Dhaka fraud.</p></div>
-      <div class="agent"><span class="id">K-04</span><h4>VisionAgent</h4><p>Extracts refs from screenshots; forgery forensics. Assistive evidence only — never sole proof.</p></div>
-      <div class="agent"><span class="id">K-05</span><h4>ReconcilerAgent</h4><p>Three-way reconciliation; surfaces unmatched payments — "you were paid 3× today with no order attached."</p></div>
-      <div class="agent"><span class="id">K-06</span><h4>DisputeAgent</h4><p>Interviews the customer in-channel on failed verifies; hands you an evidence file + recommendation.</p></div>
-      <div class="agent"><span class="id">K-07</span><h4>LinguaAgent</h4><p>All dialogue in FR, EN, Lingala, Swahili, Wolof, Twi — Bengali, Urdu, Tagalog, Somali per wave.</p></div>
-      <div class="agent"><span class="id">K-08</span><h4>OpsPilot</h4><p>Fleet heartbeats, per-operator parse health, webhook delivery — auto-remediates known failure classes.</p></div>
-      <div class="agent"><span class="id">K-09</span><h4>COSA-K</h4><p>Chief-of-staff orchestration, policy, escalation, and your weekly merchant intelligence brief.</p></div>
+      <div class="agent"><h4>Reads any operator</h4><p>Structures the confirmation message across formats and languages — and keeps up as operators change theirs.</p></div>
+      <div class="agent"><h4>Matches to the order</h4><p>Ties each payment to the right order, and forgives small typos in the customer's reference.</p></div>
+      <div class="agent"><h4>Scores fraud</h4><p>A risk score on every match, tuned to local patterns — the fraud in Kinshasa is not the fraud in Dhaka.</p></div>
+      <div class="agent"><h4>Screenshot forensics</h4><p>Reads a code from an image when a customer insists on sending one — assistive evidence, never sole proof.</p></div>
+      <div class="agent"><h4>Reconciles</h4><p>Surfaces payments with no order attached — "you were paid 3× today and recorded none of it."</p></div>
+      <div class="agent"><h4>Handles disputes</h4><p>Works the customer through a failed verify and hands you an evidence file with a recommendation.</p></div>
+      <div class="agent"><h4>Speaks your customers' language</h4><p>FR · EN · Lingala · Swahili · Wolof · Twi, with more added per market.</p></div>
+      <div class="agent"><h4>Watches itself</h4><p>Fleet health, coverage monitoring and delivery — plus a weekly intelligence brief for you.</p></div>
     </div>
   </div>
 </section>
@@ -777,13 +776,13 @@ risk 0.02 · &lt;10 s</div>
         <p style="color:var(--text-dim);font-size:14.5px;line-height:1.7">
           You can't send yourself real mobile money all day. Magic references produce deterministic
           outcomes, and <span class="mono" style="font-size:13px;color:var(--gold-bright)">POST /sandbox/sms</span>
-          lets you inject any operator-formatted SMS and watch ParserAgent structure it.
+          lets you inject any operator-formatted SMS and watch KODA structure it.
         </p>
         <ul class="magic">
           <li><code>TEST-OK-25000</code><span>instant <b>payment.verified</b></span></li>
           <li><code>TEST-LATE-90</code><span>verifies after 90 s → <b>payment.verified.late</b></span></li>
           <li><code>TEST-REPLAY</code><span>rejected → <b>code_already_used</b></span></li>
-          <li><code>TEST-SUFFIX</code><span>mismatch → DisputeAgent challenge flow</span></li>
+          <li><code>TEST-SUFFIX</code><span>mismatch → identity challenge flow</span></li>
           <li><code>TEST-REVERSAL</code><span>verify, then <b>payment.reversed</b></span></li>
         </ul>
         <div class="north">North-star metric, measured: <strong>first verified payment &lt; 10 minutes from signup.</strong> Sandbox is free, unlimited, never expires.</div>

@@ -1,7 +1,7 @@
-// KODA — ParserAgent: operator template packs (calibration grammars, OTA-updatable in production)
+// KODA — operator SMS parser.
 'use strict';
 
-// Each pack: operator id, sender allowlist, regex grammar → canonical fields.
+// Maps an operator confirmation message to canonical fields.
 // Production ships these OTA to Sentinel; here they run server-side for the
 // sandbox simulator and KODA Lite (forwarded SMS) ingestion.
 const PACKS = [
