@@ -151,7 +151,7 @@ if (fs.existsSync(landingSrc)) {
     // pure-CSS hamburger + a Blog link so the homepage menu works on every screen.
     .replace('<div class="nav-links">',
       '<input type="checkbox" id="lnav" class="lnav-t"><label for="lnav" class="lnav-b" aria-label="Menu">☰</label><div class="nav-links">')
-    .replace('<a href="#pricing">Pricing</a>', '<a href="#pricing">Pricing</a><a href="/blog">Blog</a><a href="/app">Log in</a><a class="nav-getstarted" href="/app#signup">Get started →</a>')
+    .replace('<a href="#pricing">Pricing</a>', '<a href="/pricing">Pricing</a><a href="/blog">Blog</a><a href="/app">Log in</a><a class="nav-getstarted" href="/app#signup">Get started →</a>')
     // point the homepage menu at the real, updated PAGES (not old on-page anchors),
     // so "Coverage" opens /coverage (235 operators), not the inline #world section.
     .replace('<a href="#how">How it works</a>', '<a href="/how-it-works">How it works</a>')
@@ -431,38 +431,50 @@ function kodaPartnerApply(e){
     lead: 'One ladder, all five doors. Every plan includes a monthly verification quota at no per-use cost — the same whether a human clicked Verify or a webhook fired. Failed matches, rejections, expired intents: free.',
     body: `
 <style>
-.pl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:8px 0 20px}
-.pl{border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px;background:var(--ink2)}
-.pl.hot{border-color:var(--gold)}
-.pl h3{margin:0;font-size:18px}
-.pl .price{font-size:30px;font-weight:900}
-.pl .price small{font-size:14px;color:var(--dim);font-weight:600}
-.pl .per{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
-.pl ul{list-style:none;padding:0;margin:2px 0;display:flex;flex-direction:column;gap:6px}
-.pl li{font-size:13px;display:flex;gap:8px}.pl li::before{content:'✓';color:var(--gold)}
-.pl .pbtn{margin-top:auto;text-align:center;border:1px solid var(--gold);border-radius:9px;padding:10px;font-weight:800;font-size:13.5px}
-.pl .pbtn.solid{background:var(--gold);color:var(--ink)}
+/* Matches the homepage (#pricing) card design so both surfaces look identical. */
+.plans{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:stretch;margin:8px 0 22px}
+@media(max-width:1080px){.plans{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.plans{grid-template-columns:1fr}}
+.plan{border:1px solid var(--line);border-radius:14px;padding:26px 20px;display:flex;flex-direction:column;background:var(--ink2)}
+.plan.hot{border-color:var(--gold);background:linear-gradient(180deg,rgba(232,161,31,.09),var(--ink2) 45%);position:relative}
+.plan.hot::before{content:"MOST CHOSEN";position:absolute;top:-11px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;background:var(--gold);color:var(--ink);padding:4px 11px;border-radius:99px;font-weight:700;white-space:nowrap}
+.plan h3{font-size:16px;font-weight:800;letter-spacing:.02em;margin:0}
+.plan .pr{font-size:30px;font-weight:900;margin:10px 0 2px}
+.plan .pr small{font-size:13px;color:var(--dim);font-weight:600}
+.plan .per{font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:16px;letter-spacing:.04em}
+.plan ul{list-style:none;font-size:12.8px;color:var(--dim);flex:1;padding:0;margin:0}
+.plan li{padding:6.5px 0 6.5px 18px;position:relative;border-top:1px dashed var(--line)}
+.plan li::before{content:"✓";position:absolute;left:0;color:#23B884;font-family:var(--mono);font-size:11px}
+.plan .pbtn{margin-top:18px;text-align:center;font-family:var(--mono);font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:11px;transition:.15s;display:block}
+.plan .pbtn:hover{border-color:var(--gold);color:var(--gold)}
+.plan.hot .pbtn{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+.plan.hot .pbtn:hover{background:#F5B93E}
+.moral{margin:6px 0 22px;text-align:center;font-size:19px;font-weight:800}
+.moral em{color:var(--gold);font-style:normal}
+.moral small{display:block;font-family:var(--mono);font-weight:500;font-size:12.5px;color:var(--dim);margin-top:8px;letter-spacing:.06em}
 </style>
-<div class="pl-grid">
-  <div class="pl"><h3>Marché</h3><div class="price">$0</div><div class="per">forever · 10 verifs/mo</div>
-    <ul><li>All five doors</li><li>1 Sentinel device</li><li>Verify Console + Live Feed</li><li>Replay protection</li></ul>
-    <a class="pbtn solid" href="/app#signup?plan=marche">Start free</a></div>
-  <div class="pl"><h3>Boutique</h3><div class="price">$5<small>/mo</small></div><div class="per">190 verifs · $0.0325 over</div>
-    <ul><li>Manual + Chat + API</li><li>2 devices · 3 seats</li><li>Customer receipts</li><li>Web widget + webhooks</li></ul>
+<div class="plans">
+  <div class="plan"><h3>Marché</h3><div class="pr">$0</div><div class="per">forever · 10 verifs/mo</div>
+    <ul><li>All five doors</li><li>1 Sentinel device</li><li>Verify Console + Live Feed</li><li>Replay protection</li><li>Daily digest</li></ul>
+    <a class="pbtn" href="/app#signup?plan=marche">Start free</a></div>
+  <div class="plan"><h3>Boutique</h3><div class="pr">$5<small>/mo</small></div><div class="per">190 verifs · $0.0325 over</div>
+    <ul><li>Manual + Chat + API</li><li>2 devices · 3 team seats</li><li>Customer receipts</li><li>Web widget + webhooks</li><li>Reconciliation</li></ul>
     <a class="pbtn" href="/app#signup?plan=boutique">Choose Boutique</a></div>
-  <div class="pl hot"><h3>Commerce</h3><div class="price">$20<small>/mo</small></div><div class="per">760 verifs · $0.0325 over</div>
-    <ul><li>Everything in Boutique</li><li>5 devices · 10 seats</li><li>Vision + screenshot forensics</li><li>DisputeAgent · WhatsApp SLA</li></ul>
-    <a class="pbtn solid" href="/app#signup?plan=commerce">Choose Commerce</a></div>
-  <div class="pl"><h3>Plateforme</h3><div class="price">$100<small>/mo</small></div><div class="per">3,800 verifs · $0.0325 over</div>
+  <div class="plan hot"><h3>Commerce</h3><div class="pr">$20<small>/mo</small></div><div class="per">760 verifs · $0.0325 over</div>
+    <ul><li>Everything in Boutique</li><li>5 devices · 10 seats</li><li>Vision + screenshot forensics</li><li>DisputeAgent</li><li>Priority parsing · WhatsApp SLA</li></ul>
+    <a class="pbtn" href="/app#signup?plan=commerce">Choose Commerce</a></div>
+  <div class="plan"><h3>Plateforme</h3><div class="pr">$100<small>/mo</small></div><div class="per">3,800 verifs · $0.0325 over</div>
     <ul><li>Everything in Commerce</li><li>Unlimited devices</li><li>Highest throughput (100 req/s)</li><li>SLA-backed response times</li></ul>
     <a class="pbtn" href="/app#signup?plan=plateforme">Choose Plateforme</a></div>
-  <div class="pl"><h3>Scale</h3><div class="price">$399<small>/mo</small></div><div class="per">15,200 verifs · $0.0325 over</div>
-    <ul><li>Sub-merchant API + scoped keys</li><li>Trust-score API</li><li>Re-billing endpoints</li><li>Distributor / reseller access</li></ul>
+  <div class="plan"><h3>Scale</h3><div class="pr">$399<small>/mo</small></div><div class="per">15,200 verifs · $0.0325 over</div>
+    <ul><li>Everything in Plateforme</li><li>Sub-merchant API + scoped keys</li><li>Trust-score API</li><li>Re-billing endpoints</li><li>Distributor / reseller access</li></ul>
     <a class="pbtn" href="/app#signup?plan=scale">Choose Scale</a></div>
-  <div class="pl"><h3>Enterprise / Gov</h3><div class="price">Custom</div><div class="per">committed volume</div>
-    <ul><li>In-country residency</li><li>Dedicated corridor models</li><li>White-label</li><li>99.9% SLA, credited if missed</li></ul>
+  <div class="plan"><h3>Enterprise / Gov</h3><div class="pr">Custom</div><div class="per">committed volume</div>
+    <ul><li>In-country residency</li><li>Dedicated corridor models</li><li>White-label (+20%)</li><li>99.9% SLA, credited if missed</li><li>Annual contract</li></ul>
     <a class="pbtn" href="/contact">Talk to us</a></div>
 </div>
+<div class="moral">"Pay only when your merchant gets paid." <em>— the moral centre of the pricing.</em>
+  <small>A plan's included rate always beats pay-as-you-go · prepaid top-ups verified by the engine itself</small></div>
 <p><b>Pay-as-you-go:</b> prepaid ACU packs from <b>$33 → 1,000 ACU</b> ($165 → 5,000 · $650 → 20,000), topped up via mobile money and verified by KODA's own engine. 1 ACU = one verification beyond your plan quota; ACU also powers AI features (Vision, DisputeAgent). A plan's included rate ($0.026/verif) always beats pay-as-you-go ($0.0325) — so subscribing saves ~20%.</p>
 <p style="color:var(--dim);font-size:12.5px">Pay KODA directly by card or mobile money for the prices above. <b style="color:var(--text)">No card or bank?</b> A local KODA agent can set you up and activate any plan with cash — find one near you.</p>
 <p style="color:var(--dim);font-size:13.5px">Prices in USD, billed monthly, and a paid plan activates the moment KODA confirms your mobile-money payment. Upgrade, downgrade or cancel anytime — no lock-in. Already have an account? Choose or change your plan in <a href="/app#pricing">the app → Plans &amp; pricing</a>.</p>`,
