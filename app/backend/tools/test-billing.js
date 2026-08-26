@@ -28,8 +28,11 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   // ── PRICING LAW ────────────────────────────────────────────────────────────
   const qv = BILL.quote(1000, 'stripe');
   ok(qv.acu_markup === 5 && qv.acu_price_usd === Math.round(5 * BILL.UNIT_COST_USD * 1e6) / 1e6, 'ad-hoc ACU priced at 5× unit cost', `$${qv.acu_price_usd}/ACU`);
-  ok(BILL.PLAN_PRICE_USD === BILL.ACU_PRICE_USD, 'plan rate = ACU retail rate (5×) so plans are partner-resellable at ≥4×', `plan $${BILL.PLAN_PRICE_USD} = acu $${BILL.ACU_PRICE_USD}`);
-  ok(BILL.PRICE_FLOOR_USD === Math.round(4 * BILL.UNIT_COST_USD * 1e6) / 1e6 && BILL.PRICE_FLOOR_USD < BILL.ACU_PRICE_USD, '4× floor sits below 5× retail (the reseller-80% net)', `floor $${BILL.PRICE_FLOOR_USD} < retail $${BILL.ACU_PRICE_USD}`);
+  ok(BILL.PLAN_PRICE_USD === Math.round(4 * BILL.UNIT_COST_USD * 1e6) / 1e6 && BILL.PLAN_PRICE_USD < BILL.ACU_PRICE_USD, 'DIRECT plan rate is 4× and strictly below the 5× ACU rate (plan beats PAYG)', `plan $${BILL.PLAN_PRICE_USD} < acu $${BILL.ACU_PRICE_USD}`);
+  ok(BILL.PRICE_FLOOR_USD === BILL.PLAN_PRICE_USD, '4× floor equals the direct plan rate (nothing nets KODA below 4×)');
+  // two-book: partner LIST price = direct / 0.8, so resale at 80% wholesale nets KODA the 4× floor
+  const _P = require('../../shared/plans').PLANS;
+  ok(Math.abs(_P.boutique.list_usd - _P.boutique.usd / 0.8) < 1e-6 && Math.abs(_P.scale.list_usd - _P.scale.usd / 0.8) < 0.5, 'plan list price = direct / 0.80 (partner keeps 20%, KODA nets 4×)', `boutique $${_P.boutique.usd} direct / $${_P.boutique.list_usd} list`);
   ok(Math.abs(qv.total_usd - (qv.subtotal_usd + qv.collection_fee_usd + qv.tax_usd)) < 1e-6, 'total = subtotal + collection fee + tax');
   ok(qv.collection_fee_usd > 0 && Math.abs(qv.collection_fee_usd - qv.subtotal_usd * 0.029) < 1e-6, 'collection fee is passed through, not absorbed', `$${qv.collection_fee_usd}`);
   ok(qv.margin_pct >= 100, 'margin ≥ 100% on every quote', `${qv.margin_pct}%`);

@@ -8,13 +8,17 @@
 
   // the unified plan ladder (spec §10) — one ladder, all five doors.
   //
-  // PRICING LAW (one retail rate · hard 4× floor · partner-resellable). Every unit — an
-  // ad-hoc ACU, a plan-included verification, and an overage verification — is retail-priced
-  // at 5× cost ($0.0325). The 4× floor ($0.026) is what KODA still nets after the deepest
-  // partner discount (reseller 80%). CI asserts current plans ≥5× retail (RULE 4), partner
-  // resale nets ≥4× (RULE 5), and top-up/ACU ≥5× (RULE 3) in tools/margin.js. Plans differ
-  // from raw ACU on committed monthly quota + throughput (rps) + features + agent-resale
-  // reach — not a unit discount. Marché is the free acquisition tier (10 on us).
+  // PRICING LAW (two-book · hard 4× floor). Each paid plan carries TWO prices:
+  //   · usd  = DIRECT price a merchant pays KODA — the 4× rate ($0.026/verif), so a plan
+  //            genuinely BEATS pay-as-you-go (5×). This is the headline price. KODA nets 4×.
+  //   · list_usd = the price a PARTNER (reseller/distributor) charges a merchant — the 5×
+  //            rate, = usd / 0.80. A partner buys the plan's inventory at 80% of list (= the
+  //            direct price), resells at list, and keeps 20% (reseller) / 15% (distributor);
+  //            KODA still nets ≥4× (it always receives ~80% of list). The merchant who buys
+  //            through a cash agent pays list — the agent's convenience premium.
+  // Ad-hoc ACU / top-ups / overage stay at 5× ($0.0325). CI asserts: direct plan rate ≥4× AND
+  // < the 5× ACU rate (RULE 4); partner resale of list nets ≥4× (RULE 5); ACU ≥5× (RULE 3).
+  // verifs = usd/$0.026 (rounded down). Marché is the free acquisition tier (10 on us).
   // ONE-RATE MODEL (partner-resellable, 4× floor everywhere). Every unit — a pay-as-you-go
   // ACU, a plan-included verification, and an overage verification — carries the SAME retail
   // rate: 5× cost = $0.0325/verif. Partners buy at a fixed wholesale: reseller 80% ($0.026 =
@@ -34,15 +38,15 @@
   // so a live subscriber's bucket never shrinks. Old Plateforme (399/15000, platform) maps to
   // the new SCALE tier, so it needs no legacy row.
   const PLANS = {
-    marche:     { label: 'Marché',     usd: 0,    verifs: 10,    overage: null,   rps: 2 },
-    boutique:   { label: 'Boutique',   usd: 5,    verifs: 150,   overage: 0.0325, rps: 10 },
-    commerce:   { label: 'Commerce',   usd: 20,   verifs: 600,   overage: 0.0325, rps: 25 },
-    plateforme: { label: 'Plateforme', usd: 100,  verifs: 3000,  overage: 0.0325, rps: 100 },
-    scale:      { label: 'Scale',      usd: 399,  verifs: 12000, overage: 0.0325, rps: 250 },
-    enterprise: { label: 'Enterprise', usd: null, verifs: null,  overage: null,   rps: 1000 },
-    // grandfathered (hidden): old subscribers keep their original price + bucket
-    boutique_legacy: { label: 'Boutique',  usd: 19, verifs: 700,  overage: 0.0325, rps: 10, legacy: true },
-    commerce_legacy: { label: 'Commerce',  usd: 79, verifs: 3000, overage: 0.0325, rps: 25, legacy: true },
+    marche:     { label: 'Marché',     usd: 0,    list_usd: 0,   verifs: 10,    overage: null,   rps: 2 },
+    boutique:   { label: 'Boutique',   usd: 5,    list_usd: 6.25,  verifs: 190,   overage: 0.0325, rps: 10 },
+    commerce:   { label: 'Commerce',   usd: 20,   list_usd: 25,    verifs: 760,   overage: 0.0325, rps: 25 },
+    plateforme: { label: 'Plateforme', usd: 100,  list_usd: 125,   verifs: 3800,  overage: 0.0325, rps: 100 },
+    scale:      { label: 'Scale',      usd: 399,  list_usd: 499,   verifs: 15200, overage: 0.0325, rps: 250 },
+    enterprise: { label: 'Enterprise', usd: null, list_usd: null,  verifs: null,  overage: null,   rps: 1000 },
+    // grandfathered (hidden, direct-only — never resold): keep original price + bucket
+    boutique_legacy: { label: 'Boutique',  usd: 19, list_usd: 19, verifs: 700,  overage: 0.0325, rps: 10, legacy: true },
+    commerce_legacy: { label: 'Commerce',  usd: 79, list_usd: 79, verifs: 3000, overage: 0.0325, rps: 25, legacy: true },
   };
 
   // ACU metering (spec §9) — the billable atom is a successful verification. ACU is

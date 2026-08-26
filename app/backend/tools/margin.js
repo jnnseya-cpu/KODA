@@ -1,7 +1,7 @@
 // KODA — margin guard (npm run margin). Enforces the 4× floor: every ACU KODA sells
 // (plan-included, top-up/overage/AI, and partner wholesale) nets ≥4× fully-loaded cost.
-// One retail rate (5×) for every unit — ACU and plan-included alike; partner wholesale
-// 80%/85% (KODA nets 4×/4.25×) so any unit is resellable. Exits 1 on violation.
+// Two-book: DIRECT plan = 4× (beats PAYG), LIST = 5× (partner resale, agent price); ACU 5×;
+// partner wholesale 80%/85% so KODA nets ≥4× on any resold plan. Exits 1 on violation.
 'use strict';
 const C = require('../../shared/costs');
 const VOLUMES = [10000, 50000, 250000, 1000000]; // monthly verifications
@@ -59,37 +59,38 @@ for (const [who, bps] of [['distributor', 8500], ['reseller', 8000]]) {
   console.log(`  ${who.padEnd(11)} wholesale ${bps / 100}% = $${cost.toFixed(4)} = ${(cost / BILL.UNIT_COST_USD).toFixed(2)}× → KODA nets ≥4×, partner keeps ${spread}% spread ${ok ? '✓' : '✗ BELOW 4× FLOOR'}`);
 }
 
-// RULE 4 — ONE-RATE model: every unit (ACU, plan-included, overage) is retail-priced at 5×.
-// A CURRENT plan's included rate (usd/verifs) must be ≥ the 5× ACU retail rate, so that when a
-// partner RESELLS the plan at 80% (reseller) / 85% (distributor) KODA still nets ≥4×. Legacy
-// (grandfathered, never resold — resale always mints a current plan) plans only need the 4× floor.
-console.log(`\nRULE 4 — CURRENT plan included rate ≥ 5× retail ($${BILL.ACU_PRICE_USD}) so partner resale still clears 4×:`);
+// RULE 4 — TWO-BOOK. A CURRENT plan's DIRECT rate (usd/verifs) must clear the 4× floor AND be
+// strictly below the 5× ACU rate — so a direct subscriber genuinely beats pay-as-you-go. Its
+// LIST rate (list_usd/verifs) must be ≥ the 5× rate so partner resale (next rule) clears 4×.
+console.log(`\nRULE 4 — direct plan rate ≥4× AND < ad-hoc ACU 5× ($${BILL.ACU_PRICE_USD}); list rate ≥5×:`);
 const CURRENT = ['boutique', 'commerce', 'plateforme', 'scale'];
 const LEGACY = ['boutique_legacy', 'commerce_legacy'];
 for (const key of CURRENT) {
   const p = PLANS[key];
-  const incl = p.usd / p.verifs, over = p.overage;
-  const inclOk = incl + 1e-9 >= BILL.ACU_PRICE_USD;                 // ≥5× → resells at ≥4×
+  const direct = p.usd / p.verifs, list = p.list_usd / p.verifs, over = p.overage;
+  const directOk = BILL.clearsFloor(direct) && direct + 1e-9 < BILL.ACU_PRICE_USD;  // ≥4× AND < PAYG
+  const listOk = list + 1e-9 >= BILL.ACU_PRICE_USD;                                  // ≥5× → resells at ≥4×
   const overOk = over != null && BILL.clearsFloor(over);
-  if (!inclOk || !overOk) fails++;
-  console.log(`  ${p.label.padEnd(11)} incl $${incl.toFixed(4)}/verif (${p.verifs}/mo) ${(incl / BILL.UNIT_COST_USD).toFixed(2)}× ${inclOk ? '✓' : '✗ below 5× — resale would breach 4×'}  ·  overage $${over.toFixed(4)} ${(over / BILL.UNIT_COST_USD).toFixed(1)}× ${overOk ? '✓' : '✗'}`);
+  if (!directOk || !listOk || !overOk) fails++;
+  console.log(`  ${p.label.padEnd(11)} direct $${direct.toFixed(4)} ${(direct / BILL.UNIT_COST_USD).toFixed(2)}× ${directOk ? '✓' : '✗'} · list $${list.toFixed(4)} ${(list / BILL.UNIT_COST_USD).toFixed(2)}× ${listOk ? '✓' : '✗'} · overage ${(over / BILL.UNIT_COST_USD).toFixed(1)}× ${overOk ? '✓' : '✗'}`);
 }
 for (const key of LEGACY) {
   const p = PLANS[key];
-  const incl = p.usd / p.verifs, ok = BILL.clearsFloor(incl);       // direct-only: 4× floor is enough
+  const direct = p.usd / p.verifs, ok = BILL.clearsFloor(direct);   // direct-only, grandfathered
   if (!ok) fails++;
-  console.log(`  ${(p.label + ' (legacy)').padEnd(18)} incl $${incl.toFixed(4)}/verif ${(incl / BILL.UNIT_COST_USD).toFixed(2)}× — direct-only, ≥4× ${ok ? '✓' : '✗'}`);
+  console.log(`  ${(p.label + ' (legacy)').padEnd(18)} direct $${direct.toFixed(4)} ${(direct / BILL.UNIT_COST_USD).toFixed(2)}× — direct-only, ≥4× ${ok ? '✓' : '✗'}`);
 }
 
-// RULE 5 — a whole plan RESOLD through a partner nets KODA ≥4× at BOTH wholesale tiers, while
-// the partner keeps their fixed spread (reseller 20% @ 80%, distributor 15% @ 85%).
-console.log(`\nRULE 5 — partner plan resale nets KODA ≥4× (reseller 80% · distributor 85%):`);
+// RULE 5 — a whole plan RESOLD at LIST through a partner nets KODA ≥4× at both wholesale tiers,
+// while the partner keeps their fixed spread (reseller 20% @ 80%, distributor 15% @ 85%).
+console.log(`\nRULE 5 — partner plan resale (at list) nets KODA ≥4× (reseller 80% · distributor 85%):`);
 for (const key of CURRENT) {
-  const p = PLANS[key], incl = p.usd / p.verifs;
+  const p = PLANS[key], listRate = p.list_usd / p.verifs;
   for (const [who, bps, margin] of [['reseller', 8000, 20], ['distributor', 8500, 15]]) {
-    const net = incl * (bps / 10000), mult = net / BILL.UNIT_COST_USD, ok = BILL.clearsFloor(net);
+    const net = listRate * (bps / 10000), mult = net / BILL.UNIT_COST_USD, ok = BILL.clearsFloor(net);
+    const keeps = Math.round((1 - bps / 10000) * 100);
     if (!ok) fails++;
-    console.log(`  ${p.label.padEnd(11)} via ${who.padEnd(11)} ${bps / 100}% → KODA nets $${net.toFixed(4)} = ${mult.toFixed(2)}× ${ok ? '✓' : '✗ BELOW 4×'} · partner keeps ${margin}%`);
+    console.log(`  ${p.label.padEnd(11)} via ${who.padEnd(11)} ${bps / 100}% of $${p.list_usd} list → KODA nets ${mult.toFixed(2)}× ${ok ? '✓' : '✗ BELOW 4×'} · partner keeps ~${keeps}%`);
   }
 }
 

@@ -8,29 +8,30 @@
   'use strict';
 
   // ── PRICING LAW (binding) — balanced so EVERYONE wins ─────────────────────
-  // ONE RETAIL RATE + one wholesale band, one hard floor. KODA nets ≥4× on every unit.
-  //  · RETAIL = 5× cost ($0.0325/verif) — the SAME rate for every unit: a pay-as-you-go ACU,
-  //    a plan's included verification, plan overage, and AI actions. A merchant pays this
-  //    whether buying ACU or a plan; a plan adds committed quota + features + throughput.
-  //  · PARTNER WHOLESALE = 4×–4.25× (80–85% of the 5× retail) — what a distributor/reseller
-  //    PREPAYS for float/inventory. They resell to merchants at the 5× retail (ACU OR a whole
-  //    plan) and keep the 15–20% spread. Because retail is 5×, that spread sits ENTIRELY above
-  //    the 4× floor: KODA still nets ≥4× on ANY partner-channel sale, the partner earns a real
-  //    margin, and the merchant pays the same retail as buying direct. Everyone wins.
-  // The 4× floor is what KODA still nets after the deepest partner discount (reseller 80%);
-  // nothing — direct or resold, ACU or plan — is ever priced so KODA nets below it.
+  // TWO-BOOK pricing over one hard floor. KODA nets ≥4× on every sale, direct or resold.
+  //  · DIRECT (merchant → KODA) = 4× cost ($0.026/verif). A merchant paying KODA directly
+  //    (card, or mobile money to KODA's own number via Door 3) gets the plan at 4× — cheaper
+  //    than pay-as-you-go ACU (5×). This is the headline plan price. KODA nets 4×.
+  //  · LIST (merchant → agent) = 5× cost ($0.0325/verif) = direct / 0.80. A partner buys the
+  //    plan's inventory at 80% of list (= the direct price), resells at list, and keeps 20%
+  //    (reseller) / 15% (distributor). KODA still nets 4× — it always receives ~80% of list.
+  //    A merchant who buys through a cash agent pays list: the agent's convenience premium.
+  //  · AD-HOC ACU / top-ups / overage / AI = 5× ($0.0325). Same as the partner list rate.
+  // So a direct plan is the cheapest way to verify; pay-as-you-go and the agent channel both
+  // sit at 5×; and nothing — direct or resold — ever nets KODA below the 4× floor.
   // The rail's collection fee is PASSED THROUGH to the merchant, so KODA's net never dips.
   const UNIT_COST_USD = 0.0065;         // fully-loaded code-path cost (mirrors costs.js COST.code)
-  const ACU_MARKUP = 5;                 // ACU / top-up price = 5 × unit cost
-  const PLAN_MARKUP = 5;                // plan-included rate = 5 × cost too, so a plan is
-                                        // RESELLABLE: a partner buying at 80% still leaves KODA ≥4×.
-  const ACU_PRICE_USD = round(ACU_MARKUP * UNIT_COST_USD);   // ≈ 0.0325 / ACU (PAYG / top-up / overage)
-  const PLAN_PRICE_USD = round(PLAN_MARKUP * UNIT_COST_USD);  // ≈ 0.0325 / verif (plan included = retail rate)
+  const ACU_MARKUP = 5;                 // ACU / top-up / overage / partner LIST = 5 × unit cost
+  const PLAN_MARKUP = 4;                // DIRECT plan rate = 4× cost = the floor — a merchant
+                                        // paying KODA direct beats pay-as-you-go (5×). Partners
+                                        // sell the same plan at LIST (5× = usd/0.8); KODA nets 4× either way.
+  const ACU_PRICE_USD = round(ACU_MARKUP * UNIT_COST_USD);   // ≈ 0.0325 / ACU (PAYG / top-up / overage / partner list)
+  const PLAN_PRICE_USD = round(PLAN_MARKUP * UNIT_COST_USD);  // ≈ 0.026 / verif (DIRECT plan rate = the 4× floor)
 
   // ── 4× MARGIN FLOOR (ENFORCED) ───────────────────────────────────────────
-  // No unit may ever NET KODA below 4× cost (300% profit) — not a top-up, not a plan's
-  // included/overage rate, not a partner's wholesale rate. Retail sits at 5× everywhere; the
-  // 4× floor is what remains after the deepest partner discount (reseller 80% → exactly 4×).
+  // No unit may ever NET KODA below 4× cost (300% profit). A DIRECT plan sits AT the floor
+  // (4×); ad-hoc ACU and the partner LIST price sit above at 5×. A partner buys at 80% of
+  // list (= the 4× direct price), so KODA still nets exactly 4× on a resold plan.
   const MARGIN_FLOOR = 3.0;                                  // 300% profit = 4× cost
   const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.026 = the 4× floor (retail is 5×)
   const clearsFloor = (usdPerAcu) => Number(usdPerAcu) + 1e-9 >= PRICE_FLOOR_USD;

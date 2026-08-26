@@ -418,8 +418,8 @@ function createDistributorTopup(merchant, body = {}) {
 // at the plan's retail USD; the KD's float is charged the plan's ACU-equivalent when
 // their Sentinel confirms the payment, and the plan activates for 30 days.
 function createDistributorPlanSale(merchant, body = {}) {
-  // 4× LAW: plans are retail-priced at 5×, so a distributor selling one via their float (bought
-  // at 85% = $0.02762 = 4.25×) still nets KODA ≥4× and keeps their 15%. planAcu = ceil(usd/0.0325).
+  // Two-book: a merchant buying through a distributor pays the LIST price (5×). The KD's float
+  // is debited planAcu = ceil(list/0.0325); KODA nets 4× (~80% of list) and the KD keeps 15%.
   const planKey = body.plan_key;
   if (!isSellablePlan(planKey)) return [400, { error: { code: 'invalid_plan' } }];
   const PLANS = require('../../shared/plans').PLANS;
@@ -431,7 +431,7 @@ function createDistributorPlanSale(merchant, body = {}) {
   if (kd.merchant_id && kd.merchant_id === merchant.id)
     return [409, { error: { code: 'self_purchase_forbidden', message: 'A distributor cannot buy a subscription through their own float.' } }];
   if (kd.float_acu < acu) return [409, { error: { code: 'insufficient_float', message: 'distributor float too low' } }];
-  const usd = PLANS[planKey].usd;
+  const usd = PLANS[planKey].list_usd || PLANS[planKey].usd;   // merchant pays LIST via the agent
   const id = U.id('top');
   // Store the merchant's LOCAL currency (not a bare 'USD'): the KD's Sentinel SMS is in
   // local currency, and the currency-safe matcher converts total_usd→local at settle. A
@@ -584,9 +584,14 @@ function resellerBuyInventory(rid, acuBlock, idemKey) {
 function planAcu(planKey) {
   const P = require('../../shared/plans').PLANS[planKey];
   if (!P || !(P.usd > 0)) return 0;
-  return Math.ceil(P.usd / B.ACU_PRICE_USD);
+  // Agent channel prices at LIST (5×): the partner buys this many ACU at wholesale, resells
+  // the plan at list, keeps their spread. KODA nets 4× (≈ 80% of list on the 4× direct value).
+  return Math.ceil((P.list_usd || P.usd) / B.ACU_PRICE_USD);
 }
-const isSellablePlan = (planKey) => { const P = require('../../shared/plans').PLANS[planKey]; return !!(P && P.usd > 0); };
+// A plan is partner-sellable only if it is a genuine PAID, finite, CURRENT tier — never free
+// Marché, never sales-gated Enterprise (usd:null), and never a grandfathered *_legacy plan
+// (those are direct-only, priced below list, and must never be resold).
+const isSellablePlan = (planKey) => { const P = require('../../shared/plans').PLANS[planKey]; return !!(P && P.usd > 0 && !P.legacy); };
 // Activate a 30-day subscription for a merchant (shared by every plan-settle path).
 function activatePlan(merchantId, planKey) {
   const m = q.get('SELECT is_platform FROM merchants WHERE id=?', merchantId);
@@ -601,10 +606,12 @@ function activatePlan(merchantId, planKey) {
 // otherwise ACU vouchers.
 function issueResellerBatch(reseller, opts = {}) {
   const vouchers = require('./vouchers');
-  // 4× LAW: every unit — ACU or plan — is retail-priced at 5× ($0.0325); the reseller buys
-  // at 80% ($0.026 = the 4× floor), so KODA still nets ≥4× on a resold plan and the reseller
-  // keeps 20%. A plan voucher debits planAcu = ceil(usd/0.0325) ACU of inventory.
-  const planKey = (opts.plan_key && isSellablePlan(opts.plan_key)) ? opts.plan_key : null;
+  // Two-book: a plan voucher is priced at LIST (5×) and debits planAcu = ceil(list/0.0325) ACU
+  // bought at 80% — KODA nets 4×, reseller keeps 20%. An unsellable plan_key (Marché, Enterprise,
+  // or a grandfathered *_legacy) is rejected outright — never silently turned into an ACU batch.
+  if (opts.plan_key && !isSellablePlan(opts.plan_key))
+    return [400, { error: { code: 'plan_not_sellable', plan: opts.plan_key, message: 'Only current paid plans can be resold — not the free, Enterprise, or grandfathered tiers.' } }];
+  const planKey = opts.plan_key || null;
   const acu = planKey ? planAcu(planKey) : Math.round(Number(opts.acu_amount) || 0);
   const qty = Math.min(1000, Math.max(1, Math.round(Number(opts.quantity) || 1)));
   const total = acu * qty;

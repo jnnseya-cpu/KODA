@@ -28,11 +28,12 @@ function loadKeys() {
 const KEYS = loadKeys();
 const b64u = (buf) => Buffer.from(buf).toString('base64url');
 const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
-// A plan is sellable via a partner rail only if it is a genuine PAID, finite tier —
-// never free Marché and never sales-gated Enterprise (usd:null). Mirrors billing's gate.
+// A plan is sellable via a partner rail only if it is a genuine PAID, finite, CURRENT tier —
+// never free Marché, never Enterprise (usd:null), never a grandfathered *_legacy (direct-only,
+// priced below list). Mirrors billing's gate.
 function isSellablePlan(planKey) {
   const P = require('../../shared/plans').PLANS[planKey];
-  return !!(P && typeof P.usd === 'number' && P.usd > 0);
+  return !!(P && typeof P.usd === 'number' && P.usd > 0 && !P.legacy);
 }
 
 function sign(payload) {

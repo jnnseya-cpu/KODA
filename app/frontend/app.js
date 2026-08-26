@@ -991,10 +991,10 @@ VIEWS.reseller = async () => {
     <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:520px">
       <select id="rsc-product" onchange="rscToggle()" style="grid-column:1/-1;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
         <option value="acu">ACU credit voucher</option>
-        <option value="boutique">Subscription — Boutique ($5 / month)</option>
-        <option value="commerce">Subscription — Commerce ($20 / month)</option>
-        <option value="plateforme">Subscription — Plateforme ($100 / month)</option>
-        <option value="scale">Subscription — Scale ($399 / month)</option>
+        <option value="boutique">Subscription — Boutique ($6.25 street · you keep 20%)</option>
+        <option value="commerce">Subscription — Commerce ($25 street · you keep 20%)</option>
+        <option value="plateforme">Subscription — Plateforme ($125 street · you keep 20%)</option>
+        <option value="scale">Subscription — Scale ($499 street · you keep 20%)</option>
       </select>
       <input id="rsc-acu" type="number" placeholder="ACU per voucher (e.g. 100)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <input id="rsc-qty" type="number" placeholder="Quantity (e.g. 10)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
@@ -1109,7 +1109,7 @@ const PLAN_FEATURES = {
   boutique:   ['Manual + Chat + API doors', '2 devices · 3 team seats', 'Customer receipts', 'Web widget + webhooks', 'Reconciliation', 'Overage $0.0325 / extra verification'],
   commerce:   ['Everything in Boutique', '5 devices · 10 seats', 'Vision + screenshot forensics', 'DisputeAgent', 'Priority parsing · WhatsApp SLA', 'Overage $0.0325 / extra verification'],
   plateforme: ['Everything in Commerce', 'Unlimited devices', 'Highest throughput (100 req/s)', 'SLA-backed response times', 'Overage $0.0325 / extra verification'],
-  scale:      ['Everything in Plateforme', '12,000 verifications included', 'Sub-merchant API + scoped keys', 'Trust-score API', 'Re-billing endpoints', 'Distributor / reseller access', 'Priority onboarding & migration'],
+  scale:      ['Everything in Plateforme', '15,200 verifications included', 'Sub-merchant API + scoped keys', 'Trust-score API', 'Re-billing endpoints', 'Distributor / reseller access', 'Priority onboarding & migration'],
   enterprise: ['Everything in Scale', 'In-country residency', 'Dedicated corridor models', 'White-label (+20%)', '99.9% SLA, credited if missed', 'Annual contract'],
 };
 // Plans & Pricing — see the whole ladder and choose/upgrade from inside the app.
