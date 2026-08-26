@@ -1,6 +1,7 @@
 // KODA — margin guard (npm run margin). Enforces the 4× floor: every ACU KODA sells
 // (plan-included, top-up/overage/AI, and partner wholesale) nets ≥4× fully-loaded cost.
-// Plans sell at 4×, ad-hoc ACU at 5×, partner wholesale 4–4.25×. Exits 1 on violation.
+// One retail rate (5×) for every unit — ACU and plan-included alike; partner wholesale
+// 80%/85% (KODA nets 4×/4.25×) so any unit is resellable. Exits 1 on violation.
 'use strict';
 const C = require('../../shared/costs');
 const VOLUMES = [10000, 50000, 250000, 1000000]; // monthly verifications
@@ -38,7 +39,7 @@ const be = Math.ceil(C.FIXED_TOTAL / (BILL.ACU_PRICE_USD - C.COST.code));
 console.log(`  overhead break-even without any subscriptions: ~${be.toLocaleString()} verifications/mo`);
 
 // RULE 3 — ad-hoc ACU (top-up packs + partner wholesale) sells at the 5× rate, and every
-// point clears the 4× floor. Top-ups MUST be ≥5× (strictly above the 4× plan rate) so
+// point clears the 4× floor. Top-ups MUST be ≥5× (the full retail rate) so partner resale still nets 4×,
 // pay-as-you-go always costs more than committing to a plan.
 const PACKS = require('../../shared/plans').TOPUP_PACKS;
 console.log(`\nRULE 3 — ad-hoc ACU rate ${(BILL.ACU_PRICE_USD / BILL.UNIT_COST_USD).toFixed(0)}× ($${BILL.ACU_PRICE_USD}/ACU) · floor 4× ($${BILL.PRICE_FLOOR_USD}):`);
@@ -58,20 +59,38 @@ for (const [who, bps] of [['distributor', 8500], ['reseller', 8000]]) {
   console.log(`  ${who.padEnd(11)} wholesale ${bps / 100}% = $${cost.toFixed(4)} = ${(cost / BILL.UNIT_COST_USD).toFixed(2)}× → KODA nets ≥4×, partner keeps ${spread}% spread ${ok ? '✓' : '✗ BELOW 4× FLOOR'}`);
 }
 
-// RULE 4 — plans sit at the 4× floor, ad-hoc ACU sits above at 5×. A plan's INCLUDED rate
-// (usd/verifs) must clear the 4× floor AND be strictly cheaper than the ad-hoc ACU rate
-// (so a plan is always the better deal); overage falls back to the ad-hoc ACU rate (5×).
-console.log(`\nRULE 4 — plan rate 4× ($${BILL.PLAN_PRICE_USD}) < ad-hoc ACU 5× ($${BILL.ACU_PRICE_USD}):`);
-if (!(BILL.PLAN_PRICE_USD + 1e-9 < BILL.ACU_PRICE_USD)) { fails++; console.log('  ✗ plan rate is not below the ad-hoc ACU rate'); }
-const LADDER = ['boutique', 'commerce', 'plateforme', 'scale', 'boutique_legacy', 'commerce_legacy'];
-for (const key of LADDER) {
+// RULE 4 — ONE-RATE model: every unit (ACU, plan-included, overage) is retail-priced at 5×.
+// A CURRENT plan's included rate (usd/verifs) must be ≥ the 5× ACU retail rate, so that when a
+// partner RESELLS the plan at 80% (reseller) / 85% (distributor) KODA still nets ≥4×. Legacy
+// (grandfathered, never resold — resale always mints a current plan) plans only need the 4× floor.
+console.log(`\nRULE 4 — CURRENT plan included rate ≥ 5× retail ($${BILL.ACU_PRICE_USD}) so partner resale still clears 4×:`);
+const CURRENT = ['boutique', 'commerce', 'plateforme', 'scale'];
+const LEGACY = ['boutique_legacy', 'commerce_legacy'];
+for (const key of CURRENT) {
   const p = PLANS[key];
-  const incl = p.usd / p.verifs;
-  const over = p.overage;
-  const inclOk = BILL.clearsFloor(incl) && incl + 1e-9 < BILL.ACU_PRICE_USD; // ≥4× AND cheaper than PAYG
+  const incl = p.usd / p.verifs, over = p.overage;
+  const inclOk = incl + 1e-9 >= BILL.ACU_PRICE_USD;                 // ≥5× → resells at ≥4×
   const overOk = over != null && BILL.clearsFloor(over);
   if (!inclOk || !overOk) fails++;
-  console.log(`  ${p.label.padEnd(11)} incl $${incl.toFixed(4)}/verif (${p.verifs}/mo) ${(incl / BILL.UNIT_COST_USD).toFixed(1)}× ${inclOk ? '✓' : '✗'}  ·  overage $${over.toFixed(4)} ${(over / BILL.UNIT_COST_USD).toFixed(1)}× ${overOk ? '✓' : '✗'}`);
+  console.log(`  ${p.label.padEnd(11)} incl $${incl.toFixed(4)}/verif (${p.verifs}/mo) ${(incl / BILL.UNIT_COST_USD).toFixed(2)}× ${inclOk ? '✓' : '✗ below 5× — resale would breach 4×'}  ·  overage $${over.toFixed(4)} ${(over / BILL.UNIT_COST_USD).toFixed(1)}× ${overOk ? '✓' : '✗'}`);
+}
+for (const key of LEGACY) {
+  const p = PLANS[key];
+  const incl = p.usd / p.verifs, ok = BILL.clearsFloor(incl);       // direct-only: 4× floor is enough
+  if (!ok) fails++;
+  console.log(`  ${(p.label + ' (legacy)').padEnd(18)} incl $${incl.toFixed(4)}/verif ${(incl / BILL.UNIT_COST_USD).toFixed(2)}× — direct-only, ≥4× ${ok ? '✓' : '✗'}`);
+}
+
+// RULE 5 — a whole plan RESOLD through a partner nets KODA ≥4× at BOTH wholesale tiers, while
+// the partner keeps their fixed spread (reseller 20% @ 80%, distributor 15% @ 85%).
+console.log(`\nRULE 5 — partner plan resale nets KODA ≥4× (reseller 80% · distributor 85%):`);
+for (const key of CURRENT) {
+  const p = PLANS[key], incl = p.usd / p.verifs;
+  for (const [who, bps, margin] of [['reseller', 8000, 20], ['distributor', 8500, 15]]) {
+    const net = incl * (bps / 10000), mult = net / BILL.UNIT_COST_USD, ok = BILL.clearsFloor(net);
+    if (!ok) fails++;
+    console.log(`  ${p.label.padEnd(11)} via ${who.padEnd(11)} ${bps / 100}% → KODA nets $${net.toFixed(4)} = ${mult.toFixed(2)}× ${ok ? '✓' : '✗ BELOW 4×'} · partner keeps ${margin}%`);
+  }
 }
 
 if (fails) { console.log(`\n${fails} price point(s) violate the rule — fix pricing or costs.`); process.exit(1); }

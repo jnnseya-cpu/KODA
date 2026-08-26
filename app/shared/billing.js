@@ -8,31 +8,31 @@
   'use strict';
 
   // ── PRICING LAW (binding) — balanced so EVERYONE wins ─────────────────────
-  // TWO RETAIL RATES + a wholesale rate, one hard floor. KODA nets ≥4× on every ACU.
-  //  · PLAN rate = 4× cost ($0.026/verif) — the committed, cheaper rate a MERCHANT gets
-  //    inside a monthly plan's included quota. This equals the ABSOLUTE FLOOR.
-  //  · ACU / TOP-UP retail = 5× cost ($0.0325/ACU) — pay-as-you-go ACU: retail top-ups,
-  //    plan overage, AI actions, and the price a MERCHANT pays an agent for ACU.
+  // ONE RETAIL RATE + one wholesale band, one hard floor. KODA nets ≥4× on every unit.
+  //  · RETAIL = 5× cost ($0.0325/verif) — the SAME rate for every unit: a pay-as-you-go ACU,
+  //    a plan's included verification, plan overage, and AI actions. A merchant pays this
+  //    whether buying ACU or a plan; a plan adds committed quota + features + throughput.
   //  · PARTNER WHOLESALE = 4×–4.25× (80–85% of the 5× retail) — what a distributor/reseller
-  //    PREPAYS for float/inventory. They resell to merchants at the 5× retail and keep the
-  //    15–20% spread as their margin. Because retail is 5×, this spread sits ENTIRELY above
-  //    the 4× floor: KODA still nets ≥4× on partner-channel ACU, the partner earns a real
+  //    PREPAYS for float/inventory. They resell to merchants at the 5× retail (ACU OR a whole
+  //    plan) and keep the 15–20% spread. Because retail is 5×, that spread sits ENTIRELY above
+  //    the 4× floor: KODA still nets ≥4× on ANY partner-channel sale, the partner earns a real
   //    margin, and the merchant pays the same retail as buying direct. Everyone wins.
-  // So ad-hoc ACU always costs a merchant MORE than a plan (5× vs 4×) — committing to a
-  // plan is the rational choice — while partners have a genuine wholesale margin.
+  // The 4× floor is what KODA still nets after the deepest partner discount (reseller 80%);
+  // nothing — direct or resold, ACU or plan — is ever priced so KODA nets below it.
   // The rail's collection fee is PASSED THROUGH to the merchant, so KODA's net never dips.
   const UNIT_COST_USD = 0.0065;         // fully-loaded code-path cost (mirrors costs.js COST.code)
   const ACU_MARKUP = 5;                 // ACU / top-up price = 5 × unit cost
-  const PLAN_MARKUP = 4;                // plan-included verification rate = 4 × unit cost (= floor)
+  const PLAN_MARKUP = 5;                // plan-included rate = 5 × cost too, so a plan is
+                                        // RESELLABLE: a partner buying at 80% still leaves KODA ≥4×.
   const ACU_PRICE_USD = round(ACU_MARKUP * UNIT_COST_USD);   // ≈ 0.0325 / ACU (PAYG / top-up / overage)
-  const PLAN_PRICE_USD = round(PLAN_MARKUP * UNIT_COST_USD);  // ≈ 0.026 / verif (plan included)
+  const PLAN_PRICE_USD = round(PLAN_MARKUP * UNIT_COST_USD);  // ≈ 0.0325 / verif (plan included = retail rate)
 
   // ── 4× MARGIN FLOOR (ENFORCED) ───────────────────────────────────────────
-  // No ACU may ever be SOLD below 4× cost (300% profit) — not a top-up, not a plan's
-  // included/overage rate, not a partner's wholesale rate. The floor equals the PLAN rate,
-  // so a plan sits exactly at the floor and everything ad-hoc sits above it at 5×.
+  // No unit may ever NET KODA below 4× cost (300% profit) — not a top-up, not a plan's
+  // included/overage rate, not a partner's wholesale rate. Retail sits at 5× everywhere; the
+  // 4× floor is what remains after the deepest partner discount (reseller 80% → exactly 4×).
   const MARGIN_FLOOR = 3.0;                                  // 300% profit = 4× cost
-  const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.026 / ACU = plan rate
+  const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.026 = the 4× floor (retail is 5×)
   const clearsFloor = (usdPerAcu) => Number(usdPerAcu) + 1e-9 >= PRICE_FLOOR_USD;
   // lowest wholesale rate (bps of the 5× ACU retail) that still clears the 4× floor = 8000
   // (80% of retail → exactly 4×). Distributors default to 8500 (KODA nets 4.25×, partner

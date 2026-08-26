@@ -418,6 +418,8 @@ function createDistributorTopup(merchant, body = {}) {
 // at the plan's retail USD; the KD's float is charged the plan's ACU-equivalent when
 // their Sentinel confirms the payment, and the plan activates for 30 days.
 function createDistributorPlanSale(merchant, body = {}) {
+  // 4× LAW: plans are retail-priced at 5×, so a distributor selling one via their float (bought
+  // at 85% = $0.02762 = 4.25×) still nets KODA ≥4× and keeps their 15%. planAcu = ceil(usd/0.0325).
   const planKey = body.plan_key;
   if (!isSellablePlan(planKey)) return [400, { error: { code: 'invalid_plan' } }];
   const PLANS = require('../../shared/plans').PLANS;
@@ -599,6 +601,9 @@ function activatePlan(merchantId, planKey) {
 // otherwise ACU vouchers.
 function issueResellerBatch(reseller, opts = {}) {
   const vouchers = require('./vouchers');
+  // 4× LAW: every unit — ACU or plan — is retail-priced at 5× ($0.0325); the reseller buys
+  // at 80% ($0.026 = the 4× floor), so KODA still nets ≥4× on a resold plan and the reseller
+  // keeps 20%. A plan voucher debits planAcu = ceil(usd/0.0325) ACU of inventory.
   const planKey = (opts.plan_key && isSellablePlan(opts.plan_key)) ? opts.plan_key : null;
   const acu = planKey ? planAcu(planKey) : Math.round(Number(opts.acu_amount) || 0);
   const qty = Math.min(1000, Math.max(1, Math.round(Number(opts.quantity) || 1)));

@@ -316,20 +316,20 @@ Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per mark
 
 ## 10. The unified plan ladder
 
-**Pricing law (binding):** the billable atom is one verification = 1 ACU. Two retail rates over a single hard floor of **4× fully-loaded cost ($0.026/verif)** — nothing is ever sold below 4×:
-- **Plan rate = 4× ($0.026/verif)** — the committed, cheaper rate you get *only* inside a plan's included quota.
-- **Ad-hoc ACU = 5× ($0.0325/ACU)** — pay-as-you-go top-ups, plan overage, and AI actions. So ad-hoc always costs more than a plan; there is no way to get the 4× rate without a plan.
+**Pricing law (binding):** the billable atom is one verification = 1 ACU. **One retail rate** over a single hard floor of **4× fully-loaded cost ($0.026/verif)** — nothing ever nets KODA below 4×:
+- **Retail = 5× ($0.0325/verif)** — the same rate for every unit: a pay-as-you-go ACU, a plan's included verification, plan overage, and AI actions. A plan adds committed monthly quota + features + throughput, not a cheaper unit rate.
+- **The 4× floor** is what KODA still nets after the deepest partner discount (reseller 80% of retail). Because retail is 5×, a partner can resell **any** unit — ACU *or* a whole plan — and KODA still clears 4× while the partner keeps their spread.
 
 | Plan | Price | Door(s) | Includes | Overage |
 |---|---|---|---|---|
 | **Marché** | $0 | Manual + Chat | 10 verifications/mo, 1 Sentinel, Verify Console, Live Feed, replay protection, daily digest | — (top up) |
-| **Boutique** | $5/mo | Manual + Chat + API | 160 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.0325 |
-| **Commerce** | $20/mo | All | 750 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.0325 |
-| **Plateforme** | $100/mo | All | 3,750 verifications, unlimited devices, highest throughput (100 req/s), SLA-backed response times | $0.0325 |
-| **Scale** | $399/mo | All + sub-merchants | 15,000 verifications, sub-merchant API + scoped keys, trust-score API, re-billing endpoints, distributor / reseller access | $0.0325 |
+| **Boutique** | $5/mo | Manual + Chat + API | 150 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.0325 |
+| **Commerce** | $20/mo | All | 600 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.0325 |
+| **Plateforme** | $100/mo | All | 3,000 verifications, unlimited devices, highest throughput (100 req/s), SLA-backed response times | $0.0325 |
+| **Scale** | $399/mo | All + sub-merchants | 12,000 verifications, sub-merchant API + scoped keys, trust-score API, re-billing endpoints, distributor / reseller access | $0.0325 |
 | **Enterprise/Gov** | Custom | All | Volume, in-country residency, dedicated corridor models, white-label (+20% wholesale), SLA | Custom |
 
-**Pay-as-you-go (no subscription, 5×):** $33→1,000 ACU · $165→5,000 · $650→20,000 (all $0.0325/ACU). Deliberately above the 4× plan rate so committing to a plan always saves.
+**Pay-as-you-go (no subscription, 5×):** $33→1,000 ACU · $165→5,000 · $650→20,000 (all $0.0325/ACU). The same $0.0325 retail rate as a plan's included verification — a plan adds committed quota, features and throughput, and can be resold by partners.
 **Partner wholesale (buy float/inventory, resell at the 5× retail, keep the spread):** distributor 85% of retail = $0.0276/ACU (KODA nets 4.25×, partner keeps 15%); reseller 80% = $0.026/ACU (KODA nets the 4× floor, partner keeps 20%). Below 80% (which would breach the 4× floor) is rejected. Because retail is 5×, the whole partner margin lives above the floor — everyone wins: merchant, partner, and KODA (≥4× on every ACU).
 **Partners:** BSP/bot-builders 15% rev-share 24 mo or wholesale resale; agencies 10% referral + certified directory. Telco posture: none needed — if an operator wants to white-label KODA as their SME tool, that's enterprise licensing from a position of strength.
 

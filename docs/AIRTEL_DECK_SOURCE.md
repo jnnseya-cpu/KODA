@@ -52,7 +52,7 @@ When a customer pays the merchant on mobile money, KODA analyses the operator's 
 A market trader and a 400-merchant platform use the **exact same truth** — identical matching, fraud scoring, replay protection and audit trail; only the interface differs. One account, one ledger, zero migration when a merchant graduates.
 1. **Manual Console** — paste the code or snap a screenshot → telco-anchored verdict in ~3s. No code, no app change.
 2. **WhatsApp** — the customer drops the code in chat; KODA replies "✅ Paiement confirmé" in-thread. FR · EN · Lingala · Swahili · Wolof · Twi.
-3. **API** — intents, code submission, HMAC-signed webhooks, idempotency. 3 core endpoints, integrate in an afternoon. Sub-merchant API to onboard whole merchant bases. Wholesale from $0.010/verification.
+3. **API** — intents, code submission, HMAC-signed webhooks, idempotency. 3 core endpoints, integrate in an afternoon. Sub-merchant API to onboard whole merchant bases. Wholesale from $0.026/verification (the 4× floor).
 4. **USSD** — dial a shortcode on any handset (no smartphone, no data) → verdict on-screen and by SMS. (Needs an operator shortcode — a natural partnership point.)
 5. **Inbound SMS (Sentinel)** — forward/auto-forward the operator SMS; KODA reads and verifies automatically. Works even on iPhone. Hands-free.
 
@@ -86,12 +86,12 @@ Server-authoritative pricing, idempotent settlement, **double-entry ledger that 
 | Plan | Price | Verifications/mo | Throughput | For |
 |---|---|---|---|---|
 | **Marché** | Free forever | 10 | 2 req/s | Market traders |
-| **Boutique** | $5/mo | 160 (+$0.0325 over) | 10 req/s | Small shops |
-| **Commerce** | $20/mo | 750 (+$0.0325 over) | 25 req/s | Growing businesses |
-| **Plateforme** | $100/mo | 3,750 (+$0.0325 over) | 100 req/s | Scaling merchants |
-| **Scale** | $399/mo | 15,000 (+$0.0325 over) | 250 req/s | Platforms/marketplaces (sub-merchant API, trust-score, re-billing, distributor access) |
+| **Boutique** | $5/mo | 150 (+$0.0325 over) | 10 req/s | Small shops |
+| **Commerce** | $20/mo | 600 (+$0.0325 over) | 25 req/s | Growing businesses |
+| **Plateforme** | $100/mo | 3,000 (+$0.0325 over) | 100 req/s | Scaling merchants |
+| **Scale** | $399/mo | 12,000 (+$0.0325 over) | 250 req/s | Platforms/marketplaces (sub-merchant API, trust-score, re-billing, distributor access) |
 | **Enterprise / Gov** | Custom | Committed volume | 1,000 req/s | In-country residency, SLA, white-label |
-Verifications within quota are **free** (no per-use cost). ACU (prepaid credit, $0.0325/unit) is drawn only by AI features and over-quota verifications; a plan's included rate ($0.026/verif) always beats pay-as-you-go. Prepaid **ACU vouchers** and a **distributor/agent float** model let field agents resell credit and keep a 15–20% margin.
+Verifications within quota are **free** (no per-use cost). ACU (prepaid credit, $0.0325/unit) is drawn only by AI features and over-quota verifications; a plan bundles committed quota, features and throughput (included rate = the $0.0325 retail rate). Prepaid **ACU vouchers** and a **distributor/agent float** model let field agents resell credit and keep a 15–20% margin.
 
 ## 13. COMMUNICATION EVENT ARCHITECTURE
 One event engine — **158 events across 18 categories** fan out over **5 channels** (email · in-app · WhatsApp · push · SMS). 40 mandatory notices (security/fraud/legal) always deliver. Branded, templated, multilingual; per-merchant channel preferences.

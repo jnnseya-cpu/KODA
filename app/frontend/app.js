@@ -1109,7 +1109,7 @@ const PLAN_FEATURES = {
   boutique:   ['Manual + Chat + API doors', '2 devices · 3 team seats', 'Customer receipts', 'Web widget + webhooks', 'Reconciliation', 'Overage $0.0325 / extra verification'],
   commerce:   ['Everything in Boutique', '5 devices · 10 seats', 'Vision + screenshot forensics', 'DisputeAgent', 'Priority parsing · WhatsApp SLA', 'Overage $0.0325 / extra verification'],
   plateforme: ['Everything in Commerce', 'Unlimited devices', 'Highest throughput (100 req/s)', 'SLA-backed response times', 'Overage $0.0325 / extra verification'],
-  scale:      ['Everything in Plateforme', '15,000 verifications included', 'Sub-merchant API + scoped keys', 'Trust-score API', 'Re-billing endpoints', 'Distributor / reseller access', 'Priority onboarding & migration'],
+  scale:      ['Everything in Plateforme', '12,000 verifications included', 'Sub-merchant API + scoped keys', 'Trust-score API', 'Re-billing endpoints', 'Distributor / reseller access', 'Priority onboarding & migration'],
   enterprise: ['Everything in Scale', 'In-country residency', 'Dedicated corridor models', 'White-label (+20%)', '99.9% SLA, credited if missed', 'Annual contract'],
 };
 // Plans & Pricing — see the whole ladder and choose/upgrade from inside the app.

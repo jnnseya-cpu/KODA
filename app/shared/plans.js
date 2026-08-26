@@ -8,34 +8,37 @@
 
   // the unified plan ladder (spec §10) — one ladder, all five doors.
   //
-  // PRICING LAW (plan 4× · ad-hoc ACU 5× · hard 4× floor). A plan's INCLUDED quota is the
-  // only place you get the 4× rate ($0.026/verif) — the committed, cheaper price. Every
-  // ad-hoc ACU (pay-as-you-go top-up, plan OVERAGE, AI action) is 5× ($0.0325). So buying
-  // ACU without a plan, or spilling past a plan's quota, always costs MORE than the plan
-  // rate — there is no way to get 4× except inside a plan, and nothing is ever sold below
-  // 4×. Included quota is sized at usd/$0.026 (rounded DOWN so the rate never dips below
-  // the floor); plans win on quota + throughput (rps) + sub-merchants + support. CI asserts
-  // plan rates ≥ 4× and top-up/ACU ≥ 5× in tools/margin.js (RULES 3-4).
-  // Included quota is priced at the PLAN rate (4× = $0.026/verif); overage falls back to
-  // the ad-hoc ACU rate (5× = $0.0325 = 1 ACU), so exceeding quota costs more than a
-  // right-sized plan — differentiate on quota + throughput + features, never a rate
-  // below 4×. Marché is the free acquisition tier (10 on us).
-  // Acquisition-first ladder: a low $5 door, small 4×-priced buckets, growth monetised via
-  // 5× overage. Every included quota still clears the 4× floor ($0.026/verif): 5/140,
-  // 20/750, 100/3750, 399/15000 → $0.0357, $0.0267, $0.0267, $0.0266 per verif. Platform
+  // PRICING LAW (one retail rate · hard 4× floor · partner-resellable). Every unit — an
+  // ad-hoc ACU, a plan-included verification, and an overage verification — is retail-priced
+  // at 5× cost ($0.0325). The 4× floor ($0.026) is what KODA still nets after the deepest
+  // partner discount (reseller 80%). CI asserts current plans ≥5× retail (RULE 4), partner
+  // resale nets ≥4× (RULE 5), and top-up/ACU ≥5× (RULE 3) in tools/margin.js. Plans differ
+  // from raw ACU on committed monthly quota + throughput (rps) + features + agent-resale
+  // reach — not a unit discount. Marché is the free acquisition tier (10 on us).
+  // ONE-RATE MODEL (partner-resellable, 4× floor everywhere). Every unit — a pay-as-you-go
+  // ACU, a plan-included verification, and an overage verification — carries the SAME retail
+  // rate: 5× cost = $0.0325/verif. Partners buy at a fixed wholesale: reseller 80% ($0.026 =
+  // the 4× floor, keeps 20%), distributor 85% ($0.02762 = 4.25×, keeps 15%). Because the
+  // retail rate is 5×, reselling ANY unit — ACU or a whole plan — still nets KODA ≥4×. This
+  // is why plans are priced at the 5× rate (verifs = usd/$0.0325, rounded down): a 4×-priced
+  // plan would net KODA below 4× once a partner takes their cut. A plan's value is its
+  // committed monthly quota + features + throughput + agent-resale reach — not a unit
+  // discount. Prices: Boutique $5/150 · Commerce $20/600 · Plateforme $100/3000 · Scale
+  // $399/12000 (all $0.033/verif ≈ 5.1×; resold at 80% = 4.1×, at 85% = 4.36×). Platform
   // capabilities (sub-merchant API, trust-score, re-billing, distributor access) live at
   // SCALE ($399); Plateforme ($100) is a throughput/scale tier only.
   //
-  // *_legacy entries are NOT shown on the pricing ladder. They preserve the OLD economics
-  // for merchants already subscribed when the new ladder shipped (grandfathering — see the
-  // v5 migration in db.js), so a live subscriber's bucket never shrinks under them. Old
-  // Plateforme (399/15000, platform) maps to the new SCALE tier, so it needs no legacy row.
+  // *_legacy entries are NOT shown on the pricing ladder and are never resold (partner
+  // resale always mints a CURRENT-ladder plan). They preserve the OLD economics for merchants
+  // already subscribed when the new ladder shipped (grandfathering — v5 migration in db.js),
+  // so a live subscriber's bucket never shrinks. Old Plateforme (399/15000, platform) maps to
+  // the new SCALE tier, so it needs no legacy row.
   const PLANS = {
     marche:     { label: 'Marché',     usd: 0,    verifs: 10,    overage: null,   rps: 2 },
-    boutique:   { label: 'Boutique',   usd: 5,    verifs: 160,   overage: 0.0325, rps: 10 },
-    commerce:   { label: 'Commerce',   usd: 20,   verifs: 750,   overage: 0.0325, rps: 25 },
-    plateforme: { label: 'Plateforme', usd: 100,  verifs: 3750,  overage: 0.0325, rps: 100 },
-    scale:      { label: 'Scale',      usd: 399,  verifs: 15000, overage: 0.0325, rps: 250 },
+    boutique:   { label: 'Boutique',   usd: 5,    verifs: 150,   overage: 0.0325, rps: 10 },
+    commerce:   { label: 'Commerce',   usd: 20,   verifs: 600,   overage: 0.0325, rps: 25 },
+    plateforme: { label: 'Plateforme', usd: 100,  verifs: 3000,  overage: 0.0325, rps: 100 },
+    scale:      { label: 'Scale',      usd: 399,  verifs: 12000, overage: 0.0325, rps: 250 },
     enterprise: { label: 'Enterprise', usd: null, verifs: null,  overage: null,   rps: 1000 },
     // grandfathered (hidden): old subscribers keep their original price + bucket
     boutique_legacy: { label: 'Boutique',  usd: 19, verifs: 700,  overage: 0.0325, rps: 10, legacy: true },
@@ -48,9 +51,9 @@
   const ACU = { code: 1, vision: 3, dispute: 3, trust: 0.5, submerchant: 5 };
 
   // prepaid top-up packs (spec §11) — paid via mobile money, verified by the engine itself.
-  // Pay-as-you-go ACU is priced at 5× cost ($0.0325/ACU) — deliberately ABOVE the 4× plan
-  // rate so ad-hoc top-ups always cost more than committing to a plan. Every pack clears
-  // the 4× floor with room to spare (see shared/billing; CI asserts ≥5× in tools/margin.js).
+  // Pay-as-you-go ACU is priced at 5× cost ($0.0325/ACU) — the same retail rate as a plan's
+  // included verification. Every pack clears the 5× retail rate (CI asserts ≥5× in
+  // tools/margin.js RULE 3), so partner resale at 80%/85% still nets KODA ≥4×.
   const TOPUP_PACKS = [
     { usd: 33, acu: 1000 }, { usd: 165, acu: 5000 }, { usd: 650, acu: 20000 },
   ];
