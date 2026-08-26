@@ -323,9 +323,10 @@ Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per mark
 | Plan | Price | Door(s) | Includes | Overage |
 |---|---|---|---|---|
 | **Marché** | $0 | Manual + Chat | 10 verifications/mo, 1 Sentinel, Verify Console, Live Feed, replay protection, daily digest | — (top up) |
-| **Boutique** | $19/mo | Manual + Chat + API | 700 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.0325 |
-| **Commerce** | $79/mo | All | 3,000 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.0325 |
-| **Plateforme** | $399/mo | All + sub-merchants | 15,000 verifications, unlimited devices, sub-merchant API + scoped keys, trust-score API, re-billing endpoints | $0.0325 |
+| **Boutique** | $5/mo | Manual + Chat + API | 160 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.0325 |
+| **Commerce** | $20/mo | All | 750 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.0325 |
+| **Plateforme** | $100/mo | All | 3,750 verifications, unlimited devices, highest throughput (100 req/s), SLA-backed response times | $0.0325 |
+| **Scale** | $399/mo | All + sub-merchants | 15,000 verifications, sub-merchant API + scoped keys, trust-score API, re-billing endpoints, distributor / reseller access | $0.0325 |
 | **Enterprise/Gov** | Custom | All | Volume, in-country residency, dedicated corridor models, white-label (+20% wholesale), SLA | Custom |
 
 **Pay-as-you-go (no subscription, 5×):** $33→1,000 ACU · $165→5,000 · $650→20,000 (all $0.0325/ACU). Deliberately above the 4× plan rate so committing to a plan always saves.
@@ -336,7 +337,7 @@ Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per mark
 
 Card-on-file fails in these markets. KODA is **prepaid ACU wallet first**: merchants top up **via mobile money** (or BitriPay, card, bank transfer) — and **the top-up is verified by KODA's own engine**. `POST /billing/topup` creates a KODA intent on KODA's own account; the merchant pays, drops the code, credits land in seconds. Every top-up is a live demo of the product being paid for. Auto-top-up rules; low-balance WhatsApp alerts; a small **goodwill credit buffer** (a bounded ACU overdraft, `KODA_GRACE_ACU`, default 50) so a live checkout is never cut off the instant the balance hits zero; beyond the buffer, chargeable verification is refused (atomically) rather than run into unbounded negative. Postpaid invoicing for Plateforme/Enterprise contracts only.
 
-**Free-tier anti-abuse:** one Marché account per attested device + KYB msisdn; per-IP signup cap that escalates to a SecurityAgent auto-block; FraudSentinel velocity applies identically; conversion nudges from real usage ("You verified 48 payments this month — Boutique costs $0.63/day").
+**Free-tier anti-abuse:** one Marché account per attested device + KYB msisdn; per-IP signup cap that escalates to a SecurityAgent auto-block; FraudSentinel velocity applies identically; conversion nudges from real usage ("You verified 48 payments this month — Boutique costs $0.16/day").
 
 ## 12. Unit economics (per verification, scale, blended) — INTERNAL ONLY, never shown publicly
 

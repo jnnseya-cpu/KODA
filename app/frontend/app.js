@@ -315,7 +315,7 @@ function route() {
 /* ---------------- shell ---------------- */
 function shell(active, title, sub, content) {
   const m = ME.merchant, u = ME.user;
-  const isPlatform = m && (m.plan === 'plateforme' || m.plan === 'enterprise');
+  const isPlatform = m && (m.plan === 'scale' || m.plan === 'enterprise');
   // role-based navigation: cashier = till work only · manager = + operations · owner = everything
   const role = u.is_admin ? 'admin' : (u.role || 'owner');
   // KODA verifies automatically — the merchant does nothing. The manual Verify
@@ -991,9 +991,10 @@ VIEWS.reseller = async () => {
     <div style="display:grid;gap:8px;grid-template-columns:1fr 1fr;max-width:520px">
       <select id="rsc-product" onchange="rscToggle()" style="grid-column:1/-1;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
         <option value="acu">ACU credit voucher</option>
-        <option value="boutique">Subscription — Boutique ($19 / month)</option>
-        <option value="commerce">Subscription — Commerce ($79 / month)</option>
-        <option value="plateforme">Subscription — Plateforme ($399 / month)</option>
+        <option value="boutique">Subscription — Boutique ($5 / month)</option>
+        <option value="commerce">Subscription — Commerce ($20 / month)</option>
+        <option value="plateforme">Subscription — Plateforme ($100 / month)</option>
+        <option value="scale">Subscription — Scale ($399 / month)</option>
       </select>
       <input id="rsc-acu" type="number" placeholder="ACU per voucher (e.g. 100)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
       <input id="rsc-qty" type="number" placeholder="Quantity (e.g. 10)" style="background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px">
@@ -1104,17 +1105,18 @@ window.revokeDevice = async (id) => { await api(`/app/devices/${id}/revoke`, { b
 
 // what each plan gives you — display copy keyed to the shared plan ladder
 const PLAN_FEATURES = {
-  marche:     ['All five doors (Manual, WhatsApp, API, USSD, SMS)', 'Automatic SMS-anchored verification', 'Live payments feed & receipts', '1 Sentinel device'],
-  boutique:   ['Everything in Marché', 'Higher throughput (10 req/s)', 'WhatsApp + API doors at scale', 'Disputes & multi-device', 'Overage $0.0325 / extra verification'],
-  commerce:   ['Everything in Boutique', '25 req/s', 'Sub-merchant accounts', 'Priority support', 'Overage $0.0325 / extra verification'],
-  plateforme: ['Everything in Commerce', '100 req/s', 'White-label & sub-merchant API', 'SLA-backed response times', 'Overage $0.0325 / extra verification'],
-  enterprise: ['Everything in Plateforme', '1000 req/s', 'Custom volume & contracts', 'Dedicated onboarding', 'Talk to us for pricing'],
+  marche:     ['10 verifications/mo', '1 Sentinel device', 'Verify Console + Live Feed', 'Replay protection', 'Daily digest'],
+  boutique:   ['Manual + Chat + API doors', '2 devices · 3 team seats', 'Customer receipts', 'Web widget + webhooks', 'Reconciliation', 'Overage $0.0325 / extra verification'],
+  commerce:   ['Everything in Boutique', '5 devices · 10 seats', 'Vision + screenshot forensics', 'DisputeAgent', 'Priority parsing · WhatsApp SLA', 'Overage $0.0325 / extra verification'],
+  plateforme: ['Everything in Commerce', 'Unlimited devices', 'Highest throughput (100 req/s)', 'SLA-backed response times', 'Overage $0.0325 / extra verification'],
+  scale:      ['Everything in Plateforme', '15,000 verifications included', 'Sub-merchant API + scoped keys', 'Trust-score API', 'Re-billing endpoints', 'Distributor / reseller access', 'Priority onboarding & migration'],
+  enterprise: ['Everything in Scale', 'In-country residency', 'Dedicated corridor models', 'White-label (+20%)', '99.9% SLA, credited if missed', 'Annual contract'],
 };
 // Plans & Pricing — see the whole ladder and choose/upgrade from inside the app.
 VIEWS.pricing = async () => {
   const b = await api('/app/billing');
   const current = b.plan.id;
-  const order = ['marche', 'boutique', 'commerce', 'plateforme', 'enterprise'];
+  const order = ['marche', 'boutique', 'commerce', 'plateforme', 'scale', 'enterprise'];
   const rank = (id) => order.indexOf(id);
   const card = (p) => {
     const isCur = p.id === current;
@@ -1149,7 +1151,7 @@ window.choosePlan = (p) => { setPlan(p); };
 
 VIEWS.billing = async () => {
   const b = await api('/app/billing');
-  const plans = ['marche', 'boutique', 'commerce', 'plateforme'];
+  const plans = ['marche', 'boutique', 'commerce', 'plateforme', 'scale'];
   shell('billing', t('billing'), t('sub_billing'), `
   <div class="grid g3">
     <div class="card stat"><b>${acuFmt(b.balance)}</b><span>${t('acu_balance')}</span></div>
@@ -1174,7 +1176,7 @@ VIEWS.billing = async () => {
       <a class="btn btn-ghost" href="#reseller">Reseller console →</a></div></div>
   <div class="card" style="margin-top:14px"><h3>${t('change_plan')}</h3>
     <div class="pill-row">${plans.map(p => `<button class="pill ${b.plan.label.toLowerCase() === p ? 'on' : ''}" onclick="setPlan('${p}')">${p}</button>`).join('')}</div>
-    <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $19 · Commerce $79 · Plateforme $399 · Enterprise custom — one ladder, all five doors.</div>
+    <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $5 · Commerce $20 · Plateforme $100 · Scale $399 · Enterprise custom — one ladder, all five doors.</div>
     <p style="margin-top:8px"><a href="#pricing" style="color:var(--gold);font-size:13px">${t('bl_see_all')}</a></p>
     <div id="plan-pay" style="margin-top:12px"></div>
   </div>
@@ -1976,7 +1978,7 @@ window.deleteMyAccount = async () => {
   catch (e) { toast('✗ ' + e.message); }
 };
 
-const PLAN_KEYS = ['marche', 'boutique', 'commerce', 'plateforme', 'enterprise'];
+const PLAN_KEYS = ['marche', 'boutique', 'commerce', 'plateforme', 'scale', 'enterprise'];
 const ROLE_KEYS = ['cashier', 'manager', 'owner'];
 const ADMIN_TABS = [
   ['overview', 'Overview'], ['revenue', 'Revenue'], ['collections', 'Collections'],

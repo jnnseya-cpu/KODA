@@ -78,10 +78,10 @@ POST   /devices/{id}/revoke            Instant kill of a device
 ```
 GET    /reconciliation/reports           Nightly three-way reports
 GET    /reconciliation/unmatched         Payments received with no intent ("money you forgot")
-GET    /trust/{merchant_or_payer_id}     Trust score (Plateforme tier+) — marketplace risk API
+GET    /trust/{merchant_or_payer_id}     Trust score (Scale tier+) — marketplace risk API
 ```
 
-**Platform / sub-merchant (Plateforme tier+)**
+**Platform / sub-merchant (Scale tier+)**
 
 ```
 POST   /submerchants                     Onboard a merchant under master account (KYB-light: name, msisdn, operator, ID ref)
@@ -185,7 +185,7 @@ Pay-as-you-go ACU is priced at **5× cost ($0.0325/ACU)** — deliberately above
 | $165 → 5,000 ACU | $0.0325 |
 | $650 → 20,000 ACU | $0.0325 |
 
-**Plans (subscription = the 4× rate + features)** — Marché $0 (10/mo) · Boutique $19 (700) · Commerce $79 (3,000) · Plateforme $399 (15,000) · Enterprise custom. Included quota sells at the **4× plan rate ($0.026/verif)** — the only place a merchant gets 4×; overage draws from the prepaid wallet at the 5× ad-hoc rate ($0.0325).
+**Plans (subscription = the 4× rate + features)** — Marché $0 (10/mo) · Boutique $5 (160) · Commerce $20 (750) · Plateforme $100 (3,750) · Scale $399 (15,000) · Enterprise custom. Acquisition-first ladder: a low $5 door, small 4×-priced buckets, growth monetised via 5× overage. Included quota sells at the **plan rate (≥4× = $0.026–$0.031/verif)** — the only place a merchant gets ≤5×; overage draws from the prepaid wallet at the 5× ad-hoc rate ($0.0325). Platform capabilities (sub-merchant API, trust-score, re-billing, distributor access) sit at **Scale ($399)**; Plateforme ($100) is a throughput/scale tier.
 
 **Partner wholesale (buy float/inventory, resell at the 5× retail, keep the spread)**
 
@@ -204,7 +204,7 @@ Below 80% (which would breach the **4× floor**) is rejected in code + CI. Platf
 
 ### 4.5 Anti-abuse of free tier
 
-Marché tier: 20 verifications/mo, 1 device, device-attestation required, one free account per attested device + KYB msisdn. FraudSentinel velocity rules apply identically. Free tier is a funnel, not a leak: conversion trigger messages fire from usage data ("You verified 48 payments this month — Boutique would have cost you $0.63 per day").
+Marché tier: 20 verifications/mo, 1 device, device-attestation required, one free account per attested device + KYB msisdn. FraudSentinel velocity rules apply identically. Free tier is a funnel, not a leak: conversion trigger messages fire from usage data ("You verified 48 payments this month — Boutique would have cost you $0.16 per day").
 
 ### 4.6 Unit economics (investor page)
 

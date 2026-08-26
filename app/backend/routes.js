@@ -466,7 +466,7 @@ module.exports = function registerRoutes(r) {
     // an admin-comped / Enterprise account (NULL expiry, curUsd=Infinity) could ride its
     // unlimited window down to a permanent free Plateforme. Those go through payment.
     if (targetUsd < curUsd && curUsd !== Infinity && m.plan_expires_at) {
-      q.run('UPDATE merchants SET plan=?, is_platform=? WHERE id=?', plan, plan === 'plateforme' ? 1 : 0, m.id);
+      q.run('UPDATE merchants SET plan=?, is_platform=? WHERE id=?', plan, plan === 'scale' ? 1 : 0, m.id);
       notify.fire('plan.downgraded', { user, merchant: m, data: { plan: PLANS[plan].label } });
       audit(m.id, user.id, 'plan_changed', { plan, downgrade: true });
       return { ok: true, plan };
@@ -495,7 +495,7 @@ module.exports = function registerRoutes(r) {
     if (!needRole(user, ['manager'])) return [403, { error: 'manager_or_owner_only' }];
     // Cap active keys per plan — the rps limiter is per-merchant, but an unbounded number
     // of keys is still an abuse/credential-sprawl surface. Scales with tier.
-    const KEY_CAP = { marche: 2, boutique: 5, commerce: 15, plateforme: 50, enterprise: 200 };
+    const KEY_CAP = { marche: 2, boutique: 5, commerce: 15, plateforme: 50, scale: 100, enterprise: 200, boutique_legacy: 5, commerce_legacy: 15 };
     const cap = KEY_CAP[m.plan] || 2;
     const activeKeys = q.get(`SELECT COUNT(*) c FROM api_keys WHERE merchant_id=? AND revoked=0 AND submerchant_id IS NULL`, m.id).c;
     if (activeKeys >= cap) return [403, { error: { code: 'key_limit_reached', cap, message: `Your plan allows ${cap} API keys. Revoke one or upgrade.` } }];
@@ -912,9 +912,9 @@ module.exports = function registerRoutes(r) {
            FROM merchants s WHERE s.parent_id=?`, m.id)));
   r.post('/app/submerchants', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
-    if (m.plan !== 'plateforme' && m.plan !== 'enterprise') return [402, { error: 'plateforme_plan_required' }];
+    if (m.plan !== 'scale' && m.plan !== 'enterprise') return [402, { error: { code: 'scale_plan_required', message: 'Sub-merchant API requires the Scale or Enterprise plan.' } }];
     // Cap sub-merchants per parent — creating them costs only 5 ACU, so an uncapped count
-    // was a lever for quota laundering. Enterprise gets a high ceiling, Plateforme a sane one.
+    // was a lever for quota laundering. Enterprise gets a high ceiling, Scale a sane one.
     const SUB_CAP = m.plan === 'enterprise' ? 1000 : Number(process.env.KODA_SUBMERCHANT_CAP || 100);
     const subN = q.get(`SELECT COUNT(*) c FROM merchants WHERE parent_id=? AND status!='suspended'`, m.id).c;
     if (subN >= SUB_CAP) return [403, { error: { code: 'submerchant_limit', cap: SUB_CAP } }];

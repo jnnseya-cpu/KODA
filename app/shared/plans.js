@@ -20,12 +20,26 @@
   // the ad-hoc ACU rate (5× = $0.0325 = 1 ACU), so exceeding quota costs more than a
   // right-sized plan — differentiate on quota + throughput + features, never a rate
   // below 4×. Marché is the free acquisition tier (10 on us).
+  // Acquisition-first ladder: a low $5 door, small 4×-priced buckets, growth monetised via
+  // 5× overage. Every included quota still clears the 4× floor ($0.026/verif): 5/140,
+  // 20/750, 100/3750, 399/15000 → $0.0357, $0.0267, $0.0267, $0.0266 per verif. Platform
+  // capabilities (sub-merchant API, trust-score, re-billing, distributor access) live at
+  // SCALE ($399); Plateforme ($100) is a throughput/scale tier only.
+  //
+  // *_legacy entries are NOT shown on the pricing ladder. They preserve the OLD economics
+  // for merchants already subscribed when the new ladder shipped (grandfathering — see the
+  // v5 migration in db.js), so a live subscriber's bucket never shrinks under them. Old
+  // Plateforme (399/15000, platform) maps to the new SCALE tier, so it needs no legacy row.
   const PLANS = {
     marche:     { label: 'Marché',     usd: 0,    verifs: 10,    overage: null,   rps: 2 },
-    boutique:   { label: 'Boutique',   usd: 19,   verifs: 700,   overage: 0.0325, rps: 10 },
-    commerce:   { label: 'Commerce',   usd: 79,   verifs: 3000,  overage: 0.0325, rps: 25 },
-    plateforme: { label: 'Plateforme', usd: 399,  verifs: 15000, overage: 0.0325, rps: 100 },
+    boutique:   { label: 'Boutique',   usd: 5,    verifs: 160,   overage: 0.0325, rps: 10 },
+    commerce:   { label: 'Commerce',   usd: 20,   verifs: 750,   overage: 0.0325, rps: 25 },
+    plateforme: { label: 'Plateforme', usd: 100,  verifs: 3750,  overage: 0.0325, rps: 100 },
+    scale:      { label: 'Scale',      usd: 399,  verifs: 15000, overage: 0.0325, rps: 250 },
     enterprise: { label: 'Enterprise', usd: null, verifs: null,  overage: null,   rps: 1000 },
+    // grandfathered (hidden): old subscribers keep their original price + bucket
+    boutique_legacy: { label: 'Boutique',  usd: 19, verifs: 700,  overage: 0.0325, rps: 10, legacy: true },
+    commerce_legacy: { label: 'Commerce',  usd: 79, verifs: 3000, overage: 0.0325, rps: 25, legacy: true },
   };
 
   // ACU metering (spec §9) — the billable atom is a successful verification. ACU is

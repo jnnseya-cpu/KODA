@@ -283,7 +283,7 @@ function settleTopup(topupId, { issuer = 'koda:treasury', entryType = 'koda_issu
       const cas = q.run(`UPDATE topups SET status='settled', settled_at=datetime('now') WHERE id=? AND status IN ('pending','initiated')`, t.id);
       if (cas.changes !== 1) return { already: true };
       q.run(`UPDATE merchants SET plan=?, is_platform=?, plan_expires_at=datetime('now','+30 days') WHERE id=?`,
-        t.plan_key, t.plan_key === 'plateforme' ? 1 : merchant.is_platform, merchant.id);
+        t.plan_key, t.plan_key === 'scale' ? 1 : (t.plan_key === 'plateforme' ? 0 : merchant.is_platform), merchant.id);
       return { activated: true };
     });
     if (res.already) return { ok: true, already: true, topup_id: t.id };
@@ -589,7 +589,7 @@ const isSellablePlan = (planKey) => { const P = require('../../shared/plans').PL
 function activatePlan(merchantId, planKey) {
   const m = q.get('SELECT is_platform FROM merchants WHERE id=?', merchantId);
   q.run(`UPDATE merchants SET plan=?, is_platform=?, plan_expires_at=datetime('now','+30 days') WHERE id=?`,
-    planKey, planKey === 'plateforme' ? 1 : (m ? m.is_platform : 0), merchantId);
+    planKey, planKey === 'scale' ? 1 : (planKey === 'plateforme' ? 0 : (m ? m.is_platform : 0)), merchantId);
 }
 
 // Inventory-gated batch issuance: draws down prepaid inventory atomically so a

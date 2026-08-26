@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS merchants (
   name TEXT NOT NULL,
   country TEXT NOT NULL DEFAULT 'CD',
   currency TEXT NOT NULL DEFAULT 'CDF',
-  plan TEXT NOT NULL DEFAULT 'marche',          -- marche|boutique|commerce|plateforme|enterprise
+  plan TEXT NOT NULL DEFAULT 'marche',          -- marche|boutique|commerce|plateforme|scale|enterprise (+ *_legacy grandfathered)
   msisdn TEXT,
   brand_color TEXT DEFAULT '#E8A11F',
   logo_text TEXT,
@@ -455,6 +455,19 @@ try {
     db.exec(`UPDATE distributors SET wholesale_bps = 8500 WHERE wholesale_bps >= 10000`);
     db.exec(`UPDATE resellers SET wholesale_bps = 8000 WHERE wholesale_bps >= 10000`);
     db.exec('PRAGMA user_version = 4');
+  }
+  if (uv < 5) {
+    // New acquisition-first ladder ships: Boutique 19→5/140, Commerce 79→20/750,
+    // Plateforme 399→100/3750 (platform features move UP to the new Scale 399/15000).
+    // GRANDFATHER live subscribers so no active bucket shrinks:
+    //   · old Boutique (19/700) → boutique_legacy  (keeps 19/700)
+    //   · old Commerce (79/3000) → commerce_legacy  (keeps 79/3000)
+    //   · old Plateforme (399/15000, platform) → scale (399/15000, platform — exact match)
+    // Only paying subscribers with a live plan window are moved; Marché/Enterprise untouched.
+    db.exec(`UPDATE merchants SET plan='scale' WHERE plan='plateforme' AND plan_expires_at IS NOT NULL`);
+    db.exec(`UPDATE merchants SET plan='boutique_legacy' WHERE plan='boutique' AND plan_expires_at IS NOT NULL`);
+    db.exec(`UPDATE merchants SET plan='commerce_legacy' WHERE plan='commerce' AND plan_expires_at IS NOT NULL`);
+    db.exec('PRAGMA user_version = 5');
   }
 } catch { /* best-effort one-time migration */ }
 

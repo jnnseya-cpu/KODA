@@ -86,9 +86,10 @@ Server-authoritative pricing, idempotent settlement, **double-entry ledger that 
 | Plan | Price | Verifications/mo | Throughput | For |
 |---|---|---|---|---|
 | **Marché** | Free forever | 10 | 2 req/s | Market traders |
-| **Boutique** | $19/mo | 700 (+$0.0325 over) | 10 req/s | Small shops |
-| **Commerce** | $79/mo | 3,000 (+$0.0325 over) | 25 req/s | Growing businesses |
-| **Plateforme** | $399/mo | 15,000 (+$0.0325 over) | 100 req/s | Platforms/marketplaces |
+| **Boutique** | $5/mo | 160 (+$0.0325 over) | 10 req/s | Small shops |
+| **Commerce** | $20/mo | 750 (+$0.0325 over) | 25 req/s | Growing businesses |
+| **Plateforme** | $100/mo | 3,750 (+$0.0325 over) | 100 req/s | Scaling merchants |
+| **Scale** | $399/mo | 15,000 (+$0.0325 over) | 250 req/s | Platforms/marketplaces (sub-merchant API, trust-score, re-billing, distributor access) |
 | **Enterprise / Gov** | Custom | Committed volume | 1,000 req/s | In-country residency, SLA, white-label |
 Verifications within quota are **free** (no per-use cost). ACU (prepaid credit, $0.0325/unit) is drawn only by AI features and over-quota verifications; a plan's included rate ($0.026/verif) always beats pay-as-you-go. Prepaid **ACU vouchers** and a **distributor/agent float** model let field agents resell credit and keep a 15–20% margin.
 

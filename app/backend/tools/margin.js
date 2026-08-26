@@ -63,7 +63,7 @@ for (const [who, bps] of [['distributor', 8500], ['reseller', 8000]]) {
 // (so a plan is always the better deal); overage falls back to the ad-hoc ACU rate (5×).
 console.log(`\nRULE 4 — plan rate 4× ($${BILL.PLAN_PRICE_USD}) < ad-hoc ACU 5× ($${BILL.ACU_PRICE_USD}):`);
 if (!(BILL.PLAN_PRICE_USD + 1e-9 < BILL.ACU_PRICE_USD)) { fails++; console.log('  ✗ plan rate is not below the ad-hoc ACU rate'); }
-const LADDER = ['boutique', 'commerce', 'plateforme'];
+const LADDER = ['boutique', 'commerce', 'plateforme', 'scale', 'boutique_legacy', 'commerce_legacy'];
 for (const key of LADDER) {
   const p = PLANS[key];
   const incl = p.usd / p.verifs;
