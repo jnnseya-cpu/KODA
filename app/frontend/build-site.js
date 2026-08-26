@@ -535,12 +535,12 @@ function kodaPartnerApply(e){
     → Sentinel captures, parses on-device, pushes a signed record (~2–4 s)
 [4] The reference code travels to KODA
     → typed at checkout · dropped in WhatsApp · pasted in your Console
-[5] MatchMaker verifies: code ↔ ledger ↔ amount ↔ window ↔ suffix ↔ replay index
-[6] FraudSentinel scores (~40 features). Low → confirm · mid → challenge · high → reject
+[5] KODA checks the code against the operator's own record — and refuses anything that doesn't line up
+[6] The fraud engine scores the match. Clean → confirm · unsure → challenge · risky → reject
 [7] The verdict lands where you live: webhook · ✅ in the chat · green card in the Console
 [8] Elapsed: customer-side ~30–60 s. KODA's share: &lt; 10 s.</pre>
 <h2>The fraud engine — built to be lied to</h2>
-<p>KODA's truth is <b>merchant-side, operator-issued, device-attested</b>. Code replay is impossible (Global Replay Index — single-use forever, across all five doors). Spoofed SMS break the <b>balance-chain</b>: every genuine operator SMS carries the running balance, so each new balance must equal the previous plus the amount. A spoof breaks the arithmetic and is quarantined.</p>
+<p>KODA's truth is <b>merchant-side, operator-issued, device-attested</b> — it comes from the network's own confirmation, not from anything the buyer can type or edit. A code works <b>once and never again</b>, across every door. Forged, edited or replayed messages are caught and quarantined, and the merchant is alerted — the checks themselves stay under the hood.</p>
 <h2>Every door your customer can reach</h2>
 <p>The customer pays and confirms however they can — KODA meets them there:</p>
 <ul>
@@ -598,7 +598,7 @@ ${Object.entries(COV.byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
 <h2>How we classify an operator</h2>
 <table>
 <tr><th>Tier</th><th>What it means</th><th>KODA</th></tr>
-<tr><td><b>A — SMS-native</b></td><td>Sends a merchant confirmation SMS with reference, amount, sender and running balance. The balance-chain defence applies in full.</td><td class="ok">Verifiable · ${COV.byTier.A}</td></tr>
+<tr><td><b>A — SMS-native</b></td><td>Sends a merchant confirmation SMS with reference, amount and sender — fully verifiable, with our strongest fraud protection.</td><td class="ok">Verifiable · ${COV.byTier.A}</td></tr>
 <tr><td><b>B — hybrid</b></td><td>SMS plus app/push; usually verifiable via the SMS the merchant SIM still receives, sometimes with a lighter trust band.</td><td class="warn">Verifiable · ${COV.byTier.B}</td></tr>
 <tr><td><b>C — bank-rail / app-push</b></td><td>No merchant SMS at all (pure app or bank rail — e.g. UPI). Nothing for KODA to read.</td><td>Excluded · ${COV.byTier.C}</td></tr>
 </table>
@@ -1001,8 +1001,8 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
     title: 'Notes from the payment truth layer.', kicker: 'Blog',
     lead: 'Engineering, market and fraud notes from the team industrialising the confirmation SMS.',
     body: `
-<div class="card"><h3><a href="/how-it-works">The balance-chain defence: how the operator's own bookkeeping became our firewall</a></h3>
-<p>Every genuine operator SMS carries the running balance. A spoof breaks the arithmetic. Why the deepest anti-fraud mechanism in KODA needed zero external dependencies.</p>
+<div class="card"><h3><a href="/how-it-works">Why forged payment messages don't get past KODA</a></h3>
+<p>The deepest anti-fraud check in KODA needs zero external dependencies — it reads the network's own confirmation and refuses anything that doesn't add up. How merchant-side truth beats screenshot fraud.</p>
 <span class="badge">Fraud engineering</span> <span style="font-family:var(--mono);font-size:11px;color:var(--dim)">July 2026</span></div>
 <div class="card"><h3><a href="/developers">0 telco meetings, 11 minutes to first verified payment</a></h3>
 <p>What happened when we put a telco simulator inside the sandbox and made "time to first verified payment" the only activation metric that matters.</p>

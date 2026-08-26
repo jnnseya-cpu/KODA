@@ -499,7 +499,7 @@
 
       <div class="matchbar"><i id="bar"></i></div>
       <div class="match-legend">
-        <span>code ↔ ledger</span><span>amount</span><span>window</span><span>suffix</span><span>replay</span>
+        <span>operator record</span><span>amount</span><span>timing</span><span>payer</span><span>single-use</span>
       </div>
 
       <div class="webhook" id="hook">
@@ -745,7 +745,7 @@ risk 0.02 · &lt;10 s</div>
     <div class="agents">
       <div class="agent"><span class="id">K-01</span><h4>ParserAgent</h4><p>Structures SMS; detects operator format drift; regenerates + canary-ships template packs worldwide, OTA.</p></div>
       <div class="agent"><span class="id">K-02</span><h4>MatchMaker</h4><p>Code↔ledger↔intent↔amount↔window↔suffix matching. Repairs customer typos up to edit distance 2.</p></div>
-      <div class="agent"><span class="id">K-03</span><h4>FraudSentinel</h4><p>~40-feature risk score per match; Global Replay Index; retrained per corridor — Kinshasa fraud ≠ Dhaka fraud.</p></div>
+      <div class="agent"><span class="id">K-03</span><h4>FraudSentinel</h4><p>Risk score per match, retrained per corridor — Kinshasa fraud ≠ Dhaka fraud.</p></div>
       <div class="agent"><span class="id">K-04</span><h4>VisionAgent</h4><p>Extracts refs from screenshots; forgery forensics. Assistive evidence only — never sole proof.</p></div>
       <div class="agent"><span class="id">K-05</span><h4>ReconcilerAgent</h4><p>Three-way reconciliation; surfaces unmatched payments — "you were paid 3× today with no order attached."</p></div>
       <div class="agent"><span class="id">K-06</span><h4>DisputeAgent</h4><p>Interviews the customer in-channel on failed verifies; hands you an evidence file + recommendation.</p></div>
