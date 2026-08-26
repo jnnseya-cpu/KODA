@@ -1194,18 +1194,14 @@ for (const [name, html] of Object.entries(pages)) {
   fs.writeFileSync(path.join(OUT, `${name}.html`), out);
 }
 
-// ---- /demo: interactive 5-door simulator. Inlines the REAL parser (shared/parser.js)
-// verbatim so the demo parses SMS with the exact production regex packs — no drift,
-// no backend, no auth, cannot touch production data. ----
+// ---- /demo: interactive 5-door simulator. Self-contained, client-side only:
+// it carries a small demo-only reader for the sample SMS shapes it shows. KODA's
+// production parser is NOT shipped here — the real engine runs server-side and
+// never reaches the browser, so view-source reveals no operator packs. ----
 try {
   const demoSrcPath = path.join(__dirname, 'demo-src.html');
   if (fs.existsSync(demoSrcPath)) {
-    const parserSrc = fs.readFileSync(path.join(__dirname, '..', 'shared', 'parser.js'), 'utf8')
-      // strip the Node export and expose a browser global instead
-      .replace(/module\.exports\s*=\s*\{[^}]*\};?/,
-        'window.KODA_PARSER = { parseSms, genericParse, OPERATORS, PACKS };');
-    const parserBundle = '(function(){\n' + parserSrc + '\n})();';
-    let demo = fs.readFileSync(demoSrcPath, 'utf8').replace('/*__KODA_PARSER__*/', parserBundle);
+    let demo = fs.readFileSync(demoSrcPath, 'utf8');
     if (demo.includes('</head>')) demo = demo.replace('</head>', ANALYTICS + '\n</head>');
     fs.writeFileSync(path.join(OUT, 'demo.html'), demo);
   }

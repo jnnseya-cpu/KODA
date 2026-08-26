@@ -127,7 +127,36 @@
   </div>
 </footer>
 
-<script>/*__KODA_PARSER__*/</script>
+<script>
+/* Demo-only reader. This is NOT KODA's production SMS engine: it recognises just
+   the sample formats shown in this simulator so the page can run entirely in the
+   browser with no backend and no account. KODA's real multi-operator parser runs
+   server-side and never ships to the client. */
+(function(){
+  'use strict';
+  function num(x){ return x ? parseInt(String(x).replace(/[^\d]/g,''),10) : 0; }
+  function parseSms(raw){
+    var s = String(raw||'').trim();
+    if (!s) return null;
+    var am = s.match(/([\d][\d\s.,]*\d|\d)\s*(FC|CDF|USD|\$|KES|Ksh|UGX|Ush|XOF|XAF|NGN|BDT|Tk)\b/i)
+          || s.match(/\b(FC|CDF|USD|\$|KES|Ksh|UGX|Ush|XOF|XAF|NGN|BDT|Tk)\s*([\d][\d\s.,]*\d|\d)/i);
+    var amount = am ? (num(am[1]) || num(am[2])) : 0;
+    if (!amount) return null;
+    var refm = s.match(/\b(?:ref(?:erence)?|txn|code|id)\b\s*[:.#]?\s*([A-Z0-9][A-Z0-9.\-]{3,})/i);
+    var ref = refm ? refm[1].replace(/[.\s]+$/,'') : '';
+    if (!ref) return null;
+    var curm = s.match(/\b(FC|CDF|USD|KES|Ksh|UGX|Ush|XOF|XAF|NGN|BDT|Tk)\b/i);
+    var currency = curm ? curm[1].toUpperCase().replace(/^FC$/,'CDF').replace(/^KSH$/,'KES').replace(/^USH$/,'UGX')
+                        : (/\$/.test(s) ? 'USD' : null);
+    var nm = s.match(/(?:\bde\b|\bfrom\b|\bpar\b)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9.'\- ]{1,40}?)(?=\s*(?:[.,(]|\bref|\bsolde|\bbalance|\+?\d|$))/i);
+    var name = nm ? nm[1].trim() : null;
+    var precise = /(re[cç]u|received|recibido)/i.test(s) && !!name;
+    return { operator: precise ? 'Orange Money' : 'generic', generic: !precise,
+             ref: ref, amount: amount, currency: currency, name: name };
+  }
+  window.KODA_PARSER = { parseSms: parseSms };
+})();
+</script>
 <script>
 (function(){
   'use strict';
