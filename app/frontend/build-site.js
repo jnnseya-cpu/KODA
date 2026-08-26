@@ -19,6 +19,12 @@ for (const js of ['app.js', 'sw.js']) {
 
 const OUT = path.join(__dirname, 'site');
 fs.mkdirSync(OUT, { recursive: true });
+// Static brand assets served at the site root: favicon (/icon.svg, referenced by every
+// page head) and the social-share card (/og-image.png, used by og:image + twitter:image).
+for (const asset of ['icon.svg', 'og-image.png']) {
+  const src = path.join(__dirname, asset);
+  if (fs.existsSync(src)) fs.copyFileSync(src, path.join(OUT, asset));
+}
 
 // ---- Analytics: Meta Pixel + conversion events ----
 // Injected into the PUBLIC MARKETING PAGES ONLY (never the hosted checkout /pay,
@@ -184,8 +190,19 @@ html{scroll-behavior:smooth}
     .map(o => `<script type="application/ld+json">${JSON.stringify(o)}</script>`).join('\n');
   // Self-referencing canonical (absolute, https, non-www) so Google indexes THIS URL and
   // not a redirecting variant (www→apex / http→https), which shows up as "Page with redirect".
+  // Favicon + social-share card (Open Graph + Twitter) so links shared on WhatsApp/FB/X/
+  // LinkedIn render as a proper preview card, and the browser tab shows the KODA mark.
+  const ogTitle = 'KODA — Mobile money payment verification';
+  const ogDesc = "Turn the operator's confirmation SMS into verified proof of payment. Manual, WhatsApp, or API. No telco contract.";
+  const socialHead =
+    `<link rel="icon" href="/icon.svg" type="image/svg+xml">\n<link rel="apple-touch-icon" href="/icon.svg">\n`
+    + `<meta property="og:type" content="website">\n<meta property="og:site_name" content="KODA">\n`
+    + `<meta property="og:title" content="${ogTitle}">\n<meta property="og:description" content="${ogDesc}">\n`
+    + `<meta property="og:image" content="https://kodajnn.com/og-image.png">\n<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">\n`
+    + `<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:title" content="${ogTitle}">\n`
+    + `<meta name="twitter:description" content="${ogDesc}">\n<meta name="twitter:image" content="https://kodajnn.com/og-image.png">\n`;
   const homeHead = (/rel=["']canonical/i.test(landing) ? '' :
-    `<link rel="canonical" href="https://kodajnn.com/">\n<meta property="og:url" content="https://kodajnn.com/">\n`) + homeLd;
+    `<link rel="canonical" href="https://kodajnn.com/">\n<meta property="og:url" content="https://kodajnn.com/">\n`) + socialHead + homeLd;
   if (landing.includes('</head>')) landing = landing.replace('</head>', homeHead + ANALYTICS + '\n</head>');
   fs.writeFileSync(path.join(OUT, 'index.html'), landing);
 }
@@ -208,6 +225,13 @@ function page({ title, kicker, lead, body }) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title} — KODA</title>${ANALYTICS}
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="KODA">
+<meta property="og:title" content="${title.replace(/"/g, '&quot;')} — KODA">
+<meta property="og:image" content="https://kodajnn.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://kodajnn.com/og-image.png">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#081813;--ink2:#0C231C;--gold:#E8A11F;--paper:#F5EFDF;--text:#E9E4D5;--dim:#9BA79B;--line:rgba(233,228,213,.12);
