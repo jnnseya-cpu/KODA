@@ -463,7 +463,8 @@ function kodaPartnerApply(e){
     <ul><li>In-country residency</li><li>Dedicated corridor models</li><li>White-label</li><li>99.9% SLA, credited if missed</li></ul>
     <a class="pbtn" href="/contact">Talk to us</a></div>
 </div>
-<p><b>Pay-as-you-go:</b> prepaid ACU packs from <b>$33 → 1,000 ACU</b> ($165 → 5,000 · $650 → 20,000), topped up via mobile money and verified by KODA's own engine. 1 ACU = one verification beyond your plan quota; ACU also powers AI features (Vision, DisputeAgent). A plan's included rate ($0.026/verif paid direct to KODA) always beats pay-as-you-go ($0.0325) — so subscribing saves ~20%. Buying a plan from a local agent? You pay the agent's list price; the direct rate is on kodajnn.com.</p>
+<p><b>Pay-as-you-go:</b> prepaid ACU packs from <b>$33 → 1,000 ACU</b> ($165 → 5,000 · $650 → 20,000), topped up via mobile money and verified by KODA's own engine. 1 ACU = one verification beyond your plan quota; ACU also powers AI features (Vision, DisputeAgent). A plan's included rate ($0.026/verif) always beats pay-as-you-go ($0.0325) — so subscribing saves ~20%.</p>
+<p style="color:var(--dim);font-size:12.5px">Pay KODA directly by card or mobile money for the prices above. <b style="color:var(--text)">No card or bank?</b> A local KODA agent can set you up and activate any plan with cash — find one near you.</p>
 <p style="color:var(--dim);font-size:13.5px">Prices in USD, billed monthly, and a paid plan activates the moment KODA confirms your mobile-money payment. Upgrade, downgrade or cancel anytime — no lock-in. Already have an account? Choose or change your plan in <a href="/app#pricing">the app → Plans &amp; pricing</a>.</p>`,
   }),
   'about': page({
