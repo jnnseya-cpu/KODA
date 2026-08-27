@@ -225,7 +225,7 @@ function page({ title, kicker, lead, body }) {
   // page has its own search snippet + social description instead of none.
   const metaDesc = String(lead || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 160).replace(/"/g, '&quot;');
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${title} — KODA</title>${ANALYTICS}
 <meta name="description" content="${metaDesc}">
 <meta property="og:description" content="${metaDesc}">
@@ -243,8 +243,10 @@ function page({ title, kicker, lead, body }) {
 :root{--ink:#081813;--ink2:#0C231C;--gold:#E8A11F;--paper:#F5EFDF;--text:#E9E4D5;--dim:#9BA79B;--line:rgba(233,228,213,.12);
 --mono:'IBM Plex Mono',monospace;--disp:'Archivo','Helvetica Neue',system-ui,sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--ink);color:var(--text);font-family:var(--disp);line-height:1.65;font-size:16px}
-a{color:var(--gold);text-decoration:none}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--ink);color:var(--text);font-family:var(--disp);line-height:1.65;font-size:16px;overflow-x:hidden}
+img,svg,video,iframe{max-width:100%}
+a{color:var(--gold);text-decoration:none;overflow-wrap:anywhere}
 .nav{display:flex;align-items:center;gap:22px;padding:16px 28px;border-bottom:1px solid var(--line);background:rgba(8,24,19,.9);position:sticky;top:0;z-index:50;backdrop-filter:blur(10px)}
 .logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:.12em;color:var(--text)}
 .logo i{width:24px;height:24px;border-radius:6px;background:var(--gold);display:grid;place-items:center;color:var(--ink);font-style:normal;font-family:var(--mono);font-weight:700;font-size:13px}
@@ -277,7 +279,11 @@ pre{background:var(--ink2);border:1px solid var(--line);border-radius:10px;paddi
 .card{background:var(--ink2);border:1px solid var(--line);border-radius:12px;padding:22px;margin:14px 0}
 .badge{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.08em;padding:3px 9px;border-radius:99px;background:rgba(232,161,31,.13);color:var(--gold);text-transform:uppercase;margin-left:6px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:700px){.grid{grid-template-columns:1fr}}
-footer{border-top:1px solid var(--line);padding:34px 28px;font-family:var(--mono);font-size:11.5px;color:var(--dim);display:flex;gap:16px;flex-wrap:wrap}
+/* fit every screen: notch-safe insets + wide tables scroll instead of stretching the page */
+.nav{padding-left:max(28px,env(safe-area-inset-left));padding-right:max(28px,env(safe-area-inset-right));padding-top:max(16px,env(safe-area-inset-top))}
+.wrap{padding-left:max(24px,env(safe-area-inset-left));padding-right:max(24px,env(safe-area-inset-right))}
+@media(max-width:700px){table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%;white-space:nowrap}}
+footer{border-top:1px solid var(--line);padding:34px max(28px,env(safe-area-inset-right)) max(34px,calc(env(safe-area-inset-bottom) + 12px)) max(28px,env(safe-area-inset-left));font-family:var(--mono);font-size:11.5px;color:var(--dim);display:flex;gap:16px;flex-wrap:wrap}
 footer a{color:var(--dim)}
 .ok{color:#23B884}.warn{color:var(--gold)}
 </style></head><body>

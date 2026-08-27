@@ -18,7 +18,7 @@ input,select,textarea{font-family:inherit}
 ::selection{background:var(--gold);color:var(--ink)}
 
 /* auth screens */
-.auth-wrap{min-height:100vh;display:grid;place-items:center;padding:24px;
+.auth-wrap{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;
   background:radial-gradient(900px 500px at 80% -10%,rgba(35,184,132,.07),transparent 60%),var(--ink)}
 .auth-card{width:100%;max-width:420px;background:var(--ink-2);border:1px solid var(--line);border-radius:16px;padding:36px}
 .auth-card h1{font-size:22px;font-weight:900;margin:18px 0 6px}
@@ -29,10 +29,10 @@ input,select,textarea{font-family:inherit}
 .auth-site span{color:var(--line-strong,rgba(255,255,255,.2));font-size:11px}
 
 /* shell */
-.shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+.shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh;min-height:100dvh}
 @media(max-width:900px){.shell{grid-template-columns:1fr}}
-.side{background:var(--ink-2);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;overflow-y:auto}
-@media(max-width:900px){.side{position:fixed;z-index:60;width:250px;height:100vh;transform:translateX(-100%);transition:.22s}
+.side{background:var(--ink-2);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;height:100dvh;overflow-y:auto}
+@media(max-width:900px){.side{position:fixed;z-index:60;width:min(250px,86vw);height:100vh;height:100dvh;transform:translateX(-100%);transition:.22s}
   .side.open{transform:none;box-shadow:30px 0 60px rgba(0,0,0,.5)}}
 .logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:.12em;font-size:16px;padding:6px 10px 18px}
 .logo .tick{width:24px;height:24px;border-radius:6px;background:var(--gold);display:grid;place-items:center;color:var(--ink);font-family:var(--mono);font-weight:700;font-size:13px}
@@ -43,7 +43,7 @@ input,select,textarea{font-family:inherit}
 .nav-sec{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);opacity:.7;padding:16px 12px 6px}
 .nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 7px;font-family:var(--mono)}
 
-.main{padding:26px 30px 60px;max-width:1180px;width:100%;margin-inline:auto}
+.main{padding:26px 30px 60px;max-width:1180px;width:100%;min-width:0;margin-inline:auto}
 @media(max-width:900px){.main{padding:18px 16px 80px}}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:24px}
 .topbar h1{font-size:23px;font-weight:900;letter-spacing:-.01em}
@@ -179,3 +179,55 @@ iframe.mailframe{width:100%;height:520px;border:1px solid var(--line-strong);bor
 }
 /* large desktops — readable, not stretched edge-to-edge */
 @media(min-width:1500px){ .main{max-width:1320px} }
+
+/* ────────────────────────────────────────────────────────────────────────
+   Fit every screen — phones, phablets, tablets (portrait + landscape).
+   Backstops so no single element can force the page to scroll sideways.
+   ──────────────────────────────────────────────────────────────────────── */
+/* never let a stray wide child (long token, code, table) widen the whole page */
+html{-webkit-text-size-adjust:100%}
+body{overflow-x:hidden}
+img,svg,video,canvas,iframe{max-width:100%}
+/* long unbroken strings (URLs, keys, refs) wrap instead of stretching cells */
+.kv dd,.codebox,.feed-row .m,.auth-site a{overflow-wrap:anywhere}
+.kv dd{min-width:0}
+
+/* Any data table becomes its own horizontal scroller on narrow screens, even
+   the admin/ops tables that aren't wrapped in .tbl-wrap. display:block turns the
+   table into a scroll container; cells still wrap where they can. */
+@media(max-width:900px){
+  table.tbl,table.wh-tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+  .kv{grid-template-columns:130px 1fr}
+}
+
+/* iOS zooms the page when a focused control is < 16px — pin form controls to
+   16px on phones/tablets so focusing an input never blows past the viewport. */
+@media(max-width:900px){
+  .field input,.field select,.field textarea,.lang-sel,.console input{font-size:16px}
+}
+
+/* Touch devices: give tappable controls a comfortable minimum target. */
+@media(pointer:coarse){
+  .btn,.nav-item,.pill,.lang-sel,.burger{min-height:42px}
+  .btn-sm{min-height:36px}
+  .nav-item{padding-top:11px;padding-bottom:11px}
+}
+
+/* Tablet portrait (≈600–900px): two-up cards read better than one long column. */
+@media(min-width:600px) and (max-width:900px){
+  .g3,.g4{grid-template-columns:1fr 1fr}
+}
+
+/* Very small phones (≤380px): stack key/value pairs so long values never clip. */
+@media(max-width:380px){
+  .kv{grid-template-columns:1fr;gap:2px 0}
+  .kv dt{margin-top:8px}
+  .kv dd{margin-bottom:2px}
+  .pill-row{gap:6px}
+}
+
+/* Landscape phones (short, wide): trim vertical chrome so content fits the fold. */
+@media(max-height:480px) and (orientation:landscape){
+  .main{padding-top:12px;padding-bottom:40px}
+  .auth-wrap{padding-top:16px;padding-bottom:16px}
+}
