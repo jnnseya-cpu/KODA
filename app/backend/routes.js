@@ -69,7 +69,7 @@ module.exports = function registerRoutes(r) {
   r.post('/app/auth/login', (req) => {
     const { email, password } = req.body;
     // brute-force / credential-stuffing throttle: 10 attempts / 60s per email+IP
-    const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'ip';
+    const ip = security.clientIp(req.headers) || 'ip';
     const gate = security.humanCheck(req.body, security.clientIp(req.headers)); if (gate.ok !== true) return gate; // honeypot + proof-of-work
     if (bruteLimited('login:' + String(email || '').toLowerCase() + ':' + ip))
       return [429, { error: { code: 'too_many_attempts', retry_after: 60 } }];
@@ -86,7 +86,7 @@ module.exports = function registerRoutes(r) {
   // ---- forgot password: email a single-use reset link ----
   r.post('/app/auth/forgot', (req) => {
     const email = String(req.body.email || '').toLowerCase().trim();
-    const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'ip';
+    const ip = security.clientIp(req.headers) || 'ip';
     if (bruteLimited('forgot:' + email + ':' + ip, 5, 60000)) return [429, { error: { code: 'too_many_attempts', retry_after: 60 } }];
     // Always respond ok — never reveal whether an email is registered.
     const user = email ? q.get('SELECT * FROM users WHERE email=?', email) : null;
@@ -542,6 +542,7 @@ module.exports = function registerRoutes(r) {
 
   // ---------- webhooks ----------
   r.get('/app/webhooks', auth((req, user, m) => {
+    const isOwner = needRole(user, []);   // only the owner may read the full signing secret
     const rawEndpoints = q.all('SELECT * FROM webhook_endpoints WHERE merchant_id=?', m.id);
     // Per-endpoint dashboard stats (Stripe-Workbench style): what it listens to, where
     // events come from, payload style, a 14-day activity sparkline, average response time,
@@ -567,7 +568,7 @@ module.exports = function registerRoutes(r) {
       const windowN = recent.c || 0;
       return {
         id: e.id, name: e.name || null, url: e.url, active: !!e.active,
-        secret: e.secret, secret_last4: e.secret.slice(-4), // owner can copy their own signing secret
+        secret: isOwner ? e.secret : undefined, secret_last4: e.secret.slice(-4), // full secret: owner only
         destination: e.destination || null, created_at: e.created_at,
         listening_to: events.includes('*') ? { all: true } : { all: false, count: events.length, events },
         events_from: m.name,                                   // "Your account"
@@ -587,6 +588,7 @@ module.exports = function registerRoutes(r) {
   // the endpoint (with its full signing secret, for the owner), summary stats, filter
   // counts, and up to 100 recent deliveries with their signed payload + response detail.
   r.get('/app/webhooks/:id', auth((req, user, m) => {
+    const isOwner = needRole(user, []);   // only the owner may read the full signing secret
     const ep = q.get('SELECT * FROM webhook_endpoints WHERE id=? AND merchant_id=?', req.params.id, m.id);
     if (!ep) return [404, { error: { code: 'endpoint_not_found' } }];
     const f = String((req.query && req.query.status) || 'all');
@@ -607,7 +609,7 @@ module.exports = function registerRoutes(r) {
     return {
       endpoint: {
         id: ep.id, name: ep.name || null, url: ep.url, active: !!ep.active,
-        secret: ep.secret, secret_last4: ep.secret.slice(-4),
+        secret: isOwner ? ep.secret : undefined, secret_last4: ep.secret.slice(-4),
         payload_style: ep.payload_style || 'snapshot', destination: ep.destination || null,
         events,
         listening_to: events.includes('*') ? { all: true } : { all: false, count: events.length, events },
@@ -620,6 +622,7 @@ module.exports = function registerRoutes(r) {
   }));
   r.post('/app/webhooks', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    if (!require('./lib/webhooks').validWebhookUrl(req.body.url)) return [400, { error: 'invalid_url', message: 'Webhook URL must be a public http(s) endpoint.' }];
     const wid = U.id('whe'), secret = `whsec_${U.token(24)}`;
     const destination = (typeof req.body.destination === 'string' && req.body.destination.trim()) ? req.body.destination.trim().slice(0, 64) : null;
     const name = (typeof req.body.name === 'string' && req.body.name.trim()) ? req.body.name.trim().slice(0, 80) : null;
@@ -704,7 +707,7 @@ module.exports = function registerRoutes(r) {
   // rate limit for spam. No auth: it's the marketing site's "talk to us" form.
   r.post('/v1/contact', (req) => {
     const b = req.body || {};
-    const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'ip';
+    const ip = security.clientIp(req.headers) || 'ip';
     if (bruteLimited('contact:' + ip, 5, 10 * 60 * 1000))
       return [429, { error: { code: 'too_many_messages', retry_after: 600 } }];
     // honeypot: real users never fill a hidden field
@@ -742,7 +745,7 @@ module.exports = function registerRoutes(r) {
   // rate-limited, honeypot-guarded; stored and emailed to the KODA inbox.
   r.post('/v1/partner/apply', (req) => {
     const b = req.body || {};
-    const ip = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'ip';
+    const ip = security.clientIp(req.headers) || 'ip';
     if (bruteLimited('partner:' + ip, 5, 10 * 60 * 1000))
       return [429, { error: { code: 'too_many_applications', retry_after: 600 } }];
     if (String(b.company || '').trim() !== '') return { ok: true }; // honeypot → silently drop bots
@@ -802,6 +805,7 @@ module.exports = function registerRoutes(r) {
     return { ok: true, revoked: i.id };
   }));
   r.post('/app/webhooks/:id/test', auth((req, user, m) => {
+    if (!needRole(user, [])) return [403, { error: 'owner_only' }];
     require('./lib/webhooks').dispatch(m.id, 'payment.verified',
       { test: true, receipt_id: 'rcp_TEST', amount: 25000, currency: m.currency });
     return { ok: true, note: 'Signed test event dispatched.' };
@@ -838,7 +842,7 @@ module.exports = function registerRoutes(r) {
     const b = req.body || {}, sets = [], vals = [];
     if (b.url !== undefined) {
       const url = String(b.url || '').trim();
-      if (!/^https?:\/\/.+/i.test(url)) return [400, { error: { code: 'invalid_url', message: 'url must start with http:// or https://' } }];
+      if (!require('./lib/webhooks').validWebhookUrl(url)) return [400, { error: { code: 'invalid_url', message: 'url must be a public http(s) endpoint (internal/loopback addresses are blocked)' } }];
       sets.push('url=?'); vals.push(url.slice(0, 300));
     }
     if (b.name !== undefined) { const n = String(b.name || '').trim().slice(0, 80); sets.push('name=?'); vals.push(n || null); }
@@ -889,6 +893,10 @@ module.exports = function registerRoutes(r) {
   r.post('/app/team/invite', auth((req, user, m) => {
     if (user.role === 'cashier') return [403, { error: 'forbidden' }];
     const { email, name, role = 'cashier', password } = req.body;
+    const ROLES = ['cashier', 'manager', 'owner'];
+    if (!ROLES.includes(role)) return [400, { error: 'invalid_role' }];
+    // No privilege escalation: only an owner (or admin) may create another owner.
+    if (role === 'owner' && !needRole(user, [])) return [403, { error: 'cannot_grant_owner' }];
     if (q.get('SELECT id FROM users WHERE email=?', String(email).toLowerCase())) return [409, { error: 'email_taken' }];
     const uid = U.id('usr');
     q.run(`INSERT INTO users (id,merchant_id,email,name,pass_hash,role) VALUES (?,?,?,?,?,?)`,
@@ -900,6 +908,7 @@ module.exports = function registerRoutes(r) {
   }));
   r.post('/app/team/:id/role', auth((req, user, m) => {
     if (user.role !== 'owner') return [403, { error: 'forbidden' }];
+    if (!['cashier', 'manager', 'owner'].includes(req.body.role)) return [400, { error: 'invalid_role' }];
     q.run(`UPDATE users SET role=? WHERE id=? AND merchant_id=?`, req.body.role, req.params.id, m.id);
     const target = q.get('SELECT * FROM users WHERE id=?', req.params.id);
     if (target) notify.fire('role.assigned', { user: target, merchant: m, data: { role: req.body.role } });
@@ -1723,13 +1732,13 @@ module.exports = function registerRoutes(r) {
     r.post(base, apiKey(vCreate, 'write:intents')); // create is the only scoped one (unchanged)
     r.get(base, apiKey(vList));
     r.get(base + '/:id', apiKey(vGet));
-    r.post(base + '/:id/verify', apiKey(vVerify));
-    r.post(base + '/:id/recheck', apiKey(vVerify)); // §36 recheck == re-run verify (idempotent)
-    r.post(base + '/:id/cancel', apiKey(vCancel));
+    r.post(base + '/:id/verify', apiKey(vVerify, 'write:intents'));
+    r.post(base + '/:id/recheck', apiKey(vVerify, 'write:intents')); // §36 recheck == re-run verify (idempotent)
+    r.post(base + '/:id/cancel', apiKey(vCancel, 'write:intents'));
   }
   r.get('/v1/receipts', apiKey((req, m) =>
     q.all('SELECT * FROM receipts WHERE merchant_id=? ORDER BY verified_at DESC LIMIT 100', m.id), 'read:receipts'));
-  r.post('/v1/sandbox/sms', apiKey((req, m) => engine.ingestSms(m, { raw: req.body.raw, operator: req.body.operator })));
+  r.post('/v1/sandbox/sms', apiKey((req, m) => engine.ingestSms(m, { raw: req.body.raw, operator: req.body.operator }), 'write:intents'));
   r.get('/v1/billing/balance', apiKey((req, m) => ({ acu_balance: m.acu_balance }), 'read:usage'));
 
   // ---------- GLOBAL BILLING MESH (System B — how KODA collects its own revenue) ----------
@@ -1996,8 +2005,8 @@ module.exports = function registerRoutes(r) {
 
   // Public API (key): connect + activate + resolve; and the public country catalogue.
   r.post('/v1/merchant-network-accounts', apiKey((req, m) => networks.connect(m, req.body), 'write:intents'));
-  r.post('/v1/merchant-network-accounts/:id/activate', apiKey((req, m) => networks.activate(m, req.params.id)));
-  r.post('/v1/merchant-network-accounts/:id/pause', apiKey((req, m) => networks.setState(m, req.params.id, { activation_status: 'PAUSED' })));
+  r.post('/v1/merchant-network-accounts/:id/activate', apiKey((req, m) => networks.activate(m, req.params.id), 'write:intents'));
+  r.post('/v1/merchant-network-accounts/:id/pause', apiKey((req, m) => networks.setState(m, req.params.id, { activation_status: 'PAUSED' }), 'write:intents'));
   r.get('/v1/merchants/me/payment-methods', apiKey((req, m) => networks.resolve(m, req.query)));
   r.get('/v1/catalog/countries/:code/networks', (req) =>
     networks.catalogue(String(req.params.code || '').toUpperCase(), { currency: req.query.currency, supportStatus: req.query.support_status }));

@@ -21,11 +21,16 @@ for i in $(seq 1 40); do curl -sf "$B/healthz" >/dev/null 2>&1 && break; sleep 0
 echo "═══════════ KODA LAUNCH AUDIT ($B) ═══════════"
 run() { # name, command...
   local name="$1"; shift
-  local out; out="$("$@" 2>&1)"
-  if echo "$out" | grep -qiE "0 failed|0 breached|PASSED|ALL GREEN|ALL ATTACKS BLOCKED|LOAD GATE PASSED"; then
+  local out rc
+  out="$("$@" 2>&1)"; rc=$?   # trust the child's exit code as the PRIMARY signal
+  # Defensive secondary signal: any nonzero "N failed"/"N breached" count is a failure,
+  # even if the child exits 0. (A prior version grepped case-insensitively for "PASSED",
+  # which matched the word "passed" inside "8 passed, 4 failed" and masked real failures.)
+  local failcount; failcount="$(echo "$out" | grep -oiE '[1-9][0-9]* (failed|breached)' | tail -1)"
+  if [ "$rc" -eq 0 ] && [ -z "$failcount" ]; then
     line "$name" "✅ $(echo "$out" | grep -oiE '[0-9]+ (passed|held)[^.]*' | tail -1)"
   else
-    line "$name" "❌ FAIL"; FAILED=1; echo "$out" | tail -4
+    line "$name" "❌ FAIL${failcount:+ ($failcount)}${rc:+ [exit $rc]}"; FAILED=1; echo "$out" | tail -4
   fi
 }
 run "unit: full suite"        node app/backend/tools/test.js
@@ -41,6 +46,7 @@ run "add-ons: dual+network"   env KODA_BASE="$B" node app/backend/tools/test-add
 run "security: adversarial"   env KODA_BASE="$B" node app/backend/tools/test-adversarial.js
 run "security: human+block"   env KODA_BASE="$B" node app/backend/tools/test-security.js
 run "security: sandbox gate"  node app/backend/tools/test-sandbox-gate.js
+run "security: SSRF+XFF guard" node app/backend/tools/test-launch-hardening.js
 run "perf: load/soak"         env KODA_BASE="$B" LOAD_PID="$SRV" LOAD_TOTAL=8000 LOAD_CONCURRENCY=64 node app/backend/tools/test-load.js
 if [ -x "${CHROME:-/opt/pw-browsers/chromium-1194/chrome-linux/chrome}" ]; then
   run "browser: real Chromium"  env KODA_BASE="$B" node app/backend/tools/test-browser.js

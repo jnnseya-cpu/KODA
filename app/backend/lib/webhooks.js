@@ -2,8 +2,68 @@
 'use strict';
 const { q } = require('./db');
 const { id, hmac } = require('./util');
+const net = require('node:net');
+const dns = require('node:dns').promises;
 
 const MAX_ATTEMPTS = 5;
+
+// ── SSRF egress guard ────────────────────────────────────────────────────────
+// A webhook URL is merchant-supplied and the KODA server fetches it. Without this
+// guard a merchant could point an endpoint at cloud-metadata (169.254.169.254),
+// loopback, or an RFC-1918 host and use KODA as a blind internal-network probe.
+// We block internal address ranges both as literal-IP hosts (synchronously, at
+// create time) and after DNS resolution (at delivery time, to defeat a hostname
+// that resolves to an internal IP — including a re-check on every attempt).
+function ipBlocked(ip) {
+  ip = String(ip || '');
+  if (ip.includes(':')) {                        // IPv6
+    const l = ip.toLowerCase();
+    if (l === '::1' || l === '::') return true;
+    if (l.startsWith('::ffff:')) return ipBlocked(l.slice(7)); // v4-mapped
+    if (l.startsWith('fe80') || l.startsWith('fc') || l.startsWith('fd')) return true; // link-local + unique-local
+    return false;
+  }
+  const p = ip.split('.').map(Number);
+  if (p.length !== 4 || p.some(n => !Number.isInteger(n) || n < 0 || n > 255)) return true; // malformed → block
+  const [a, b] = p;
+  if (a === 0 || a === 127) return true;               // this-host / loopback
+  if (a === 10) return true;                           // private
+  if (a === 172 && b >= 16 && b <= 31) return true;    // private
+  if (a === 192 && b === 168) return true;             // private
+  if (a === 169 && b === 254) return true;             // link-local + cloud metadata
+  if (a === 100 && b >= 64 && b <= 127) return true;   // CGNAT
+  if (a >= 224) return true;                           // multicast / reserved
+  return false;
+}
+// Synchronous validation for the CREATE/UPDATE path: scheme must be http(s) and a
+// literal-IP host must not be internal. Hostnames are re-checked after DNS at delivery.
+function unwrap(host) {   // strip [ ] from an IPv6 URL host
+  host = String(host || '');
+  return (host.startsWith('[') && host.endsWith(']')) ? host.slice(1, -1) : host;
+}
+// Sandbox convention: these hosts are marked "sent" at delivery WITHOUT a network
+// call (see attempt), so they are inert and cannot drive an SSRF. Allowed on create.
+function isSandboxHost(host) {
+  host = unwrap(String(host || '')).toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.test') || host === 'example.com';
+}
+function validWebhookUrl(url) {
+  let u; try { u = new URL(String(url)); } catch { return false; }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+  const host = unwrap(u.hostname).toLowerCase();
+  if (isSandboxHost(host)) return true;              // inert — never fetched
+  if (net.isIP(host) && ipBlocked(host)) return false;
+  return true;
+}
+// Resolve a host and confirm EVERY resolved address is public (unresolvable → unsafe).
+async function resolvesToPublic(host) {
+  host = unwrap(host);
+  if (net.isIP(host)) return !ipBlocked(host);
+  try {
+    const addrs = await dns.lookup(host, { all: true });
+    return addrs.length > 0 && addrs.every(a => !ipBlocked(a.address));
+  } catch { return false; }
+}
 
 function dispatch(merchantId, event, payload) {
   const endpoints = q.all(
@@ -44,9 +104,17 @@ function attempt(dlvId, url, body, secret, n) {
   };
   // localhost/sandbox endpoints marked sent without network; real URLs get fetch + retry
   let host = ''; try { host = new URL(url).hostname; } catch { return finish('failed', 'invalid_url'); }
-  if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.test') || host === 'example.com') {
-    return finish('sent', null, 0, 200);
+  if (isSandboxHost(host)) {
+    return finish('sent', null, 0, 200);   // sandbox endpoints: marked sent, never fetched
   }
+  // SSRF guard: refuse to deliver to any host that resolves to an internal address.
+  // Re-checked on every attempt so a rebind can't slip a later retry through.
+  resolvesToPublic(host).then((okPublic) => {
+    if (!okPublic) return finish('failed', 'blocked_internal_host', 0, null);
+    deliver();
+  }).catch(() => finish('failed', 'blocked_internal_host', 0, null));
+
+  function deliver() {
   const t0 = Date.now();
   fetch(url, {
     method: 'POST',
@@ -66,6 +134,7 @@ function attempt(dlvId, url, body, secret, n) {
     setTimeout(() => attempt(dlvId, url, body, secret, n + 1),
       Math.min(60000, 1000 * 2 ** n)).unref?.();
   });
+  } // deliver()
 }
 
 // Manually re-send a single delivery (from the dashboard "Retry" button). Reuses
@@ -81,4 +150,4 @@ function redeliver(dlvId) {
   return { ok: true, delivery_id: dlvId, endpoint_id: ep.id, url: ep.url };
 }
 
-module.exports = { dispatch, redeliver, signHeaders };
+module.exports = { dispatch, redeliver, signHeaders, validWebhookUrl, ipBlocked };

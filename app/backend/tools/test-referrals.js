@@ -35,18 +35,31 @@ const bal = (id) => q.get('SELECT acu_balance FROM merchants WHERE id=?', id).ac
   ok(q.get(`SELECT status FROM referrals WHERE referred_id=?`, newId).status === 'signed_up', 'referral starts as signed_up');
   ok(bal(referrer) === rBefore, 'no reward yet (signup alone does not pay)');
 
-  // 3. referred merchant verifies first payment → BOTH rewarded, once
+  // 3. referred merchant's first PAID top-up settles → BOTH rewarded, once.
+  //    SECURITY NOTE: rewards fire on the treasury-backed paid-settle path
+  //    (billing.settleTopup), NOT on engine.verify. Crediting ACU off a merchant's
+  //    own verified SMS was a self-mint hole (fabricate an SMS → farm free ACU), so
+  //    the reward hook was deliberately moved to money-actually-received. A verify
+  //    alone must therefore NOT reward — that is asserted below.
+  const billing = require('../lib/billing');
   const refBefore = bal(referrer), newBefore = bal(newId);
   const merchant = q.get('SELECT * FROM merchants WHERE id=?', newId);
   engine.verify(merchant, null, 'TEST-OK-25000', { mode: 'api', trace: { steps: [] } });
-  ok(bal(referrer) === refBefore + referrals.REWARD_ACU, 'referrer rewarded on referred first verify', `+${bal(referrer) - refBefore}`);
-  ok(bal(newId) === newBefore + referrals.REWARD_ACU, 'referred merchant also rewarded (welcome)', `+${bal(newId) - newBefore}`);
+  ok(bal(referrer) === refBefore && bal(newId) === newBefore,
+     'a bare verify does NOT reward (self-mint hole closed)', `ref+${bal(referrer) - refBefore} new+${bal(newId) - newBefore}`);
+
+  // now settle a real paid top-up for the referred merchant → qualifies the referral
+  q.run(`INSERT INTO topups (id,merchant_id,acu_amount,subtotal_usd,collection_fee_usd,tax_usd,total_usd,currency,rail,purpose,status)
+         VALUES ('top_ref','${newId}',50,5,0.15,0,5.15,'USD','stripe','acu','pending')`);
+  billing.settleTopup('top_ref');
+  ok(bal(referrer) === refBefore + referrals.REWARD_ACU, 'referrer rewarded on referred first PAID settle', `+${bal(referrer) - refBefore}`);
+  ok(bal(newId) === newBefore + 50 + referrals.REWARD_ACU, 'referred merchant gets top-up ACU + welcome reward', `+${bal(newId) - newBefore}`);
   ok(q.get(`SELECT status FROM referrals WHERE referred_id=?`, newId).status === 'qualified', 'referral marked qualified');
 
-  // 4. idempotent — a second verify does NOT pay again
+  // 4. idempotent — settling the SAME top-up again does NOT pay the referral again
   const afterRef = bal(referrer);
-  engine.verify(merchant, null, 'TEST-OK-30000', { mode: 'api', trace: { steps: [] } });
-  ok(bal(referrer) === afterRef, 'no double reward on a later verify (idempotent)');
+  billing.settleTopup('top_ref');
+  ok(bal(referrer) === afterRef, 'no double reward on a replayed settle (idempotent)');
 
   // 5. stats
   const s = referrals.stats(referrer);

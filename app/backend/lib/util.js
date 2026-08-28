@@ -45,5 +45,11 @@ function verifyJwt(jwt) {
 
 function sha256(s) { return crypto.createHash('sha256').update(s).digest('hex'); }
 function hmac(secret, s) { return crypto.createHmac('sha256', secret).update(s).digest('hex'); }
+// constant-time string compare (length-safe): false rather than throwing on mismatch.
+function safeEqual(a, b) {
+  a = Buffer.from(String(a ?? '')); b = Buffer.from(String(b ?? ''));
+  if (a.length !== b.length) return false;
+  try { return crypto.timingSafeEqual(a, b); } catch { return false; }
+}
 
-module.exports = { id, token, hashPassword, verifyPassword, signJwt, verifyJwt, sha256, hmac };
+module.exports = { id, token, hashPassword, verifyPassword, signJwt, verifyJwt, sha256, hmac, safeEqual };

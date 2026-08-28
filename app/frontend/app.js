@@ -2067,7 +2067,7 @@ VIEWS.admin = async (params) => {
       <td><span class="badge ${m.status === 'active' ? 'b-ok' : 'b-bad'}">${m.status}</span></td>
       <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="location.hash='#admin?m=${m.id}'">Manage</button>
         <button class="btn btn-danger btn-sm" onclick="adminToggle('${m.id}')">${m.status === 'active' ? 'suspend' : 'restore'}</button>
-        ${m.status === 'suspended' ? `<button class="btn btn-ghost btn-sm" style="color:#e5484d;border-color:rgba(229,72,77,.4)" onclick="adminDeleteMerchant('${m.id}','${esc(m.name).replace(/'/g, "\\'")}')">🗑 delete</button>` : ''}</td></tr>`).join('')}
+        ${m.status === 'suspended' ? `<button class="btn btn-ghost btn-sm" style="color:#e5484d;border-color:rgba(229,72,77,.4)" data-name="${esc(m.name)}" onclick="adminDeleteMerchant('${m.id}', this)">🗑 delete</button>` : ''}</td></tr>`).join('')}
   </table>` : '<p style="color:var(--dim);font-size:13px">No merchants yet. They appear here as businesses sign up at /app.</p>'}</div>
   <div class="card" style="margin-top:14px"><h3>Latest verifications (all merchants)</h3>
     ${o.latest.length ? o.latest.map(r => `<div class="feed-row"><div class="feed-ic f-ok">✓</div>
@@ -2261,10 +2261,10 @@ async function adminDistributors() {
     ${rows.map(k => `<tr><td>${esc(k.name)}</td><td class="mono">${esc(k.country)}</td><td class="mono" style="font-size:11px">${esc(k.msisdn || '—')}</td>
       <td style="font-size:11px">${k.merchant_id
         ? `${esc(k.merchant_email || k.merchant_name || 'linked')}<br><span class="badge ${k.sentinel_active ? 'b-ok' : 'b-warn'}">${k.sentinel_active ? 'Sentinel online' : 'no Sentinel yet'}</span>`
-        : `<button class="btn btn-ghost btn-sm" onclick="adminLinkKd('${k.id}','${esc(k.name)}')">link agent</button>`}</td>
+        : `<button class="btn btn-ghost btn-sm" data-name="${esc(k.name)}" onclick="adminLinkKd('${k.id}', this)">link agent</button>`}</td>
       <td class="num">${fmt(k.float_acu)}</td><td class="num">${fmt(k.sold_acu)} (${fmt(k.sales)})</td>
       <td><span class="badge ${k.status === 'active' ? 'b-ok' : 'b-bad'}">${esc(k.status)}</span></td>
-      <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="adminFundKd('${k.id}','${esc(k.name)}')">fund</button>
+      <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" data-name="${esc(k.name)}" onclick="adminFundKd('${k.id}', this)">fund</button>
         <button class="btn btn-danger btn-sm" onclick="adminFreezeKd('${k.id}')">${k.status === 'frozen' ? 'activate' : 'freeze'}</button></td></tr>`).join('')}
     </table>` : '<p style="color:var(--dim);font-size:13px">No distributors yet. Create one above, then fund their float.</p>'}</div>`);
 }
@@ -2275,14 +2275,16 @@ window.adminCreateKd = async () => {
     setTimeout(route, 2200); }
   catch (e) { out.innerHTML = `<div class="badge b-bad">✗ ${esc(e.message)}</div>`; }
 };
-window.adminLinkKd = async (id, name) => {
+window.adminLinkKd = async (id, el) => {
+  const name = (el && el.dataset && el.dataset.name) || 'this agent';
   const email = prompt('Link ' + name + ' to a KODA account — enter the agent\'s login email:');
   if (!email) return;
   try { const r = await api(`/app/admin/distributors/${id}/link`, { body: { merchant_email: email } });
     toast(r.sentinel_active ? '✓ linked · Sentinel online' : '✓ linked · no Sentinel yet'); route(); }
   catch (e) { toast('✗ ' + e.message); }
 };
-window.adminFundKd = async (id, name) => {
+window.adminFundKd = async (id, el) => {
+  const name = (el && el.dataset && el.dataset.name) || 'this agent';
   const acu = prompt('Fund ' + name + '’s float — how many ACU? (only after their wholesale payment to KODA has cleared)', '1000');
   if (!acu) return;
   const ref = prompt('Payment reference received (bank txn / mobile-money code). Float is credited only against a real payment:');
@@ -2782,7 +2784,8 @@ window.newsletterSend = async (test) => {
     if (!test) route();
   } catch (e) { toast('✗ ' + (e.message || 'send failed')); }
 };
-window.adminDeleteMerchant = async (id, name) => {
+window.adminDeleteMerchant = async (id, el) => {
+  const name = (el && el.dataset && el.dataset.name) || 'this merchant';
   if (!confirm(`Permanently delete "${name}" and ALL its data (users, keys, receipts, devices…)?\n\nThis cannot be undone.`)) return;
   if (!confirm(`Type-check: really delete "${name}"? This is irreversible.`)) return;
   try { await api(`/app/admin/merchants/${id}/delete`, { body: {} }); toast('✓ merchant deleted'); route(); }

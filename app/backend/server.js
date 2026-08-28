@@ -118,10 +118,19 @@ const server = http.createServer(async (req, res) => {
   };
 
   // observability: machine-readable metrics for an external uptime/APM probe.
+  // Operational + treasury-reconciliation internals are not public: when KODA_METRICS_TOKEN
+  // is set, require it (Authorization: Bearer <token> or ?token=). Left open only if no
+  // token is configured, and even then the financial reconcile detail is withheld unless
+  // authorised. /healthz and /readyz remain open for liveness probes.
   if (url.pathname === '/metrics') {
+    const wantTok = process.env.KODA_METRICS_TOKEN || '';
+    const authz = req.headers['authorization'] || '';
+    const given = authz.startsWith('Bearer ') ? authz.slice(7) : (url.searchParams.get('token') || '');
+    const authed = wantTok ? (given && require('./lib/util').safeEqual(given, wantTok)) : false;
+    if (wantTok && !authed) return send(401, { error: { code: 'unauthorized', message: 'metrics token required' } });
     const snap = require('./lib/metrics').snapshot();
-    let ledger = null; try { ledger = require('./lib/billing').reconcile(); } catch {}
-    return send(200, { ok: true, ...snap, ledger_balanced: ledger ? ledger.balanced : null });
+    let ledger = null; if (authed) { try { ledger = require('./lib/billing').reconcile(); } catch {} }
+    return send(200, { ok: true, ...snap, ledger_balanced: ledger ? ledger.balanced : undefined });
   }
 
   if (req.method === 'OPTIONS') {
@@ -133,6 +142,15 @@ const server = http.createServer(async (req, res) => {
   if (match) {
     // SecurityAgent edge gate: turn away an auto-blocked source early.
     const security = require('./lib/security');
+    // Stamp a trusted client IP over any client-sent value FIRST, so a spoofed
+    // X-Forwarded-For cannot forge loopback (bypassing the human gate / rate limits)
+    // downstream. Every clientIp() read below and in routes now sees this value.
+    let _cip = security.trustedClientIp(req.headers, req.socket.remoteAddress);
+    // A request carrying ANY forwarding header arrived through a proxy — it is never a
+    // genuine local call, so it must not inherit the loopback dev/test exemption even
+    // if the forwarded value claims loopback. Key it under a non-loopback sentinel.
+    if ((req.headers['x-forwarded-for'] || req.headers['x-real-ip']) && security.isLoopback(_cip)) _cip = 'proxied';
+    req.headers['x-koda-client-ip'] = _cip;
     const _ip = security.clientIp(req.headers) || req.socket.remoteAddress || '';
     if (security.isBlocked(_ip)) return send(403, { error: { code: 'blocked', message: 'Access temporarily blocked by KODA SecurityAgent.' } });
     let body = {};

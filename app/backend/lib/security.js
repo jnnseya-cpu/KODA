@@ -25,6 +25,12 @@ const BLOCK_THRESHOLD = Number(process.env.KODA_BLOCK_THRESHOLD) || 18; // event
 const BLOCK_MINUTES = Number(process.env.KODA_BLOCK_MINUTES) || 60;
 
 function clientIp(headers = {}) {
+  // Prefer the trusted IP stamped by the front door (server.js) — it is derived from
+  // the socket peer + trusted-proxy hops and OVERWRITES any client-supplied value, so
+  // a spoofed X-Forwarded-For cannot forge loopback or evade per-IP limits. The
+  // fallbacks only run for in-process/direct calls that never pass through server.js.
+  const canon = headers['x-koda-client-ip'];
+  if (canon != null && canon !== '') return String(canon);
   const xf = headers['x-forwarded-for'];
   if (xf) return String(xf).split(',')[0].trim();
   return headers['x-real-ip'] || '';
@@ -33,6 +39,33 @@ function isLoopback(ip) {
   ip = String(ip || '');
   return ip === '' || ip === 'ip' || ip === '::1' || ip === 'localhost'
     || ip === '127.0.0.1' || ip.startsWith('127.') || ip.startsWith('::ffff:127.');
+}
+// Is the DIRECT socket peer one of our own reverse proxies (loopback or a private
+// range)? Only then do we trust its forwarded headers.
+function isPrivatePeer(ip) {
+  ip = String(ip || '').replace(/^::ffff:/, '');
+  if (isLoopback(ip)) return true;
+  if (/^10\./.test(ip)) return true;
+  if (/^192\.168\./.test(ip)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return true;
+  if (/^f[cd]/i.test(ip)) return true;   // IPv6 unique-local
+  return false;
+}
+// Derive the real client IP from the socket peer + trusted-proxy hop count. A client
+// can set X-Forwarded-For to anything; only the value the trusted proxy APPENDED (the
+// entry `hops` from the right) is credible. If we are directly exposed (public peer),
+// forwarded headers are ignored entirely and the socket peer wins.
+function trustedClientIp(headers = {}, peerIp = '') {
+  peerIp = String(peerIp || '').replace(/^::ffff:/, '');
+  const xff = String(headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(Boolean);
+  const envHops = process.env.KODA_TRUST_PROXY_HOPS;
+  const hops = (envHops != null && envHops !== '') ? Math.max(0, Number(envHops) || 0)
+             : (isPrivatePeer(peerIp) ? 1 : 0);
+  if (hops > 0 && xff.length) {
+    const idx = xff.length - hops;
+    return idx >= 0 ? xff[idx] : peerIp;   // fewer hops than expected → trust the socket
+  }
+  return peerIp || (xff.length ? xff[xff.length - 1] : '');
 }
 
 // ── proof-of-work challenge (stateless, signed) ──────────────────────────────
@@ -117,4 +150,4 @@ function summary() {
 }
 
 module.exports = { issueChallenge, verifyChallenge, humanCheck, honeypotTripped,
-  scanInput, record, block, isBlocked, clientIp, isLoopback, summary, ENFORCE, DIFFICULTY };
+  scanInput, record, block, isBlocked, clientIp, trustedClientIp, isLoopback, summary, ENFORCE, DIFFICULTY };
