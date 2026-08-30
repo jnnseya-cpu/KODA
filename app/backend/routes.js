@@ -336,12 +336,15 @@ module.exports = function registerRoutes(r) {
       ? 'Payment is verified in the ledger — likely a customer mistake; share the receipt as proof.'
       : 'Ask the customer for the payer number, exact amount and time; re-check once the operator SMS arrives.';
 
-    // AI evidence narrative — charged ONLY when a model actually runs.
+    // GN-FIN-01 Law 03 — the DisputeAgent deliverable is the assembled evidence
+    // file (ledger scan + recommendation, plus the live narrative when a model is
+    // configured). It is gated up front and metered on delivery, so it can never
+    // be produced free — including during an AI-provider outage.
     const ai = require('./lib/ai');
+    const gate = engine.gateAI(m, engine.ACU.dispute, 'dispute-evidence');
+    if (gate.ok !== true) return gate;
     let aiEvidence = null, aiUsed = false;
     if (ai.available()) {
-      const gate = engine.gateAI(m, engine.ACU.dispute, 'dispute-evidence');
-      if (gate.ok !== true) return gate;
       try {
         aiEvidence = await ai.generate({
           system: 'You are KODA DisputeAgent, helping an African merchant handle a mobile-money payment dispute. Use ONLY the ledger facts provided — never invent a payment. Be concise, factual and professional.',
@@ -365,7 +368,7 @@ module.exports = function registerRoutes(r) {
     };
     q.run(`INSERT INTO disputes (id,merchant_id,reference,reason,evidence,recommendation)
            VALUES (?,?,?,?,?,?)`, did, m.id, ref || null, reason, JSON.stringify(evidence), recommendation);
-    if (aiUsed) engine.chargeAcu(m, engine.ACU.dispute, 'dispute', did); // only charge when AI ran
+    engine.chargeAcu(m, engine.ACU.dispute, 'dispute', did); // metered on delivery (Law 03)
     notify.fireMerchant('dispute.opened', m, { reference: ref || did });
     // ADD-ON B: a dispute on a reference contributes the payer's hashed identity to
     // the network so other merchants inherit the signal (no raw value is stored).
@@ -2048,10 +2051,14 @@ module.exports = function registerRoutes(r) {
     if (!tool) return [404, { error: 'unknown_tool' }];
     const ai = require('./lib/ai');
     const promptFn = growth.AI_PROMPTS[toolId];
-    // Content tools charge ONLY when a real model can run; data tools always run.
     const contentTool = !!promptFn;
-    const willCharge = tool.acu > 0 && (!contentTool || ai.available());
-    if (willCharge) {
+    // GN-FIN-01 Law 03 — no free AI action: every catalogue tool is metered on
+    // DELIVERY. The deterministic template is itself the deliverable (a
+    // publishable post, advert, landing page…), so a content tool charges
+    // whether the live model runs or the template is served as fallback —
+    // otherwise a provider outage (or an induced provider error) becomes a
+    // source of unlimited free generated content. Gate on balance up front.
+    if (tool.acu > 0) {
       const gate = engine.gateAI(m, tool.acu, 'growth:' + toolId);
       if (gate.ok !== true) return gate; // gated by available ACU
     }
@@ -2063,8 +2070,17 @@ module.exports = function registerRoutes(r) {
       const disputes = q.get(`SELECT COUNT(*) c FROM disputes WHERE merchant_id=? AND status='open'`, m.id).c;
       input = { acu: m.acu_balance, unmatched, disputes, monthVerifs: month, planQuota: (PLANS[m.plan] || {}).verifs };
     }
-    const result = tool.run(m, input); // template = structure + honest fallback
+    // If generation itself throws, NOTHING is delivered → no charge (Law 03's
+    // only exemption: a genuine system failure that produces no deliverable).
+    let result;
+    try {
+      result = tool.run(m, input); // template = structure + honest fallback (always usable)
+    } catch (e) {
+      return [500, { error: 'generation_failed', detail: String(e && e.message || e) }];
+    }
     // Real AI generation (live, varies each run) when a provider key is configured.
+    // A provider error still leaves the usable template in `result`, so it does
+    // not waive the charge — the merchant received a deliverable.
     let aiUsed = false;
     if (contentTool && ai.available()) {
       try {
@@ -2074,11 +2090,10 @@ module.exports = function registerRoutes(r) {
       } catch (e) { result.ai_text = null; result.ai_error = String(e && e.message || e); }
     }
     result.ai_available = ai.available();
-    // Only charge when the model actually ran (content tools) or for real data tools.
-    const charge = (aiUsed || (!contentTool && tool.acu > 0)) ? tool.acu : 0;
-    if (charge > 0) engine.chargeAcu(m, tool.acu, 'growth:' + toolId, null);
-    audit(m.id, user.id, 'growth_tool', { tool: toolId, acu: charge, ai: aiUsed });
-    return { tool: toolId, acu_consumed: charge, result };
+    // A deliverable was produced (live model or template) → charge the price.
+    if (tool.acu > 0) engine.chargeAcu(m, tool.acu, 'growth:' + toolId, null);
+    audit(m.id, user.id, 'growth_tool', { tool: toolId, acu: tool.acu, ai: aiUsed });
+    return { tool: toolId, acu_consumed: tool.acu, result };
   }));
 
   // ---------- SEO agent (K-10) + autopilot ----------

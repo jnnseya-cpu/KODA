@@ -176,7 +176,12 @@ function createTopup(merchant, body = {}) {
   const rail = String(body.rail || body.method || 'koda');
   // KODA self-collect: pay by mobile money to KODA's own DRC SIM, verified by KODA.
   if (rail === 'koda') {
-    const subtotal = Number(body.usd) > 0 ? Number(body.usd) : Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
+    // GN-FIN-01 — price is SERVER-AUTHORITATIVE. The client's `usd` is never
+    // trusted: deriving from acu at the catalogue rate reproduces every retail
+    // pack exactly ($0.026/ACU) and removes the discount vector where a client
+    // could pay any price down to the $0.013 floor — half of retail — for a full
+    // ACU credit.
+    const subtotal = Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
     if (!B.clearsFloor(subtotal / acu)) return [400, { error: { code: 'pricing_floor', message: 'Top-up price is below the 100% margin floor.' } }];
     const idem = body.idempotency_key || null;
     if (idem) { const dup = q.get('SELECT * FROM topups WHERE idempotency_key=?', idem); if (dup) return topupView(dup); }
@@ -200,15 +205,10 @@ function createTopup(merchant, body = {}) {
     const dup = q.get('SELECT * FROM topups WHERE idempotency_key=?', idem);
     if (dup) return topupView(dup); // retry-safe: same key returns the same topup
   }
+  // Price is SERVER-AUTHORITATIVE: the quote is derived from acu at the catalogue
+  // rate. The client's `usd` is never trusted (previously it could set any price
+  // down to the half-retail floor for a full ACU credit — GN-FIN-01).
   const quote = B.quote(acu, rail, { currency: body.currency });
-  // honor a retail pack price when given: subtotal = pack usd, fee added per rail
-  if (Number(body.usd) > 0) {
-    const sub = Number(body.usd);
-    if (!B.clearsFloor(sub / acu)) return [400, { error: { code: 'pricing_floor', message: 'Top-up price is below the 100% margin floor.' } }];
-    quote.subtotal_usd = sub;
-    quote.collection_fee_usd = Math.round(sub * (B.RAILS[rail].fee_pct || 0) * 100) / 100;
-    quote.total_usd = Math.round((sub + quote.collection_fee_usd) * 100) / 100;
-  }
   const id = U.id('top');
   q.run(`INSERT INTO topups (id,merchant_id,acu_amount,subtotal_usd,collection_fee_usd,tax_usd,total_usd,currency,rail,idempotency_key,routing_snapshot,status)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,

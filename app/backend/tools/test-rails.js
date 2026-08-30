@@ -105,9 +105,11 @@ const mkReq = (body, headers) => ({ headers: headers || {}, rawBody: Buffer.from
   ok(settings.collectConfigured() === true, 'self-collect becomes configured once a number is saved (no restart)');
   ok(settings.primaryNumber() === '+243999000111', 'primary receiving number resolves from the DB store');
   ok(settings.collectMerchantId() === merchant.id, 'collector merchant resolves from the DB store');
-  const topup = billing.createTopup(merchant, { amount_acu: 100, rail: 'koda', usd: 10 });
+  const topup = billing.createTopup(merchant, { amount_acu: 100, rail: 'koda' });
   ok(topup.session && topup.session.pay_to === '+243999000111', 'KODA MoMo checkout shows the admin-set number', topup.session && topup.session.pay_to);
-  ok(topup.session.amount_local === Math.round(10 * 2500) + 0 || Math.abs(topup.session.amount_local - 10 * 2500) < 100, 'exact local amount uses the admin-set rate', topup.session.amount_local);
+  // Price is SERVER-AUTHORITATIVE (100 ACU × $0.026); the local amount is that
+  // server-derived price converted at the admin-set FX rate (client usd ignored).
+  ok(Math.abs(topup.session.amount_local - Math.round(topup.session.amount_usd * 2500)) < 1, 'exact local amount uses the admin-set rate', topup.session.amount_local);
   // multiple receiving numbers: the checkout must offer ALL active ones (per operator)
   settings.set('collect_numbers', JSON.stringify([
     { operator: 'airtel_cd', msisdn: '+243999000111', label: 'Airtel', active: 1 },

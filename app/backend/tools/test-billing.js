@@ -136,6 +136,19 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   ok(!billing.verifyWebhook('stripe', mkReq(bodyW, null)).ok, 'webhook rejects a missing signature');
   delete process.env.KODA_WEBHOOK_SECRET;
 
+  // ── PRICE AUTHORITY (regression for the client-supplied-price discount) ─────
+  // A client that under-quotes the price must NOT get a cheaper top-up: the
+  // server always charges acu × catalogue rate regardless of body.usd.
+  const retail = Math.round(1000 * BILL.ACU_PRICE_USD * 100) / 100; // 1000 ACU @ $0.026 = $26
+  const cheat = billing.createTopup(payer, { amount_acu: 1000, rail: 'koda', usd: 13 }); // tries half price
+  ok(cheat.session && Math.abs(cheat.session.amount_usd - retail) < 1e-6,
+    'client-supplied usd is ignored — top-up priced at server rate', `$${cheat.session && cheat.session.amount_usd} (not $13)`);
+  process.env.STRIPE_KEY = process.env.STRIPE_KEY || 'sk_test_price_authority';
+  const cheatCard = billing.createTopup(payer, { amount_acu: 1000, rail: 'stripe', usd: 13 });
+  const cardSub = Array.isArray(cheatCard) ? null : cheatCard.subtotal_usd; // error tuple → skip
+  ok(cardSub == null || Math.abs(cardSub - retail) < 1e-6,
+    'card rail also ignores client usd — server-authoritative subtotal', `$${cardSub}`);
+
   // ── FINAL RECONCILIATION ────────────────────────────────────────────────────
   ok(billing.reconcile().balanced, 'FINAL: entire billing ledger reconciles to zero', `Σ=${billing.reconcile().sum}`);
 
