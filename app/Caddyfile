@@ -5,3 +5,10 @@
 	encode zstd gzip
 	reverse_proxy koda:8080
 }
+
+# www → apex: anyone typing www.kodajnn.com (or with it printed on a van) gets a
+# permanent redirect to the canonical apex. Requires a DNS record for www pointing
+# at this host so Caddy can provision its certificate.
+www.{$KODA_DOMAIN} {
+	redir https://{$KODA_DOMAIN}{uri} permanent
+}

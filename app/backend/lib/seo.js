@@ -146,9 +146,14 @@ function robots() {
   return `User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /v1\n\nSitemap: ${SITE}/sitemap.xml\n`;
 }
 function orgJsonLd() {
-  return { '@context': 'https://schema.org', '@type': 'Organization', name: BRAND, url: SITE,
+  return { '@context': 'https://schema.org', '@type': 'Organization', name: BRAND,
+    legalName: 'Groupe Nseya Digital / JNN Global Ltd', url: SITE,
     logo: SITE + '/icon-512.png', description: 'Mobile money payment verification — verify any payment against the operator SMS, no telco API.',
-    sameAs: [] };
+    email: 'koda@kodajnn.com', telephone: '+243828139153',
+    address: { '@type': 'PostalAddress', addressLocality: 'Kinshasa', addressCountry: 'CD' },
+    contactPoint: { '@type': 'ContactPoint', telephone: '+243828139153', email: 'koda@kodajnn.com',
+      contactType: 'customer support', availableLanguage: ['French', 'English', 'Lingala', 'Swahili'] },
+    sameAs: ['https://wa.me/243828139153'] };
 }
 // site-level structured data for the homepage — declares the canonical site and
 // its blog so crawlers understand the property (the "JSON-LD sitemap" surface).

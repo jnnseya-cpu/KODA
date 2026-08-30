@@ -316,6 +316,12 @@ footer a{color:var(--dim)}
   </div>`).join('')}
   </div>
   <p style="max-width:880px;margin:0 auto 22px;font-size:11px;line-height:1.75;color:rgba(155,167,155,.75);font-family:var(--disp)"><b style="color:var(--dim)">Disclaimer.</b> ${DISCLAIMER}</p>
+  <div style="max-width:880px;margin:0 auto 14px;display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px">
+    <a href="tel:+243828139153" style="color:var(--dim)">📞 +243 828 139 153</a>
+    <a href="https://wa.me/243828139153" target="_blank" rel="noopener" style="color:var(--dim)">WhatsApp</a>
+    <a href="mailto:koda@kodajnn.com" style="color:var(--dim)">koda@kodajnn.com</a>
+    <span style="color:var(--dim)">Kinshasa, DR Congo</span>
+  </div>
   <div style="max-width:880px;margin:0 auto;display:flex;gap:16px;flex-wrap:wrap">
     <span>© 2026 Groupe Nseya Digital / JNN Global Ltd.</span>
     <span style="margin-left:auto;color:var(--gold)">le code confirme le cash.</span>
