@@ -43,7 +43,36 @@ function withinQuota(merchant) {
 }
 const VERSION = require('../../shared/version');
 
-function getMerchant(mid) { return q.get('SELECT * FROM merchants WHERE id=?', mid); }
+function getMerchant(mid) {
+  const m = q.get('SELECT * FROM merchants WHERE id=?', mid);
+  if (m) enforcePlanExpiry(m);
+  return m;
+}
+
+// GN-FIN-01 — a paid plan must not be perpetual. `plan_expires_at` is stamped
+// (+30 days) on every plan payment; enforce it lazily on load so a merchant who
+// pays once cannot keep a paid tier forever. On lapse the merchant degrades to
+// the free `marche` tier with all data preserved ("degradation before
+// deletion"); a paid merchant whose expiry was never stamped (legacy upgrade)
+// is granted one grace window rather than cut off. A paid plan still inside its
+// window is untouched.
+function enforcePlanExpiry(m) {
+  if (!m || !m.plan || m.plan === 'marche') return;            // free tier never expires
+  if (!((PLANS[m.plan] || {}).usd > 0)) return;               // non-paid tiers: nothing to enforce
+  if (!m.plan_expires_at) {                                    // legacy paid with no date → one grace window
+    q.run(`UPDATE merchants SET plan_expires_at=datetime('now','+30 days') WHERE id=? AND plan_expires_at IS NULL`, m.id);
+    const row = q.get('SELECT plan_expires_at FROM merchants WHERE id=?', m.id);
+    m.plan_expires_at = row && row.plan_expires_at;
+    return;
+  }
+  const row = q.get(`SELECT (plan_expires_at < datetime('now')) AS expired FROM merchants WHERE id=?`, m.id);
+  if (row && row.expired) {
+    const previous = m.plan;
+    q.run(`UPDATE merchants SET plan='marche', is_platform=0 WHERE id=?`, m.id);
+    m.plan = 'marche'; m.is_platform = 0;
+    try { notifyOwners(m, 'plan.expired', { previous }); } catch { /* notify optional */ }
+  }
+}
 function metric(k) { try { require('./metrics').inc(k); } catch { /* metrics optional */ } }
 
 // ACU mutations MUST be relative + read-back, never absolute from an in-memory
