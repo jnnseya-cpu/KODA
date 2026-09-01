@@ -39,7 +39,11 @@ input,select,textarea{font-family:inherit}
 .nav-item{display:flex;align-items:center;gap:11px;padding:9.5px 12px;border-radius:9px;color:var(--dim);font-size:13.5px;font-weight:600;border:none;background:none;width:100%;text-align:left}
 .nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
 .nav-item.on{color:var(--gold);background:rgba(232,161,31,.09)}
-.nav-item .ic{width:18px;text-align:center;font-family:var(--mono);font-size:13px}
+.nav-item .ic{width:20px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px}
+/* crafted SVG icons — inherit the element's colour (dim, or gold when .on / hover) */
+.nic{width:17px;height:17px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.16em;margin-right:.4em}
+.nav-item .ic .nic,.btn .nic:only-child,.btn-sm .nic:only-child{margin-right:0}  /* centered/icon-only contexts: no offset */
+h3 .nic,label .nic,dd .nic{margin-right:.45em}
 .nav-sec{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);opacity:.7;padding:16px 12px 6px}
 .nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 7px;font-family:var(--mono)}
 

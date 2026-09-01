@@ -287,13 +287,60 @@ const ROLE_VIEWS = {
 // default — it's testing/operator tooling, not part of the live product. A merchant
 // opts in from Developers → "Sandbox test tools"; the flag lives in localStorage.
 const isSandbox = () => { try { return localStorage.getItem('koda_sandbox') === '1'; } catch { return false; } };
+// Crafted line-icon set (24×24 stroke, currentColor) — one cohesive system across the
+// whole app in place of emoji/mono-glyph iconography. Rendered via svgi().
+const APP_ICONS = {
+  dashboard: '<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>',
+  feed: '<path d="M4 7h16M4 12h16M4 17h10"/>',
+  receipts: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  verify: '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>',
+  disputes: '<path d="M12 3v18M6 21h12M4 8l8-3 8 3"/><path d="M4 8l-1.5 5a3 3 0 0 0 5 0zM20 8l1.5 5a3 3 0 0 1-5 0z"/>',
+  accounts: '<path d="M4 10 12 5l8 5"/><path d="M5 10v8M19 10v8M9 10v8M15 10v8"/><path d="M3 21h18"/>',
+  devices: '<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M10.5 18.5h3"/>',
+  growth: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  pricing: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/>',
+  billing: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
+  team: '<circle cx="8" cy="9" r="2.6"/><circle cx="16" cy="9" r="2.6"/><path d="M3.5 19a4.5 4.5 0 0 1 9 0M11.5 19a4.5 4.5 0 0 1 9 0"/>',
+  developers: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13 6l-2 12"/>',
+  submerchants: '<rect x="9" y="3" width="6" height="4" rx="1"/><rect x="3" y="16" width="6" height="4" rx="1"/><rect x="15" y="16" width="6" height="4" rx="1"/><path d="M12 7v3M6 16v-3h12v3"/>',
+  comms: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 8l8 5 8-5"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+  admin: '<path d="M12 3l2.4 5.9 6.4.5-4.9 4 1.5 6.3L12 17l-5.4 2.7L8 13.4l-4.9-4 6.4-.5z"/>',
+  sales_kit: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/>',
+  social_post: '<circle cx="6" cy="12" r="2.5"/><circle cx="17" cy="6" r="2.5"/><circle cx="17" cy="18" r="2.5"/><path d="M8.2 11 15 7M8.2 13 15 17"/>',
+  advert: '<path d="M3 10v4h3l9 5V5L6 10z"/><path d="M18 9a4 4 0 0 1 0 6"/>',
+  email_campaign: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 8l8 5 8-5"/>',
+  landing_page: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  hashtags: '<path d="M9 3 7 21M17 3l-2 18M4 8h16M3 16h16"/>',
+  video_script: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',
+  recommendations: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3 11c.6.4 1 1 1 2h4c0-1 .4-1.6 1-2a6 6 0 0 0-3-11z"/>',
+  audience: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  analytics: '<path d="M4 20v-6M10 20V6M16 20v-9M3 20h18"/>',
+  posting_time: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  gift: '<rect x="4" y="9" width="16" height="11" rx="1"/><path d="M4 13h16M12 9v11"/><path d="M12 9C10 9 8 8 8 6.5S9.5 5 12 9zM12 9c2 0 4-1 4-2.5S14.5 5 12 9z"/>',
+  store: '<path d="M4 9l1-4h14l1 4M5 9v10h14V9M4 9h16"/>',
+  camera: '<rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 7l1.5-2h5L16 7"/>',
+  inbox: '<path d="M4 13l2-8h12l2 8v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 5l4 4"/>',
+  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3 11c.6.4 1 1 1 2h4c0-1 .4-1.6 1-2a6 6 0 0 0-3-11z"/>',
+  megaphone: '<path d="M3 10v4h3l9 5V5L6 10z"/><path d="M18 9a4 4 0 0 1 0 6"/>',
+  mail: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 8l8 5 8-5"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff: '<path d="M4 4l16 16"/><path d="M9.5 9.5A3 3 0 0 0 12 15a3 3 0 0 0 2.5-1.4M6.5 6.6C3.8 8.2 2 12 2 12s3.5 7 10 7c2 0 3.7-.6 5.2-1.5M9.5 5.2A9.6 9.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.2 3"/>',
+  phone: '<path d="M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  up: '<path d="M12 20V5M6 11l6-6 6 6"/>',
+  bell: '<path d="M6 10a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+};
+const svgi = (n) => `<svg class="nic" viewBox="0 0 24 24" aria-hidden="true">${APP_ICONS[n] || ''}</svg>`;
+
 const GROWTH_TOOLS = [
-  ['sales_kit', '🧰', 'Field-sales kit (pitch · script · flyer)'],
-  ['social_post', '📱', 'Social media post'], ['advert', '📢', 'Advert creator'],
-  ['email_campaign', '✉️', 'Email campaign'], ['landing_page', '🖥️', 'Landing page builder'],
-  ['hashtags', '#️⃣', 'Hashtag generator'], ['video_script', '🎬', 'Video script'],
-  ['recommendations', '💡', 'Performance recommendations'], ['audience', '🎯', 'Audience optimisation'],
-  ['analytics', '📊', 'Campaign analytics'], ['posting_time', '⏰', 'Best posting time'],
+  ['sales_kit', svgi('sales_kit'), 'Field-sales kit (pitch · script · flyer)'],
+  ['social_post', svgi('social_post'), 'Social media post'], ['advert', svgi('advert'), 'Advert creator'],
+  ['email_campaign', svgi('email_campaign'), 'Email campaign'], ['landing_page', svgi('landing_page'), 'Landing page builder'],
+  ['hashtags', svgi('hashtags'), 'Hashtag generator'], ['video_script', svgi('video_script'), 'Video script'],
+  ['recommendations', svgi('recommendations'), 'Performance recommendations'], ['audience', svgi('audience'), 'Audience optimisation'],
+  ['analytics', svgi('analytics'), 'Campaign analytics'], ['posting_time', svgi('posting_time'), 'Best posting time'],
 ];
 function route() {
   const hash = location.hash.replace(/^#\/?/, '') || (ME ? 'dashboard' : 'login');
@@ -322,40 +369,40 @@ function shell(active, title, sub, content) {
   // console stays available as an option, just not the primary tab (it sits after
   // the auto-verified feed and receipts).
   const till = [
-    ['dashboard', '◫', t('dashboard')],
-    ['feed', '≋', t('feed')],
-    ['receipts', '🧾', t('receipts')],
-    ['verify', '✓', t('verify')],
+    ['dashboard', svgi('dashboard'), t('dashboard')],
+    ['feed', svgi('feed'), t('feed')],
+    ['receipts', svgi('receipts'), t('receipts')],
+    ['verify', svgi('verify'), t('verify')],
   ];
   const ops = [
-    ['disputes', '⚖', t('disputes')],
+    ['disputes', svgi('disputes'), t('disputes')],
     ['sec', '', 'Operations'],
-    ['accounts', '🏦', t('accounts')],
-    ['devices', '▣', t('devices')],
+    ['accounts', svgi('accounts'), t('accounts')],
+    ['devices', svgi('devices'), t('devices')],
   ];
   const ownerOnly = [
-    ['growth', '🚀', t('growth')],
-    ['pricing', '💳', 'Plans & pricing'],
-    ['billing', '◈', t('billing')],
-    ['team', '👥', t('team')],
+    ['growth', svgi('growth'), t('growth')],
+    ['pricing', svgi('pricing'), 'Plans & pricing'],
+    ['billing', svgi('billing'), t('billing')],
+    ['team', svgi('team'), t('team')],
     ['sec2', '', 'Platform'],
-    ['developers', '</>', t('developers')],
-    ...(isPlatform ? [['submerchants', '⌂', t('submerchants')]] : []),
+    ['developers', svgi('developers'), t('developers')],
+    ...(isPlatform ? [['submerchants', svgi('submerchants'), t('submerchants')]] : []),
   ];
   const tail = [
-    ['comms', '✉', t('comms')],
-    ['settings', '⚙', t('settings')],
+    ['comms', svgi('comms'), t('comms')],
+    ['settings', svgi('settings'), t('settings')],
   ];
   // a KODA staff-admin with no merchant of their own is oversight-only: show ONLY
   // the control centre, not the empty merchant tabs (Verify/Feed/Billing need a merchant).
   const nav = (u.is_admin && !m)
-    ? [['sec3', '', 'KODA staff'], ['admin', '★', t('admin')]]
+    ? [['sec3', '', 'KODA staff'], ['admin', svgi('admin'), t('admin')]]
     : [
       ...till,
       ...(role !== 'cashier' ? ops : []),
       ...(role === 'owner' || role === 'admin' ? ownerOnly : []),
       ...tail,
-      ...(u.is_admin ? [['sec3', '', 'KODA staff'], ['admin', '★', t('admin')]] : []),
+      ...(u.is_admin ? [['sec3', '', 'KODA staff'], ['admin', svgi('admin'), t('admin')]] : []),
     ];
   root.innerHTML = `
   <div class="shell">
@@ -441,7 +488,7 @@ VIEWS.signup = (params) => {
   const ref = (params.get('ref') || '').toUpperCase().trim();
   root.innerHTML = authCard(`
     <h1>${t('signup')}</h1><p>Three doors, one engine. Start free on Marché.</p>
-    ${ref ? `<div class="badge b-ok" style="display:block;margin-bottom:12px;line-height:1.5">🎁 You were invited (code <b>${esc(ref)}</b>) — you and your inviter each earn free ACU when you verify your first payment.</div>` : ''}
+    ${ref ? `<div class="badge b-ok" style="display:block;margin-bottom:12px;line-height:1.5">${svgi('gift')}You were invited (code <b>${esc(ref)}</b>) — you and your inviter each earn free ACU when you verify your first payment.</div>` : ''}
     <input id="refcode" type="hidden" value="${esc(ref)}">
     <input id="hp" name="hp_field" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
     <div class="field"><label>Business name</label><input id="biz" placeholder="Maison Kivu"></div>
@@ -458,14 +505,14 @@ function pwField(id, ph = '••••••••', ac = 'current-password') {
     <div style="position:relative">
       <input id="${id}" type="password" placeholder="${ph}" autocomplete="${ac}" style="width:100%;padding-right:44px">
       <button type="button" onclick="togglePw('${id}',this)" aria-label="Show password"
-        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;font-size:17px;line-height:1;color:var(--dim);padding:4px">👁</button>
+        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;font-size:17px;line-height:1;color:var(--dim);padding:4px" aria-label="Show password">${svgi('eye')}</button>
     </div></div>`;
 }
 window.togglePw = (id, btn) => {
   const el = document.getElementById(id);
   const show = el.type === 'password';
   el.type = show ? 'text' : 'password';
-  btn.textContent = show ? '🙈' : '👁';
+  btn.innerHTML = show ? svgi('eyeoff') : svgi('eye');
   btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
 };
 // forgot-password: request a reset link
@@ -582,7 +629,7 @@ function upgradeNudge(d) {
     : `You're on <b>Marché (free)</b>. Upgrade for higher volume, more devices and team seats — pay only when you get paid.`;
   return `<div style="margin-bottom:14px;border:1px solid var(--gold);border-radius:11px;padding:11px 14px;
       background:rgba(232,161,31,.06);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:18px">⬆</span>
+    <span style="display:inline-flex">${svgi('up')}</span>
     <div style="flex:1;min-width:200px;font-size:13px;line-height:1.45">${msg}${near ? ` <span class="mono" style="color:var(--dim)">· ${pct}% used</span>` : ''}</div>
     <a class="btn btn-gold" href="#pricing" style="width:auto;padding:8px 15px;font-size:13px">See plans →</a>
     <button onclick="dismissUpsell(this)" aria-label="Dismiss" style="background:none;border:0;color:var(--dim);font-size:18px;line-height:1;cursor:pointer;padding:2px 4px">×</button>
@@ -647,18 +694,18 @@ VIEWS.verify = async () => {
       <input id="amt" placeholder="${t('expected_amount')}" inputmode="numeric">
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-gold" onclick="consoleVerify(false)">✓ ${t('verify_btn')}</button>
-        <button class="btn btn-ghost" style="color:var(--paper-ink);border-color:rgba(36,31,20,.25)" onclick="pickShot()">📷 ${t('v_screenshot')}</button>
+        <button class="btn btn-ghost" style="color:var(--paper-ink);border-color:rgba(36,31,20,.25)" onclick="pickShot()">${svgi('camera')}${t('v_screenshot')}</button>
         <input type="file" id="shotfile" accept="image/*" capture="environment" style="display:none" onchange="onShotFile(this)">
       </div>
     </div>
     <div class="verdict" id="verdict"></div>
   </div>
   <div class="card" style="margin-top:14px">
-    <h3>📩 ${t('paste_sms_t')}</h3>
+    <h3>${svgi('inbox')}${t('paste_sms_t')}</h3>
     <div class="mono" style="font-size:12px;color:var(--dim);margin:6px 0 10px;line-height:1.5">${t('paste_sms_h')}</div>
     <textarea id="smsraw" rows="3" placeholder="Vous avez recu 25 000 FC de Marie Kalala (0812345678). Ref: OM4F2K9. Solde: 312 500"
       style="width:100%;background:var(--ink);border:1px solid var(--line-strong);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--mono);font-size:12px;resize:vertical"></textarea>
-    <div style="margin-top:10px"><button class="btn btn-gold" onclick="verifySms(this)">📩 ${t('paste_sms_btn')}</button></div>
+    <div style="margin-top:10px"><button class="btn btn-gold" onclick="verifySms(this)">${svgi('inbox')}${t('paste_sms_btn')}</button></div>
     <div class="verdict" id="smsverdict"></div>
   </div>
   ${isSandbox() ? `<div class="card" style="margin-top:14px"><h3>${t('v_sandbox')} <span class="badge b-warn" style="float:right">sandbox</span></h3>
@@ -678,7 +725,7 @@ function renderVerdict(r, el) {
   const icon = cls === 'ok' ? '✓' : cls === 'warn' ? '◔' : '✗';
   el.className = `verdict show ${cls}`;
   el.innerHTML = `<div class="big">${icon} ${cls === 'ok' ? t('verified') : r.status === 'pending_review' ? t('pending') : r.status === 'not_found_yet' ? t('not_found') : t('rejected')}</div>
-    ${r.extracted ? `<div class="mono" style="margin-top:4px">📷 read from image: <b>${esc(r.extracted.reference)}</b>${r.extracted.amount != null ? ' · ' + esc(r.extracted.amount) + (r.extracted.currency ? ' ' + esc(r.extracted.currency) : '') : ''}</div>` : ''}
+    ${r.extracted ? `<div class="mono" style="margin-top:4px">${svgi('camera')}read from image: <b>${esc(r.extracted.reference)}</b>${r.extracted.amount != null ? ' · ' + esc(r.extracted.amount) + (r.extracted.currency ? ' ' + esc(r.extracted.currency) : '') : ''}</div>` : ''}
     <div class="mono">${r.amount_confirmed ? `${t('amount')}: ${fmt(r.amount_confirmed)} · ` : ''}${r.receipt_id ? `receipt ${r.receipt_id} · ` : ''}${r.risk ? `risk ${r.risk.score}` : ''}${r.code ? ` · ${r.code}` : ''}</div>
     ${(r.trace?.steps || []).map(s => `<div class="mono" style="margin-top:4px">→ ${esc(s)}</div>`).join('')}`;
 }
@@ -700,7 +747,7 @@ window.pickShot = () => { const f = document.getElementById('shotfile'); if (f) 
 window.onShotFile = (input) => {
   const file = input.files && input.files[0]; if (!file) return;
   const el = document.getElementById('verdict');
-  el.className = 'verdict'; el.textContent = '📷 …';
+  el.className = 'verdict'; el.innerHTML = svgi('camera') + ' …';
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload = async () => {
@@ -888,8 +935,8 @@ VIEWS.accounts = async () => {
       <td>${esc(a.account_holder_name || '—')}</td>
       <td><span onclick="toggleAccount('${a.id}','${a.activation_status}')" title="${on ? t('acc_on') : t('acc_off')}" style="cursor:pointer;display:inline-flex;align-items:center;width:44px;height:24px;border-radius:999px;padding:2px;background:${on ? 'var(--gold)' : 'var(--line-strong)'};transition:background .15s"><span style="width:20px;height:20px;border-radius:50%;background:#fff;display:block;transform:translateX(${on ? '20px' : '0'});transition:transform .15s"></span></span></td>
       <td style="white-space:nowrap;text-align:right">
-        <button class="btn btn-ghost btn-sm" title="${t('acc_edit')}" onclick="editAccount('${a.id}')">✏️</button>
-        <button class="btn btn-ghost btn-sm" title="${t('acc_remove')}" onclick="deleteAccount('${a.id}')">🗑️</button></td></tr>`; }).join('')}
+        <button class="btn btn-ghost btn-sm" title="${t('acc_edit')}" onclick="editAccount('${a.id}')">${svgi('edit')}</button>
+        <button class="btn btn-ghost btn-sm" title="${t('acc_remove')}" onclick="deleteAccount('${a.id}')">${svgi('trash')}</button></td></tr>`; }).join('')}
     </table>` : '<p style="color:var(--dim);font-size:13px">'+t('acc_none')+'</p>'}</div>
   <div class="card" style="margin-top:14px"><h3>${t('acc_would_see')}</h3>
     ${liveAccts.length ? liveAccts.map(a => `<div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:5px 0"><span><b>${esc(opName(a.network_code))}</b> <span class="mono" style="color:var(--dim)">${esc(a.account_identifier || a.masked || '')}</span></span><span class="badge b-ok">${t('acc_at_checkout')}</span></div>`).join('') : '<p style="color:var(--dim);font-size:13px">'+t('acc_none_live2')+'</p>'}
@@ -1076,7 +1123,7 @@ VIEWS.devices = async () => {
       <dl class="kv" style="margin-top:10px">
         <dt>operator</dt><dd class="mono">${esc(d.operator)}</dd>
         <dt>SIM</dt><dd class="mono">${esc(d.sim_msisdn || '—')}</dd>
-        <dt>${t('dev_capture')}</dt><dd>${notif ? '🔔 ' + t('dev_cap_notif') : '✉ ' + t('dev_cap_sms')}</dd>
+        <dt>${t('dev_capture')}</dt><dd>${notif ? svgi('bell') + t('dev_cap_notif') : svgi('mail') + t('dev_cap_sms')}</dd>
         <dt>attested</dt><dd>${d.attested ? '✓ Play Integrity' : '✗'}</dd>
         <dt>last seen</dt><dd>${when(d.last_seen)}</dd>
         <dt>parse health</dt><dd>${Math.round((d.parse_health || 1) * 100)}% · battery ${d.battery}%</dd>
@@ -1328,7 +1375,7 @@ window.setPlan = async (p) => {
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
         ${r.methods.map(mth => `<button class="btn ${mth.available ? 'btn-gold' : 'btn-ghost'}" ${mth.available ? '' : 'disabled'} onclick="subscribePlan('${p}','${mth.rail}')">
           ${esc(mth.label)}${mth.quote ? ` — $${fmt(mth.quote.total_usd)}` : ''}${mth.available ? '' : ' (coming soon)'}</button>`).join('')}
-        <button class="btn btn-ghost" onclick="subscribePlan('${p}','distributor')">🧑‍💼 Pay a KODA agent (distributor)</button>
+        <button class="btn btn-ghost" onclick="subscribePlan('${p}','distributor')">${svgi('team')}Pay a KODA agent (distributor)</button>
       </div>
       <p style="font-size:12px;color:var(--dim);margin:8px 0 0">Paying an agent? You hand them cash / mobile money and your plan activates the moment their KODA Sentinel confirms it — no card needed.</p>
       <div id="sub-out" style="margin-top:10px"></div></div>`;
@@ -1404,7 +1451,7 @@ VIEWS.developers = async () => {
         <td>${k.revoked ? '<span class="badge b-bad">revoked</span>' : '<span class="badge b-ok">live</span>'}</td>
         <td>${k.revoked
           ? (activeKeys >= 1
-            ? `<button class="btn btn-ghost btn-sm" style="color:#e5484d;border-color:rgba(229,72,77,.4)" title="Delete this revoked key" onclick="deleteKey('${k.id}')">🗑 delete</button>`
+            ? `<button class="btn btn-ghost btn-sm" style="color:#e5484d;border-color:rgba(229,72,77,.4)" title="Delete this revoked key" onclick="deleteKey('${k.id}')">${svgi('trash')}delete</button>`
             : `<span style="font-size:11px;color:var(--dim)">create a live key first</span>`)
           : `<button class="btn btn-danger btn-sm" onclick="revokeKey('${k.id}')">revoke</button>`}</td></tr>`).join('')}
       </table>
@@ -1770,7 +1817,7 @@ VIEWS.growth = async () => {
   shell('growth', t('growth'), t('growth_sub') + ' · K-11', `
   ${ref ? `<div class="card" style="border-color:var(--gold)">
     <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
-      <h3 style="margin:0">🎁 Invite a merchant — earn free ACU</h3>
+      <h3 style="margin:0">${svgi('gift')}Invite a merchant — earn free ACU</h3>
       <span class="mono" style="font-size:12px;color:var(--dim)">${fmt(ref.qualified)} joined · ${fmt(ref.acu_earned)} ACU earned</span></div>
     <p style="font-size:13px;color:var(--dim);margin:8px 0">Share your link. When a merchant you invite verifies their <b>first payment</b>, <b>you both get ${fmt(ref.reward_per)} ACU</b>. No limit.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
@@ -1781,7 +1828,7 @@ VIEWS.growth = async () => {
     ${ref.list && ref.list.length ? `<div class="mono" style="font-size:11px;color:var(--dim);margin-top:10px">Recent: ${ref.list.slice(0, 5).map(x => `${esc(x.name)} <span class="badge ${x.status === 'qualified' ? 'b-ok' : 'b-info'}">${x.status === 'qualified' ? 'earned' : 'joined'}</span>`).join(' · ')}</div>` : ''}
   </div>` : ''}
   <div class="card" style="margin-top:14px;border-color:var(--gold)">
-    <h3 style="margin:0 0 4px">🏪 Your business</h3>
+    <h3 style="margin:0 0 4px">${svgi('store')}Your business</h3>
     <div style="font-size:13px;color:var(--dim);margin-bottom:12px">Tell the AI what <b>you</b> sell — every tool below writes marketing for <b>your</b> business, not for KODA.</div>
     <label style="display:block;font-size:12px;color:var(--dim);margin-bottom:4px">What does your business do?</label>
     <input id="biz-about" value="${esc(_ctx.business || '')}" placeholder="e.g. Grilled fish & fufu restaurant, delivery in Gombe"
@@ -1874,7 +1921,7 @@ function renderGrowthBody(tool, r) {
       <div style="font-size:12px;color:var(--dim);margin-top:4px">${esc(r.flyer.footer)}</div></div>
     <h3 style="margin:16px 0 6px">Objection handling</h3>
     ${(r.objections || []).map(o => `<div style="margin-bottom:8px"><b>${esc(o.q)}</b><br><span style="color:var(--dim)">${esc(o.a)}</span></div>`).join('')}
-    <div class="badge b-info" style="margin-top:8px;display:block;line-height:1.5">💡 ${esc(r.tip)}</div>
+    <div class="badge b-info" style="margin-top:8px;display:block;line-height:1.5">${svgi('bulb')}${esc(r.tip)}</div>
     <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--gold)">Pitch in all 6 languages</summary>
       ${Object.entries(r.whatsapp_pitch_all_languages || {}).map(([l, p]) => `<div style="margin-top:8px"><b class="mono">${esc(l)}</b><div class="codebox" style="white-space:pre-wrap">${esc(p)}</div></div>`).join('')}</details>`;
   if (tool === 'social_post') return `<div class="codebox" style="white-space:pre-wrap">${esc(r.text)}</div>
@@ -1910,7 +1957,7 @@ VIEWS.settings = async () => {
   shell('settings', t('settings'), esc(m.name), `
   <div class="card"><h3>${t('st_profile')}</h3>
     <div class="field"><label>Business name</label><input id="pf-name" value="${esc(m.name)}"></div>
-    <div class="field"><label>📲 Mobile-money number customers pay to</label>
+    <div class="field"><label>${svgi('phone')}Mobile-money number customers pay to</label>
       <input id="pf-msisdn" value="${esc(m.msisdn || '')}" placeholder="+243 8XX XXX XXX" style="font-family:var(--mono)">
       <p style="font-size:12px;color:var(--gold);margin-top:4px">This is the number shown on your customer checkout page — set it so customers know where to send payment.</p></div>
     <div class="field"><label>Brand colour (receipts &amp; emails)</label>
@@ -2049,7 +2096,7 @@ VIEWS.admin = async (params) => {
     </div>
     <div id="cm-out" style="margin-top:10px"></div>
   </details>
-  ${nl ? `<div class="card" style="margin-top:14px"><h3>📣 Weekly product newsletter</h3>
+  ${nl ? `<div class="card" style="margin-top:14px"><h3>${svgi('megaphone')}Weekly product newsletter</h3>
     <p style="font-size:13px;color:var(--dim);margin:2px 0 8px">Auto-sent every week to <b>${fmt(nl.recipients)}</b> registered user${nl.recipients === 1 ? '' : 's'}, selling KODA's features with deep links into the site &amp; blog. ${nl.last_sent && nl.last_sent.at ? `Last sent ${new Date(nl.last_sent.at).toISOString().slice(0, 10)} to ${fmt(nl.last_sent.count || 0)}. ` : 'Baseline set — first automatic send goes out within a week. '}${nl.next_due_at ? `Next auto-send on/after ${nl.next_due_at.slice(0, 10)}.` : ''}</p>
     <div style="font-size:13px;margin-bottom:8px"><b>This week's subject:</b> ${esc(nl.subject)}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -2067,7 +2114,7 @@ VIEWS.admin = async (params) => {
       <td><span class="badge ${m.status === 'active' ? 'b-ok' : 'b-bad'}">${m.status}</span></td>
       <td style="white-space:nowrap"><button class="btn btn-gold btn-sm" onclick="location.hash='#admin?m=${m.id}'">Manage</button>
         <button class="btn btn-danger btn-sm" onclick="adminToggle('${m.id}')">${m.status === 'active' ? 'suspend' : 'restore'}</button>
-        ${m.status === 'suspended' ? `<button class="btn btn-ghost btn-sm" style="color:#e5484d;border-color:rgba(229,72,77,.4)" data-name="${esc(m.name)}" onclick="adminDeleteMerchant('${m.id}', this)">🗑 delete</button>` : ''}</td></tr>`).join('')}
+        ${m.status === 'suspended' ? `<button class="btn btn-ghost btn-sm" style="color:#e5484d;border-color:rgba(229,72,77,.4)" data-name="${esc(m.name)}" onclick="adminDeleteMerchant('${m.id}', this)">${svgi('trash')}delete</button>` : ''}</td></tr>`).join('')}
   </table>` : '<p style="color:var(--dim);font-size:13px">No merchants yet. They appear here as businesses sign up at /app.</p>'}</div>
   <div class="card" style="margin-top:14px"><h3>Latest verifications (all merchants)</h3>
     ${o.latest.length ? o.latest.map(r => `<div class="feed-row"><div class="feed-ic f-ok">✓</div>
@@ -2082,7 +2129,7 @@ async function adminMerchantDetail(mid) {
   const m = d.merchant;
   shell('admin', esc(m.name), 'Admin — manage this merchant', `
   <a class="btn btn-ghost btn-sm" href="#admin">← All merchants</a>
-  <button class="btn btn-gold btn-sm" style="margin-left:8px" onclick="adminResendWelcome('${m.id}')">📧 Email login to owner</button>
+  <button class="btn btn-gold btn-sm" style="margin-left:8px" onclick="adminResendWelcome('${m.id}')">${svgi('mail')}Email login to owner</button>
   <div class="grid g4" style="margin-top:12px">
     <div class="card stat"><b>${acuFmt(m.acu_balance)}</b><span>ACU balance</span></div>
     <div class="card stat"><b>${esc(m.plan)}</b><span>plan · ${esc(m.country)}/${esc(m.currency)}</span></div>

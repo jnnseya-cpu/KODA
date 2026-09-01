@@ -157,8 +157,15 @@ const SVGI = {
   mail: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 8l8 5 8-5"/>',
   bell: '<path d="M6 10a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   chat: '<path d="M4 5h16v11H9l-4 3v-3H4z"/>',
+  download: '<path d="M12 3v12M7 11l5 5 5-5"/><path d="M4 20h16"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
+  check: '<path d="M4 12l5 5 11-11"/>',
+  alert: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/>',
+  phone: '<path d="M5 4h4l2 5-3 2a11 11 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
 };
 const icon = (n) => `<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">${SVGI[n] || ''}</svg></span>`;
+// small inline icon (inherits currentColor) for buttons, badges and inline labels
+const ico = (n) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${SVGI[n] || ''}</svg>`;
 
 const DISCLAIMER = `KODA is a payment <em>verification</em> service — not a bank, wallet, payment processor, aggregator, escrow or money transmitter. KODA never holds, moves, or settles funds: payments travel directly from customer to merchant over each operator's own network. Verification is based on merchant-side operator confirmations and, while fraud-scored and replay-protected, does not guarantee against operator-side reversals or constitute proof of settlement. M-Pesa, Orange Money, MTN MoMo, Airtel Money, Africell Money, Wave, bKash, GCash, JazzCash, EVC Plus and all other operator names are trademarks of their respective owners; KODA is independent of, and not endorsed by, any mobile network operator. Pricing, coverage and features are subject to the published Terms of Service and may evolve by market.`;
 
@@ -286,6 +293,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
 .ic-h h3{margin:0}
 .ic{width:42px;height:42px;flex-shrink:0;display:grid;place-items:center;border-radius:12px;background:linear-gradient(180deg,rgba(232,161,31,.15),rgba(232,161,31,.04));border:1px solid rgba(232,161,31,.24)}
 .ic svg{width:22px;height:22px;stroke:var(--gold);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ico{width:1.05em;height:1.05em;vertical-align:-.16em;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;margin-right:.4em}
 .nav{display:flex;align-items:center;gap:22px;padding:16px 28px;border-bottom:1px solid var(--line);background:rgba(8,24,19,.9);position:sticky;top:0;z-index:50;backdrop-filter:blur(10px)}
 .logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:.12em;color:var(--text)}
 .logo i{width:24px;height:24px;border-radius:6px;background:var(--gold);display:grid;place-items:center;color:var(--ink);font-style:normal;font-family:var(--mono);font-weight:700;font-size:13px}
@@ -356,7 +364,7 @@ footer a{color:var(--dim)}
   </div>
   <p style="max-width:880px;margin:0 auto 22px;font-size:11px;line-height:1.75;color:rgba(155,167,155,.75);font-family:var(--disp)"><b style="color:var(--dim)">Disclaimer.</b> ${DISCLAIMER}</p>
   <div style="max-width:880px;margin:0 auto 14px;display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px">
-    <a href="tel:+243828139153" style="color:var(--dim)">📞 +243 828 139 153</a>
+    <a href="tel:+243828139153" style="color:var(--dim)">${ico('phone')}+243 828 139 153</a>
     <a href="https://wa.me/243828139153" target="_blank" rel="noopener" style="color:var(--dim)">WhatsApp</a>
     <a href="mailto:koda@kodajnn.com" style="color:var(--dim)">koda@kodajnn.com</a>
     <span style="color:var(--dim)">Kinshasa, DR Congo</span>
@@ -607,13 +615,13 @@ function kodaPartnerApply(e){
 <h2>What "verified" means — and what it doesn't</h2>
 <p>We keep this honest so you can too:</p>
 <div class="grid">
-<div class="card"><h3 class="ok">✓ Verified means</h3><ul>
+<div class="card"><h3 class="ok">${ico('check')}Verified means</h3><ul>
 <li>The operator's <b>own confirmation SMS</b> for this payment reached your phone.</li>
 <li>The customer's code <b>matches</b> it — amount, reference and window line up.</li>
 <li>The code has <b>never been used before</b> (single-use forever).</li>
 <li>It passed the <b>fraud checks</b>.</li>
 </ul></div>
-<div class="card"><h3 class="warn">⚠ Verified does not mean</h3><ul>
+<div class="card"><h3 class="warn">${ico('alert')}Verified does not mean</h3><ul>
 <li>A guarantee the payment <b>can never be reversed</b> by the operator — no one downstream of the operator can promise that.</li>
 <li>That KODA moved or holds your money — <b>it never touches funds</b>; they go straight to your mobile-money account.</li>
 <li>Proof of settlement. KODA confirms the operator <b>says</b> you were paid — instantly and fraud-checked — it doesn't replace the operator's rails.</li>
@@ -881,7 +889,7 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
       <li><b>Needs the Play Protect step</b> below (one minute, once).</li>
       <li>Use for all real merchants and high-value tills.</li>
     </ul>
-    <a class="btn btn-gold" style="margin-top:auto" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk">⬇ Download SMS build</a>
+    <a class="btn btn-gold" style="margin-top:auto" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk">${ico('download')}Download SMS build</a>
   </div>
   <div style="border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column">
     <span class="badge" style="align-self:flex-start;margin:0 0 8px;background:rgba(155,167,155,.14);color:var(--dim)">Easy install · fallback</span>
@@ -892,7 +900,7 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
       <li>Going to the <b>Google Play Store</b> (auto-updates) — coming soon.</li>
       <li>Use when the SMS build won’t install, or for quick pilots. Keep operator notifications on.</li>
     </ul>
-    <a class="btn btn-ghost" style="margin-top:auto" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel-notify.apk">⬇ Download notification build</a>
+    <a class="btn btn-ghost" style="margin-top:auto" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel-notify.apk">${ico('download')}Download notification build</a>
   </div>
 </div>
 <p style="font-size:12.5px;color:var(--dim);margin-top:12px">Recommendation: install the <b>SMS build</b> — it’s the most secure and reliable. Only fall back to the notification build if the SMS build won’t install on a given phone. The steps below work for either file.</p></div>
@@ -959,8 +967,8 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 <div class="card"><h3>Étape 2 · Télécharger l'application Sentinel</h3>
 <p style="font-size:13px;color:var(--dim);margin:0 0 10px">Deux versions existent. Recommandée : la <b>version SMS</b> (bouton or) — la plus fiable et la plus sûre ; elle demande l'étape Play Protect. La <b>version notification</b> (bouton clair) est un secours plus facile à installer, à utiliser seulement si la version SMS ne s'installe pas.</p>
 <div style="display:flex;gap:10px;flex-wrap:wrap">
-<a class="btn btn-gold" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk">⬇ Version SMS (recommandée)</a>
-<a class="btn btn-ghost" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel-notify.apk">⬇ Version notification (secours)</a>
+<a class="btn btn-gold" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel.apk">${ico('download')}Version SMS (recommandée)</a>
+<a class="btn btn-ghost" href="https://github.com/jnnseya-cpu/KODA/releases/download/sentinel-latest/koda-sentinel-notify.apk">${ico('download')}Version notification (secours)</a>
 </div>
 <ol style="margin-top:12px">
 <li>Ouvrez le fichier téléchargé.</li>
@@ -1277,7 +1285,7 @@ function blogPage({ title, headExtra, kicker, h1, lead, bodyHtml }) {
 }
 for (const p of posts) {
   const r = seo.renderPost(p, dates[p.slug]);
-  const viewsBadge = `<p style="font-size:13px;color:var(--dim);margin:0 0 18px">👁 <span id="koda-blog-views">—</span> reads</p>`;
+  const viewsBadge = `<p style="font-size:13px;color:var(--dim);margin:0 0 18px">${ico('eye')}<span id="koda-blog-views">—</span> reads</p>`;
   const viewsBeacon = `<script>
 (function(){try{
   fetch('/v1/blog/view',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({slug:${JSON.stringify(p.slug)}})})
