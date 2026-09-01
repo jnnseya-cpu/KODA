@@ -245,8 +245,17 @@ function page({ title, kicker, lead, body }) {
 *{margin:0;padding:0;box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{background:var(--ink);color:var(--text);font-family:var(--disp);line-height:1.65;font-size:16px;overflow-x:hidden}
+/* fine film grain — the crafted, non-flat finish premium sites use */
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.04;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.nav,.wrap,footer{position:relative;z-index:1}
 img,svg,video,iframe{max-width:100%}
 a{color:var(--gold);text-decoration:none;overflow-wrap:anywhere}
+/* premium depth + motion on cards and buttons (site-wide) */
+.card{box-shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 12px 34px -18px rgba(0,0,0,.55);transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease}
+.card:hover{transform:translateY(-2px);border-color:var(--line-strong);box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 22px 48px -20px rgba(0,0,0,.6)}
+.nav .cta,.pbtn,.btn{transition:transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease}
+.nav .cta:hover,.pbtn:hover{transform:translateY(-1px)}
+a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
 .nav{display:flex;align-items:center;gap:22px;padding:16px 28px;border-bottom:1px solid var(--line);background:rgba(8,24,19,.9);position:sticky;top:0;z-index:50;backdrop-filter:blur(10px)}
 .logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:.12em;color:var(--text)}
 .logo i{width:24px;height:24px;border-radius:6px;background:var(--gold);display:grid;place-items:center;color:var(--ink);font-style:normal;font-family:var(--mono);font-weight:700;font-size:13px}
