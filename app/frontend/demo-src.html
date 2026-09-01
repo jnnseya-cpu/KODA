@@ -174,7 +174,7 @@
       scn:'Scénario :', merchant:'votre commerce', how:'Comment ça marche', signup:'Créer un compte',
       foot:'service de vérification de paiements. KODA ne détient ni ne déplace jamais les fonds.',
       realnote:'Cette page fait tourner une démo de vérification en direct. Les portes API et USSD montrent des échanges représentatifs.',
-      doors:{manual:'Porte 1 · Manuel',whatsapp:'Porte 2 · WhatsApp',api:'Porte 3 · API',ussd:'Porte 4 · USSD',sms:'Porte 5 · SMS entrant',fraud:'🛡 Labo anti-fraude'},
+      doors:{manual:'Porte 1 · Manuel',whatsapp:'Porte 2 · WhatsApp',api:'Porte 3 · API',ussd:'Porte 4 · USSD',sms:'Porte 5 · SMS entrant',fraud:'Labo anti-fraude'},
       manual_h:'Porte 1 — Mode manuel', manual_l:'Le commerçant colle le code du client dans la console. Verdict ancré sur le SMS opérateur en ~3 s.',
       sms_from:'SMS reçu sur le téléphone du commerçant', code_lbl:'Code de transaction saisi par le client',
       verify_btn:'Vérifier le paiement', incoming:'SMS opérateur entrant',
@@ -186,7 +186,7 @@
       ussd_dial:'Composer *789#', ussd_next:'Suivant',
       smsdoor_h:'Porte 5 — SMS entrant (Sentinel)', smsdoor_l:'Sentinel transfère le SMS opérateur ; KODA vérifie automatiquement, sans intervention.',
       smsdoor_go:'Simuler la réception du SMS', smsdoor_fwd:'Sentinel transfère…', smsdoor_auto:'Vérifié automatiquement — aucun humain requis.',
-      fraud_h:'🛡 Labo anti-fraude', fraud_l:'La vraie question d’un opérateur : « et si on essaie de tricher ? » Essayez — le moteur réel répond.',
+      fraud_h:'Labo anti-fraude', fraud_l:'La vraie question d’un opérateur : « et si on essaie de tricher ? » Essayez — le moteur réel répond.',
       f_forged:'Faux SMS / capture truquée', f_replay:'Rejouer un code déjà utilisé', f_amount:'Modifier le montant', f_generic:'Opérateur non pris en charge',
       f_reset:'Réinitialiser', ledger:'Journal de la démo',
       v_ok:'PAIEMENT VÉRIFIÉ', v_warn:'À CONTRÔLER', v_bad:'REJETÉ',
@@ -200,7 +200,7 @@
       scn:'Scenario:', merchant:'your shop', how:'How it works', signup:'Create account',
       foot:'a payment verification service. KODA never holds or moves funds.',
       realnote:'This page runs a live verification demo. The API and USSD doors show representative exchanges.',
-      doors:{manual:'Door 1 · Manual',whatsapp:'Door 2 · WhatsApp',api:'Door 3 · API',ussd:'Door 4 · USSD',sms:'Door 5 · Inbound SMS',fraud:'🛡 Fraud Lab'},
+      doors:{manual:'Door 1 · Manual',whatsapp:'Door 2 · WhatsApp',api:'Door 3 · API',ussd:'Door 4 · USSD',sms:'Door 5 · Inbound SMS',fraud:'Fraud Lab'},
       manual_h:'Door 1 — Manual mode', manual_l:'The merchant pastes the customer code into the console. Operator-SMS-anchored verdict in ~3s.',
       sms_from:'SMS received on the merchant’s phone', code_lbl:'Transaction code entered by the customer',
       verify_btn:'Verify payment', incoming:'Incoming operator SMS',
@@ -212,7 +212,7 @@
       ussd_dial:'Dial *789#', ussd_next:'Next',
       smsdoor_h:'Door 5 — Inbound SMS (Sentinel)', smsdoor_l:'Sentinel forwards the operator SMS; KODA verifies automatically, hands-free.',
       smsdoor_go:'Simulate the SMS arriving', smsdoor_fwd:'Sentinel forwarding…', smsdoor_auto:'Verified automatically — no human needed.',
-      fraud_h:'🛡 Fraud Lab', fraud_l:'The question every operator asks: “what if someone cheats?” Try it — the real engine answers.',
+      fraud_h:'Fraud Lab', fraud_l:'The question every operator asks: “what if someone cheats?” Try it — the real engine answers.',
       f_forged:'Fake SMS / edited screenshot', f_replay:'Replay an already-used code', f_amount:'Edit the amount', f_generic:'Unsupported operator',
       f_reset:'Reset', ledger:'Demo ledger',
       v_ok:'PAYMENT VERIFIED', v_warn:'NEEDS REVIEW', v_bad:'REJECTED',
@@ -390,7 +390,7 @@
       '<div style="text-align:center;margin-top:14px"><button class="btn sm" id="sd-go">'+t.smsdoor_go+'</button></div><div id="sd-out"></div>';
     document.getElementById('sd-go').onclick=function(){
       var sms=document.getElementById('sd-sms'), flow=document.getElementById('sd-flow');
-      sms.style.opacity='1'; flow.textContent='📡 '+t.smsdoor_fwd;
+      sms.style.opacity='1'; flow.textContent=t.smsdoor_fwd;
       var res=evaluate(GOOD_SMS,{noConsume:true});
       setTimeout(function(){
         flow.textContent='✓ '+t.smsdoor_auto;
