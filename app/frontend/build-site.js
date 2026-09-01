@@ -135,6 +135,31 @@ const FOOT_GROUPS = [
   ['Legal', [['Terms of Service', 'terms'], ['Privacy Policy', 'privacy'], ['All policies', 'policies']]],
 ];
 
+// Crafted line-icon set (24×24 stroke) — replaces emoji as UI iconography for a
+// cohesive, premium look. Rendered in a gold-tinted badge via .ic (see template CSS).
+const SVGI = {
+  food: '<path d="M6 3v6a2 2 0 0 0 4 0V3"/><path d="M8 9v12"/><path d="M17 3c-1.7 1.5-2 4.5-2 6.5 0 1.5.7 2.5 2 2.5v9"/>',
+  retail: '<path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  edu: '<path d="M12 4 3 8l9 4 9-4-9-4z"/><path d="M7 10v4c0 1.3 2.2 2.5 5 2.5s5-1.2 5-2.5v-4"/><path d="M21 8v5"/>',
+  ticket: '<path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4V7z"/><path d="M12 7.5v2M12 12v2M12 16v1"/>',
+  platform: '<path d="M12 4 3 8.5l9 4.5 9-4.5L12 4z"/><path d="M3 13l9 4.5 9-4.5"/>',
+  gov: '<path d="M4 10 12 5l8 5"/><path d="M5 10v8M19 10v8M9 10v8M15 10v8"/><path d="M3 21h18"/>',
+  transport: '<path d="M5 12l1.5-5h11L19 12"/><rect x="3" y="12" width="18" height="5" rx="1"/><path d="M7 17v2M17 17v2"/>',
+  health: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>',
+  agri: '<path d="M5 19C5 11 11 5 20 5c0 9-6 14-15 14z"/><path d="M5 19c3-5 7-7 11-8"/>',
+  lodging: '<path d="M3 18v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M3 12V7M3 18v2M21 18v2"/><path d="M7 12v-2a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2"/>',
+  fuel: '<path d="M5 21V6a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v15"/><path d="M4 21h11"/><path d="M7 9h5"/><path d="M14 8l3 3v7a2 2 0 0 0 4 0V10l-3-3"/>',
+  ngo: '<path d="M12 20s-7-4.5-9-9C1.6 7.4 4 4.5 7 4.5c1.8 0 3.3 1 5 3 1.7-2 3.2-3 5-3 3 0 5.4 2.9 4 6.5-2 4.5-9 9-9 9z"/>',
+  rent: '<path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/>',
+  services: '<circle cx="6" cy="7" r="2.3"/><circle cx="6" cy="17" r="2.3"/><path d="M8 8l12 8M8 16l12-8"/>',
+  airtime: '<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M10.5 18.5h3"/>',
+  shield: '<path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
+  mail: '<rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 8l8 5 8-5"/>',
+  bell: '<path d="M6 10a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  chat: '<path d="M4 5h16v11H9l-4 3v-3H4z"/>',
+};
+const icon = (n) => `<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">${SVGI[n] || ''}</svg></span>`;
+
 const DISCLAIMER = `KODA is a payment <em>verification</em> service — not a bank, wallet, payment processor, aggregator, escrow or money transmitter. KODA never holds, moves, or settles funds: payments travel directly from customer to merchant over each operator's own network. Verification is based on merchant-side operator confirmations and, while fraud-scored and replay-protected, does not guarantee against operator-side reversals or constitute proof of settlement. M-Pesa, Orange Money, MTN MoMo, Airtel Money, Africell Money, Wave, bKash, GCash, JazzCash, EVC Plus and all other operator names are trademarks of their respective owners; KODA is independent of, and not endorsed by, any mobile network operator. Pricing, coverage and features are subject to the published Terms of Service and may evolve by market.`;
 
 // ---- landing: reuse the prototype, wire CTAs into the app ----
@@ -256,6 +281,11 @@ a{color:var(--gold);text-decoration:none;overflow-wrap:anywhere}
 .nav .cta,.pbtn,.btn{transition:transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease}
 .nav .cta:hover,.pbtn:hover{transform:translateY(-1px)}
 a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
+/* crafted icon badges (replace emoji) */
+.ic-h{display:flex;align-items:center;gap:13px;margin-bottom:4px}
+.ic-h h3{margin:0}
+.ic{width:42px;height:42px;flex-shrink:0;display:grid;place-items:center;border-radius:12px;background:linear-gradient(180deg,rgba(232,161,31,.15),rgba(232,161,31,.04));border:1px solid rgba(232,161,31,.24)}
+.ic svg{width:22px;height:22px;stroke:var(--gold);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .nav{display:flex;align-items:center;gap:22px;padding:16px 28px;border-bottom:1px solid var(--line);background:rgba(8,24,19,.9);position:sticky;top:0;z-index:50;backdrop-filter:blur(10px)}
 .logo{display:flex;align-items:center;gap:9px;font-weight:900;letter-spacing:.12em;color:var(--text)}
 .logo i{width:24px;height:24px;border-radius:6px;background:var(--gold);display:grid;place-items:center;color:var(--ink);font-style:normal;font-family:var(--mono);font-weight:700;font-size:13px}
@@ -363,7 +393,7 @@ const pages = {
 </div>
 
 <div class="card" style="border-color:rgba(232,161,31,.4)">
-  <h3 style="margin-top:0">🔒 Zero risk — you can't lose money you didn't spend</h3>
+  <div class="ic-h" style="margin-top:0">${icon('shield')}<h3 style="margin:0">Zero risk — you can't lose money you didn't spend</h3></div>
   <p style="margin-bottom:0"><b style="color:var(--text)">KODA never holds or moves the cash — and you never front more than you sell.</b> Your inventory is prepaid credit that only converts when a real merchant buys it. A distributor can never settle more than the float they paid for; a voucher can never be worth more than it was signed for. No stock to spoil, no chargebacks, no telco contract.</p>
 </div>
 
@@ -638,21 +668,21 @@ ${Object.entries(COV.byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
     lead: 'One engine, five doors — Manual, WhatsApp, API, USSD and inbound SMS — deployed across commerce, education, transport, health, agriculture, ticketing, field sales and government.',
     body: `
 <div class="grid">
-<div class="card"><h3>🍽 Restaurants & delivery</h3><p>Orders verified before the kitchen fires. No more "I sent a screenshot" at the counter. Day-one reference: <b>Tunakula</b>.</p></div>
-<div class="card"><h3>🏪 Retail & Scan-to-pay</h3><p>In-store checkout confirmation without POS-telco integration. Day-one reference: <b>Scan & Go</b>.</p></div>
-<div class="card"><h3>🎓 Schools & education</h3><p>School-fee invoices matched to payments automatically; course unlocks on verified payment. Reference: <b>StudYear</b>.</p></div>
-<div class="card"><h3>🎫 Events & ticketing</h3><p>QR tickets issued only on verified payment; replay-locked codes kill duplicate-ticket fraud. Reference: <b>TicketRoyality</b>.</p></div>
-<div class="card"><h3>🛵 Marketplaces & platforms</h3><p>Sub-merchant API, scoped keys, trust scores and re-billing — one platform deal onboards thousands of merchants at wholesale rates.</p></div>
-<div class="card"><h3>🏛 Utilities, MFIs & Gov</h3><p>Bulk reconciliation, in-country residency, dedicated corridor models and audit-grade decision traces for every verification.</p></div>
-<div class="card"><h3>🚕 Transport & mobility</h3><p>Fares confirmed before the ride — taxis, boda-boda, minibus and inter-city. USSD and inbound-SMS doors serve drivers and riders on feature phones.</p></div>
-<div class="card"><h3>🏥 Health & pharmacies</h3><p>Consultation and prescription fees verified before dispensing; clean, disputable records for clinics, pharmacies and community health funds.</p></div>
-<div class="card"><h3>🌾 Agriculture & cooperatives</h3><p>Input sales, produce buying and member dues reconciled in the field — offline-capable over USSD where connectivity is thin.</p></div>
-<div class="card"><h3>🏨 Hospitality & lodging</h3><p>Bookings and deposits verified before check-in; no more no-show screenshots for guesthouses, lodges and tour operators.</p></div>
-<div class="card"><h3>⛽ Fuel, energy & PAYG</h3><p>Pump payments and pay-as-you-go solar / LPG / water top-ups confirmed instantly at the point of sale.</p></div>
-<div class="card"><h3>🙏 NGOs & humanitarian</h3><p>Cash-transfer disbursements and donations reconciled with audit-grade traces for every payment — reporting donors can trust.</p></div>
-<div class="card"><h3>🏠 Rent & real estate</h3><p>Rent, deposits and agency fees matched to the right tenant automatically, across an entire portfolio.</p></div>
-<div class="card"><h3>💇 Services & trades</h3><p>Deposit-before-work for salons, repairs, tailors and freelancers — the code confirms the cash before the job starts.</p></div>
-<div class="card"><h3>📲 Airtime & digital resellers</h3><p>The distributor tree: prepaid ACU, airtime and game-credit resellers whose own incoming top-ups are verified by the same engine.</p></div>
+<div class="card"><div class="ic-h">${icon('food')}<h3>Restaurants & delivery</h3></div><p>Orders verified before the kitchen fires. No more "I sent a screenshot" at the counter. Day-one reference: <b>Tunakula</b>.</p></div>
+<div class="card"><div class="ic-h">${icon('retail')}<h3>Retail & Scan-to-pay</h3></div><p>In-store checkout confirmation without POS-telco integration. Day-one reference: <b>Scan & Go</b>.</p></div>
+<div class="card"><div class="ic-h">${icon('edu')}<h3>Schools & education</h3></div><p>School-fee invoices matched to payments automatically; course unlocks on verified payment. Reference: <b>StudYear</b>.</p></div>
+<div class="card"><div class="ic-h">${icon('ticket')}<h3>Events & ticketing</h3></div><p>QR tickets issued only on verified payment; replay-locked codes kill duplicate-ticket fraud. Reference: <b>TicketRoyality</b>.</p></div>
+<div class="card"><div class="ic-h">${icon('platform')}<h3>Marketplaces & platforms</h3></div><p>Sub-merchant API, scoped keys, trust scores and re-billing — one platform deal onboards thousands of merchants at wholesale rates.</p></div>
+<div class="card"><div class="ic-h">${icon('gov')}<h3>Utilities, MFIs & Gov</h3></div><p>Bulk reconciliation, in-country residency, dedicated corridor models and audit-grade decision traces for every verification.</p></div>
+<div class="card"><div class="ic-h">${icon('transport')}<h3>Transport & mobility</h3></div><p>Fares confirmed before the ride — taxis, boda-boda, minibus and inter-city. USSD and inbound-SMS doors serve drivers and riders on feature phones.</p></div>
+<div class="card"><div class="ic-h">${icon('health')}<h3>Health & pharmacies</h3></div><p>Consultation and prescription fees verified before dispensing; clean, disputable records for clinics, pharmacies and community health funds.</p></div>
+<div class="card"><div class="ic-h">${icon('agri')}<h3>Agriculture & cooperatives</h3></div><p>Input sales, produce buying and member dues reconciled in the field — offline-capable over USSD where connectivity is thin.</p></div>
+<div class="card"><div class="ic-h">${icon('lodging')}<h3>Hospitality & lodging</h3></div><p>Bookings and deposits verified before check-in; no more no-show screenshots for guesthouses, lodges and tour operators.</p></div>
+<div class="card"><div class="ic-h">${icon('fuel')}<h3>Fuel, energy & PAYG</h3></div><p>Pump payments and pay-as-you-go solar / LPG / water top-ups confirmed instantly at the point of sale.</p></div>
+<div class="card"><div class="ic-h">${icon('ngo')}<h3>NGOs & humanitarian</h3></div><p>Cash-transfer disbursements and donations reconciled with audit-grade traces for every payment — reporting donors can trust.</p></div>
+<div class="card"><div class="ic-h">${icon('rent')}<h3>Rent & real estate</h3></div><p>Rent, deposits and agency fees matched to the right tenant automatically, across an entire portfolio.</p></div>
+<div class="card"><div class="ic-h">${icon('services')}<h3>Services & trades</h3></div><p>Deposit-before-work for salons, repairs, tailors and freelancers — the code confirms the cash before the job starts.</p></div>
+<div class="card"><div class="ic-h">${icon('airtime')}<h3>Airtime & digital resellers</h3></div><p>The distributor tree: prepaid ACU, airtime and game-credit resellers whose own incoming top-ups are verified by the same engine.</p></div>
 </div>
 <p style="margin-top:20px"><a href="/contact">Talk to us about your industry →</a></p>`,
   }),
@@ -844,7 +874,7 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 <div class="grid">
   <div style="border:1px solid var(--gold);border-radius:12px;padding:18px;display:flex;flex-direction:column">
     <span class="badge" style="align-self:flex-start;margin:0 0 8px">Recommended · most secure</span>
-    <h3 style="margin:0 0 8px">✉ SMS build</h3>
+    <div class="ic-h" style="margin-bottom:8px">${icon('chat')}<h3 style="margin:0">SMS build</h3></div>
     <ul style="margin:0 0 14px 18px">
       <li><b>Most reliable &amp; hardest to fake</b> — reads the real operator SMS, telephony-gated, with our strongest fraud protection.</li>
       <li>Recovers payments missed during a reboot; works even if notifications are off.</li>
@@ -855,7 +885,7 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
   </div>
   <div style="border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column">
     <span class="badge" style="align-self:flex-start;margin:0 0 8px;background:rgba(155,167,155,.14);color:var(--dim)">Easy install · fallback</span>
-    <h3 style="margin:0 0 8px">🔔 Notification build</h3>
+    <div class="ic-h" style="margin-bottom:8px">${icon('bell')}<h3 style="margin:0">Notification build</h3></div>
     <ul style="margin:0 0 14px 18px">
       <li><b>Installs easily</b> — no SMS permission, so Play Protect rarely blocks it.</li>
       <li>Reads the operator <b>payment notification</b> (hardened: only the phone’s real SMS app / operator apps are trusted).</li>
@@ -1038,8 +1068,8 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
     lead: 'WhatsApp first, or send us a message — it lands straight in our inbox. Commerce+ plans get SLA-backed response times.',
     body: `
 <div class="grid">
-<div class="card"><h3>💬 WhatsApp — fastest</h3><p><a href="https://wa.me/243828139153" target="_blank" rel="noopener"><b>+243 828 139 153</b></a><br>FR · EN · Lingala · Swahili<br>Merchants, developers &amp; support.</p></div>
-<div class="card"><h3>✉ Email</h3><p><a href="mailto:koda@kodajnn.com"><code>koda@kodajnn.com</code></a><br>Sales, platforms, partnerships, legal &amp; compliance — one inbox, we route it.</p></div>
+<div class="card"><div class="ic-h">${icon('chat')}<h3>WhatsApp — fastest</h3></div><p><a href="https://wa.me/243828139153" target="_blank" rel="noopener"><b>+243 828 139 153</b></a><br>FR · EN · Lingala · Swahili<br>Merchants, developers &amp; support.</p></div>
+<div class="card"><div class="ic-h">${icon('mail')}<h3>Email</h3></div><p><a href="mailto:koda@kodajnn.com"><code>koda@kodajnn.com</code></a><br>Sales, platforms, partnerships, legal &amp; compliance — one inbox, we route it.</p></div>
 </div>
 
 <div class="card" style="margin-top:16px">
