@@ -174,6 +174,8 @@ const landingSrc = [path.join(__dirname, '..', '..', 'koda-landing.html'), path.
 if (fs.existsSync(landingSrc)) {
   let landing = fs.readFileSync(landingSrc, 'utf8');
   landing = landing
+    // live coverage proof from the operator registry (single source of truth)
+    .replace(/__N_OPS__/g, String(N)).replace(/__N_COUNTRIES__/g, String(NC)).replace(/__N_REGIONS__/g, String(NR))
     .replace(/<a class="btn btn-gold" href="#pricing">Verify your first payment free<\/a>/,
       '<a class="btn btn-gold" href="/app#signup">Verify your first payment free</a>')
     .replace(/<a class="btn" href="#">Open your KODA account →<\/a>/,

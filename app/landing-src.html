@@ -95,7 +95,10 @@
   h1 .accent{color:var(--gold)}
   .sub{font-size:18.5px;color:var(--text-dim);max-width:520px;margin-bottom:34px;line-height:1.65}
   .sub strong{color:var(--text);font-weight:700}
-  .cta-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:44px}
+  .cta-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+  .trust-line{font-size:12.8px;color:var(--text-dim);max-width:540px;line-height:1.65;
+    border-left:2px solid var(--gold-deep);padding-left:13px;margin-bottom:34px}
+  .trust-line strong{color:var(--text);font-weight:700}
   .btn{
     display:inline-flex;align-items:center;gap:10px;
     font-weight:800;font-size:15px;letter-spacing:.02em;
@@ -464,16 +467,22 @@
 <header>
   <div class="wrap hero">
     <div>
-      <div class="kicker">Payment verification · zero telco contract</div>
-      <h1>The SMS<br>is the <span class="accent">API.</span></h1>
+      <div class="kicker">The SMS is the API · zero telco contract</div>
+      <h1>A screenshot can be faked.<br>The <span class="accent">SMS can't.</span></h1>
       <p class="sub">
-        Every mobile money operator on Earth already sends your merchants a confirmation SMS.
-        KODA turns it into <strong>structured payment truth</strong> — verified manually in your KODA account,
-        conversationally in WhatsApp, or automatically by API. <strong>Same engine. Three doors.</strong>
+        When a customer says they've paid, a screenshot proves nothing — it can be edited, reused or invented.
+        KODA reads the mobile-money operator's <strong>own confirmation SMS</strong> and tells you in seconds
+        whether the money really arrived. Verify by hand, in WhatsApp, or by API.
+        <strong>No telco contract. Free until you get paid.</strong>
       </p>
       <div class="cta-row">
         <a class="btn btn-gold" href="#pricing">Verify your first payment free</a>
         <a class="btn btn-ghost" href="#dev">curl kodajnn.com</a>
+      </div>
+      <div class="trust-line">
+        Reads <strong>only the payment SMS</strong> — never your contacts, never your money.
+        The money goes straight from your customer to you; KODA only tells you it arrived.
+        And a code used once is dead forever.
       </div>
       <div class="ops">
         <span class="ops-label">Works with</span>
@@ -523,9 +532,9 @@
   <div class="stats">
     <div class="wrap stats-in">
       <div class="stat"><b><s>6–18 mo</s>&lt;10 s</b><span>telco negotiation → verification</span></div>
-      <div class="stat"><b>0</b><span>contracts, paybills, aggregators</span></div>
       <div class="stat"><b>$0</b><span>per failed verification — success only</span></div>
-      <div class="stat"><b>3</b><span>doors: manual · WhatsApp · API</span></div>
+      <div class="stat"><b>__N_OPS__</b><span>operators · __N_COUNTRIES__ countries, zero contracts</span></div>
+      <div class="stat"><b>5</b><span>doors: manual · chat · API · USSD · SMS</span></div>
     </div>
   </div>
 </header>
