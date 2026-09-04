@@ -54,7 +54,7 @@ s.parentNode.insertBefore(t,s)}(window, document,'script',
 fbq('init', '${META_PIXEL_ID}');
 fbq('track', 'PageView');
 </script>
-<noscript><img height="1" width="1" alt="" style="display:none"
+<noscript><img height="1" width="1" alt="KODA" style="display:none"
 src="https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1"
 /></noscript>
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${GTM_ID}"
@@ -227,7 +227,7 @@ html{scroll-behavior:smooth}
   // Favicon + social-share card (Open Graph + Twitter) so links shared on WhatsApp/FB/X/
   // LinkedIn render as a proper preview card, and the browser tab shows the KODA mark.
   const ogTitle = 'KODA — Mobile money payment verification';
-  const ogDesc = "Turn the operator's confirmation SMS into verified proof of payment. Manual, WhatsApp, or API. No telco contract.";
+  const ogDesc = "Turn the confirmation SMS the operator sends into verified proof of payment. Manual, WhatsApp or API. No telco contract.";
   const socialHead =
     `<link rel="icon" href="/icon.svg" type="image/svg+xml">\n<link rel="apple-touch-icon" href="/icon.svg">\n`
     + `<meta property="og:type" content="website">\n<meta property="og:site_name" content="KODA">\n`
