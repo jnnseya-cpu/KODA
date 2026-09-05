@@ -1,6 +1,6 @@
 {
   "name": "koda-platform",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "KODA \u2014 payment verification OS. The SMS is the API. Zero-dependency Node runtime.",
   "private": true,
   "engines": {

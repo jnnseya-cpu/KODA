@@ -10,7 +10,7 @@
 
   const V = {
     // product release line — matches package.json "version"
-    app: '2.0.0',
+    app: '2.1.0',
     // public REST contract version — the /v1 surface
     api: '1.0.0',
     // drop-in checkout widget (koda.js)
