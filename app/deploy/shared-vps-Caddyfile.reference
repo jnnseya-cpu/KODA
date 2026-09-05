@@ -1,0 +1,58 @@
+# ============================================================================
+# SHARED-VPS CADDYFILE — REFERENCE / DISASTER-RECOVERY COPY (not a deploy file)
+# ============================================================================
+#
+# This is a snapshot of the LIVE Caddyfile running on the shared host
+# (srv1854161), which proxies FOUR independent projects behind one Caddy
+# instance. It is committed here only as a backup so this config can never be
+# lost again (it was once accidentally discarded with no copy on record).
+#
+# WHAT ACTUALLY DEPLOYS:
+#   - KODA's own deploy uses ../Caddyfile (KODA-only, portable: {$KODA_DOMAIN}
+#     + koda:8080 + the www->apex redirect). Do NOT replace that file with this
+#     one — the construx/nichefinder/etablix upstreams below exist only on this
+#     shared box and would break a standalone KODA deploy.
+#   - On the shared host the live file at /root/koda/app/Caddyfile is marked
+#     `git update-index --skip-worktree`, so auto-pull never overwrites it.
+#
+# HOW IT IS MOUNTED (container app-caddy-1):
+#   /root/koda/app/Caddyfile  =>  /etc/caddy/Caddyfile   (read-only)
+#
+# TO RESTORE ON THE HOST (writes the host inode; then restart to re-mount):
+#   1) Recreate /root/koda/app/Caddyfile with the block below.
+#   2) docker exec app-caddy-1 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+#   3) docker exec app-caddy-1 caddy reload   --config /etc/caddy/Caddyfile --adapter caddyfile
+#      (If the container was pinned to a stale inode, `docker restart app-caddy-1`
+#       forces it to re-mount the current host file.)
+#
+# DNS: every apex + the two www names resolve to the host IP (187.124.117.159).
+# Caddy auto-provisions Let's Encrypt certs for each site on first request.
+# ============================================================================
+
+{$KODA_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy koda:8080
+}
+
+www.{$KODA_DOMAIN} {
+	redir https://{$KODA_DOMAIN}{uri} permanent
+}
+
+construxvg.com {
+	encode zstd gzip
+	reverse_proxy construx:8080
+}
+
+nichefinderhq.com {
+	encode zstd gzip
+	reverse_proxy host.docker.internal:8080
+}
+
+etablix.com {
+	encode gzip
+	reverse_proxy etablix:3000
+}
+
+www.etablix.com {
+	redir https://etablix.com{uri} permanent
+}
