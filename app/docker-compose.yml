@@ -17,8 +17,13 @@ services:
     environment:
       PORT: "8080"
       KODA_DATA_DIR: /data
+      KODA_BACKUP_DIR: /backups   # backup.js writes VACUUM-INTO snapshots here
     volumes:
       - koda_data:/data       # persistent SQLite ledger
+      # Backups land on the HOST (not the koda_data volume being backed up, and not the
+      # ephemeral container layer) so a volume loss is survivable. Override the host path
+      # with KODA_BACKUP_DIR_HOST in .env. Scheduled by deploy/install-backups.sh.
+      - ${KODA_BACKUP_DIR_HOST:-/root/koda-backups}:/backups
     expose:
       - "8080"                # internal only; Caddy is the public door
     healthcheck:

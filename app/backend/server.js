@@ -250,7 +250,10 @@ server.listen(PORT, () => {
   // merchants stop enjoying paid quota for free. Sweep on boot + hourly.
   try {
     const engine = require('./lib/engine');
-    const sweep = () => { try { const n = engine.downgradeExpiredPlans(); if (n) console.log(`  → plan sweep    downgraded ${n} expired plan(s)`); } catch { /* sweep optional */ } };
+    const sweep = () => {
+      try { const n = engine.downgradeExpiredPlans(); if (n) console.log(`  → plan sweep    downgraded ${n} expired plan(s)`); } catch { /* sweep optional */ }
+      try { const p = engine.pruneStaleReplayMarkers(2); if (p) console.log(`  → replay sweep  pruned ${p} stale unmatched marker(s)`); } catch { /* prune optional */ }
+    };
     sweep();
     setInterval(sweep, 60 * 60 * 1000).unref();
   } catch { /* plan sweep optional */ }

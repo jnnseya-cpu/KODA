@@ -855,12 +855,23 @@ VIEWS.receipts = async () => {
 };
 VIEWS.receipt = async (params) => {
   const r = await api('/app/receipts/' + params.get('id'));
+  // Provenance badge — honest about how the operator SMS reached KODA. dual_confirmed
+  // (operator API agreed) > sms_anchored (captured by an attested Sentinel device,
+  // balance-chain protected) > self_reported (device-less relay: manual paste or
+  // WhatsApp/SMS forward — verified & matched, but the text is as the merchant relayed).
+  const CONF = {
+    dual_confirmed: ['b-ok', 'operator cross-confirmed', 'The operator\'s own API confirmed this transaction — the strongest proof KODA issues.'],
+    sms_anchored: ['b-info', 'device-anchored', 'Captured by an attested Sentinel device on the merchant SIM and balance-chain checked.'],
+    self_reported: ['b-warn', 'self-reported', 'Relayed device-less (manual paste or forward). Verified and matched, but not captured from an attested device.'],
+  };
+  const cl = CONF[r.confirmation_level] || CONF.sms_anchored;
   shell('receipts', t('title_receipt'), r.id, `
   <div class="card"><dl class="kv">
     <dt>reference</dt><dd class="mono">${esc(r.reference)}</dd>
     <dt>amount</dt><dd>${fmt(r.amount)} ${esc(r.currency)}</dd>
     <dt>operator</dt><dd class="mono">${esc(r.operator || '—')}</dd>
     <dt>payer</dt><dd>${esc(r.payer_name_masked || '—')} ${r.payer_suffix ? '···' + r.payer_suffix : ''}</dd>
+    <dt>confirmation</dt><dd><span class="badge ${cl[0]}">${cl[1]}</span> <span style="color:var(--dim);font-size:12px">${cl[2]}</span></dd>
     <dt>mode</dt><dd>${esc(r.mode)}</dd><dt>risk score</dt><dd>${r.risk_score}</dd>
     <dt>ACU</dt><dd>${r.acu_cost}</dd><dt>verified</dt><dd>${when(r.verified_at)}</dd>
   </dl>

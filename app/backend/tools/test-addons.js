@@ -1,7 +1,8 @@
 // KODA — add-on tests: (A) operator-API dual-confirm, (B) cross-merchant trust
-// network. Proves both are ADDITIVE: the SMS-anchored verify decision is unchanged
-// (every receipt is 'sms_anchored' by default), dual-confirm only layers on when an
-// operator adapter is configured, and the network exposes only privacy-safe aggregates.
+// network. Proves both are ADDITIVE: the verify decision is unchanged (a device-less
+// sandbox injection verifies and is honestly labelled 'self_reported'; a device-
+// attested Sentinel capture would be 'sms_anchored'), dual-confirm only layers on when
+// an operator adapter is configured, and the network exposes only privacy-safe aggregates.
 // Run against a server started with KODA_OPAPI_ORANGE_CD=mock://confirm (see launch-audit).
 'use strict';
 const B = process.env.KODA_BASE || 'http://localhost:4720';
@@ -36,7 +37,7 @@ async function hit(path, { method = 'GET', token, body } = {}) {
   const recs = await hit('/v1/receipts', { token: key });
   const rc = (recs.data?.receipts || recs.data || []).find(r => r.reference === 'OMADDON1');
   ok('receipt exists', !!rc, recs.data);
-  ok('ADD-ON A: receipt is SMS-anchored by DEFAULT (nothing changed)', rc?.confirmation_level === 'sms_anchored', { got: rc?.confirmation_level });
+  ok('device-less relay is honestly labelled self_reported (not sms_anchored)', rc?.confirmation_level === 'self_reported', { got: rc?.confirmation_level });
 
   // ADD-ON A — operator-API dual-confirm (server has mock://confirm for orange_cd)
   console.log('— ADD-ON A: operator-API cross-verification (dual-confirm)');

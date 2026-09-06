@@ -51,6 +51,17 @@ function downgradeExpiredPlans() {
                   AND plan_expires_at < datetime('now')`).changes;
   } catch { return 0; }
 }
+// Housekeeping: verify() writes a "watching the window" marker (receipt_id NULL) when a
+// code is submitted BEFORE its operator SMS arrives, so a repeated pre-arrival poll is
+// deduped. Those markers are transient — the permanent anti-replay lock is the CONSUMED
+// rows (receipt_id NOT NULL), which are never pruned. Sweeping stale NULL markers stops a
+// reference-enumeration / poll flood from growing replay_index without bound.
+function pruneStaleReplayMarkers(days = 2) {
+  try {
+    return q.run(`DELETE FROM replay_index WHERE receipt_id IS NULL AND used_at < datetime('now', ?)`,
+      `-${Math.max(1, Number(days) || 2)} days`).changes;
+  } catch { return 0; }
+}
 // Start of the current quota period for a merchant. USE-IT-OR-LOSE-IT: the included
 // quota does NOT roll over — every 30-day billing cycle the remaining verifications reset
 // to 0 (unused ones are forfeited, never accumulated). For a LIVE paid plan the window is
@@ -316,6 +327,17 @@ function netDelta(sms) {
 function recordNetwork(sms, kind) {
   try { if (sms && sms.counterparty_suffix) trustNet.record({ subject: sms.counterparty_suffix, kind }); } catch { /* never break the money path */ }
 }
+// Confirmation-tier honesty: a receipt is 'sms_anchored' ONLY when the underlying
+// SMS was captured by an ATTESTED Sentinel device stream (device_id present, balance
+// chain in order). A device-LESS relay — a manual console paste or a WhatsApp/SMS
+// forward (KODA Lite) — is 'self_reported': still matched and verified, but the SMS
+// text is exactly as the merchant relayed it, so it must not wear the same trust badge
+// as a device-captured one (a merchant could hand-type an operator-shaped SMS). The
+// operator-API cross-check can still upgrade EITHER tier to 'dual_confirmed'. This is
+// a label of provenance only — it never changes the verify/settle decision.
+function confirmationLevel(sms) {
+  return sms && sms.device_id ? 'sms_anchored' : 'self_reported';
+}
 
 // the core verify — one truth for all five doors
 // Spec §14: emit the canonical verification.* webhook for an outcome. ADDITIVE —
@@ -450,12 +472,13 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   }
   const masked = sms.counterparty_name
     ? sms.counterparty_name.split(' ').map((w, i) => i === 0 ? w[0] + '***' : w[0] + '.').join(' ') : null;
+  const level = confirmationLevel(sms);
   q.run(`INSERT INTO receipts (id,merchant_id,intent_id,sms_id,reference,amount,currency,operator,
-         payer_name_masked,payer_suffix,risk_score,mode,decision_trace,acu_cost,verified_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         payer_name_masked,payer_suffix,risk_score,mode,decision_trace,acu_cost,verified_by,confirmation_level)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     rcp, merchant.id, intent ? intent.id : 'int_manual', sms.id, sms.ref_code || reference,
     sms.amount, sms.currency, sms.operator, masked, sms.counterparty_suffix,
-    risk.score, mode, JSON.stringify(trace), acuCost, userId);
+    risk.score, mode, JSON.stringify(trace), acuCost, userId, level);
   q.run(`INSERT OR REPLACE INTO replay_index (reference, merchant_id, receipt_id) VALUES (?,?,?)`,
     String(sms.ref_code || reference).toUpperCase(), merchant.id, rcp);
   q.run(`UPDATE sms_ledger SET matched_intent_id=? WHERE id=?`, intent ? intent.id : 'manual', sms.id);
@@ -470,7 +493,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
     intent_id: intent?.id || null, receipt_id: rcp, amount: sms.amount, currency: sms.currency,
     operator: sms.operator, reference: sms.ref_code || reference, payer_name_masked: masked,
     matched_msisdn_suffix: sms.counterparty_suffix ? `***${sms.counterparty_suffix}` : null,
-    risk_score: risk.score, mode, confirmation_level: 'sms_anchored', // ADD-ON A: default label
+    risk_score: risk.score, mode, confirmation_level: level, // provenance: device-attested vs self-reported
     metadata: intent?.metadata ? JSON.parse(intent.metadata) : {},
   };
   webhooks.dispatch(merchant.id, event, payload);
@@ -484,7 +507,7 @@ function verify(merchant, intent, reference, { mode = 'api', userId = null, viaS
   // to the paid-settle path so a fabricated/self-pasted SMS can never farm ACU.
   metric('verifications');
   return { status: late ? 'verified_late' : 'verified', receipt_id: rcp, risk, trace,
-           confirmation_level: 'sms_anchored',
+           confirmation_level: level,
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
 }
 
@@ -525,11 +548,12 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
   }
   const masked = sms.counterparty_name
     ? sms.counterparty_name.split(' ').map((w, i) => i === 0 ? w[0] + '***' : w[0] + '.').join(' ') : null;
+  const level = confirmationLevel(sms);
   q.run(`INSERT INTO receipts (id,merchant_id,intent_id,sms_id,reference,amount,currency,operator,
-         payer_name_masked,payer_suffix,risk_score,mode,decision_trace,acu_cost,verified_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         payer_name_masked,payer_suffix,risk_score,mode,decision_trace,acu_cost,verified_by,confirmation_level)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     rcp, merchant.id, 'int_manual', sms.id, sms.ref_code, sms.amount, sms.currency, sms.operator,
-    masked, sms.counterparty_suffix, risk.score, 'manual', JSON.stringify(trace), acuCost, userId);
+    masked, sms.counterparty_suffix, risk.score, 'manual', JSON.stringify(trace), acuCost, userId, level);
   q.run(`INSERT OR REPLACE INTO replay_index (reference, merchant_id, receipt_id) VALUES (?,?,?)`, reference, merchant.id, rcp);
   q.run(`UPDATE sms_ledger SET matched_intent_id='manual' WHERE id=?`, sms.id);
   // acuCost was already reserved (atomically debited) above.
@@ -539,13 +563,13 @@ function confirmLedgerPayment(merchant, smsId, { userId = null } = {}) {
   const payload = { intent_id: null, receipt_id: rcp, amount: sms.amount, currency: sms.currency,
     operator: sms.operator, reference: sms.ref_code, payer_name_masked: masked,
     matched_msisdn_suffix: sms.counterparty_suffix ? `***${sms.counterparty_suffix}` : null,
-    risk_score: risk.score, mode: 'manual', confirmation_level: 'sms_anchored', metadata: {} };
+    risk_score: risk.score, mode: 'manual', confirmation_level: level, metadata: {} };
   webhooks.dispatch(merchant.id, 'payment.verified', payload);
   emitOutcome(merchant.id, 'verified', null, { receipt_id: rcp, reference: sms.ref_code, amount: sms.amount, currency: sms.currency });
   notifyOwners(merchant, 'payment.verified', { amount: `${fmtAmt(sms.amount)} ${sms.currency}`, reference: sms.ref_code });
 
   metric('verifications'); metric('verifications_auto');
-  return { status: 'verified', receipt_id: rcp, risk, trace, confirmation_level: 'sms_anchored',
+  return { status: 'verified', receipt_id: rcp, risk, trace, confirmation_level: level,
            amount_confirmed: sms.amount, operator: sms.operator, match_confidence: 1 - risk.score };
 }
 
@@ -604,4 +628,4 @@ function merchantForReference(reference) {
   return q.get(`SELECT * FROM merchants WHERE id=? AND status='active'`, row.merchant_id) || null;
 }
 
-module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, reserve, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, quotaPeriodStart, canSpend, overageAcu, billingPayer, planExpired, downgradeExpiredPlans, emitOutcome, merchantForReference };
+module.exports = { verify, confirmLedgerPayment, ingestSms, chargeAcu, creditAcu, reserve, ACU, TOPUP_PACKS, getMerchant, notifyOwners, gateAI, AI_MIN, acuUnlimited, withinQuota, quotaPeriodStart, canSpend, overageAcu, billingPayer, planExpired, downgradeExpiredPlans, pruneStaleReplayMarkers, emitOutcome, merchantForReference };
