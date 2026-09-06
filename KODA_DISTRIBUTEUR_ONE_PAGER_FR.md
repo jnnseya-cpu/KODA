@@ -71,7 +71,7 @@ KODA (UK)  ──vend en gros──▶  VOUS (Distributeur)  ──vendez au dé
 3. Achetez votre **premier bloc d'ACU** (par carte, agrégateur agréé, ou virement).
 4. Vous êtes en ligne : vos commerçants rechargent, vous encaissez votre marge.
 
-**Contact :** WhatsApp distributeurs · `distributeurs@koda.africa` · kodajnn.com
+**Contact :** WhatsApp `+243 828 139 153` · `koda@kodajnn.com` · kodajnn.com
 *Groupe Nseya Digital / JNN Global Ltd — le code confirme le cash.*
 
 ---

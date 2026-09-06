@@ -254,25 +254,29 @@ function footerLinks() {
 }
 
 // ---- shared layout for content pages ----
-function page({ title, kicker, lead, body }) {
+function page({ title, kicker, lead, body, lang = 'en', seoManaged = false }) {
   // Per-page meta description from the lead (tags stripped, ≤160 chars) so every content
   // page has its own search snippet + social description instead of none.
   const metaDesc = String(lead || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 160).replace(/"/g, '&quot;');
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>${title} — KODA</title>${ANALYTICS}
-<meta name="description" content="${metaDesc}">
+  // Pages that inject their own seoHead() (blog posts, blog index, city pages) set
+  // seoManaged:true so we DON'T also emit description/og/twitter here — otherwise every
+  // such page ships two competing <meta description> + og:title tags.
+  const metaBlock = seoManaged ? '' : `<meta name="description" content="${metaDesc}">
 <meta property="og:description" content="${metaDesc}">
 <meta name="twitter:description" content="${metaDesc}">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/icon.svg">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="KODA">
 <meta property="og:title" content="${title.replace(/"/g, '&quot;')} — KODA">
 <meta property="og:image" content="https://kodajnn.com/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://kodajnn.com/og-image.png">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+`;
+  return `<!DOCTYPE html><html lang="${lang}"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>${title} — KODA</title>${ANALYTICS}
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+${metaBlock}<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#081813;--ink2:#0C231C;--gold:#E8A11F;--paper:#F5EFDF;--text:#E9E4D5;--dim:#9BA79B;--line:rgba(233,228,213,.12);
 --mono:'IBM Plex Mono',monospace;--disp:'Archivo','Helvetica Neue',system-ui,sans-serif}
@@ -606,12 +610,12 @@ function kodaPartnerApply(e){
 <p>The customer pays and confirms however they can — KODA meets them there:</p>
 <ul>
 <li><b>Smartphone checkout</b> — the hosted page auto-renders in the customer's own device language and shows only networks that actually resolve to you.</li>
-<li><b>WhatsApp</b> — the code dropped in the chat is verified in-channel.</li>
-<li><b>USSD &amp; inbound SMS</b> — for feature phones and <b>low- or no-internet zones</b>, the customer confirms by dialling a code or texting it in. No app, no data, no smartphone required on the buyer's side.</li>
+<li><b>WhatsApp</b> — a code dropped in the chat is verified in-channel <em>(rolling out — KODA runs one shared WhatsApp Business number; availability by market)</em>.</li>
+<li><b>USSD &amp; inbound SMS</b> — for feature phones and <b>low- or no-internet zones</b>, the customer confirms by dialling a code or texting it in — no app, no data, no smartphone on the buyer's side <em>(rolling out with partner aggregators; a telco shortcode is required)</em>.</li>
 <li><b>Manual Verify Console</b> — you paste the code yourself; works entirely offline-of-the-customer.</li>
 </ul>
 <h2>Worldwide by construction</h2>
-<p>Coverage is a <b>parsing template, not a contract</b>. KODA already knows <b>${N} operators across ${NC} countries and ${NR} world regions</b> — M-Pesa, Orange Money, MTN MoMo, Airtel, Wave, bKash, JazzCash, GCash, EVC Plus and beyond. Because one brand shares one SMS grammar, <b>${NFAM} template families</b> unlock that whole map: pack a family once, and every country it operates in comes online together. Any operator that sends a merchant confirmation SMS can join the Community Template Program — send 5 sample SMS, get a live pack within days. <a href="/coverage">See full coverage →</a></p>
+<p>Coverage is a <b>parsing template, not a contract</b>. KODA already knows <b>${N} operators across ${NC} countries and ${NR} world regions</b> — M-Pesa, Orange Money, MTN MoMo, Airtel, Wave, bKash, JazzCash, GCash and beyond. Because one brand shares one SMS grammar, <b>${NFAM} template families</b> unlock that whole map: pack a family once, and every country it operates in comes online together. Any operator that sends a merchant confirmation SMS can join the Community Template Program — send 5 sample SMS, get a live pack within days. <a href="/coverage">See full coverage →</a></p>
 <h2>You only ever see what's real</h2>
 <p>A network appears to your customer <em>only</em> when KODA supports it <b>and</b> you have an active, ownership-verified, healthy receiving account on it. KODA's <b>Network Intelligence layer</b> resolves every payment method down to exactly one account it can actually verify — no dead options, no "operator not available after you paid".</p>
 <h2>What "verified" means — and what it doesn't</h2>
@@ -674,9 +678,9 @@ ${Object.entries(COV.byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
 </table>
 <p>The resolver <b>refuses</b> to connect a Tier-C network rather than pretend it can verify one — honesty is enforced in code, not in copy.</p>
 <h2>LIVE vs. template-ready</h2>
-<p>An operator KODA has a hand-tuned pack for is <b>LIVE</b> (${COV.packed} today and climbing). The rest are <b>template-ready</b>: a multilingual generic parser (FR · EN · PT · ES · ID · MS) already structures their SMS at a lower trust band — verifications route through the challenge path until a precise pack is published. Nothing is silently claimed as fully supported when it isn't.</p>
+<p>An operator KODA has a hand-tuned pack for is <b>LIVE</b> (${COV.packed} today and climbing). The rest are <b>template-ready</b>: a multilingual generic parser (FR · EN · PT · ID · MS) already structures their SMS at a lower trust band — verifications route through the challenge path until a precise pack is published. Nothing is silently claimed as fully supported when it isn't.</p>
 <h2>Low- and no-internet zones</h2>
-<p>Where smartphones and data are scarce, the customer never needs either. They pay by <b>USSD</b> and confirm by <b>dialling a code or sending an inbound SMS</b>; the merchant's KODA Sentinel SIM does the rest. The buyer side stays 100% feature-phone and offline-capable.</p>
+<p>Where smartphones and data are scarce, the customer never needs either. They pay by <b>USSD</b> and confirm by <b>dialling a code or sending an inbound SMS</b>; the merchant's KODA Sentinel SIM does the rest. The buyer side stays 100% feature-phone and offline-capable. <em>(These doors are rolling out with partner aggregators — a telco shortcode is required to switch them on in a market.)</em></p>
 <h2>Add your operator</h2>
 <p>Missing from the map? Send five sample confirmation SMS through the <b>Community Template Program</b> and we publish a live pack within days — no telco meeting, ever. <a href="/contact">Submit samples →</a></p>
 <p><a href="/app#signup">Start verifying free →</a></p>`,
@@ -687,10 +691,10 @@ ${Object.entries(COV.byRegion).sort((a, b) => b[1] - a[1]).map(([r, n]) =>
     lead: 'One engine, five doors — Manual, WhatsApp, API, USSD and inbound SMS — deployed across commerce, education, transport, health, agriculture, ticketing, field sales and government.',
     body: `
 <div class="grid">
-<div class="card"><div class="ic-h">${icon('food')}<h3>Restaurants & delivery</h3></div><p>Orders verified before the kitchen fires. No more "I sent a screenshot" at the counter. Day-one reference: <b>Tunakula</b>.</p></div>
-<div class="card"><div class="ic-h">${icon('retail')}<h3>Retail & Scan-to-pay</h3></div><p>In-store checkout confirmation without POS-telco integration. Day-one reference: <b>Scan & Go</b>.</p></div>
-<div class="card"><div class="ic-h">${icon('edu')}<h3>Schools & education</h3></div><p>School-fee invoices matched to payments automatically; course unlocks on verified payment. Reference: <b>StudYear</b>.</p></div>
-<div class="card"><div class="ic-h">${icon('ticket')}<h3>Events & ticketing</h3></div><p>QR tickets issued only on verified payment; replay-locked codes kill duplicate-ticket fraud. Reference: <b>TicketRoyality</b>.</p></div>
+<div class="card"><div class="ic-h">${icon('food')}<h3>Restaurants & delivery</h3></div><p>Orders verified before the kitchen fires. No more "I sent a screenshot" at the counter.</p></div>
+<div class="card"><div class="ic-h">${icon('retail')}<h3>Retail & Scan-to-pay</h3></div><p>In-store checkout confirmation without POS-telco integration — the counter sees "paid" the moment the operator SMS lands.</p></div>
+<div class="card"><div class="ic-h">${icon('edu')}<h3>Schools & education</h3></div><p>School-fee invoices matched to payments automatically; course unlocks on verified payment.</p></div>
+<div class="card"><div class="ic-h">${icon('ticket')}<h3>Events & ticketing</h3></div><p>QR tickets issued only on verified payment; replay-locked codes kill duplicate-ticket fraud.</p></div>
 <div class="card"><div class="ic-h">${icon('platform')}<h3>Marketplaces & platforms</h3></div><p>Sub-merchant API, scoped keys, trust scores and re-billing — one platform deal onboards thousands of merchants at wholesale rates.</p></div>
 <div class="card"><div class="ic-h">${icon('gov')}<h3>Utilities, MFIs & Gov</h3></div><p>Bulk reconciliation, in-country residency, dedicated corridor models and audit-grade decision traces for every verification.</p></div>
 <div class="card"><div class="ic-h">${icon('transport')}<h3>Transport & mobility</h3></div><p>Fares confirmed before the ride — taxis, boda-boda, minibus and inter-city. USSD and inbound-SMS doors serve drivers and riders on feature phones.</p></div>
@@ -965,6 +969,7 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
   }),
 
   'guide-test': page({
+    lang: 'fr',
     title: 'Tester KODA en 5 étapes', kicker: 'Guide pilote · Kinshasa',
     lead: 'Ce guide vous accompagne pour installer l\'application KODA Sentinel, jumeler votre téléphone et vérifier votre premier paiement mobile money. Comptez 10 minutes. Vous avez besoin d\'un téléphone Android (2017 ou plus récent) avec la SIM sur laquelle vous recevez l\'argent.',
     body: `
@@ -1067,27 +1072,15 @@ final url = jsonDecode(res.body)['checkout_url'];   // open in a WebView</pre>
 <p><a href="/app#signup">Join the KODA Growth Partner Programme →</a></p>`,
   }),
 
-  'blog': page({
-    title: 'Notes from the payment truth layer.', kicker: 'Blog',
-    lead: 'Engineering, market and fraud notes from the team industrialising the confirmation SMS.',
-    body: `
-<div class="card"><h3><a href="/how-it-works">Why forged payment messages don't get past KODA</a></h3>
-<p>The deepest anti-fraud check in KODA needs zero external dependencies — it reads the network's own confirmation and refuses anything that doesn't add up. How merchant-side truth beats screenshot fraud.</p>
-<span class="badge">Fraud engineering</span> <span style="font-family:var(--mono);font-size:11px;color:var(--dim)">July 2026</span></div>
-<div class="card"><h3><a href="/developers">0 telco meetings, 11 minutes to first verified payment</a></h3>
-<p>What happened when we put a telco simulator inside the sandbox and made "time to first verified payment" the only activation metric that matters.</p>
-<span class="badge">Developer experience</span> <span style="font-family:var(--mono);font-size:11px;color:var(--dim)">July 2026</span></div>
-<div class="card"><h3><a href="/about">Manual mode ships first: why the widest door is the no-code one</a></h3>
-<p>≥70% of early merchants verify by hand today. The Verify Console meets them exactly where they are — and graduation to Chat or API is a toggle, not a rebuild.</p>
-<span class="badge">Product</span> <span style="font-family:var(--mono);font-size:11px;color:var(--dim)">June 2026</span></div>`,
-  }),
+  // NOTE: the real /blog index is generated further below from the POSTS corpus
+  // (it overwrites OUT/blog.html), so there is no hand-written 'blog' page here.
 
   'contact': page({
     title: 'Talk to a human.', kicker: 'Contact',
     lead: 'WhatsApp first, or send us a message — it lands straight in our inbox. Commerce+ plans get SLA-backed response times.',
     body: `
 <div class="grid">
-<div class="card"><div class="ic-h">${icon('chat')}<h3>WhatsApp — fastest</h3></div><p><a href="https://wa.me/243828139153" target="_blank" rel="noopener"><b>+243 828 139 153</b></a><br>FR · EN · Lingala · Swahili<br>Merchants, developers &amp; support.</p></div>
+<div class="card"><div class="ic-h">${icon('chat')}<h3>WhatsApp — fastest</h3></div><p><a href="https://wa.me/243828139153" target="_blank" rel="noopener"><b>+243 828 139 153</b></a><br>FR · EN · Lingala · Swahili · Wolof · Twi<br>Merchants, developers &amp; support.</p></div>
 <div class="card"><div class="ic-h">${icon('mail')}<h3>Email</h3></div><p><a href="mailto:koda@kodajnn.com"><code>koda@kodajnn.com</code></a><br>Sales, platforms, partnerships, legal &amp; compliance — one inbox, we route it.</p></div>
 </div>
 
@@ -1221,23 +1214,24 @@ function kodaContactSubmit(e){
 
   'status': page({
     title: 'Platform status', kicker: 'Radical transparency',
-    lead: 'Live service health and per-operator parse rates. Telco SMS drift is real — we publish it instead of pretending.',
+    lead: 'Live API health, plus the coverage and parse-accuracy targets KODA holds its LIVE operator packs to. As real traffic builds, measured per-operator telemetry publishes here — no invented numbers in the meantime.',
     body: `
 <div class="card"><h3 id="api-status">◔ Checking API…</h3>
 <p class="mono" id="api-detail" style="font-family:var(--mono);font-size:12.5px;color:var(--dim)"></p></div>
 <h2>Registry coverage</h2>
 <p>KODA's resolver currently knows <b>${N} operators across ${NC} countries and ${NR} regions</b> — ${ADDRESSABLE} of them SMS-verifiable (Tier A + B), ${COV.packed} on hand-tuned LIVE packs with the rest on the multilingual generic parser. Full breakdown on the <a href="/coverage">coverage page</a>.</p>
-<h2>Per-operator parse health <span class="badge">LIVE packs</span></h2>
+<h2>LIVE operator packs <span class="badge">${COV.packed} today</span></h2>
+<p style="font-family:var(--mono);font-size:12px;color:var(--dim)">These are the hand-tuned packs (built from a real sample SMS) that auto-verify hands-free. The accuracy figure is each pack's <b>target</b>; live measured parse rates publish here as verification volume accumulates.</p>
 <table>
-<tr><th>Operator</th><th>Corridor</th><th>Parse rate (7d)</th><th>Status</th></tr>
-<tr><td>Orange Money</td><td>DRC</td><td class="ok">99.5%</td><td class="ok">● operational</td></tr>
-<tr><td>M-Pesa (Vodacom)</td><td>DRC</td><td class="ok">99.1%</td><td class="ok">● operational</td></tr>
-<tr><td>Airtel Money</td><td>DRC</td><td class="ok">98.7%</td><td class="ok">● operational</td></tr>
-<tr><td>Africell Money</td><td>DRC</td><td class="warn">97.8%</td><td class="warn">● template drift — pack regenerating</td></tr>
-<tr><td>MTN MoMo</td><td>GH/CI/UG</td><td class="ok">98.9%</td><td class="ok">● operational</td></tr>
-<tr><td>Wave</td><td>SN/CI</td><td class="ok">99.2%</td><td class="ok">● operational</td></tr>
+<tr><th>Operator</th><th>Corridor</th><th>Target accuracy</th><th>Status</th></tr>
+<tr><td>Orange Money</td><td>DRC</td><td class="ok">≥99%</td><td class="ok">● LIVE pack</td></tr>
+<tr><td>M-Pesa (Vodacom)</td><td>DRC</td><td class="ok">≥99%</td><td class="ok">● LIVE pack</td></tr>
+<tr><td>Airtel Money</td><td>DRC</td><td class="ok">≥98%</td><td class="ok">● LIVE pack</td></tr>
+<tr><td>Africell Money</td><td>DRC</td><td class="ok">≥97%</td><td class="ok">● LIVE pack</td></tr>
+<tr><td>MTN MoMo</td><td>GH</td><td class="ok">≥98%</td><td class="ok">● LIVE pack</td></tr>
+<tr><td>Wave</td><td>SN</td><td class="ok">≥99%</td><td class="ok">● LIVE pack</td></tr>
 </table>
-<p style="font-family:var(--mono);font-size:12px;color:var(--dim)">SLA (Commerce+): 99.9% API availability · KODA-side p95 &lt; 5 s — the operator's SMS delivery clock is contractually separate from ours.</p>
+<p style="font-family:var(--mono);font-size:12px;color:var(--dim)">Target SLA (Commerce+): 99.9% API availability · KODA-side p95 &lt; 5 s — the operator's SMS delivery clock is separate from ours. Availability credits apply per your plan agreement.</p>
 <script>
 fetch('/healthz').then(r=>r.json()).then(d=>{
   document.getElementById('api-status').innerHTML='<span class="ok">●</span> API operational';
@@ -1272,7 +1266,21 @@ try {
   const demoSrcPath = path.join(__dirname, 'demo-src.html');
   if (fs.existsSync(demoSrcPath)) {
     let demo = fs.readFileSync(demoSrcPath, 'utf8');
-    if (demo.includes('</head>')) demo = demo.replace('</head>', ANALYTICS + '\n</head>');
+    // /demo ships self-contained, so it never went through page(): give it the same
+    // canonical + social card the generated pages get, so it self-canonicalises and
+    // renders a preview when shared on WhatsApp/social.
+    const demoHead = `<link rel="canonical" href="https://kodajnn.com/demo">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="KODA">
+<meta property="og:title" content="KODA — live 5-door verification demo">
+<meta property="og:description" content="Watch KODA verify a mobile-money payment across all five doors, plus a fraud lab — a live interactive demo in your browser.">
+<meta property="og:url" content="https://kodajnn.com/demo">
+<meta property="og:image" content="https://kodajnn.com/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://kodajnn.com/og-image.png">
+<meta name="robots" content="index,follow,max-image-preview:large">`;
+    if (demo.includes('</head>')) demo = demo.replace('</head>', ANALYTICS + '\n' + demoHead + '\n</head>');
     fs.writeFileSync(path.join(OUT, 'demo.html'), demo);
   }
 } catch (e) { console.error('demo page build skipped:', e.message); }
@@ -1290,7 +1298,7 @@ fs.mkdirSync(blogDir, { recursive: true });
 
 // each post is a full standalone SEO page (reusing the content-page layout shell)
 function blogPage({ title, headExtra, kicker, h1, lead, bodyHtml }) {
-  const shell = page({ title, kicker, lead, body: bodyHtml });
+  const shell = page({ title, kicker, lead, body: bodyHtml, seoManaged: true });
   // inject SEO head just before </head>-equivalent: our page() has no <head>, it inlines <style>; add meta after <title>
   return shell.replace(/<title>[^<]*<\/title>/, m => m + '\n' + headExtra);
 }
@@ -1306,7 +1314,7 @@ for (const p of posts) {
 }catch(_){}})();
 </script>`;
   const body = `${viewsBadge}\n${r.bodyHtml}\n${r.faqHtml}\n${r.relatedHtml}\n<p style="margin-top:26px"><a href="/get-started">Verify your first payment free →</a> · <a href="/blog">← all articles</a></p>${viewsBeacon}`;
-  const html = blogPage({ title: p.title + ' | KODA', headExtra: r.head, kicker: 'KODA Blog', h1: p.title, lead: p.description, bodyHtml: body })
+  const html = blogPage({ title: p.title, headExtra: r.head, kicker: 'KODA Blog', h1: p.title, lead: p.description, bodyHtml: body })
     .replace(/<h1>[^<]*<\/h1>/, `<h1>${p.title.replace(/&/g, '&amp;')}</h1>`);
   fs.writeFileSync(path.join(blogDir, `${p.slug}.html`), html);
 }
@@ -1315,7 +1323,7 @@ const indexBody = `<div class="grid" style="grid-template-columns:1fr">${posts.m
   `<div class="card"><h3><a href="/blog/${p.slug}">${p.title.replace(/&/g, '&amp;')}</a></h3><p>${p.description}</p>
    <span style="font-family:var(--mono);font-size:11px;color:var(--dim)">${(p.tags || []).join(' · ')}</span></div>`).join('')}</div>`;
 fs.writeFileSync(path.join(OUT, 'blog.html'),
-  page({ title: 'KODA Blog — mobile money payment verification', kicker: 'KODA Blog',
+  page({ title: 'Blog — mobile money payment verification', kicker: 'KODA Blog', seoManaged: true,
     lead: 'Guides on verifying mobile money payments, stopping fraud, and getting paid with certainty across Africa.', body: indexBody })
     .replace(/<title>[^<]*<\/title>/, m => m + '\n' + seo.seoHead({ title: 'KODA Blog — mobile money payment verification', description: 'Guides on verifying mobile money payments, stopping screenshot fraud, and reconciliation for African merchants.', path: '/blog', jsonld: [seo.orgJsonLd()] })));
 
@@ -1358,7 +1366,7 @@ for (const [city] of SEO_CITIES) {
       '@context': 'https://schema.org', '@type': 'FAQPage',
       mainEntity: faqs.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })),
     }];
-    const html = page({ title, kicker: `KODA · ${city}`, lead, body })
+    const html = page({ title, kicker: `KODA · ${city}`, lead, body, lang: 'fr', seoManaged: true })
       .replace(/<title>[^<]*<\/title>/, m => m + '\n' + seo.seoHead({ title: `${title} — KODA`, description: lead.slice(0, 155), path: '/' + slug, jsonld }));
     fs.writeFileSync(path.join(OUT, `${slug}.html`), html);
     cityPages.push('/' + slug);

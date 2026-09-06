@@ -152,7 +152,7 @@ function orgJsonLd() {
     email: 'koda@kodajnn.com', telephone: '+243828139153',
     address: { '@type': 'PostalAddress', addressLocality: 'Kinshasa', addressCountry: 'CD' },
     contactPoint: { '@type': 'ContactPoint', telephone: '+243828139153', email: 'koda@kodajnn.com',
-      contactType: 'customer support', availableLanguage: ['French', 'English', 'Lingala', 'Swahili'] },
+      contactType: 'customer support', availableLanguage: ['French', 'English', 'Lingala', 'Swahili', 'Wolof', 'Twi'] },
     sameAs: ['https://wa.me/243828139153'] };
 }
 // site-level structured data for the homepage — declares the canonical site and
