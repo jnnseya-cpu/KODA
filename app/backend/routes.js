@@ -1660,12 +1660,13 @@ module.exports = function registerRoutes(r) {
   // ---- Doors: live-status of all 5 doors (+ Sentinel ingestion) ----
   r.get('/app/admin/doors', admin(() => {
     const meta = require('./comms/meta');
+    const ussd = require('./comms/ussd');
     return {
       doors: [
         { id: 1, name: 'Manual console', endpoint: 'POST /app/verify', live: true, requires: 'nothing (pure code path)', status: 'live', note: 'Screenshot path uses VisionAgent (3 ACU).' },
         { id: 3, name: 'API / drop-in', endpoint: 'POST /v1/intents', live: true, requires: 'an API key', status: 'live', note: 'koda_test keys run in sandbox on the same host.' },
         { id: 2, name: 'WhatsApp Chat', endpoint: 'POST /webhooks/whatsapp', live: meta.configured(), requires: 'META_WA_TOKEN + META_WA_PHONE_ID (+ APP_SECRET)', status: meta.configured() ? 'live' : 'sandbox', note: meta.appSecretSet() ? 'app secret set' : (meta.configured() ? 'app secret NOT set — inbound door CLOSED until set' : 'app secret NOT set (sandbox: signature skipped)') },
-        { id: 4, name: 'USSD', endpoint: 'POST /webhooks/ussd', live: false, requires: 'a USSD shortcode from an aggregator (Africa\'s Talking / MNO)', status: 'endpoint ready', note: 'Routes by merchant msisdn. No KODA env key — shortcode lives at the aggregator.' },
+        { id: 4, name: 'USSD', endpoint: 'POST /webhooks/ussd', live: ussd.configured(), requires: 'KODA_USSD_PROVIDER (africastalking|generic) + a shortcode from an aggregator', status: ussd.configured() ? 'live' : 'endpoint ready', note: ussd.describe() },
         { id: 5, name: 'Inbound SMS', endpoint: 'POST /webhooks/sms', live: !!process.env.SMS_GATEWAY_KEY, requires: 'SMS_GATEWAY_KEY + an SMS long/short-code', status: process.env.SMS_GATEWAY_KEY ? 'live' : 'endpoint ready', note: 'Replies send via gateway only when the key is set.' },
       ],
       sentinel: {
@@ -1677,6 +1678,7 @@ module.exports = function registerRoutes(r) {
       config: {
         meta_wa_token: !!process.env.META_WA_TOKEN, meta_wa_phone_id: !!process.env.META_WA_PHONE_ID,
         meta_wa_app_secret: !!process.env.META_APP_SECRET, sms_gateway_key: !!process.env.SMS_GATEWAY_KEY,
+        ussd_provider: ussd.provider() || null, ussd_secret_set: ussd.secretSet(),
       },
     };
   }));
@@ -2237,21 +2239,23 @@ module.exports = function registerRoutes(r) {
     return `Non confirme. Verifiez le code et le montant.`;
   }
 
-  // USSD (Africa's Talking style): body {sessionId, phoneNumber, text}; reply is
-  // plain text "CON ..." (menu continues) or "END ..." (session ends).
+  // USSD (Door 4) — aggregator-agnostic via comms/ussd. Wire format + optional shared
+  // secret come from config (KODA_USSD_PROVIDER / KODA_USSD_SECRET); the module parses
+  // any supported aggregator's inbound shape and formats the CON/END (or JSON) reply, so
+  // the route holds only KODA logic: authorise → route by SIM → prompt → verify.
   r.post('/webhooks/ussd', (req) => {
-    const b = req.body || {};
-    const m = merchantByPhone(b.phoneNumber);
-    const steps = String(b.text || '').split('*').filter(Boolean);
-    const send = (t) => [200, t, { 'content-type': 'text/plain; charset=utf-8' }];
-    if (!m) return send('END Numero non enregistre chez KODA.');
-    if (steps.length === 0) return send('CON KODA — verifier un paiement\nEntrez le code recu par SMS:');
+    const ussd = require('./comms/ussd');
+    if (!ussd.verifySource(req.headers, req.body).ok) return [401, { error: 'invalid_ussd_source' }];
+    const { phone, steps } = ussd.parseInbound(req.body || {});
+    const m = merchantByPhone(phone);
+    if (!m) return ussd.reply(false, 'Numero non enregistre chez KODA.');
+    if (steps.length === 0) return ussd.reply(true, 'KODA — verifier un paiement\nEntrez le code recu par SMS:');
     const code = steps[steps.length - 1];
     const res = engine.verify(m, null, code, { mode: 'ussd' });
     q.run(`INSERT INTO comm_deliveries (id,merchant_id,user_id,event_key,channel,recipient,subject,provider,status)
            VALUES (?,?,NULL,'verify.ussd','sms',?,?,?, 'sent')`,
-      U.id('dlv'), m.id, b.phoneNumber || '', ('ussd:' + code).slice(0, 120), 'ussd');
-    return send('END ' + verdictText(res, m));
+      U.id('dlv'), m.id, phone || '', ('ussd:' + code).slice(0, 120), ussd.provider() || 'ussd');
+    return ussd.reply(false, verdictText(res, m));
   });
 
   // Inbound SMS-to-shortcode: body {from, to, text}. The merchant texts the code
