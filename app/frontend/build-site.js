@@ -629,6 +629,15 @@ function kodaPartnerApply(e){
 <li>Proof of settlement. KODA confirms the operator <b>says</b> you were paid — instantly and fraud-checked — it doesn't replace the operator's rails.</li>
 </ul></div>
 </div>
+<h2>How strongly it's confirmed — three honest tiers</h2>
+<p>Not every “verified” is equal, and KODA refuses to pretend otherwise. Every receipt carries its <b>confirmation level</b> — a plain label for how the operator's SMS actually reached us — so you always know exactly how much a given receipt proves:</p>
+<table>
+<tr><th>Tier</th><th>Strength</th><th>How it's earned</th></tr>
+<tr><td><b>Operator cross-confirmed</b></td><td class="ok">Strongest</td><td>The operator's own API independently agreed the transaction is real — a second, telco-side check layered on top of the SMS.</td></tr>
+<tr><td><b>Device-anchored</b></td><td class="ok">Strong</td><td>The confirmation SMS was captured by the attested KODA&nbsp;Sentinel app on the merchant's own SIM and passed the balance-chain test — nothing the merchant can hand-edit.</td></tr>
+<tr><td><b>Self-reported</b></td><td class="warn">Honest-light</td><td>The SMS was relayed device-less — pasted into the Console or forwarded over WhatsApp/SMS. Still matched, single-use-locked and fraud-checked, but the text is as the merchant provided it, so it never wears the device-anchored badge.</td></tr>
+</table>
+<p>The verdict, the money path and the fraud checks are identical across all three — this label is purely about <b>provenance</b>. A hand-typed message can never masquerade as a device-captured one; you see the difference on every receipt.</p>
 <p>For large or unusual payments, use the <b>“needs review”</b> band before releasing goods — KODA makes you <em>first to know</em>; you choose the risk you take. <b>The code confirms the cash — it doesn't guarantee the cash can't be clawed back.</b></p>
 <p><a href="/app#signup">Verify your first payment free →</a></p>`,
   }),
