@@ -1,6 +1,6 @@
 // KODA — public site generator. Emits public/site/*.html from a shared layout
-// at server boot. Landing (index) is the koda-landing.html prototype from the
-// repo root, copied verbatim with CTAs wired to /app.
+// at server boot. Landing (index) is app/landing-src.html (the single source of
+// truth, also shipped in the Docker image), with CTAs/nav wired to /app.
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
@@ -167,10 +167,12 @@ const icon = (n) => `<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true
 // small inline icon (inherits currentColor) for buttons, badges and inline labels
 const ico = (n) => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${SVGI[n] || ''}</svg>`;
 
-const DISCLAIMER = `KODA is a payment <em>verification</em> service — not a bank, wallet, payment processor, aggregator, escrow or money transmitter. KODA never holds, moves, or settles funds: payments travel directly from customer to merchant over each operator's own network. Verification is based on merchant-side operator confirmations and, while fraud-scored and replay-protected, does not guarantee against operator-side reversals or constitute proof of settlement. M-Pesa, Orange Money, MTN MoMo, Airtel Money, Africell Money, Wave, bKash, GCash, JazzCash, EVC Plus and all other operator names are trademarks of their respective owners; KODA is independent of, and not endorsed by, any mobile network operator. Pricing, coverage and features are subject to the published Terms of Service and may evolve by market.`;
+const DISCLAIMER = `KODA is a payment <em>verification</em> service — not a bank, wallet, payment processor, aggregator, escrow or money transmitter. KODA never holds, moves, or settles funds: payments travel directly from customer to merchant over each operator's own network. Verification is based on merchant-side operator confirmations and, while fraud-scored and replay-protected, does not guarantee against operator-side reversals or constitute proof of settlement. M-Pesa, Orange Money, MTN MoMo, Airtel Money, Africell Money, Wave, bKash, GCash, JazzCash and all other operator names are trademarks of their respective owners; KODA is independent of, and not endorsed by, any mobile network operator. Pricing, coverage and features are subject to the published Terms of Service and may evolve by market.`;
 
-// ---- landing: reuse the prototype, wire CTAs into the app ----
-const landingSrc = [path.join(__dirname, '..', '..', 'koda-landing.html'), path.join(__dirname, '..', 'landing-src.html')].find(require('node:fs').existsSync);
+// ---- landing: single source of truth is app/landing-src.html (shipped in the
+// Docker image and used here); the CTA/nav rewrites below assume its structure
+// (incl. the inline pricing section). ----
+const landingSrc = path.join(__dirname, '..', 'landing-src.html');
 if (fs.existsSync(landingSrc)) {
   let landing = fs.readFileSync(landingSrc, 'utf8');
   landing = landing
@@ -565,7 +567,7 @@ function kodaPartnerApply(e){
     <ul><li>Everything in Plateforme</li><li>Sub-merchant API + scoped keys</li><li>Trust-score API</li><li>Re-billing endpoints</li><li>Distributor / reseller access</li></ul>
     <a class="pbtn" href="/app#signup?plan=scale">Choose Scale</a></div>
   <div class="plan"><h3>Enterprise / Gov</h3><div class="pr">Custom</div><div class="per">committed volume</div>
-    <ul><li>In-country residency</li><li>Dedicated corridor models</li><li>White-label (+20%)</li><li>99.9% SLA, credited if missed</li><li>Annual contract</li></ul>
+    <ul><li>In-country residency (dedicated deployment)</li><li>Dedicated corridor models</li><li>White-label (+20%)</li><li>Targeted 99.9% SLA, credited if missed</li><li>Annual contract</li></ul>
     <a class="pbtn" href="/contact">Talk to us</a></div>
 </div>
 <div class="moral">"Pay only when your merchant gets paid." <em>— the moral centre of the pricing.</em>
@@ -1168,7 +1170,7 @@ function kodaContactSubmit(e){
 <h2>3. Billing</h2><p>Each plan includes a monthly verification quota at no per-use cost; failed matches, rejections and expired intents are free. Verifications beyond the quota, and AI features (Vision, agents, disputes), draw on prepaid ACU — topped up via mobile money and verified by KODA's own engine, with a small goodwill credit buffer so a live checkout is never cut off the moment your balance reaches zero.</p>
 <h2>4. Acceptable use</h2><p>No use for money laundering, fraud, sanctioned activity or any unlawful commerce. Fraud and velocity controls apply to all tiers. We may suspend accounts pending investigation of abuse.</p>
 <h2>5. Honest limitations</h2><p>Verification latency floors are set by operator SMS delivery, not by KODA. KODA verifies payments, not business ethics, and cannot prevent operator-side reversals — it makes you first to know. See the full limitations list in the product documentation.</p>
-<h2>6. Liability</h2><p>Service provided "as is" within the SLA of your plan (Commerce+: 99.9% API availability, credited if missed). Aggregate liability is capped at fees paid in the preceding 12 months.</p>
+<h2>6. Liability</h2><p>Service provided "as is" within the SLA of your plan (Commerce+: targeted 99.9% API availability, credited if missed). Aggregate liability is capped at fees paid in the preceding 12 months.</p>
 <h2>7. Governing law</h2><p>Democratic Republic of the Congo, with per-market annexes where local law requires. Disputes go to good-faith negotiation first.</p>`,
   }),
 
@@ -1189,7 +1191,7 @@ function kodaContactSubmit(e){
 <li>Verification, fraud scoring, reconciliation and the audit trail — the product itself.</li>
 <li>Customer msisdn is masked everywhere outside the fraud pipeline.</li>
 <li>Communications per the event catalogue; mandatory service notices bypass marketing opt-outs, never marketing.</li></ul>
-<h2>Where it lives</h2><p>GCP (europe-west default) with per-market in-country residency options where mandated. Append-only event store: every verification is replayable for disputes and regulators.</p>
+<h2>Where it lives</h2><p>Managed cloud hosting in a primary region, with per-market in-country residency available on Enterprise engagements where mandated. Append-only event store: every verification is replayable for disputes and regulators.</p>
 <h2>Your rights</h2><p>Access, export (machine-readable), correction and deletion via Settings or <code>koda@kodajnn.com</code>. DPIA published. Consent copy written by humans, French first.</p>`,
   }),
 
@@ -1202,7 +1204,7 @@ function kodaContactSubmit(e){
 <tr><td>Terms of Service</td><td>The service contract, billing, SLA, acceptable use</td><td><a href="/terms">Read →</a></td></tr>
 <tr><td>Privacy Policy</td><td>Operator-payment capture (SMS or notification), masking, residency, your rights</td><td><a href="/privacy">Read →</a></td></tr>
 <tr><td>Growth Partner Terms</td><td>Referral ladder, Verified Net Revenue, anti-fraud, payouts</td><td><a href="/growth">Read →</a></td></tr>
-<tr><td>SLA (Commerce+)</td><td>99.9% API availability · p95 &lt; 5 s KODA-side · credited if missed</td><td><a href="/terms">Read →</a></td></tr>
+<tr><td>SLA (Commerce+)</td><td>targeted 99.9% API availability · p95 &lt; 5 s KODA-side · credited if missed</td><td><a href="/terms">Read →</a></td></tr>
 <tr><td>Data Processing Addendum</td><td>Controller/processor roles, sub-processors, residency</td><td><a href="/contact">Request →</a></td></tr>
 <tr><td>Responsible Disclosure</td><td>Security reports: <code>koda@kodajnn.com</code> — safe harbour for good-faith research</td><td><a href="/contact">Report →</a></td></tr>
 <tr><td>API Deprecation Policy</td><td>Versioned API, 12-month windows, no breaking changes inside a version</td><td><a href="/developers">Read →</a></td></tr>
