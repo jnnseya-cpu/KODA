@@ -1,0 +1,6 @@
+# deck generator deps — reinstall with: npm install (see build-deck.js requires)
+node_modules/
+# render/QA artifacts
+slide-*.jpg
+thumbnails*.jpg
+*.pdf
