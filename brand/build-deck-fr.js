@@ -1,4 +1,4 @@
-// KODA — deck commercial (français). Charte vert foncé + or, affirmations honnêtes.
+// KODA — deck commercial conversion commerçant (français). Vert foncé + or, honnête.
 const pptxgen = require('pptxgenjs');
 const React = require('react');
 const ReactDOMServer = require('react-dom/server');
@@ -18,27 +18,25 @@ async function icon(Comp, colorHex, size = 256) {
 }
 
 (async () => {
-  const ICON = {};
-  const want = { edit: Fi.FiEdit3, chat: Fi.FiMessageCircle, code: Fi.FiCode, hash: Fi.FiHash, inbox: Fi.FiInbox,
-    bag: Fi.FiShoppingBag, grid: Fi.FiGrid, share: Fi.FiShare2, home: Fi.FiHome, shield: Fi.FiShield, lock: Fi.FiLock, zap: Fi.FiZap, check: Fi.FiCheckCircle };
-  for (const [k, C] of Object.entries(want)) ICON[k] = C ? await icon(C, GOLD) : null;
-  const ICOND = {}; ICOND.check = Fi.FiCheckCircle ? await icon(Fi.FiCheckCircle, GOLD) : null;
+  const NAMES = { edit: Fi.FiEdit3, chat: Fi.FiMessageCircle, code: Fi.FiCode, hash: Fi.FiHash, inbox: Fi.FiInbox,
+    lock: Fi.FiLock, shield: Fi.FiShield, check: Fi.FiCheckCircle, zap: Fi.FiZap, x: Fi.FiXCircle };
+  const ICON = {}; for (const [k, C] of Object.entries(NAMES)) ICON[k] = C ? await icon(C, GOLD) : null;
+  const CHECKD = Fi.FiCheckCircle ? await icon(Fi.FiCheckCircle, GOLD) : null;
+  const XD = Fi.FiXCircle ? await icon(Fi.FiXCircle, DIM) : null;
 
   const p = new pptxgen();
   p.defineLayout({ name: 'W', width: 13.333, height: 7.5 }); p.layout = 'W';
   const W = 13.333, H = 7.5, M = 0.62;
 
   const bg = (s, c) => { s.background = { color: c }; };
-  const kicker = (s, t, x, y, col = GOLD, w = 9) => s.addText(t, { isTextBox: true, x, y, w, h: 0.3, margin: 0, fontFace: MONO, fontSize: 11.5, color: col, charSpacing: 3, bold: true, align: 'left' });
+  const kicker = (s, t, x, y, col = GOLD, w = 11) => s.addText(t, { isTextBox: true, x, y, w, h: 0.3, margin: 0, fontFace: MONO, fontSize: 11.5, color: col, charSpacing: 2.5, bold: true, align: 'left' });
   const shadow = () => ({ type: 'outer', color: '000000', opacity: 0.35, blur: 10, offset: 4, angle: 90 });
   const card = (s, x, y, w, h, fill = CARD) => s.addShape(p.ShapeType.roundRect, { x, y, w, h, rectRadius: 0.11, fill: { color: fill }, line: { color: LINE, width: 1 }, shadow: shadow() });
   const iconChip = (s, key, x, y, d = 0.62, ring = CARD2) => {
     s.addShape(p.ShapeType.roundRect, { x, y, w: d, h: d, rectRadius: 0.1, fill: { color: ring }, line: { color: GOLD, width: 1 } });
     if (ICON[key]) s.addImage({ data: ICON[key], x: x + d * 0.2, y: y + d * 0.2, w: d * 0.6, h: d * 0.6 });
   };
-  const foot = (s, dark = true) => s.addText(
-    [{ text: 'kodajnn.com', options: { color: dark ? GOLD : INK, bold: true } },
-     { text: '   ·   Groupe Nseya Digital  ·  Kinshasa, RD Congo', options: { color: dark ? DIM : '6B7A6E' } }],
+  const foot = (s) => s.addText([{ text: 'kodajnn.com', options: { color: GOLD, bold: true } }, { text: '   ·   Groupe Nseya Digital  ·  Kinshasa, RD Congo', options: { color: DIM } }],
     { isTextBox: true, x: M, y: H - 0.5, w: W - 2 * M, h: 0.3, margin: 0, fontFace: MONO, fontSize: 9.5, align: 'left' });
 
   // 1 · TITRE
@@ -47,43 +45,43 @@ async function icon(Comp, colorHex, size = 256) {
   s.addText('KODA', { isTextBox: true, x: M, y: 1.35, w: 8, h: 1.5, margin: 0, fontFace: DISP, fontSize: 96, bold: true, color: GOLD, charSpacing: 6 });
   s.addText([{ text: 'Une capture peut être truquée.', options: { color: TEXT, breakLine: true } }, { text: 'Le SMS, non.', options: { color: GOLDBR } }],
     { isTextBox: true, x: M, y: 2.95, w: 12.1, h: 1.8, margin: 0, fontFace: DISP, fontSize: 50, bold: true, lineSpacingMultiple: 1.0 });
-  s.addText('Vérifiez n’importe quel paiement mobile money grâce au SMS de confirmation de l’opérateur. Sans contrat télécom. Sans code à coller. Un verdict en quelques secondes.',
-    { isTextBox: true, x: M, y: 5.15, w: 10.2, h: 1.1, margin: 0, fontFace: BODY, fontSize: 17, color: DIM, lineSpacingMultiple: 1.15 });
+  s.addText('Ne perdez plus d’argent à cause de fausses captures. Vérifiez chaque paiement mobile money grâce au SMS de confirmation de l’opérateur — en quelques secondes. Gratuit pour commencer.',
+    { isTextBox: true, x: M, y: 5.15, w: 10.4, h: 1.1, margin: 0, fontFace: BODY, fontSize: 16.5, color: DIM, lineSpacingMultiple: 1.15 });
   foot(s);
 
   // 2 · PROBLÈME
   s = p.addSlide(); bg(s, INK2);
   kicker(s, 'LE PROBLÈME', M, 0.7);
-  s.addText('Le commerce finit encore par\n« envoie-moi une capture ».', { isTextBox: true, x: M, y: 1.05, w: 8.6, h: 1.6, margin: 0, fontFace: DISP, fontSize: 36, bold: true, color: TEXT, lineSpacingMultiple: 1.0 });
+  s.addText('Chaque fausse capture, c’est de l’argent\nen moins dans votre poche.', { isTextBox: true, x: M, y: 1.0, w: 8.6, h: 1.7, margin: 0, fontFace: DISP, fontSize: 33, bold: true, color: TEXT, lineSpacingMultiple: 1.0 });
   const probs = [
-    ['Une capture ne prouve rien', 'Elle peut être modifiée, réutilisée ou inventée en quelques secondes — invisible pour le commerçant.'],
-    ['La marchandise part avant l’argent', 'Livrer contre une fausse confirmation, et la perte est immédiate et totale.'],
-    ['Le rapprochement est manuel', 'Associer paiements et commandes à la main est lent, source d’erreurs, et ne passe pas à l’échelle.'],
+    ['Impossible de savoir si c’est vrai', 'Une capture est modifiée, réutilisée ou inventée en quelques secondes — et ressemble à s’y méprendre à une vraie.'],
+    ['La marchandise part, pas l’argent', 'Livrez contre une fausse confirmation et la perte est pour vous — immédiate et totale.'],
+    ['Vérifier à la main gâche vos journées', 'Faire défiler les SMS et rapprocher les paiements un par un ne tient pas au-delà de quelques ventes.'],
   ];
   probs.forEach((r, i) => {
     const y = 2.95 + i * 1.32; card(s, M, y, 7.4, 1.15);
-    iconChip(s, 'shield', M + 0.28, y + 0.28, 0.58);
-    s.addText(r[0], { isTextBox: true, x: M + 1.12, y: y + 0.15, w: 6.05, h: 0.4, margin: 0, fontFace: DISP, fontSize: 15.5, bold: true, color: TEXT });
-    s.addText(r[1], { isTextBox: true, x: M + 1.12, y: y + 0.54, w: 6.1, h: 0.55, margin: 0, fontFace: BODY, fontSize: 12, color: DIM, lineSpacingMultiple: 1.05 });
+    iconChip(s, 'x', M + 0.28, y + 0.28, 0.58);
+    s.addText(r[0], { isTextBox: true, x: M + 1.12, y: y + 0.14, w: 6.05, h: 0.4, margin: 0, fontFace: DISP, fontSize: 15, bold: true, color: TEXT });
+    s.addText(r[1], { isTextBox: true, x: M + 1.12, y: y + 0.52, w: 6.1, h: 0.58, margin: 0, fontFace: BODY, fontSize: 11.5, color: DIM, lineSpacingMultiple: 1.03 });
   });
   card(s, 8.5, 2.95, 4.2, 3.7, INK);
-  s.addText('CLIENT', { isTextBox: true, x: 8.8, y: 3.2, w: 3.6, h: 0.3, margin: 0, fontFace: MONO, fontSize: 9, color: DIM, charSpacing: 2 });
+  s.addText('VOTRE CLIENT', { isTextBox: true, x: 8.8, y: 3.2, w: 3.6, h: 0.3, margin: 0, fontFace: MONO, fontSize: 9, color: DIM, charSpacing: 2 });
   s.addShape(p.ShapeType.roundRect, { x: 8.8, y: 3.55, w: 3.2, h: 0.75, rectRadius: 0.1, fill: { color: CARD }, line: { color: LINE, width: 1 } });
   s.addText('« J’ai payé ! Voici la capture 📸 »', { isTextBox: true, x: 8.95, y: 3.6, w: 3.0, h: 0.65, margin: 0, fontFace: BODY, fontSize: 12, color: TEXT, valign: 'middle' });
   s.addShape(p.ShapeType.roundRect, { x: 9.5, y: 4.55, w: 2.9, h: 0.75, rectRadius: 0.1, fill: { color: CARD2 }, line: { color: GOLD, width: 1 } });
   s.addText('« …est-ce vrai ? »', { isTextBox: true, x: 9.65, y: 4.6, w: 2.6, h: 0.65, margin: 0, fontFace: BODY, fontSize: 12, italic: true, color: GOLDBR, valign: 'middle', align: 'right' });
-  s.addText('Chaque commerçant, chaque jour — sans aucun moyen de savoir.', { isTextBox: true, x: 8.8, y: 5.6, w: 3.6, h: 0.8, margin: 0, fontFace: BODY, fontSize: 12.5, color: DIM });
+  s.addText('Vous, chaque jour — sans aucun moyen de savoir.', { isTextBox: true, x: 8.8, y: 5.6, w: 3.6, h: 0.8, margin: 0, fontFace: BODY, fontSize: 12.5, color: DIM });
   foot(s);
 
-  // 3 · POURQUOI NON RÉSOLU
+  // 3 · POURQUOI ENCORE LA CAPTURE
   s = p.addSlide(); bg(s, INK);
-  kicker(s, 'POURQUOI ÇA RESTE NON RÉSOLU', M, 0.7);
-  s.addText('La « vraie » solution prend 6 à 18 mois —\npar opérateur, par pays.', { isTextBox: true, x: M, y: 1.05, w: 11.9, h: 1.5, margin: 0, fontFace: DISP, fontSize: 34, bold: true, color: TEXT, lineSpacingMultiple: 1.0 });
+  kicker(s, 'POURQUOI VOUS EN ÊTES ENCORE À LA CAPTURE', M, 0.7);
+  s.addText('La « vraie » solution : un contrat télécom\nque vous n’aurez jamais.', { isTextBox: true, x: M, y: 1.05, w: 11.9, h: 1.5, margin: 0, fontFace: DISP, fontSize: 32, bold: true, color: TEXT, lineSpacingMultiple: 1.0 });
   s.addText([
-    { text: 'La voie classique : négocier un accès API B2B avec chaque opérateur.', options: { breakLine: true, color: TEXT, bold: true, paraSpaceAfter: 8 } },
-    { text: 'Contrats longs. Pays par pays. Et un refus catégorique fréquent pour les PME qui en ont le plus besoin.', options: { breakLine: true, color: DIM, paraSpaceAfter: 8 } },
-    { text: 'Alors la plupart du commerce mobile money n’y accède jamais — et revient à la capture d’écran.', options: { color: DIM } },
-  ], { isTextBox: true, x: M, y: 2.9, w: 7.1, h: 2.4, margin: 0, fontFace: BODY, fontSize: 15, lineSpacingMultiple: 1.12 });
+    { text: 'Un accès direct à l’API opérateur, c’est 6 à 18 mois de négociation B2B — par opérateur, par pays.', options: { breakLine: true, color: TEXT, bold: true, paraSpaceAfter: 8 } },
+    { text: 'Et les PME se voient régulièrement refuser l’accès.', options: { breakLine: true, color: DIM, paraSpaceAfter: 8 } },
+    { text: 'Alors des millions de vendeurs en restent à la capture. Jusqu’à maintenant.', options: { color: GOLDBR, bold: true } },
+  ], { isTextBox: true, x: M, y: 2.95, w: 7.1, h: 2.4, margin: 0, fontFace: BODY, fontSize: 15, lineSpacingMultiple: 1.12 });
   const barX = 8.15, barW = 4.55;
   card(s, barX, 2.9, barW, 3.4, INK2);
   s.addText('DÉLAI DE MISE EN SERVICE', { isTextBox: true, x: barX + 0.3, y: 3.15, w: barW - 0.6, h: 0.3, margin: 0, fontFace: MONO, fontSize: 9, color: DIM, charSpacing: 1.5 });
@@ -104,7 +102,7 @@ async function icon(Comp, colorHex, size = 256) {
     { text: 'SMS de confirmation.', options: { color: INK, breakLine: true, fontSize: 30, bold: true } },
     { text: 'Ce SMS, c’est l’API.', options: { color: INK, fontSize: 58, bold: true } },
   ], { isTextBox: true, x: M, y: 1.9, w: 12.1, h: 3.0, margin: 0, fontFace: DISP, lineSpacingMultiple: 1.05 });
-  s.addText('KODA lit le SMS que le commerçant reçoit déjà — référence, montant, expéditeur, solde — et le transforme en une vérité vérifiable, verrouillée contre le rejeu. Aucune intégration opérateur. Jamais.',
+  s.addText('KODA lit le SMS que vous recevez déjà — référence, montant, expéditeur, solde — et le transforme en une vérité vérifiable, verrouillée contre le rejeu. Aucune intégration opérateur. Jamais.',
     { isTextBox: true, x: M, y: 5.35, w: 11.6, h: 1.15, margin: 0, fontFace: BODY, fontSize: 17.5, color: '3D2E08', lineSpacingMultiple: 1.12 });
 
   // 5 · COMMENT ÇA MARCHE
@@ -113,7 +111,7 @@ async function icon(Comp, colorHex, size = 256) {
   s.addText('Votre client paie exactement comme hier.', { isTextBox: true, x: M, y: 1.05, w: 12, h: 0.7, margin: 0, fontFace: DISP, fontSize: 30, bold: true, color: TEXT });
   const steps = [
     ['Le client paie', 'En mobile money vers votre numéro marchand habituel — rien de nouveau à apprendre.'],
-    ['Le SMS opérateur arrive', 'Le SMS de confirmation arrive sur le téléphone du commerçant, comme toujours.'],
+    ['Le SMS opérateur arrive', 'Le SMS de confirmation arrive sur votre téléphone, exactement comme toujours.'],
     ['KODA lit et rapproche', 'Il analyse le SMS, rapproche le code du client et passe les contrôles anti-fraude.'],
     ['Verdict en ~3 s', 'Livré là où vous travaillez : un webhook, un ✅ dans le chat, ou une carte verte dans la console.'],
   ];
@@ -127,11 +125,30 @@ async function icon(Comp, colorHex, size = 256) {
   });
   foot(s);
 
-  // 6 · CINQ PORTES
+  // 6 · LA SEULE CONDITION
   s = p.addSlide(); bg(s, INK);
+  kicker(s, 'LA SEULE CONDITION', M, 0.7);
+  s.addText('Si votre opérateur VOUS écrit quand vous êtes payé, KODA fonctionne.', { isTextBox: true, x: M, y: 1.05, w: 12.2, h: 0.8, margin: 0, fontFace: DISP, fontSize: 28, bold: true, color: TEXT });
+  s.addText('KODA vérifie grâce au SMS de confirmation que votre opérateur mobile money envoie déjà à votre numéro marchand. Toute la liste :', { isTextBox: true, x: M, y: 1.9, w: 12.0, h: 0.5, margin: 0, fontFace: BODY, fontSize: 14, color: DIM });
+  const reqs = [
+    ['Vous acceptez le mobile money', 'Orange Money, M-Pesa, Airtel, Afrimoney, MTN, Wave — et plus de 200 opérateurs.'],
+    ['Le SMS de confirmation arrive sur votre téléphone', 'Celui que votre opérateur envoie à votre numéro marchand à chaque paiement.'],
+    ['C’est tout — vous êtes prêt', 'Aucune nouvelle SIM. Aucun nouveau numéro. Rien à installer pour votre client.'],
+  ];
+  const rw = (W - 2 * M - 2 * 0.3) / 3;
+  reqs.forEach((r, i) => {
+    const x = M + i * (rw + 0.3), y = 2.65; card(s, x, y, rw, 3.15);
+    iconChip(s, 'check', x + 0.3, y + 0.3, 0.72);
+    s.addText(r[0], { isTextBox: true, x: x + 0.3, y: y + 1.22, w: rw - 0.6, h: 0.85, margin: 0, fontFace: DISP, fontSize: 15, bold: true, color: GOLDBR });
+    s.addText(r[1], { isTextBox: true, x: x + 0.3, y: y + 2.05, w: rw - 0.6, h: 1.0, margin: 0, fontFace: BODY, fontSize: 12, color: DIM, lineSpacingMultiple: 1.1 });
+  });
+  foot(s);
+
+  // 7 · CINQ PORTES
+  s = p.addSlide(); bg(s, INK2);
   kicker(s, 'S’ADAPTE À CHAQUE COMMERÇANT', M, 0.7);
   s.addText('Un moteur. Cinq portes.', { isTextBox: true, x: M, y: 1.05, w: 8, h: 0.7, margin: 0, fontFace: DISP, fontSize: 34, bold: true, color: TEXT });
-  s.addText('Du paiement sur smartphone au téléphone simple sans internet — le client confirme comme il peut.', { isTextBox: true, x: M, y: 1.72, w: 11.9, h: 0.5, margin: 0, fontFace: BODY, fontSize: 14.5, color: DIM });
+  s.addText('Du paiement sur smartphone au téléphone simple sans internet — votre client confirme comme il peut.', { isTextBox: true, x: M, y: 1.72, w: 11.9, h: 0.5, margin: 0, fontFace: BODY, fontSize: 14.5, color: DIM });
   const doors = [
     ['edit', 'Manuel', 'Collez le code dans la Console — aucun code à écrire.'],
     ['chat', 'WhatsApp', 'Le code déposé dans le chat est vérifié dans la conversation.'],
@@ -148,8 +165,8 @@ async function icon(Comp, colorHex, size = 256) {
   });
   foot(s);
 
-  // 7 · ANTI-FRAUDE
-  s = p.addSlide(); bg(s, INK2);
+  // 8 · ANTI-FRAUDE
+  s = p.addSlide(); bg(s, INK);
   kicker(s, 'ANTI-FRAUDE, PAR CONCEPTION', M, 0.7);
   s.addText('Conçu pour qu’on lui mente.', { isTextBox: true, x: M, y: 1.05, w: 10, h: 0.8, margin: 0, fontFace: DISP, fontSize: 38, bold: true, color: TEXT });
   s.addText('La vérité vient du côté commerçant, émise par l’opérateur — jamais de ce que l’acheteur peut taper ou modifier.', { isTextBox: true, x: M, y: 1.85, w: 11.9, h: 0.5, margin: 0, fontFace: BODY, fontSize: 14.5, color: DIM });
@@ -160,15 +177,37 @@ async function icon(Comp, colorHex, size = 256) {
     ['zap', 'Trois niveaux de confiance honnêtes', 'Chaque reçu indique la force de la preuve : auto-déclaré, ancré à l’appareil ou confirmé par l’opérateur.'],
   ];
   guards.forEach((g, i) => {
-    const col = i % 2, row = Math.floor(i / 2);
-    const x = M + col * 6.1, y = 2.5 + row * 1.78; card(s, x, y, 5.85, 1.6);
+    const col = i % 2, row = Math.floor(i / 2); const x = M + col * 6.1, y = 2.5 + row * 1.78; card(s, x, y, 5.85, 1.6);
     iconChip(s, g[0], x + 0.28, y + 0.3, 0.6);
     s.addText(g[1], { isTextBox: true, x: x + 1.1, y: y + 0.18, w: 4.6, h: 0.4, margin: 0, fontFace: DISP, fontSize: 15, bold: true, color: GOLDBR });
     s.addText(g[2], { isTextBox: true, x: x + 1.1, y: y + 0.6, w: 4.62, h: 0.9, margin: 0, fontFace: BODY, fontSize: 11.8, color: DIM, lineSpacingMultiple: 1.06 });
   });
   foot(s);
 
-  // 8 · COUVERTURE
+  // 9 · CE QUE KODA EST — ET N'EST PAS (CRÈME · clause)
+  s = p.addSlide(); bg(s, CREAM);
+  kicker(s, 'CE QUE KODA EST — ET N’EST PAS', M, 0.7, GOLD);
+  s.addText('Nous vérifions vos paiements. Nous ne touchons jamais à votre argent.', { isTextBox: true, x: M, y: 1.05, w: 12.2, h: 0.9, margin: 0, fontFace: DISP, fontSize: 28, bold: true, color: INK });
+  s.addShape(p.ShapeType.roundRect, { x: M, y: 2.3, w: 5.85, h: 2.25, rectRadius: 0.1, fill: { color: 'FFFFFF' }, line: { color: 'E4DCC6', width: 1 } });
+  s.addShape(p.ShapeType.roundRect, { x: M + 0.3, y: 2.57, w: 0.6, h: 0.6, rectRadius: 0.1, fill: { color: INK } });
+  if (CHECKD) s.addImage({ data: CHECKD, x: M + 0.42, y: 2.69, w: 0.36, h: 0.36 });
+  s.addText('KODA EST', { isTextBox: true, x: M + 1.1, y: 2.63, w: 4.5, h: 0.4, margin: 0, fontFace: DISP, fontSize: 17, bold: true, color: INK });
+  s.addText('Un service de VÉRIFICATION des paiements. Il lit la confirmation de l’opérateur, la note contre la fraude, la verrouille contre le rejeu, et vous dit en quelques secondes ce qui est réel.',
+    { isTextBox: true, x: M + 0.32, y: 3.3, w: 5.25, h: 1.1, margin: 0, fontFace: BODY, fontSize: 12.5, color: '46534A', lineSpacingMultiple: 1.1 });
+  const nx = M + 6.25;
+  s.addShape(p.ShapeType.roundRect, { x: nx, y: 2.3, w: 5.85, h: 2.25, rectRadius: 0.1, fill: { color: 'FFFFFF' }, line: { color: 'E4DCC6', width: 1 } });
+  s.addShape(p.ShapeType.roundRect, { x: nx + 0.3, y: 2.57, w: 0.6, h: 0.6, rectRadius: 0.1, fill: { color: 'EAE1CB' } });
+  if (XD) s.addImage({ data: XD, x: nx + 0.42, y: 2.69, w: 0.36, h: 0.36 });
+  s.addText('KODA N’EST PAS', { isTextBox: true, x: nx + 1.1, y: 2.63, w: 4.5, h: 0.4, margin: 0, fontFace: DISP, fontSize: 17, bold: true, color: '6B7A6E' });
+  s.addText('Une banque, un portefeuille, un processeur de paiement, un agrégateur, un séquestre ou un émetteur de monnaie. Il ne détient, ne déplace ni ne règle jamais de fonds.',
+    { isTextBox: true, x: nx + 0.32, y: 3.3, w: 5.25, h: 1.1, margin: 0, fontFace: BODY, fontSize: 12.5, color: '46534A', lineSpacingMultiple: 1.1 });
+  s.addText([
+    { text: 'Votre argent va directement du client à vous, sur le réseau propre de l’opérateur. ', options: { color: INK, bold: true } },
+    { text: 'La vérification repose sur les confirmations opérateur côté commerçant — notée contre la fraude et protégée contre le rejeu — mais ne garantit pas contre les annulations côté opérateur ni ne constitue une preuve de règlement. KODA vous informe en premier.', options: { color: '5A6A5E' } },
+  ], { isTextBox: true, x: M, y: 4.78, w: W - 2 * M, h: 1.4, margin: 0, fontFace: BODY, fontSize: 12.5, lineSpacingMultiple: 1.16 });
+  s.addText('kodajnn.com   ·   Groupe Nseya Digital  ·  Kinshasa, RD Congo', { isTextBox: true, x: M, y: H - 0.5, w: W - 2 * M, h: 0.3, margin: 0, fontFace: MONO, fontSize: 9.5, color: '8A968C' });
+
+  // 10 · COUVERTURE
   s = p.addSlide(); bg(s, INK);
   kicker(s, 'MONDIAL PAR CONCEPTION', M, 0.7);
   s.addText('La couverture est une carte d’analyse — pas une pile de contrats.', { isTextBox: true, x: M, y: 1.05, w: 12.1, h: 0.7, margin: 0, fontFace: DISP, fontSize: 29, bold: true, color: TEXT });
@@ -188,7 +227,7 @@ async function icon(Comp, colorHex, size = 256) {
   ], { isTextBox: true, x: M + 0.35, y: 4.78, w: W - 2 * M - 0.7, h: 1.3, margin: 0, fontFace: BODY, fontSize: 13.5, lineSpacingMultiple: 1.12 });
   foot(s);
 
-  // 9 · LE MODÈLE
+  // 11 · LE MODÈLE
   s = p.addSlide(); bg(s, INK2);
   kicker(s, 'LE MODÈLE', M, 0.7);
   s.addText('Gratuit jusqu’à ce que votre commerçant soit vraiment payé.', { isTextBox: true, x: M, y: 1.05, w: 12.1, h: 0.7, margin: 0, fontFace: DISP, fontSize: 29, bold: true, color: TEXT });
@@ -204,63 +243,45 @@ async function icon(Comp, colorHex, size = 256) {
   card(s, M, 5.1, W - 2 * M, 1.2, INK);
   s.addText([
     { text: '« Payez seulement quand votre commerçant est payé. »  ', options: { color: GOLDBR, bold: true, italic: true } },
-    { text: 'Au-delà du quota, les ACU prépayés — rechargés via mobile money et vérifiés par le moteur de KODA — couvrent le dépassement et les fonctions IA. Le tarif inclus d’un forfait bat toujours le paiement à l’usage.', options: { color: TEXT } },
-  ], { isTextBox: true, x: M + 0.35, y: 5.3, w: W - 2 * M - 0.7, h: 0.85, margin: 0, fontFace: BODY, fontSize: 12.5, lineSpacingMultiple: 1.1 });
+    { text: 'Commencez gratuitement à vie — 10 vérifications par mois, sans carte. Au-delà, les ACU prépayés (rechargés via mobile money, vérifiés par le moteur de KODA) couvrent le dépassement. Le tarif inclus d’un forfait bat toujours le paiement à l’usage.', options: { color: TEXT } },
+  ], { isTextBox: true, x: M + 0.35, y: 5.28, w: W - 2 * M - 0.7, h: 0.9, margin: 0, fontFace: BODY, fontSize: 12, lineSpacingMultiple: 1.08 });
   foot(s);
 
-  // 10 · POUR QUI
+  // 12 · COMMENCEZ EN 3 ÉTAPES
   s = p.addSlide(); bg(s, INK);
-  kicker(s, 'POUR QUI', M, 0.7);
-  s.addText('Une couche de vérité, pour tout type de vendeur.', { isTextBox: true, x: M, y: 1.05, w: 12, h: 0.7, margin: 0, fontFace: DISP, fontSize: 30, bold: true, color: TEXT });
-  const auds = [
-    ['bag', 'Commerçants & PME', 'Restauration, commerce, transport, hôtellerie — vérifiez avant de remettre la marchandise.'],
-    ['grid', 'Places de marché & plateformes', 'API sous-marchand, clés limitées, scores de confiance — intégrez des milliers de marchands en gros.'],
-    ['share', 'Distributeurs & revendeurs', 'ACU en gros, rails de dépôt-garantie et bons PIN pour revendre KODA en aval.'],
-    ['home', 'Services publics, IMF & Gouv.', 'Rapprochement en masse et traces de décision de qualité audit pour chaque vérification.'],
+  kicker(s, 'COMMENCEZ DANS LES 10 PROCHAINES MINUTES', M, 0.7);
+  s.addText('Gratuit à vie. Sans carte. Sans contrat.', { isTextBox: true, x: M, y: 1.05, w: 12, h: 0.7, margin: 0, fontFace: DISP, fontSize: 32, bold: true, color: TEXT });
+  const start = [
+    ['Créez un compte gratuit', 'En une minute — 10 vérifications par mois, gratuites à vie.'],
+    ['Ajoutez votre numéro mobile money', 'Le numéro marchand sur lequel arrive déjà le SMS de confirmation.'],
+    ['Vérifiez votre premier paiement', 'Collez le code du client — un verdict anti-fraude en trois secondes environ.'],
   ];
-  const aw = (W - 2 * M - 3 * 0.3) / 4;
-  auds.forEach((a, i) => {
-    const x = M + i * (aw + 0.3), y = 2.35; card(s, x, y, aw, 3.55);
-    iconChip(s, a[0], x + 0.28, y + 0.32, 0.7);
-    s.addText(a[1], { isTextBox: true, x: x + 0.26, y: y + 1.25, w: aw - 0.5, h: 0.8, margin: 0, fontFace: DISP, fontSize: 14.5, bold: true, color: GOLDBR });
-    s.addText(a[2], { isTextBox: true, x: x + 0.26, y: y + 2.02, w: aw - 0.5, h: 1.45, margin: 0, fontFace: BODY, fontSize: 12, color: DIM, lineSpacingMultiple: 1.1 });
+  const sw3 = (W - 2 * M - 2 * 0.3) / 3;
+  start.forEach((st, i) => {
+    const x = M + i * (sw3 + 0.3), y = 2.5; card(s, x, y, sw3, 2.9);
+    s.addShape(p.ShapeType.ellipse, { x: x + 0.3, y: y + 0.32, w: 0.72, h: 0.72, fill: { color: GOLD } });
+    s.addText(String(i + 1), { isTextBox: true, x: x + 0.3, y: y + 0.32, w: 0.72, h: 0.72, margin: 0, fontFace: DISP, fontSize: 26, bold: true, color: INK, align: 'center', valign: 'middle' });
+    s.addText(st[0], { isTextBox: true, x: x + 0.3, y: y + 1.18, w: sw3 - 0.6, h: 0.75, margin: 0, fontFace: DISP, fontSize: 16, bold: true, color: GOLDBR });
+    s.addText(st[1], { isTextBox: true, x: x + 0.3, y: y + 1.92, w: sw3 - 0.6, h: 0.9, margin: 0, fontFace: BODY, fontSize: 12.5, color: DIM, lineSpacingMultiple: 1.1 });
   });
+  s.addShape(p.ShapeType.roundRect, { x: M, y: 5.75, w: 5.5, h: 0.62, rectRadius: 0.31, fill: { color: GOLD } });
+  s.addText('Commencer gratuitement  →  kodajnn.com/app', { isTextBox: true, x: M, y: 5.75, w: 5.5, h: 0.62, margin: 0, fontFace: DISP, fontSize: 14.5, bold: true, color: INK, align: 'center', valign: 'middle' });
   foot(s);
 
-  // 11 · POURQUOI MAINTENANT (CRÈME)
-  s = p.addSlide(); bg(s, CREAM);
-  kicker(s, 'POURQUOI KODA, POURQUOI MAINTENANT', M, 0.85, GOLD);
-  s.addText('Ça marche aujourd’hui — et c’est honnête sur ce que ça fait.', { isTextBox: true, x: M, y: 1.25, w: 12.2, h: 0.9, margin: 0, fontFace: DISP, fontSize: 31, bold: true, color: INK });
-  const whys = [
-    ['Opérationnel maintenant, pas un jour', 'Un moteur sans dépendance qui vérifie déjà sur cinq portes — pas une feuille de route.'],
-    ['Honnête par conception', 'Aucune preuve fabriquée ; les chiffres de couverture viennent directement du registre en direct.'],
-    ['Vous ne déplacez jamais l’argent', 'KODA vérifie les paiements et vous informe en premier — les fonds vont droit à votre portefeuille.'],
-    ['Pensé pour toute l’Afrique', 'La RDC d’abord ; chaque opérateur partageant une même grammaire SMS ouvre toute sa carte d’un coup.'],
-  ];
-  whys.forEach((w2, i) => {
-    const col = i % 2, row = Math.floor(i / 2); const x = M + col * 6.1, y = 2.55 + row * 1.75;
-    s.addShape(p.ShapeType.roundRect, { x, y, w: 5.85, h: 1.5, rectRadius: 0.1, fill: { color: 'FFFFFF' }, line: { color: 'E4DCC6', width: 1 } });
-    s.addShape(p.ShapeType.roundRect, { x: x + 0.26, y: y + 0.3, w: 0.6, h: 0.6, rectRadius: 0.1, fill: { color: INK } });
-    if (ICOND.check) s.addImage({ data: ICOND.check, x: x + 0.26 + 0.12, y: y + 0.3 + 0.12, w: 0.36, h: 0.36 });
-    s.addText(w2[0], { isTextBox: true, x: x + 1.06, y: y + 0.18, w: 4.62, h: 0.4, margin: 0, fontFace: DISP, fontSize: 14.5, bold: true, color: INK });
-    s.addText(w2[1], { isTextBox: true, x: x + 1.06, y: y + 0.6, w: 4.62, h: 0.8, margin: 0, fontFace: BODY, fontSize: 12, color: '5A6A5E', lineSpacingMultiple: 1.06 });
-  });
-  s.addText('kodajnn.com   ·   Groupe Nseya Digital  ·  Kinshasa, RD Congo', { isTextBox: true, x: M, y: H - 0.5, w: W - 2 * M, h: 0.3, margin: 0, fontFace: MONO, fontSize: 9.5, color: '8A968C' });
-
-  // 12 · CLÔTURE
+  // 13 · CLÔTURE
   s = p.addSlide(); bg(s, INK);
-  s.addText('KODA', { isTextBox: true, x: M, y: 1.45, w: 8, h: 1.1, margin: 0, fontFace: DISP, fontSize: 60, bold: true, color: GOLD, charSpacing: 5 });
-  s.addText('Vérifiez votre premier paiement gratuitement.', { isTextBox: true, x: M, y: 2.7, w: 12.1, h: 1.1, margin: 0, fontFace: DISP, fontSize: 40, bold: true, color: TEXT });
-  s.addText('Une capture peut être truquée. Le SMS, non.', { isTextBox: true, x: M, y: 3.85, w: 12, h: 0.6, margin: 0, fontFace: BODY, fontSize: 19, italic: true, color: GOLDBR });
+  s.addText('KODA', { isTextBox: true, x: M, y: 1.35, w: 8, h: 1.1, margin: 0, fontFace: DISP, fontSize: 58, bold: true, color: GOLD, charSpacing: 5 });
+  s.addText('Vérifiez votre premier paiement\ngratuitement — maintenant.', { isTextBox: true, x: M, y: 2.55, w: 12.1, h: 1.5, margin: 0, fontFace: DISP, fontSize: 38, bold: true, color: TEXT, lineSpacingMultiple: 0.98 });
+  s.addText('Une capture peut être truquée. Le SMS, non.  ·  Gratuit à vie, sans carte.', { isTextBox: true, x: M, y: 4.15, w: 12.1, h: 0.5, margin: 0, fontFace: BODY, fontSize: 16.5, italic: true, color: GOLDBR });
   const chips = [['Site', 'kodajnn.com'], ['WhatsApp', '+243 828 139 153'], ['E-mail', 'koda@kodajnn.com']];
   chips.forEach((c, i) => {
-    const x = M + i * 4.0, y = 5.1; card(s, x, y, 3.7, 1.0, INK2);
+    const x = M + i * 4.0, y = 5.05; card(s, x, y, 3.7, 1.0, INK2);
     s.addText(c[0].toUpperCase(), { isTextBox: true, x: x + 0.3, y: y + 0.18, w: 3.1, h: 0.3, margin: 0, fontFace: MONO, fontSize: 9.5, color: DIM, charSpacing: 2 });
     s.addText(c[1], { isTextBox: true, x: x + 0.3, y: y + 0.46, w: 3.2, h: 0.4, margin: 0, fontFace: DISP, fontSize: 16, bold: true, color: GOLDBR });
   });
-  s.addText('KODA — Groupe Nseya Digital / JNN Global Ltd  ·  Kinshasa, RD Congo  ·  un service de vérification des paiements ; il ne détient, ne déplace ni ne règle jamais de fonds.',
-    { isTextBox: true, x: M, y: H - 0.5, w: W - 2 * M, h: 0.3, margin: 0, fontFace: MONO, fontSize: 8.5, color: DIM });
+  s.addText('KODA — un service de vérification des paiements ; il ne détient, ne déplace ni ne règle jamais de fonds. Groupe Nseya Digital / JNN Global Ltd · Kinshasa, RD Congo.',
+    { isTextBox: true, x: M, y: H - 0.48, w: W - 2 * M, h: 0.3, margin: 0, fontFace: MONO, fontSize: 8.5, color: DIM });
 
   await p.writeFile({ fileName: '/home/user/KODA/brand/KODA-deck-FR.pptx' });
-  console.log('deck FR écrit; icônes:', Object.entries(ICON).filter(([, v]) => v).length, '/', Object.keys(ICON).length);
+  console.log('deck FR écrit; icônes:', Object.values(ICON).filter(Boolean).length, '/', Object.keys(ICON).length);
 })();
