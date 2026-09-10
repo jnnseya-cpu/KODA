@@ -1299,14 +1299,18 @@ const blogDir = path.join(OUT, 'blog');
 fs.mkdirSync(blogDir, { recursive: true });
 
 // each post is a full standalone SEO page (reusing the content-page layout shell)
-function blogPage({ title, headExtra, kicker, h1, lead, bodyHtml }) {
-  const shell = page({ title, kicker, lead, body: bodyHtml, seoManaged: true });
+function blogPage({ title, headExtra, kicker, lead, bodyHtml, lang = 'en' }) {
+  const shell = page({ title, kicker, lead, body: bodyHtml, seoManaged: true, lang });
   // inject SEO head just before </head>-equivalent: our page() has no <head>, it inlines <style>; add meta after <title>
   return shell.replace(/<title>[^<]*<\/title>/, m => m + '\n' + headExtra);
 }
 for (const p of posts) {
   const r = seo.renderPost(p, dates[p.slug]);
-  const viewsBadge = `<p style="font-size:13px;color:var(--dim);margin:0 0 18px">${ico('eye')}<span id="koda-blog-views">—</span> reads</p>`;
+  const fr = p.lang === 'fr';
+  const T = fr
+    ? { reads: 'lectures', cta: 'Vérifiez votre premier paiement gratuitement →', all: '← tous les articles', kicker: 'Blog KODA' }
+    : { reads: 'reads', cta: 'Verify your first payment free →', all: '← all articles', kicker: 'KODA Blog' };
+  const viewsBadge = `<p style="font-size:13px;color:var(--dim);margin:0 0 18px">${ico('eye')}<span id="koda-blog-views">—</span> ${T.reads}</p>`;
   const viewsBeacon = `<script>
 (function(){try{
   fetch('/v1/blog/view',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({slug:${JSON.stringify(p.slug)}})})
@@ -1315,8 +1319,8 @@ for (const p of posts) {
   .catch(function(){});
 }catch(_){}})();
 </script>`;
-  const body = `${viewsBadge}\n${r.bodyHtml}\n${r.faqHtml}\n${r.relatedHtml}\n<p style="margin-top:26px"><a href="/get-started">Verify your first payment free →</a> · <a href="/blog">← all articles</a></p>${viewsBeacon}`;
-  const html = blogPage({ title: p.title, headExtra: r.head, kicker: 'KODA Blog', h1: p.title, lead: p.description, bodyHtml: body })
+  const body = `${viewsBadge}\n${r.bodyHtml}\n${r.faqHtml}\n${r.relatedHtml}\n<p style="margin-top:26px"><a href="/get-started">${T.cta}</a> · <a href="/blog">${T.all}</a></p>${viewsBeacon}`;
+  const html = blogPage({ title: p.title, headExtra: r.head, kicker: T.kicker, lead: p.description, bodyHtml: body, lang: fr ? 'fr' : 'en' })
     .replace(/<h1>[^<]*<\/h1>/, `<h1>${p.title.replace(/&/g, '&amp;')}</h1>`);
   fs.writeFileSync(path.join(blogDir, `${p.slug}.html`), html);
 }

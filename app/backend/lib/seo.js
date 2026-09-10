@@ -9,19 +9,23 @@ const { SITE, BRAND, PAGES, POSTS } = require('../../shared/seo-content');
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const bySlug = Object.fromEntries(POSTS.map(p => [p.slug, p]));
 
-// expand {{page:key}}, {{post:slug}}, {{brand}} into real hyperlinks
+// expand {{page:key}}, {{post:slug}}, {{brand}} into real hyperlinks. An optional
+// custom anchor — {{page:key|Texte du lien}} / {{post:slug|Texte}} — lets a post
+// (e.g. a French one) set its own anchor text instead of the target's English title.
 function weave(text) {
   return String(text)
     .replace(/\{\{brand\}\}/g, `<strong>${BRAND}</strong>`)
-    .replace(/\{\{page:(\w+)\}\}/g, (_, k) => {
-      const pg = PAGES[k]; return pg ? `<a href="${pg.url}">${esc(pg.title)}</a>` : k;
+    .replace(/\{\{page:(\w+)(?:\|([^}]+))?\}\}/g, (_, k, anchor) => {
+      const pg = PAGES[k]; return pg ? `<a href="${pg.url}">${esc(anchor || pg.title)}</a>` : esc(anchor || k);
     })
-    .replace(/\{\{post:([a-z0-9-]+)\}\}/g, (_, slug) => {
-      const p = bySlug[slug]; return p ? `<a href="/blog/${slug}">${esc(p.title)}</a>` : slug;
+    .replace(/\{\{post:([a-z0-9-]+)(?:\|([^}]+))?\}\}/g, (_, slug, anchor) => {
+      const p = bySlug[slug]; return p ? `<a href="/blog/${slug}">${esc(anchor || p.title)}</a>` : esc(anchor || slug);
     });
 }
 function weaveText(text) { // link-free version for meta/JSON-LD
-  return String(text).replace(/\{\{brand\}\}/g, BRAND).replace(/\{\{page:(\w+)\}\}/g, (_, k) => PAGES[k]?.title || k).replace(/\{\{post:([a-z0-9-]+)\}\}/g, (_, s) => bySlug[s]?.title || s);
+  return String(text).replace(/\{\{brand\}\}/g, BRAND)
+    .replace(/\{\{page:(\w+)(?:\|([^}]+))?\}\}/g, (_, k, a) => a || PAGES[k]?.title || k)
+    .replace(/\{\{post:([a-z0-9-]+)(?:\|([^}]+))?\}\}/g, (_, s, a) => a || bySlug[s]?.title || s);
 }
 
 function articleJsonLd(post, dateISO) {
@@ -72,11 +76,14 @@ ${ld}`;
 function renderPost(post, dateISO) {
   const jsonld = [articleJsonLd(post, dateISO), faqJsonLd(post), breadcrumbJsonLd(post)];
   const related = (post.related || []).map(s => bySlug[s]).filter(Boolean);
+  const L = post.lang === 'fr'
+    ? { faq: 'Questions fréquentes', related: 'À lire aussi' }
+    : { faq: 'Frequently asked questions', related: 'Related reading' };
   const bodyHtml = post.body.map(p => `<p>${weave(p)}</p>`).join('\n');
   const faqHtml = post.faqs && post.faqs.length
-    ? `<h2>Frequently asked questions</h2>` + post.faqs.map(([q, a]) => `<h3>${esc(weaveText(q))}</h3><p>${weave(a)}</p>`).join('\n') : '';
+    ? `<h2>${L.faq}</h2>` + post.faqs.map(([q, a]) => `<h3>${esc(weaveText(q))}</h3><p>${weave(a)}</p>`).join('\n') : '';
   const relatedHtml = related.length
-    ? `<h2>Related reading</h2><ul>${related.map(r => `<li><a href="/blog/${r.slug}">${esc(r.title)}</a></li>`).join('')}</ul>` : '';
+    ? `<h2>${L.related}</h2><ul>${related.map(r => `<li><a href="/blog/${r.slug}">${esc(r.title)}</a></li>`).join('')}</ul>` : '';
   return { head: seoHead({ title: post.title + ' | ' + BRAND, description: post.description, path: `/blog/${post.slug}`, jsonld }),
     bodyHtml, faqHtml, relatedHtml, post };
 }
