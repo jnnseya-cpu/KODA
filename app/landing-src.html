@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KODA — Mobile money payment verification, no telco API</title>
 <meta name="description" content="Verify mobile money payments from the confirmation SMS the operator sends — manual, WhatsApp or API. No telco contract, no code to paste. Verified in seconds.">
+<meta name="theme-color" content="#081813">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -993,6 +997,72 @@ risk 0.02 · &lt;10 s</div>
   }
   tabs.forEach(function(b){ b.addEventListener('click', function(){ show(b.dataset.t); }); });
   show('curl');
+})();
+</script>
+
+<!-- KODA — first-visit welcome/CTA modal + PWA install prompt -->
+<style>@keyframes kfade{from{opacity:0}to{opacity:1}}@keyframes kpop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}</style>
+<script>
+(function(){
+  try { if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js'); } catch(e){}
+  var GOLD='#E8A11F', INK='#081813', INK2='#0C231C', TEXT='#E9E4D5', DIM='#9BA79B', LINE='rgba(233,228,213,.18)';
+  var welcomeOpen=false, deferredInstall=null;
+  function lsGet(k){ try{return localStorage.getItem(k);}catch(e){return null;} }
+  function lsSet(k,v){ try{localStorage.setItem(k,v);}catch(e){} }
+  var installed = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+
+  // ---- first-visit welcome / CTA modal (once per visitor) ----
+  function onKey(e){ if(e.key==='Escape') closeWelcome(); }
+  function closeWelcome(){
+    var o=document.getElementById('koda-welcome'); if(o) o.remove();
+    document.removeEventListener('keydown', onKey);
+    welcomeOpen=false; maybeShowInstall();
+  }
+  function showWelcome(){
+    if (installed || lsGet('koda_welcome_v1')==='1') return;
+    lsSet('koda_welcome_v1','1'); welcomeOpen=true;
+    var wrap=document.createElement('div');
+    wrap.id='koda-welcome';
+    wrap.setAttribute('role','dialog'); wrap.setAttribute('aria-modal','true'); wrap.setAttribute('aria-label','Welcome to KODA');
+    wrap.style.cssText='position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(4,10,8,.66);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;animation:kfade .2s ease';
+    wrap.innerHTML=
+      '<div style="position:relative;max-width:440px;width:100%;background:'+INK2+';border:1px solid '+LINE+';border-radius:18px;padding:30px 26px 24px;box-shadow:0 30px 80px rgba(0,0,0,.55);animation:kpop .25s ease">'
+      + '<button id="kw-x" aria-label="Close" style="position:absolute;top:12px;right:14px;background:transparent;border:0;color:'+DIM+';font-size:24px;line-height:1;cursor:pointer;padding:4px">&times;</button>'
+      + '<div style="font-family:ui-monospace,monospace;font-size:11px;letter-spacing:2px;color:'+GOLD+';font-weight:700;margin-bottom:14px">KODA</div>'
+      + '<h2 style="margin:0 0 10px;font-size:25px;line-height:1.15;color:'+TEXT+';font-weight:800">Stop losing money to fake screenshots.</h2>'
+      + '<p style="margin:0 0 20px;font-size:15px;line-height:1.55;color:'+DIM+'">Verify any mobile-money payment against the operator&rsquo;s own confirmation SMS &mdash; a verdict in seconds. <b style="color:'+TEXT+'">Free forever, no card.</b></p>'
+      + '<a href="/app#signup" id="kw-cta" style="display:block;text-align:center;background:'+GOLD+';color:'+INK+';text-decoration:none;font-weight:800;font-size:15.5px;padding:13px 18px;border-radius:11px">Verify a payment free &rarr;</a>'
+      + '<a href="/demo" style="display:block;text-align:center;margin-top:10px;color:'+DIM+';text-decoration:none;font-size:13.5px">See the live demo</a>'
+      + '<p style="margin:16px 0 0;text-align:center;font-style:italic;font-size:12.5px;color:'+GOLD+'">A screenshot can be faked. The SMS can&rsquo;t.</p>'
+      + '</div>';
+    document.body.appendChild(wrap);
+    document.getElementById('kw-x').onclick=closeWelcome;
+    wrap.addEventListener('click',function(e){ if(e.target===wrap) closeWelcome(); });
+    document.addEventListener('keydown', onKey);
+    var cta=document.getElementById('kw-cta'); if(cta) cta.focus();
+  }
+
+  // ---- PWA install pill (same pattern as the app shell; waits for the modal) ----
+  function hideInstall(){ var b=document.getElementById('koda-install'); if(b) b.remove(); }
+  function maybeShowInstall(){
+    if (!deferredInstall || welcomeOpen || installed) return;
+    if (document.getElementById('koda-install') || lsGet('koda_install_dismissed')==='1') return;
+    var b=document.createElement('div');
+    b.id='koda-install'; b.setAttribute('role','dialog'); b.setAttribute('aria-label','Install KODA');
+    b.style.cssText='position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);background:'+INK2+';color:'+TEXT+';border:1px solid '+LINE+';border-radius:14px;padding:12px 14px;box-shadow:0 18px 50px rgba(0,0,0,.5);font-family:system-ui,sans-serif;animation:kpop .25s ease';
+    b.innerHTML='<span style="width:34px;height:34px;border-radius:9px;background:'+GOLD+';color:'+INK+';display:grid;place-items:center;font-weight:800;font-family:ui-monospace,monospace;flex:0 0 auto">&#10003;</span>'
+      + '<span style="font-size:13.5px;line-height:1.35;flex:1 1 auto">Install <b>KODA</b> &mdash; works offline, opens like an app.</span>'
+      + '<button id="ki-go" style="flex:0 0 auto;background:'+GOLD+';color:'+INK+';border:0;border-radius:9px;padding:9px 14px;font-weight:800;font-size:13.5px;cursor:pointer">Install</button>'
+      + '<button id="ki-x" aria-label="Dismiss" style="flex:0 0 auto;background:transparent;border:0;color:'+DIM+';font-size:20px;line-height:1;cursor:pointer;padding:4px">&times;</button>';
+    document.body.appendChild(b);
+    document.getElementById('ki-go').onclick=function(){ var p=deferredInstall; deferredInstall=null; hideInstall(); if(p){ p.prompt(); } };
+    document.getElementById('ki-x').onclick=function(){ lsSet('koda_install_dismissed','1'); hideInstall(); };
+  }
+  window.addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); deferredInstall=e; maybeShowInstall(); });
+  window.addEventListener('appinstalled',function(){ deferredInstall=null; hideInstall(); try{ lsSet('koda_install_dismissed','0'); }catch(_){} });
+
+  var kick=function(){ setTimeout(showWelcome, 2800); };
+  if (document.readyState==='loading') window.addEventListener('load', kick); else kick();
 })();
 </script>
 </body>
