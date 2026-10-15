@@ -214,8 +214,8 @@ Per verification, at scale, DRC corridor (**internal only — never shown public
 | Line | $ |
 |---|---|
 | Fully-loaded cost (code path) | 0.0065 |
-| Plan verification (4× rate) | 0.026 → **gross ~0.0195 (300% profit)** |
-| Ad-hoc ACU: top-up / overage / AI (5× rate) | 0.0325 → **gross ~0.026 (400% profit)** |
+| Plan verification (direct rate) | 0.05 → **gross ~0.0435 (~670% profit)** |
+| Ad-hoc ACU: top-up / overage / AI (ACU rate) | 0.0625 → **gross ~0.056 (~862% profit)** |
 | Partner-channel ACU (KODA net) | 0.0500–0.0531 → **~7.7×–8.2×** (partner keeps 15–20%) |
 
 The **4× floor is enforced in code and CI** (`tools/margin.js`): no pack, plan rate, overage, or wholesale rate can ever sell below 4× cost. Vision is metered at 3 ACU so the pricier vision path ($0.0213 cost) clears the floor easily ($0.1875 = 8.8×). Margin expands as code-path share rises (it does, as customers learn the flow).

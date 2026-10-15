@@ -18,7 +18,7 @@
   //    A merchant who buys through a cash agent pays list: the agent's convenience premium.
   //  · AD-HOC ACU / top-ups / overage / AI = $0.0625. Same as the partner list rate.
   // So a direct plan is the cheapest way to verify; pay-as-you-go and the agent channel both
-  // sit at 5×; and nothing — direct or resold — ever nets KODA below the 4× floor.
+  // sit at $0.0625; and nothing — direct or resold — ever nets KODA below the 4× floor.
   // The rail's collection fee is PASSED THROUGH to the merchant, so KODA's net never dips.
   const UNIT_COST_USD = 0.0065;         // fully-loaded code-path cost (mirrors costs.js COST.code)
   // Retail is anchored on Boutique = $0.05/verif (DIRECT). PAYG / overage / partner LIST sit
@@ -75,7 +75,7 @@
     const rail = RAILS[railCode];
     if (!rail) throw new Error('unknown rail: ' + railCode);
     const acu = Math.max(0, Math.round(Number(acuAmount) || 0));
-    const subtotal = round(acu * ACU_PRICE_USD);        // KODA's net — priced at 4× cost
+    const subtotal = round(acu * ACU_PRICE_USD);        // KODA's net — priced at the ACU rate
     const collection_fee = round(subtotal * rail.fee_pct); // passed through, NOT absorbed
     const tax = round(Number(opts.tax_usd) || 0);        // MoR-calculated where applicable
     const total = round(subtotal + collection_fee + tax);

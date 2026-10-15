@@ -1,6 +1,6 @@
 // KODA — margin guard (npm run margin). Enforces the 4× floor: every ACU KODA sells
 // (plan-included, top-up/overage/AI, and partner wholesale) nets ≥4× fully-loaded cost.
-// Two-book: DIRECT plan = 4× (beats PAYG), LIST = 5× (partner resale, agent price); ACU 5×;
+// Two-book: DIRECT plan = $0.05 (beats PAYG), LIST = $0.0625 (partner resale, agent price); ACU $0.0625;
 // partner wholesale 80%/85% so KODA nets ≥4× on any resold plan. Exits 1 on violation.
 'use strict';
 const C = require('../../shared/costs');
@@ -38,14 +38,14 @@ const BILL = require('../../shared/billing');
 const be = Math.ceil(C.FIXED_TOTAL / (BILL.ACU_PRICE_USD - C.COST.code));
 console.log(`  overhead break-even without any subscriptions: ~${be.toLocaleString()} verifications/mo`);
 
-// RULE 3 — ad-hoc ACU (top-up packs + partner wholesale) sells at the 5× rate, and every
-// point clears the 4× floor. Top-ups MUST be ≥5× (the full retail rate) so partner resale still nets 4×,
+// RULE 3 — ad-hoc ACU (top-up packs + partner wholesale) sells at the ACU rate ($0.0625), and every
+// point clears the 4× floor. Top-ups MUST be ≥ the ACU rate so partner resale still nets above the 4× floor,
 // pay-as-you-go always costs more than committing to a plan.
 const PACKS = require('../../shared/plans').TOPUP_PACKS;
 console.log(`\nRULE 3 — ad-hoc ACU rate ${(BILL.ACU_PRICE_USD / BILL.UNIT_COST_USD).toFixed(0)}× ($${BILL.ACU_PRICE_USD}/ACU) · floor 4× ($${BILL.PRICE_FLOOR_USD}):`);
 for (const p of PACKS) {
   const perAcu = p.usd / p.acu, mult = perAcu / BILL.UNIT_COST_USD;
-  const ok = mult + 1e-9 >= BILL.ACU_MARKUP; // top-ups must clear the full 5× ACU rate
+  const ok = mult + 1e-9 >= BILL.ACU_MARKUP; // top-ups must clear the full ACU rate
   if (!ok) fails++;
   console.log(`  top-up $${p.usd} → ${p.acu} ACU = $${perAcu.toFixed(4)}/ACU  ${mult.toFixed(1)}×  ${ok ? '✓' : `✗ BELOW ${BILL.ACU_MARKUP}× TOP-UP RATE`}`);
 }
@@ -60,16 +60,16 @@ for (const [who, bps] of [['distributor', 8500], ['reseller', 8000]]) {
 }
 
 // RULE 4 — TWO-BOOK. A CURRENT plan's DIRECT rate (usd/verifs) must clear the 4× floor AND be
-// strictly below the 5× ACU rate — so a direct subscriber genuinely beats pay-as-you-go. Its
-// LIST rate (list_usd/verifs) must be ≥ the 5× rate so partner resale (next rule) clears 4×.
-console.log(`\nRULE 4 — direct plan rate ≥4× AND < ad-hoc ACU 5× ($${BILL.ACU_PRICE_USD}); list rate ≥5×:`);
+// strictly below the ACU rate — so a direct subscriber genuinely beats pay-as-you-go. Its
+// LIST rate (list_usd/verifs) must be ≥ the ACU rate so partner resale (next rule) clears the 4× floor.
+console.log(`\nRULE 4 — direct plan rate ≥4× floor AND < ad-hoc ACU rate ($${BILL.ACU_PRICE_USD}); list rate ≥ ACU:`);
 const CURRENT = ['boutique', 'commerce', 'plateforme', 'scale'];
 const LEGACY = ['boutique_legacy', 'commerce_legacy'];
 for (const key of CURRENT) {
   const p = PLANS[key];
   const direct = p.usd / p.verifs, list = p.list_usd / p.verifs, over = p.overage;
   const directOk = BILL.clearsFloor(direct) && direct + 1e-9 < BILL.ACU_PRICE_USD;  // ≥4× AND < PAYG
-  const listOk = list + 1e-9 >= BILL.ACU_PRICE_USD;                                  // ≥5× → resells at ≥4×
+  const listOk = list + 1e-9 >= BILL.ACU_PRICE_USD;                                  // ≥ ACU → resells above the 4× floor
   const overOk = over != null && BILL.clearsFloor(over);
   if (!directOk || !listOk || !overOk) fails++;
   console.log(`  ${p.label.padEnd(11)} direct $${direct.toFixed(4)} ${(direct / BILL.UNIT_COST_USD).toFixed(2)}× ${directOk ? '✓' : '✗'} · list $${list.toFixed(4)} ${(list / BILL.UNIT_COST_USD).toFixed(2)}× ${listOk ? '✓' : '✗'} · overage ${(over / BILL.UNIT_COST_USD).toFixed(1)}× ${overOk ? '✓' : '✗'}`);
@@ -95,4 +95,4 @@ for (const key of CURRENT) {
 }
 
 if (fails) { console.log(`\n${fails} price point(s) violate the rule — fix pricing or costs.`); process.exit(1); }
-console.log('\nAll price points clear the rule: plans ≥4×, ad-hoc ACU ≥5× ✓');
+console.log('\nAll price points clear the rule: plans ≥ 4× floor, ad-hoc ACU ≥ its rate ✓');

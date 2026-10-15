@@ -268,7 +268,7 @@ function settleTopup(topupId, { issuer = 'koda:treasury', entryType = 'koda_issu
   if (t.status !== 'pending' && t.status !== 'initiated') return [409, { error: { code: 'bad_state', status: t.status } }];
   // Provider amount authority: when the PSP webhook reports the captured amount in the
   // SAME currency the top-up was quoted in, a MATERIALLY UNDER-paid capture must never
-  // credit the full ACU (a $19 capture can't settle a $399 order). Over-payment and
+  // credit the full ACU (a $20 capture can't settle a $400 order). Over-payment and
   // cross-currency captures are left to reconciliation — we only block clear underpay.
   if (capturedAmount != null && capturedCurrency
       && String(t.currency || '').toUpperCase() === String(capturedCurrency).toUpperCase()

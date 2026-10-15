@@ -306,7 +306,7 @@ volume justifies; or a promise that one gateway covers every MM network.
 KODA's margin is **held at ≥100% profit on cost, regardless of rail** (the existing
 `margin.js` gate). Two rules make that automatic:
 
-1. **ACU is priced at 4× the underlying provider/unit cost.** A 4× retail multiple is
+1. **ACU is priced at $0.0625 (~9.6× the underlying provider/unit cost).** A high retail multiple is
    a **300% markup** — always clears the 100%-profit floor with headroom, on every
    rail and price point.
 2. **Collection cost is passed through to the merchant, never absorbed.** The rail's
