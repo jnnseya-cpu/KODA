@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root{
+    --ink:#081813; --ink2:#0C231C; --gold:#E8A11F; --verify:#23B884;
+    --cream:#E9E4D5; --dim:#9BA79B; --line:rgba(233,228,213,.14);
+  }
+  html,body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body{
+    width:210mm; height:297mm; background:var(--ink); color:var(--cream);
+    font-family:"Helvetica Neue",Arial,sans-serif; position:relative; overflow:hidden;
+  }
+  .page{ padding:14mm 14mm 12mm; height:297mm; display:flex; flex-direction:column; }
+
+  /* header */
+  .head{ display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:7mm; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .tick{ width:30px; height:30px; border-radius:7px; background:var(--gold); color:var(--ink); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:17px; font-family:"Courier New",monospace; }
+  .brand .wm{ font-size:21px; font-weight:800; letter-spacing:3px; }
+  .brand .wm small{ display:block; font-size:8px; letter-spacing:2.5px; color:var(--dim); font-weight:600; margin-top:1px; }
+  .head .kicker{ text-align:right; font-family:"Courier New",monospace; font-size:8.5px; letter-spacing:2px; color:var(--gold); text-transform:uppercase; line-height:1.7; }
+
+  h1{ font-size:25px; line-height:1.12; font-weight:800; margin-top:7mm; letter-spacing:-.3px; }
+  h1 .g{ color:var(--gold); }
+  .lede{ font-size:11px; line-height:1.5; color:var(--dim); margin-top:3mm; max-width:170mm; }
+
+  /* problem→solution band */
+  .flip{ display:grid; grid-template-columns:1fr 1fr; gap:0; margin-top:6mm; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .flip > div{ padding:5mm 5.5mm; }
+  .flip .l{ background:rgba(233,228,213,.03); border-right:1px solid var(--line); }
+  .flip .r{ background:linear-gradient(135deg, rgba(35,184,132,.10), rgba(232,161,31,.06)); }
+  .flip h3{ font-family:"Courier New",monospace; font-size:8.5px; letter-spacing:1.8px; text-transform:uppercase; margin-bottom:3mm; }
+  .flip .l h3{ color:#d98b7a; }
+  .flip .r h3{ color:var(--verify); }
+  .flip p{ font-size:10.5px; line-height:1.5; }
+  .flip p b{ color:var(--cream); }
+
+  .section-t{ font-family:"Courier New",monospace; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin:7mm 0 4mm; display:flex; align-items:center; gap:8px; }
+  .section-t::after{ content:""; flex:1; height:1px; background:var(--line); }
+
+  /* value cards */
+  .cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:4mm; }
+  .card{ background:var(--ink2); border:1px solid var(--line); border-radius:9px; padding:4.5mm 5mm; }
+  .card .n{ font-family:"Courier New",monospace; font-size:8px; letter-spacing:1.5px; color:var(--gold); text-transform:uppercase; margin-bottom:2mm; }
+  .card .t{ font-size:12.5px; font-weight:800; margin-bottom:1.5mm; line-height:1.15; }
+  .card .d{ font-size:9.7px; line-height:1.45; color:var(--dim); }
+  .card .d b{ color:var(--cream); }
+
+  /* honesty strip */
+  .honest{ margin-top:6mm; background:rgba(35,184,132,.07); border:1px solid rgba(35,184,132,.3); border-radius:9px; padding:4.5mm 5.5mm; }
+  .honest h3{ font-family:"Courier New",monospace; font-size:8.5px; letter-spacing:1.8px; text-transform:uppercase; color:var(--verify); margin-bottom:2.5mm; }
+  .honest p{ font-size:10px; line-height:1.5; color:var(--cream); }
+
+  .foot{ margin-top:auto; border-top:1px solid var(--line); padding-top:5mm; display:flex; align-items:flex-end; justify-content:space-between; }
+  .foot .cta{ font-size:11px; line-height:1.4; }
+  .foot .cta b{ color:var(--gold); font-size:12px; }
+  .foot .contact{ text-align:right; font-family:"Courier New",monospace; font-size:9px; color:var(--dim); line-height:1.7; }
+  .foot .contact b{ color:var(--cream); }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="head">
+      <div class="brand">
+        <div class="tick">&#10003;</div>
+        <div class="wm">KODA<small>VÉRIFICATION DE PAIEMENT</small></div>
+      </div>
+      <div class="kicker">Dossier de présentation<br>Partenariat&nbsp;: AfriMoney&nbsp;×&nbsp;KODA<br>Confidentiel</div>
+    </div>
+
+    <h1>Plus de commerçants AfriMoney.<br><span class="g">Zéro développement de votre côté.</span></h1>
+    <p class="lede">KODA transforme le SMS de confirmation qu'AfriMoney envoie déjà à chaque paiement en une preuve instantanée et infalsifiable — sans qu'AfriMoney ait à construire, exposer ou maintenir la moindre API. Le blocage technique qui freinait l'intégration depuis des années&nbsp;: supprimé.</p>
+
+    <div class="flip">
+      <div class="l">
+        <h3>&#9888; Le blocage d'hier</h3>
+        <p>Déployer une passerelle de paiement AfriMoney exigeait des mois de travail et une équipe technique dédiée — un chantier jamais abouti. Pendant ce temps, les commerçants restent exposés aux <b>fausses captures d'écran</b>, qui s'éditent en quelques secondes et leur coûtent de l'argent réel.</p>
+      </div>
+      <div class="r">
+        <h3>&#10003; Ce que KODA change</h3>
+        <p>Le commerçant vérifie en <b>~3 secondes</b> qu'un paiement est réel, à partir du <b>SMS qu'AfriMoney lui envoie déjà</b>. Aucune passerelle à déployer, aucune charge pour vos équipes. Il suffit d'une <b>SIM marchand AfriMoney</b> — rien d'autre à installer.</p>
+      </div>
+    </div>
+
+    <div class="section-t">Ce que le partenariat apporte à AfriMoney</div>
+    <div class="cards">
+      <div class="card">
+        <div class="n">01 · Croissance</div>
+        <div class="t">Plus de SIM marchands, tout de suite</div>
+        <div class="d">Chaque commerçant qui veut des paiements vérifiables a désormais une raison d'ouvrir une <b>SIM marchand AfriMoney</b> — sans attendre une intégration technique.</div>
+      </div>
+      <div class="card">
+        <div class="n">02 · Zéro charge</div>
+        <div class="t">Aucune API à construire</div>
+        <div class="d">KODA lit le SMS côté marchand. <b>AfriMoney n'a rien à développer ni à maintenir</b> — aucune mobilisation de votre équipe technique n'est requise.</div>
+      </div>
+      <div class="card">
+        <div class="n">03 · Confiance</div>
+        <div class="t">Moins de fraude, moins de litiges</div>
+        <div class="d">Chaque code est à <b>usage unique</b> et chaque SMS vérifié contre la comptabilité de l'opérateur&nbsp;: les reçus recyclés et messages falsifiés sont rejetés. Des marchands plus sereins restent sur AfriMoney.</div>
+      </div>
+      <div class="card">
+        <div class="n">04 · Pour les plateformes</div>
+        <div class="t">« Door 3 »&nbsp;: l'API en ~10 minutes</div>
+        <div class="d">Les plateformes et développeurs qui le souhaitent intègrent la vérification via <b>3 endpoints</b> — en une dizaine de minutes, <b>pas en plusieurs mois</b>. KODA est <b>déjà compatible avec Africell Money</b>.</div>
+      </div>
+    </div>
+
+    <div class="honest">
+      <h3>La frontière, dite clairement</h3>
+      <p>KODA est un service de <b>vérification</b> — ni banque, ni portefeuille, ni agrégateur. <b>KODA ne détient, ne déplace et ne règle jamais les fonds</b>&nbsp;: l'argent circule directement du client au marchand sur le réseau AfriMoney. Nous confirmons simplement, vite et honnêtement, qu'un paiement a eu lieu. <b>Nous renforçons AfriMoney — nous ne le concurrençons pas.</b></p>
+    </div>
+
+    <div class="foot">
+      <div class="cta">
+        <b>Prochaine étape&nbsp;: un pilote.</b><br>
+        Activons KODA sur un premier groupe de commerçants AfriMoney et mesurons ensemble l'onboarding, la fraude évitée et l'usage généré.
+      </div>
+      <div class="contact">
+        <b>Jean NSEYA</b> — Fondateur<br>
+        kodajnn.com<br>
+        +243 828 139 153
+      </div>
+    </div>
+  </div>
+</body>
+</html>
