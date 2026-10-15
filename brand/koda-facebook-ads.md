@@ -27,9 +27,22 @@ literally cannot claim. Together they form an objection-demolition funnel:
 **True facts you may put in copy (all verifiable on the product):** ~3-second
 verdict · 235 operators / 95 countries · no telco API · single-use replay lock ·
 balance-chain anti-forgery · 5 ways to verify · works offline on any phone ·
-reads only the payment SMS, never your contacts, never your money · free to start,
-no card. **Never claim** bank/wallet/escrow, that it holds/moves money, or any
+reads only the payment SMS, never your contacts, never your money. **Never claim**
+bank/wallet/escrow, that it holds/moves money, or any
 "guaranteed / 100% / unhackable / proof-of-settlement." KODA makes you **first to know.**
+
+> **⚠ Pricing accuracy — read before writing any "free" copy.** Two different
+> "free" claims, don't mix them up:
+> • **Free tier = Door 1 (manual verification) only** — the *Marché* plan: 10
+>   verifications/month, no card. **WhatsApp, API, USSD and inbound-SMS (Doors 2–5)
+>   are paid plans.** So NEVER pair "free" with "WhatsApp / API / USSD / SMS" — that
+>   falsely implies those channels are free. Lead the free offer with **manual
+>   verification** ("verify your first payment free"), and present the other doors as
+>   *available on paid plans*.
+> • **"Free until you get paid"** is the *billing model* (you pay only per successful
+>   verification; failed matches, rejections and expired intents are free) — true on
+>   paid plans too, and not tied to any door. Fine to use as a pricing reassurance,
+>   just don't let it read as "the whole product is free."
 
 ---
 
@@ -155,10 +168,14 @@ arsenal** plus the honesty guardrails, so the copy is punchy *and* true.
 >   into the merchant's own phone.
 > • **5 doors** — verify by console, WhatsApp, API, USSD or inbound SMS; **works on
 >   any phone, including a basic feature phone with no internet**, even iPhone.
+>   *(The free tier is the console/manual door only — see pricing rule below.)*
 > • **235 operators across 95 countries** — Orange Money, M-Pesa, Airtel, MTN MoMo,
 >   Wave + 200 more — zero per-country contracts.
 > • **Reads only the payment SMS** — never contacts, never the money.
-> • **Free to start** (10 verifications/month, no card); "free until you get paid."
+> • **Free to start on manual verification** (the *Marché* tier: 10 verifications/month,
+>   no card — **Door 1 / console only**). WhatsApp, API, USSD and SMS are **paid plans**.
+>   Separately, "free until you get paid" describes the billing model (you pay only per
+>   successful verification).
 > • Multilingual: FR · EN · Lingala · Swahili · Wolof · Twi.
 >
 > **The one requirement:** the merchant receives the operator's confirmation SMS on
@@ -167,7 +184,10 @@ arsenal** plus the honesty guardrails, so the copy is punchy *and* true.
 > **Honesty guardrails — never claim:** KODA is a bank, wallet, processor or escrow;
 > that it holds or moves money; that it guarantees against operator-side reversals or
 > proves final settlement; or any "guaranteed / 100% safe / bank-grade / unhackable."
-> KODA makes you **first to know** a payment is real — say exactly that.
+> **Never imply the WhatsApp, API, USSD or SMS doors are free** — the free tier is
+> manual verification (Door 1) only; pair "free" with manual verification, and present
+> the other doors as available on paid plans. KODA makes you **first to know** a
+> payment is real — say exactly that.
 >
 > **Write:** (1) 3 **primary-text** options, each 2–4 short lines, hook in line one,
 > one concrete USP each, 1 emoji max, soft CTA; (2) 5 **headlines** (≤40 chars);
@@ -207,5 +227,5 @@ arsenal** plus the honesty guardrails, so the copy is punchy *and* true.
 - **Sequence for retargeting:** 1 (pain) → 2 (effortless) → 3/4 (can't-be-fooled / replay) → 5 (any phone). Cold traffic responds best to 1, 2 and 5; warm traffic converts on 3 and 4.
 - **Audience:** merchants, retail, small-business owners, mobile-money users; start DRC + live-rail countries (KE/TZ/UG/GH/CI/SN/CM/NG/RW), then widen.
 - **Destination:** `https://kodajnn.com/get-started`. The site's first-visit modal echoes the same hook.
-- **Offer honesty:** promise only "free to start / free until you get paid" — both true. A real, honoured deadline can lift urgency; a fake one gets flagged by Meta and breaks trust.
+- **Offer honesty:** "free to start" means **manual verification (Door 1), the Marché tier — 10/month, no card**; WhatsApp/API/USSD/SMS are paid, so never imply those doors are free. "Free until you get paid" (pay only per successful verification) is separately true. A real, honoured deadline can lift urgency; a fake one gets flagged by Meta and breaks trust.
 - **French-first for DRC**, English for pan-African + developer/AI reach.
