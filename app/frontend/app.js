@@ -2268,7 +2268,7 @@ async function adminCollections() {
     </table></div>` : ''}
   <div class="grid g4">
     <div class="card stat"><b>$${fmt(d.settled_totals.gross)}</b><span>settled gross · ${fmt(d.settled_totals.n)} topups</span></div>
-    <div class="card stat"><b>$${fmt(d.settled_totals.net)}</b><span>KODA net (4× cost)</span></div>
+    <div class="card stat"><b>$${fmt(d.settled_totals.net)}</b><span>KODA net (ACU rate)</span></div>
     <div class="card stat"><b>${fmt(treasury)}</b><span>koda:treasury ACU</span></div>
     <div class="card stat"><b>${d.reconcile.balanced ? '<span class="ok">● balanced</span>' : '<span class="bad">● IMBALANCE</span>'}</b><span>ledger Σ=${d.reconcile.sum}</span></div>
   </div>

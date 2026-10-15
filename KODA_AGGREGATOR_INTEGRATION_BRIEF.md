@@ -44,7 +44,7 @@ const adapter = {
 
 ## 4. The flow (mobile-money push — the common case)
 ```
-1. Merchant taps "Top up" in KODA -> KODA quotes server-side (ACU @ 4× cost + your fee
+1. Merchant taps "Top up" in KODA -> KODA quotes server-side (ACU @ KODA's fixed rate + your fee
    passed through to the merchant as a transparent line) and creates a `topup` (idempotent).
 2. KODA -> your API: initiate collection { amount, currency, method, payer_msisdn, ref }.
 3. You send the STK push / USSD prompt to the payer's own phone. (You can INITIATE —
@@ -70,7 +70,7 @@ server-to-server webhook** grants entitlement. A customer-reported reference is
   reconciliation. Endpoint: `POST /webhooks/billing/{provider}`.
 
 ## 6. Pricing & settlement (KODA-side, for your reconciliation)
-- ACU retail is fixed by KODA at **4× unit cost**; **your fee is passed through** to the
+- ACU retail is fixed by KODA at **$0.0625/ACU**; **your fee is passed through** to the
   merchant as a line item — it raises the merchant's total, not KODA's net. This keeps
   KODA's margin ≥100% on your rail and means **your fee schedule is transparent to us**.
 - Daily **reconciliation**: KODA's `topups` + `billing_ledger` vs. your settlement report;

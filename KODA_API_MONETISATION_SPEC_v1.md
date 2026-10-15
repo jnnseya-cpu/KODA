@@ -162,7 +162,7 @@ Metered add-ons (ACU model, portfolio 3× multiplier law for agent-heavy ops):
 | Trust-score lookup | 0.5 ACU | Plateforme+ |
 | Sub-merchant onboarding | 5 ACU one-time | KYB-light checks |
 
-**1 ACU retail anchor ≈ $0.03**, degressive with volume (§4.3).
+**1 ACU retail anchor ≈ $0.0625**, degressive with volume (§4.3).
 
 ### 4.2 Prepaid-first: the African billing architecture
 
@@ -178,22 +178,22 @@ Card-on-file monthly billing fails in these markets (card penetration, FX, charg
 
 **Pay-as-you-go (no subscription — the on-ramp)**
 
-Pay-as-you-go ACU is priced at **5× cost ($0.0325/ACU)** — deliberately above the 4× plan rate so a plan always saves.
+Pay-as-you-go ACU is priced at **$0.0625/ACU** — deliberately above the $0.05 plan rate so a plan always saves.
 
 | Top-up | Effective per verification |
 |---|---|
-| $33 → 1,000 ACU | $0.0325 |
-| $165 → 5,000 ACU | $0.0325 |
-| $650 → 20,000 ACU | $0.0325 |
+| $62.50 → 1,000 ACU | $0.0625 |
+| $312.50 → 5,000 ACU | $0.0625 |
+| $1,250 → 20,000 ACU | $0.0625 |
 
-**Plans (subscription = the 4× rate + features)** — Marché $0 (10/mo) · Boutique $5 (150) · Commerce $20 (750) · Plateforme $100 (3,000) · Scale $399 (12,000) · Enterprise custom. Acquisition-first ladder: a low $5 door, small 4×-priced buckets, growth monetised via 5× overage. Included quota sells at the **plan rate (≥4× = $0.026–$0.031/verif)** — the only place a merchant gets ≤5×; overage draws from the prepaid wallet at the 5× ad-hoc rate ($0.0325). Platform capabilities (sub-merchant API, trust-score, re-billing, distributor access) sit at **Scale ($399)**; Plateforme ($100) is a throughput/scale tier.
+**Plans (subscription = the $0.05 rate + features)** — Marché $0 (10/mo) · Boutique $5 (100) · Commerce $20 (400) · Plateforme $100 (2,000) · Scale $400 (8,000) · Enterprise custom. Acquisition-first ladder: a low $5 door, buckets priced at $0.05/verif, growth monetised via $0.0625 overage. Included quota sells at the **plan rate ($0.05/verif)**; overage draws from the prepaid wallet at the ad-hoc rate ($0.0625). Platform capabilities (sub-merchant API, trust-score, re-billing, distributor access) sit at **Scale ($400)**; Plateforme ($100) is a throughput/scale tier.
 
 **Partner wholesale (buy float/inventory, resell at the 5× retail, keep the spread)**
 
 | Partner | Buys at | KODA nets | Partner margin |
 |---|---|---|---|
-| Distributor | 85% of retail = $0.0276/ACU | 4.25× | 15% |
-| Reseller | 80% of retail = $0.0260/ACU | 4.0× (floor) | 20% |
+| Distributor | 85% of retail = $0.0531/ACU | ~8.2× | 15% |
+| Reseller | 80% of retail = $0.0500/ACU | ~7.7× | 20% |
 
 Below 80% (which would breach the **4× floor**) is rejected in code + CI. Platforms may mark up to their merchants freely, absorb it as a feature, or use KODA's **re-billing API** (`/submerchants/{id}/usage`). White-label ("Powered by KODA" removable) at Plateforme+ for +20% on wholesale rate.
 
@@ -216,9 +216,9 @@ Per verification, at scale, DRC corridor (**internal only — never shown public
 | Fully-loaded cost (code path) | 0.0065 |
 | Plan verification (4× rate) | 0.026 → **gross ~0.0195 (300% profit)** |
 | Ad-hoc ACU: top-up / overage / AI (5× rate) | 0.0325 → **gross ~0.026 (400% profit)** |
-| Partner-channel ACU (KODA net) | 0.026–0.0276 → **4×–4.25×** (partner keeps 15–20%) |
+| Partner-channel ACU (KODA net) | 0.0500–0.0531 → **~7.7×–8.2×** (partner keeps 15–20%) |
 
-The **4× floor is enforced in code and CI** (`tools/margin.js`): no pack, plan rate, overage, or wholesale rate can ever sell below 4× cost. Vision is metered at 3 ACU so the pricier vision path ($0.0213 cost) still clears 4× ($0.0975 = 4.6×). Margin expands as code-path share rises (it does, as customers learn the flow).
+The **4× floor is enforced in code and CI** (`tools/margin.js`): no pack, plan rate, overage, or wholesale rate can ever sell below 4× cost. Vision is metered at 3 ACU so the pricier vision path ($0.0213 cost) clears the floor easily ($0.1875 = 8.8×). Margin expands as code-path share rises (it does, as customers learn the flow).
 
 ---
 

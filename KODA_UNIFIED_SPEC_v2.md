@@ -316,22 +316,22 @@ Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per mark
 
 ## 10. The unified plan ladder
 
-**Pricing law (binding):** the billable atom is one verification = 1 ACU. **Two prices per plan** over a single hard floor of **4× fully-loaded cost ($0.026/verif)** — nothing ever nets KODA below 4×:
-- **Direct = 4× ($0.026/verif)** — the price a merchant pays KODA directly (card, or mobile money to KODA's own number). Cheaper than pay-as-you-go — **a plan always beats PAYG.** This is the headline plan price; KODA nets 4×.
-- **List = 5× ($0.0325/verif) = direct / 0.80** — the price a partner (reseller/distributor) charges a merchant. The partner buys the plan's inventory at 80% of list (= the direct price) and keeps 20% (reseller) / 15% (distributor); KODA still nets 4×. A merchant buying through a cash agent pays list — the convenience premium.
-- **Ad-hoc ACU / top-ups / overage = 5× ($0.0325)** — same rate as the partner list.
+**Pricing law (binding):** the billable atom is one verification = 1 ACU. **Two prices per plan** over a single hard floor of **4× fully-loaded cost ($0.026/verif)** — nothing ever nets KODA below that floor. Retail is anchored on Boutique **$0.05/verif** (direct), well above the floor:
+- **Direct = $0.05/verif (~7.7×)** — the price a merchant pays KODA directly (card, or mobile money to KODA's own number). Cheaper than pay-as-you-go — **a plan always beats PAYG.** This is the headline plan price.
+- **List = $0.0625/verif (~9.6×) = direct / 0.80** — the price a partner (reseller/distributor) charges a merchant. The partner buys the plan's inventory at 80% of list (= the direct price) and keeps 20% (reseller) / 15% (distributor); KODA still nets far above the 4× floor. A merchant buying through a cash agent pays list — the convenience premium.
+- **Ad-hoc ACU / top-ups / overage = $0.0625** — same rate as the partner list.
 
 | Plan | Direct | Via agent (list) | Door(s) | Includes | Overage |
 |---|---|---|---|---|---|
 | **Marché** | $0 | — | Manual + Chat | 10 verifications/mo, 1 Sentinel, Verify Console, Live Feed, replay protection, daily digest | — (top up) |
-| **Boutique** | $5/mo | $6.25 | Manual + Chat + API | 190 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.0325 |
-| **Commerce** | $20/mo | $25 | All | 760 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.0325 |
-| **Plateforme** | $100/mo | $125 | All | 3,800 verifications, unlimited devices, highest throughput (100 req/s), SLA-backed response times | $0.0325 |
-| **Scale** | $399/mo | $499 | All + sub-merchants | 15,200 verifications, sub-merchant API + scoped keys, trust-score API, re-billing endpoints, distributor / reseller access | $0.0325 |
+| **Boutique** | $5/mo | $6.25 | Manual + Chat + API | 100 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.0625 |
+| **Commerce** | $20/mo | $25 | All | 400 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.0625 |
+| **Plateforme** | $100/mo | $125 | All | 2,000 verifications, unlimited devices, highest throughput (100 req/s), SLA-backed response times | $0.0625 |
+| **Scale** | $400/mo | $500 | All + sub-merchants | 8,000 verifications, sub-merchant API + scoped keys, trust-score API, re-billing endpoints, distributor / reseller access | $0.0625 |
 | **Enterprise/Gov** | Custom | — | All | Volume, in-country residency, dedicated corridor models, white-label (+20% wholesale), SLA | Custom |
 
-**Pay-as-you-go (no subscription, 5×):** $33→1,000 ACU · $165→5,000 · $650→20,000 (all $0.0325/ACU). Above the 4× direct plan rate, so committing to a plan (paid direct) always saves.
-**Partner wholesale (buy float/inventory, resell at LIST, keep the spread):** distributor 85% of list (KODA nets 4.25×, partner keeps 15%); reseller 80% of list (KODA nets the 4× floor, partner keeps 20%). Below 80% (which would breach the 4× floor) is rejected. Because list is 5×, the whole partner margin lives above the floor — everyone wins: direct merchant (4×), partner (15–20%), and KODA (≥4× on every sale).
+**Pay-as-you-go (no subscription):** $62.50→1,000 ACU · $312.50→5,000 · $1,250→20,000 (all $0.0625/ACU). Above the $0.05 direct plan rate, so committing to a plan (paid direct) always saves ~20%.
+**Partner wholesale (buy float/inventory, resell at LIST, keep the spread):** distributor 85% of list (KODA nets ~8.2×, partner keeps 15%); reseller 80% of list (KODA nets ~7.7×, partner keeps 20%). Below 80% is rejected by policy. Because list is $0.0625 (~9.6×), the whole partner margin lives far above the 4× floor — everyone wins: direct merchant (~7.7×), partner (15–20%), and KODA (far above the 4× floor on every sale).
 **Partners:** BSP/bot-builders 15% rev-share 24 mo or wholesale resale; agencies 10% referral + certified directory. Telco posture: none needed — if an operator wants to white-label KODA as their SME tool, that's enterprise licensing from a position of strength.
 
 ## 11. Prepaid-first billing — the product bills itself with itself
@@ -343,9 +343,9 @@ Card-on-file fails in these markets. KODA is **prepaid ACU wallet first**: merch
 ## 12. Unit economics (per verification, scale, blended) — INTERNAL ONLY, never shown publicly
 
 Fully-loaded cost ≈ **$0.0065** (code path) / **$0.0213** (vision). The pricing law fixes the floor at **4× that cost**:
-- **Plan verification** sells at $0.026 → **4× (300% profit, ~$0.0195 gross)**.
-- **Ad-hoc ACU** (top-up / overage / AI) sells at $0.0325 → **5× (400% profit, ~$0.026 gross)**.
-- **Partner-channel ACU**: KODA nets 4×–4.25× (partner keeps the 15–20% spread out of the 5× retail).
+- **Plan verification** sells at $0.05 → **~7.7× (~670% profit, ~$0.0435 gross)**.
+- **Ad-hoc ACU** (top-up / overage / AI) sells at $0.0625 → **~9.6× (~862% profit, ~$0.056 gross)**.
+- **Partner-channel ACU**: KODA nets ~7.7×–8.2× (partner keeps the 15–20% spread out of the $0.0625 retail).
 
 CI (`tools/margin.js`) fails the build the moment any pack, plan rate, overage, or wholesale rate would sell below 4×, so the floor can never silently erode. Screenshot-heavy corridors are covered by the vision path being metered at 3 ACU (≥4× on its own higher cost). **These cost/margin figures are internal only** — public surfaces show price, verifications, and RPS, never cost or markup.
 

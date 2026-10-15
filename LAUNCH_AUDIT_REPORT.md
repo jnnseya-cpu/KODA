@@ -83,7 +83,7 @@
 
 ## 9. Payment & Financial Findings
 
-- Server-authoritative pricing (ACU 4× cost; collection fee passed through; ≥100% margin — asserted). Idempotent top-ups; append-only double-entry ledger, **Σ=0 invariant** proven; KD float floor enforced; **webhook signature required** (post-fix). No entitlement before payment; no double credit on retry (reprobed). Reconciliation difference: **0**.
+- Server-authoritative pricing (ACU priced above the 4× floor; collection fee passed through; ≥100% margin — asserted). Idempotent top-ups; append-only double-entry ledger, **Σ=0 invariant** proven; KD float floor enforced; **webhook signature required** (post-fix). No entitlement before payment; no double credit on retry (reprobed). Reconciliation difference: **0**.
 
 ---
 

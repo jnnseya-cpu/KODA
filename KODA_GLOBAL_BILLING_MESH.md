@@ -315,7 +315,7 @@ KODA's margin is **held at ≥100% profit on cost, regardless of rail** (the exi
    and never compresses KODA's margin. *(This reverses the "absorb it / hide the fee"
    framing in the source docs — KODA does not eat collection cost.)*
 
-So a quote is always `total = subtotal(4× cost) + collection_fee(rail %) [+ tax]`, and
+So a quote is always `total = subtotal(ACU rate) + collection_fee(rail %) [+ tax]`, and
 KODA nets the subtotal at ≥100% margin whichever rail wins.
 
 **Blended collection cost** still ranges ~5–15% by rail, but it is the **merchant's**
@@ -353,7 +353,7 @@ negotiated volume rebate. Cap or disclose max retail price.
 > licensed; and the **prepaid reseller/distributor network** — signed vouchers plus a
 > KD tree whose incoming payments are **verified by KODA's own engine on the KD's own
 > SIM**: zero credit risk, feature phones served over the counter, negative working
-> capital, every top-up a live demo. ACU is priced at **4× cost** and the rail fee is
+> capital, every top-up a live demo. ACU is priced at **$0.0625 (~9.6× cost)** and the rail fee is
 > **passed through to the merchant as a transparent line** — so KODA holds **≥100%
 > margin on every rail** and never eats collection cost. We didn't invent a payment
 > method — we routed the proven ones through one orchestrator, and made our own

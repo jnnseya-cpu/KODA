@@ -28,12 +28,12 @@ KODA is **not** a payment gateway. Gateways/aggregators **collect and settle** m
 | Kopokopo — 0.55% + KSh 50 payout | ≈ $0.67 | Kopo Kopo support |
 | Tingg / Chipper — ~1% mobile money | ≈ $0.50 | Tingg pricing / Chipper |
 | M-Pesa Daraja — 0.55% till (+ KSh 30k–150k one-time dev) | ≈ $0.28+ | Truehost / Blackshepherd |
-| **KODA — flat per verification** | **$0.03** | KODA pricing |
+| **KODA — flat per verification** | **$0.05** | KODA pricing |
 
-**Result:** 17×–27× cheaper on a $50 payment. Because rivals charge a percentage, the gap widens with size — on a $500 payment KODA is still $0.03 vs $5–$7.50 uncapped (160×–250×).
+**Result:** 10×–16× cheaper on a $50 payment. Because rivals charge a percentage, the gap widens with size — on a $500 payment KODA is still $0.05 vs $5–$7.50 uncapped (100×–150×).
 
 ## Value added to the merchant
-1. **90–98% lower cost to verify** — 3 cents vs $0.50–$7.50; on 1,000 payments/mo ≈ $470–$7,470 saved.
+1. **90–99% lower cost to verify** — 5 cents vs $0.50–$7.50; on 1,000 payments/mo ≈ $450–$7,450 saved.
 2. **Minutes not 6–18 months** — no paybill, no telco B2B, no KSh 30k–150k dev bill.
 3. **Fraud eliminated** — replay lock + balance-chain defence stop screenshot and fake-SMS scams no gateway protects on direct payments.
 4. **Every operator, one tool** — M-Pesa, Orange, Airtel, MTN, Wave, bKash… vs M-Pesa-only Daraja/Kopokopo.

@@ -355,7 +355,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS topups (
   id TEXT PRIMARY KEY,
   merchant_id TEXT NOT NULL REFERENCES merchants(id),
   acu_amount INTEGER NOT NULL,
-  subtotal_usd REAL NOT NULL,                 -- KODA net (4× cost)
+  subtotal_usd REAL NOT NULL,                 -- KODA net (ACU rate)
   collection_fee_usd REAL NOT NULL DEFAULT 0, -- passed through to merchant
   tax_usd REAL NOT NULL DEFAULT 0,
   total_usd REAL NOT NULL,                     -- what the merchant pays

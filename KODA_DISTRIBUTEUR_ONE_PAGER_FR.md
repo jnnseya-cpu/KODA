@@ -61,7 +61,7 @@ KODA (UK)  ──vend en gros──▶  VOUS (Distributeur)  ──vendez au dé
 ---
 
 ## Le prix, en clair
-- Le prix public de l'ACU est fixé par KODA (l'ACU est vendu à **4× le coût** — marge saine et stable).
+- Le prix public de l'ACU est fixé par KODA (**$0,0625/ACU** — marge saine et stable).
 - Vous l'achetez **en dessous** (votre remise) et le revendez au prix public.
 - **Aucun « frais de paiement » caché** n'est montré au commerçant.
 
