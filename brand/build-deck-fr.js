@@ -231,7 +231,7 @@ async function icon(Comp, colorHex, size = 256) {
   s = p.addSlide(); bg(s, INK2);
   kicker(s, 'LE MODÈLE', M, 0.7);
   s.addText('Gratuit jusqu’à ce que votre commerçant soit vraiment payé.', { isTextBox: true, x: M, y: 1.05, w: 12.1, h: 0.7, margin: 0, fontFace: DISP, fontSize: 29, bold: true, color: TEXT });
-  const plans = [['Marché', '$0', '10 / mois · à vie'], ['Boutique', '$5', '190 vérifs / mois'], ['Commerce', '$20', '760 vérifs / mois'], ['Plateforme', '$100', '3 800 / mois'], ['Scale', '$399', '15 200 / mois'], ['Entreprise', 'Sur mesure', 'volume engagé']];
+  const plans = [['Marché', '$0', '10 / mois · à vie'], ['Boutique', '$5', '100 vérifs / mois'], ['Commerce', '$20', '400 vérifs / mois'], ['Plateforme', '$100', '2 000 / mois'], ['Scale', '$400', '8 000 / mois'], ['Entreprise', 'Sur mesure', 'volume engagé']];
   const pw = (W - 2 * M - 5 * 0.24) / 6;
   plans.forEach((pl, i) => {
     const x = M + i * (pw + 0.24), y = 2.35, hot = i === 2; card(s, x, y, pw, 2.35, hot ? CARD2 : CARD);

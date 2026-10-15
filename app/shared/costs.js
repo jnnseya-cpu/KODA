@@ -20,8 +20,8 @@
     sms_mandatory: 0.0001,                  // rare mandatory-notice SMS blended
     gateway_sweep: 0.00055,                 // ~2% mobile-money fees on ~$0.03 revenue collected
     support_ops: 0.0030,                    // human support / dispute ops blended (spec §12)
-    // NB: code-path UNIT sums to exactly $0.0065 = shared/billing UNIT_COST_USD, so retail
-    // ($0.026 = 4×) clears the 4× floor precisely against the granular cost model.
+    // NB: code-path UNIT sums to exactly $0.0065 = shared/billing UNIT_COST_USD. Retail is
+    // anchored at $0.05/verif (direct) ≈ 7.7× — far above the 4× floor against this cost model.
   };
 
   // fully-loaded variable cost per path
@@ -47,17 +47,17 @@
   // the price a partner pays for wholesale float/inventory (partners add their fee on top).
   const MARKUP_MIN = 4.0;
 
-  // retail price points to police (USD per verification). Plan-included sells at 4×
-  // ($0.026); ad-hoc ACU — top-up, overage, AI, partner wholesale — sells at 5× ($0.0325).
-  // Every point clears the 4× floor; the top-up/ACU points clear 5×.
+  // retail price points to police (USD per verification). Plan-included sells at the direct
+  // rate ($0.05); ad-hoc ACU — top-up, overage, AI, partner wholesale — sells at $0.0625.
+  // Every point clears the 4× floor by a wide margin.
   const PRICE_POINTS = [
-    { label: 'Plan included (4× rate)', usd: 0.026, path: 'code' },
-    { label: 'PAYG top-up / overage (1 ACU, 5×)', usd: 0.0325, path: 'code' },
-    { label: 'Partner wholesale (1 ACU @ 5× retail)', usd: 0.0325, path: 'code' },
-    { label: 'Vision path (3 ACU)', usd: 0.0975, path: 'vision' },
-    { label: 'DisputeAgent (3 ACU)', usd: 0.0975, path: 'code' },
-    { label: 'Sub-merchant (5 ACU)', usd: 0.1625, path: 'code' },
-    { label: 'Growth: social post (1 ACU)', usd: 0.0325, path: 'code' },
+    { label: 'Plan included (direct rate)', usd: 0.05, path: 'code' },
+    { label: 'PAYG top-up / overage (1 ACU)', usd: 0.0625, path: 'code' },
+    { label: 'Partner wholesale (1 ACU @ retail)', usd: 0.0625, path: 'code' },
+    { label: 'Vision path (3 ACU)', usd: 0.1875, path: 'vision' },
+    { label: 'DisputeAgent (3 ACU)', usd: 0.1875, path: 'code' },
+    { label: 'Sub-merchant (5 ACU)', usd: 0.3125, path: 'code' },
+    { label: 'Growth: social post (1 ACU)', usd: 0.0625, path: 'code' },
   ];
 
   // Model structure: SUBSCRIPTIONS cover fixed overhead; USAGE prices clear
@@ -66,8 +66,8 @@
   const SCENARIO = {
     label: 'Modest scale: 120 merchants',
     subs: { boutique: 60, commerce: 40, plateforme: 4 },   // monthly subscriptions
-    verifications: 60000,                                  // code-path, blended $0.024
-    blended_usage_usd: 0.024,
+    verifications: 60000,                                  // code-path, blended $0.046
+    blended_usage_usd: 0.046,
     vision_share: 0.06,                                    // 6% arrive via screenshot
   };
 

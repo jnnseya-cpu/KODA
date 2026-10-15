@@ -9,36 +9,39 @@
 
   // ── PRICING LAW (binding) — balanced so EVERYONE wins ─────────────────────
   // TWO-BOOK pricing over one hard floor. KODA nets ≥4× on every sale, direct or resold.
-  //  · DIRECT (merchant → KODA) = 4× cost ($0.026/verif). A merchant paying KODA directly
-  //    (card, or mobile money to KODA's own number via Door 3) gets the plan at 4× — cheaper
-  //    than pay-as-you-go ACU (5×). This is the headline plan price. KODA nets 4×.
-  //  · LIST (merchant → agent) = 5× cost ($0.0325/verif) = direct / 0.80. A partner buys the
-  //    plan's inventory at 80% of list (= the direct price), resells at list, and keeps 20%
-  //    (reseller) / 15% (distributor). KODA still nets 4× — it always receives ~80% of list.
+  //  · DIRECT (merchant → KODA) = $0.05/verif. A merchant paying KODA directly (card, or
+  //    mobile money to KODA's own number via Door 3) gets the plan at $0.05 — cheaper than
+  //    pay-as-you-go ACU ($0.0625). This is the headline plan price.
+  //  · LIST (merchant → agent) = $0.0625/verif = direct / 0.80. A partner buys the plan's
+  //    inventory at 80% of list (= the direct price), resells at list, and keeps 20% (reseller)
+  //    / 15% (distributor). KODA still nets far above the 4× floor — it receives ~80% of list.
   //    A merchant who buys through a cash agent pays list: the agent's convenience premium.
-  //  · AD-HOC ACU / top-ups / overage / AI = 5× ($0.0325). Same as the partner list rate.
+  //  · AD-HOC ACU / top-ups / overage / AI = $0.0625. Same as the partner list rate.
   // So a direct plan is the cheapest way to verify; pay-as-you-go and the agent channel both
   // sit at 5×; and nothing — direct or resold — ever nets KODA below the 4× floor.
   // The rail's collection fee is PASSED THROUGH to the merchant, so KODA's net never dips.
   const UNIT_COST_USD = 0.0065;         // fully-loaded code-path cost (mirrors costs.js COST.code)
-  const ACU_MARKUP = 5;                 // ACU / top-up / overage / partner LIST = 5 × unit cost
-  const PLAN_MARKUP = 4;                // DIRECT plan rate = 4× cost = the floor — a merchant
-                                        // paying KODA direct beats pay-as-you-go (5×). Partners
-                                        // sell the same plan at LIST (5× = usd/0.8); KODA nets 4× either way.
-  const ACU_PRICE_USD = round(ACU_MARKUP * UNIT_COST_USD);   // ≈ 0.0325 / ACU (PAYG / top-up / overage / partner list)
-  const PLAN_PRICE_USD = round(PLAN_MARKUP * UNIT_COST_USD);  // ≈ 0.026 / verif (DIRECT plan rate = the 4× floor)
+  // Retail is anchored on Boutique = $0.05/verif (DIRECT). PAYG / overage / partner LIST sit
+  // above at $0.0625 (= direct / 0.80), so a plan still beats pay-as-you-go by 20%. The real
+  // cost is unchanged, so margins are now ~7.7× (direct) and ~9.6× (ACU) — far above the
+  // enforced 4× floor, which stays the absolute minimum any resold unit may net.
+  const PLAN_PRICE_USD = 0.05;          // DIRECT plan rate ($/verif) — the headline price
+  const ACU_PRICE_USD  = 0.0625;        // ACU / top-up / overage / partner LIST (= direct / 0.80)
+  const PLAN_MARKUP = PLAN_PRICE_USD / UNIT_COST_USD;  // ≈ 7.69× (display)
+  const ACU_MARKUP  = ACU_PRICE_USD / UNIT_COST_USD;   // ≈ 9.62× (display; top-ups must clear this)
 
   // ── 4× MARGIN FLOOR (ENFORCED) ───────────────────────────────────────────
-  // No unit may ever NET KODA below 4× cost (300% profit). A DIRECT plan sits AT the floor
-  // (4×); ad-hoc ACU and the partner LIST price sit above at 5×. A partner buys at 80% of
-  // list (= the 4× direct price), so KODA still nets exactly 4× on a resold plan.
+  // No unit may ever NET KODA below 4× cost (300% profit) — the hard floor. Direct plans now
+  // sit well above it (~7.7× at $0.05); ad-hoc ACU and the partner LIST price sit higher still
+  // (~9.6× at $0.0625). A partner buys at 80% of list (= the $0.05 direct price = ~7.7×), so
+  // KODA nets far above the 4× floor on any resold plan.
   const MARGIN_FLOOR = 3.0;                                  // 300% profit = 4× cost
-  const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.026 = the 4× floor (retail is 5×)
+  const PRICE_FLOOR_USD = round(UNIT_COST_USD * (1 + MARGIN_FLOOR)); // $0.026 = the 4× floor (direct ~7.7×, ACU ~9.6×)
   const clearsFloor = (usdPerAcu) => Number(usdPerAcu) + 1e-9 >= PRICE_FLOOR_USD;
-  // lowest wholesale rate (bps of the 5× ACU retail) that still clears the 4× floor = 8000
-  // (80% of retail → exactly 4×). Distributors default to 8500 (KODA nets 4.25×, partner
-  // margin 15%), resellers to 8000 (KODA nets 4× floor, partner margin 20%). An admin may
-  // set any rate in [8000, 10000]; below 8000 would breach the 4× floor and is rejected.
+  // Distributors default to 8500 (partner margin 15%), resellers to 8000 (partner margin 20%).
+  // At the $0.0625 list rate, 80% = $0.05 (~7.7×) and 85% = $0.0531 (~8.2×) — both far above the
+  // 4× floor, so the defaults give KODA ample headroom. An admin may set any rate in [8000, 10000];
+  // the computed minimum that still clears the 4× floor is far lower, but 8000 remains the policy floor.
   const minWholesaleBps = () => Math.ceil((PRICE_FLOOR_USD / ACU_PRICE_USD) * 10000);
   // throws if a $/ACU price breaks the rule — call at any point ACU is priced for sale.
   function assertFloor(usdPerAcu, label) {

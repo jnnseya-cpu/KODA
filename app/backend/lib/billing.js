@@ -158,7 +158,7 @@ function methods(merchant, ctx = {}) {
   const acu = Math.max(1, Math.round(Number(ctx.amount_acu) || 0));
   const ranked = B.routeProviders({ country, amount_acu: acu, recurring: !!ctx.recurring });
   // Retail base price: the pack price (ctx.usd) is authoritative when given (e.g.
-  // $33 → 1,000 ACU); otherwise fall back to the 5× per-ACU rate. The rail's collection
+  // $62.50 → 1,000 ACU); otherwise fall back to the 5× per-ACU rate. The rail's collection
   // fee is added on top (passed through to the buyer, never absorbed).
   const retail = Number(ctx.usd) > 0 ? Number(ctx.usd) : Math.round(acu * B.ACU_PRICE_USD * 100) / 100;
   const withFee = (railCode) => {
@@ -419,7 +419,7 @@ function createDistributorTopup(merchant, body = {}) {
 // their Sentinel confirms the payment, and the plan activates for 30 days.
 function createDistributorPlanSale(merchant, body = {}) {
   // Two-book: a merchant buying through a distributor pays the LIST price (5×). The KD's float
-  // is debited planAcu = ceil(list/0.0325); KODA nets 4× (~80% of list) and the KD keeps 15%.
+  // is debited planAcu = ceil(list/ACU_PRICE_USD); KODA nets far above 4× (~80% of list) and the KD keeps 15%.
   const planKey = body.plan_key;
   if (!isSellablePlan(planKey)) return [400, { error: { code: 'invalid_plan' } }];
   const PLANS = require('../../shared/plans').PLANS;
@@ -606,7 +606,7 @@ function activatePlan(merchantId, planKey) {
 // otherwise ACU vouchers.
 function issueResellerBatch(reseller, opts = {}) {
   const vouchers = require('./vouchers');
-  // Two-book: a plan voucher is priced at LIST (5×) and debits planAcu = ceil(list/0.0325) ACU
+  // Two-book: a plan voucher is priced at LIST and debits planAcu = ceil(list/ACU_PRICE_USD) ACU
   // bought at 80% — KODA nets 4×, reseller keeps 20%. An unsellable plan_key (Marché, Enterprise,
   // or a grandfathered *_legacy) is rejected outright — never silently turned into an ACU batch.
   if (opts.plan_key && !isSellablePlan(opts.plan_key))

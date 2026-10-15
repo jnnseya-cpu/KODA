@@ -451,9 +451,9 @@ const pages = {
 <p>You buy verification credit (ACU) below the price merchants pay, and keep the difference on every sale.</p>
 <table>
   <tr><th>&nbsp;</th><th>You pay / ACU</th><th>You keep per $100 sold</th></tr>
-  <tr><td>Distributor wholesale</td><td class="mono">$0.0276</td><td class="ok">$15.00</td></tr>
-  <tr><td>Reseller wholesale</td><td class="mono">$0.0260</td><td class="ok">$20.00</td></tr>
-  <tr><td>Retail — what merchants pay you</td><td class="mono">$0.0325</td><td>—</td></tr>
+  <tr><td>Distributor wholesale</td><td class="mono">$0.0531</td><td class="ok">$15.00</td></tr>
+  <tr><td>Reseller wholesale</td><td class="mono">$0.0500</td><td class="ok">$20.00</td></tr>
+  <tr><td>Retail — what merchants pay you</td><td class="mono">$0.0625</td><td>—</td></tr>
 </table>
 <p style="font-size:13px;color:var(--dim)">Resell at KODA's retail price, or set your own street price and keep even more. Prices are per ACU; a typical payment verification is 1 ACU.</p>
 
@@ -554,16 +554,16 @@ function kodaPartnerApply(e){
   <div class="plan"><h3>Marché</h3><div class="pr">$0</div><div class="per">forever · 10 verifs/mo</div>
     <ul><li>All five doors</li><li>1 Sentinel device</li><li>Verify Console + Live Feed</li><li>Replay protection</li><li>Daily digest</li></ul>
     <a class="pbtn" href="/app#signup?plan=marche">Start free</a></div>
-  <div class="plan"><h3>Boutique</h3><div class="pr">$5<small>/mo</small></div><div class="per">190 verifs · $0.0325 over</div>
+  <div class="plan"><h3>Boutique</h3><div class="pr">$5<small>/mo</small></div><div class="per">100 verifs · $0.0625 over</div>
     <ul><li>Manual + Chat + API</li><li>2 devices · 3 team seats</li><li>Customer receipts</li><li>Web widget + webhooks</li><li>Reconciliation</li></ul>
     <a class="pbtn" href="/app#signup?plan=boutique">Choose Boutique</a></div>
-  <div class="plan hot"><h3>Commerce</h3><div class="pr">$20<small>/mo</small></div><div class="per">760 verifs · $0.0325 over</div>
+  <div class="plan hot"><h3>Commerce</h3><div class="pr">$20<small>/mo</small></div><div class="per">400 verifs · $0.0625 over</div>
     <ul><li>Everything in Boutique</li><li>5 devices · 10 seats</li><li>Vision + screenshot forensics</li><li>Dispute assistant</li><li>Priority parsing · WhatsApp SLA</li></ul>
     <a class="pbtn" href="/app#signup?plan=commerce">Choose Commerce</a></div>
-  <div class="plan"><h3>Plateforme</h3><div class="pr">$100<small>/mo</small></div><div class="per">3,800 verifs · $0.0325 over</div>
+  <div class="plan"><h3>Plateforme</h3><div class="pr">$100<small>/mo</small></div><div class="per">2,000 verifs · $0.0625 over</div>
     <ul><li>Everything in Commerce</li><li>Unlimited devices</li><li>Highest throughput (100 req/s)</li><li>SLA-backed response times</li></ul>
     <a class="pbtn" href="/app#signup?plan=plateforme">Choose Plateforme</a></div>
-  <div class="plan"><h3>Scale</h3><div class="pr">$399<small>/mo</small></div><div class="per">15,200 verifs · $0.0325 over</div>
+  <div class="plan"><h3>Scale</h3><div class="pr">$400<small>/mo</small></div><div class="per">8,000 verifs · $0.0625 over</div>
     <ul><li>Everything in Plateforme</li><li>Sub-merchant API + scoped keys</li><li>Trust-score API</li><li>Re-billing endpoints</li><li>Distributor / reseller access</li></ul>
     <a class="pbtn" href="/app#signup?plan=scale">Choose Scale</a></div>
   <div class="plan"><h3>Enterprise / Gov</h3><div class="pr">Custom</div><div class="per">committed volume</div>
@@ -572,7 +572,7 @@ function kodaPartnerApply(e){
 </div>
 <div class="moral">"Pay only when your merchant gets paid." <em>— the moral centre of the pricing.</em>
   <small>A plan's included rate always beats pay-as-you-go · prepaid top-ups verified by the engine itself</small></div>
-<p><b>Pay-as-you-go:</b> prepaid ACU packs from <b>$33 → 1,000 ACU</b> ($165 → 5,000 · $650 → 20,000), topped up via mobile money and verified by KODA's own engine. 1 ACU = one verification beyond your plan quota; ACU also powers AI features (screenshot reading, dispute assistant). A plan's included rate ($0.026/verif) always beats pay-as-you-go ($0.0325) — so subscribing saves ~20%.</p>
+<p><b>Pay-as-you-go:</b> prepaid ACU packs from <b>$62.50 → 1,000 ACU</b> ($312.50 → 5,000 · $1,250 → 20,000), topped up via mobile money and verified by KODA's own engine. 1 ACU = one verification beyond your plan quota; ACU also powers AI features (screenshot reading, dispute assistant). A plan's included rate ($0.05/verif) always beats pay-as-you-go ($0.0625) — so subscribing saves 20%.</p>
 <p style="color:var(--dim);font-size:12.5px">Pay KODA directly by card or mobile money for the prices above. <b style="color:var(--text)">No card or bank?</b> A local KODA agent can set you up and activate any plan with cash — find one near you.</p>
 <p style="color:var(--dim);font-size:13.5px">Prices in USD, billed monthly, and a paid plan activates the moment KODA confirms your mobile-money payment. Upgrade, downgrade or cancel anytime — no lock-in. Already have an account? Choose or change your plan in <a href="/app#pricing">the app → Plans &amp; pricing</a>.</p>`,
   }),
