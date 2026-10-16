@@ -186,7 +186,7 @@ Pay-as-you-go ACU is priced at **$0.0625/ACU** — deliberately above the $0.05 
 | $312.50 → 5,000 ACU | $0.0625 |
 | $1,250 → 20,000 ACU | $0.0625 |
 
-**Plans (subscription = the $0.05 rate + features)** — Marché $0 (10/mo) · Boutique $5 (100) · Commerce $20 (400) · Plateforme $100 (2,000) · Scale $400 (8,000) · Enterprise custom. Acquisition-first ladder: a low $5 door, buckets priced at $0.05/verif, growth beyond quota is the same $0.05/verif. Included quota AND overage sell at the **plan rate ($0.05/verif)** — drawn from the prepaid wallet; no-subscription pay-as-you-go ACU is $0.0625. Platform capabilities (sub-merchant API, trust-score, re-billing, distributor access) sit at **Scale ($400)**; Plateforme ($100) is a throughput/scale tier.
+**Plans (subscription — VOLUME DISCOUNT + features)** — Marché $0 (10/mo) · Boutique $6 (100 · $0.06) · Commerce $22 (400 · $0.055) · Plateforme $105 (2,000 · $0.0525) · Scale $400 (8,000 · $0.05) · Enterprise custom. The per-verification price FALLS as the plan grows — $0.06 at Boutique down to $0.05 at Scale (the floor). Included quota AND overage sell at that tier's rate (drawn from the prepaid wallet), so each card reconciles (verifs × rate = price); no-subscription pay-as-you-go ACU is $0.0625, above every plan. Platform capabilities (sub-merchant API, trust-score, re-billing, distributor access) sit at **Scale ($400)**; Plateforme ($105) is a throughput/scale tier.
 
 **Partner wholesale (buy float/inventory, resell at the 5× retail, keep the spread)**
 

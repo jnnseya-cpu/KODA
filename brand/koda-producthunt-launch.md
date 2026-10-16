@@ -93,7 +93,7 @@ It's free to start (10 verifications/month, no card). I'd love your honest feedb
 - **"Do you have access to the telco/operator systems?"** — No, and that's the point. We read the confirmation SMS the merchant already receives, so there's no operator integration, contract or API to license.
 - **"Which operators/countries?"** — 235 operators across 95 countries, with 6 hand-tuned "live" parsers today and the rest template-ready; full map at kodajnn.com/coverage. No operator API required for any of them.
 - **"How does it actually stop fakes?"** — It verifies against the operator's own message (not the customer's screenshot), locks every code to single-use so receipts can't be recycled, and runs anti-forgery + fraud checks.
-- **"Is it really free?"** — Yes: 10 verifications/month free forever, no card. Paid plans start at $5/mo for higher volume.
+- **"Is it really free?"** — Yes: 10 verifications/month free forever, no card. Paid plans start at $6/mo for higher volume.
 - **"iPhone / feature phone?"** — Merchants forward or paste the SMS, or use WhatsApp/USSD/inbound SMS — it works on any phone, including feature phones with no internet.
 - **"What are the limits?"** — Honest: verification is fraud-scored and replay-protected, but it doesn't guarantee against an operator-side reversal or constitute proof of settlement. It makes you *first to know*, in seconds.
 

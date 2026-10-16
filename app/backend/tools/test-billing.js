@@ -204,18 +204,23 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   const broke = q.get('SELECT * FROM merchants WHERE id=?', brokeMid);
   ok(engine.canSpend(broke, engine.ACU.code) === false, 'credit floor: a deeply-negative merchant cannot spend');
 
-  // 6. FLAT $0.05: a paid plan's included AND overage rate are both $0.05/verif, so the
-  //    whole plan reconciles ($5 ÷ 100 = $0.05 = overage). Overage debits $0.05 worth of ACU
-  //    (0.8 ACU, since ACU is bought at $0.0625) — the plan rate, below the PAYG full 1 ACU.
-  //    Marché / no-subscription PAYG = a full 1 ACU ($0.0625). Everything clears the 4× floor.
+  // 6. VOLUME DISCOUNT: per-verif rate falls with tier size — Boutique $0.06 → Commerce $0.055
+  //    → Plateforme $0.0525 → Scale $0.05 (floor). Each plan reconciles: usd = verifs × rate,
+  //    and overage == that same tier rate (so overage debits rate/ACU_PRICE ACU, e.g. Boutique
+  //    $0.06 = 0.96 ACU). Every tier is BELOW the PAYG rate ($0.0625); Marché/PAYG = a full 1 ACU.
   const PL = require('../../shared/plans').PLANS;
+  const rate = k => PL[k].usd / PL[k].verifs;
+  const TIERS = ['boutique', 'commerce', 'plateforme', 'scale'];
+  ok(TIERS.every(k => Math.abs(rate(k) - PL[k].overage) < 1e-9), 'each plan reconciles: included rate (usd÷verifs) === overage rate (card math adds up)',
+    TIERS.map(k => `${k} $${rate(k).toFixed(4)}`).join(' · '));
+  ok(rate('boutique') > rate('commerce') && rate('commerce') > rate('plateforme') && rate('plateforme') > rate('scale'),
+    'volume discount: per-verif rate strictly falls as the plan grows');
+  ok(Math.abs(rate('scale') - 0.05) < 1e-9, 'Scale is the $0.05 floor (the best / lowest per-verif rate)', `$${rate('scale')}`);
+  ok(TIERS.every(k => rate(k) + 1e-9 < BILL.ACU_PRICE_USD), 'every plan rate is below the $0.0625 PAYG rate (a plan always beats pay-as-you-go)');
   const ovB = engine.overageAcu({ plan: 'boutique', acu_balance: 0 });
-  ok(Math.abs(ovB * BILL.ACU_PRICE_USD - PL.boutique.overage) < 1e-6 && Math.abs(ovB - 0.8) < 1e-6,
-    'paid-plan overage is the $0.05 plan rate (0.8 ACU), matching the included rate', `${ovB} ACU = $${(ovB * BILL.ACU_PRICE_USD).toFixed(4)}`);
+  ok(Math.abs(ovB * BILL.ACU_PRICE_USD - PL.boutique.overage) < 1e-6, 'overage debits the tier rate in ACU (Boutique $0.06 = 0.96 ACU)', `${ovB} ACU = $${(ovB * BILL.ACU_PRICE_USD).toFixed(4)}`);
   ok(engine.overageAcu({ plan: 'marche', acu_balance: 0 }) === engine.ACU.code, 'Marché / PAYG overage is a full 1 ACU ($0.0625)');
-  ok(['boutique', 'commerce', 'plateforme', 'scale'].every(k => Math.abs(PL[k].usd / PL[k].verifs - 0.05) < 1e-6 && Math.abs(PL[k].overage - 0.05) < 1e-6),
-    'every paid plan: included rate ($5/100) AND overage are a flat $0.05/verif (math reconciles)');
-  ok(['boutique', 'commerce', 'plateforme'].every(k => BILL.clearsFloor(PL[k].usd / PL[k].verifs) && BILL.clearsFloor(PL[k].overage)),
+  ok(TIERS.every(k => BILL.clearsFloor(rate(k)) && BILL.clearsFloor(PL[k].overage)),
     'every paid plan included + overage rate clears the 4× floor');
 
   // 7. Chargeback clawback: a settled card top-up reversed pulls the ACU back; ledger = 0.

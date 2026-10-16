@@ -16,17 +16,18 @@
   //    inventory at 80% of list (= the direct price), resells at list, and keeps 20% (reseller)
   //    / 15% (distributor). KODA still nets far above the 4× floor — it receives ~80% of list.
   //    A merchant who buys through a cash agent pays list: the agent's convenience premium.
-  //  · AD-HOC ACU / top-ups / AI = $0.0625 (a plan's overage is its own $0.05 rate). Same as partner list.
+  //  · AD-HOC ACU / top-ups / AI = $0.0625 (a plan's overage is its own tier rate, $0.06→$0.05). Same as partner list.
   // So a direct plan is the cheapest way to verify; pay-as-you-go and the agent channel both
   // sit at $0.0625; and nothing — direct or resold — ever nets KODA below the 4× floor.
   // The rail's collection fee is PASSED THROUGH to the merchant, so KODA's net never dips.
   const UNIT_COST_USD = 0.0065;         // fully-loaded code-path cost (mirrors costs.js COST.code)
-  // Retail is anchored on Boutique = $0.05/verif (DIRECT). PAYG / overage / partner LIST sit
-  // above at $0.0625 (= direct / 0.80), so a plan still beats pay-as-you-go by 20%. The real
-  // cost is unchanged, so margins are now ~7.7× (direct) and ~9.6× (ACU) — far above the
-  // enforced 4× floor, which stays the absolute minimum any resold unit may net.
-  const PLAN_PRICE_USD = 0.05;          // DIRECT plan rate ($/verif) — the headline price
-  const ACU_PRICE_USD  = 0.0625;        // ACU / top-up / overage / partner LIST (= direct / 0.80)
+  // VOLUME DISCOUNT: the per-verif plan rate falls with tier size — Boutique $0.06 →
+  // Commerce $0.055 → Plateforme $0.0525 → Scale $0.05 (the floor / best rate). PLAN_PRICE_USD
+  // below is that floor (the Scale rate). PAYG / top-ups / partner LIST sit ABOVE every plan at
+  // $0.0625, so any plan beats pay-as-you-go. Real cost is unchanged, so margins run ~7.7×–9.2×
+  // (direct) and ~9.6× (ACU) — far above the enforced 4× floor, the absolute resale minimum.
+  const PLAN_PRICE_USD = 0.05;          // best-tier (Scale) plan rate = the volume-discount floor
+  const ACU_PRICE_USD  = 0.0625;        // ACU / top-up / partner LIST — the ceiling, above every plan
   const PLAN_MARKUP = PLAN_PRICE_USD / UNIT_COST_USD;  // ≈ 7.69× (display)
   const ACU_MARKUP  = ACU_PRICE_USD / UNIT_COST_USD;   // ≈ 9.62× (display; top-ups must clear this)
 

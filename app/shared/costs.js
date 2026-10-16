@@ -47,8 +47,8 @@
   // the price a partner pays for wholesale float/inventory (partners add their fee on top).
   const MARKUP_MIN = 4.0;
 
-  // retail price points to police (USD per verification). Plan-included sells at the direct
-  // rate ($0.05); ad-hoc ACU — top-up, overage, AI, partner wholesale — sells at $0.0625.
+  // retail price points to police (USD per verification). Plan-included sells at the plan
+  // rate ($0.05–$0.06, volume discount); ad-hoc ACU — top-up, AI, partner wholesale — at $0.0625.
   // Every point clears the 4× floor by a wide margin.
   const PRICE_POINTS = [
     { label: 'Plan included (direct rate)', usd: 0.05, path: 'code' },
@@ -66,8 +66,8 @@
   const SCENARIO = {
     label: 'Modest scale: 120 merchants',
     subs: { boutique: 60, commerce: 40, plateforme: 4 },   // monthly subscriptions
-    verifications: 60000,                                  // code-path, blended $0.046
-    blended_usage_usd: 0.046,
+    verifications: 60000,                                  // code-path, blended $0.05
+    blended_usage_usd: 0.05,
     vision_share: 0.06,                                    // 6% arrive via screenshot
   };
 

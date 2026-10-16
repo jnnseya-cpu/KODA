@@ -316,17 +316,17 @@ Retail anchor ≈ **$0.03/ACU**, degressive. Local-currency price cards per mark
 
 ## 10. The unified plan ladder
 
-**Pricing law (binding):** the billable atom is one verification = 1 ACU. **Two prices per plan** over a single hard floor of **4× fully-loaded cost ($0.026/verif)** — nothing ever nets KODA below that floor. Retail is anchored on Boutique **$0.05/verif** (direct), well above the floor:
-- **Direct = $0.05/verif (~7.7×)** — the price a merchant pays KODA directly (card, or mobile money to KODA's own number). Cheaper than pay-as-you-go — **a plan always beats PAYG.** This is the headline plan price.
-- **List = $0.0625/verif (~9.6×) = direct / 0.80** — the price a partner (reseller/distributor) charges a merchant. The partner buys the plan's inventory at 80% of list (= the direct price) and keeps 20% (reseller) / 15% (distributor); KODA still nets far above the 4× floor. A merchant buying through a cash agent pays list — the convenience premium.
-- **Ad-hoc ACU / top-ups = $0.0625** — same rate as the partner list (a plan's overage is its own $0.05 rate).
+**Pricing law (binding):** the billable atom is one verification = 1 ACU. **Two prices per plan**, with a **volume discount** (the per-verif rate falls as the plan grows), over a single hard floor of **4× fully-loaded cost ($0.026/verif)** — nothing ever nets KODA below that floor. The best rate is Scale at **$0.05/verif**, up to Boutique at **$0.06**:
+- **Direct = $0.06 → $0.05/verif (~9.2×–7.7×), falling with tier size** — the price a merchant pays KODA directly (card, or mobile money to KODA's own number). Every tier is below pay-as-you-go — **a plan always beats PAYG.** This is the headline plan price.
+- **List = direct / 0.80, per tier ($0.075 → $0.0625/verif)** — the price a partner (reseller/distributor) charges a merchant. The partner buys the plan's inventory at 80% of list (= the direct price) and keeps 20% (reseller) / 15% (distributor); KODA still nets far above the 4× floor. A merchant buying through a cash agent pays list — the convenience premium.
+- **Ad-hoc ACU / top-ups = $0.0625** — above every plan; a plan's overage is its own tier rate ($0.06 → $0.05).
 
 | Plan | Direct | Via agent (list) | Door(s) | Includes | Overage |
 |---|---|---|---|---|---|
 | **Marché** | $0 | — | Manual (Door 1) | 10 verifications/mo, 1 Sentinel, Verify Console, Live Feed, replay protection, daily digest. Chat / API / USSD / SMS: paid plans | — (top up) |
-| **Boutique** | $5/mo | $6.25 | Manual + Chat + API | 100 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.05 |
-| **Commerce** | $20/mo | $25 | All | 400 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.05 |
-| **Plateforme** | $100/mo | $125 | All | 2,000 verifications, unlimited devices, highest throughput (100 req/s), SLA-backed response times | $0.05 |
+| **Boutique** | $6/mo | $7.50 | Manual + Chat + API | 100 verifications, 2 devices, 3 team seats, customer receipts, web widget, webhooks, reconciliation | $0.06 |
+| **Commerce** | $22/mo | $27.50 | All | 400 verifications, 5 devices, 10 seats, Vision + forensics, DisputeAgent, priority parsing, WhatsApp SLA | $0.055 |
+| **Plateforme** | $105/mo | $131.25 | All | 2,000 verifications, unlimited devices, highest throughput (100 req/s), SLA-backed response times | $0.0525 |
 | **Scale** | $400/mo | $500 | All + sub-merchants | 8,000 verifications, sub-merchant API + scoped keys, trust-score API, re-billing endpoints, distributor / reseller access | $0.05 |
 | **Enterprise/Gov** | Custom | — | All | Volume, in-country residency, dedicated corridor models, white-label (+20% wholesale), SLA | Custom |
 
@@ -343,7 +343,7 @@ Card-on-file fails in these markets. KODA is **prepaid ACU wallet first**: merch
 ## 12. Unit economics (per verification, scale, blended) — INTERNAL ONLY, never shown publicly
 
 Fully-loaded cost ≈ **$0.0065** (code path) / **$0.0213** (vision). The pricing law fixes the floor at **4× that cost**:
-- **Plan verification** sells at $0.05 → **~7.7× (~670% profit, ~$0.0435 gross)**.
+- **Plan verification** sells at $0.05–$0.06 → **~7.7×–9.2× (~670–823% profit, ~$0.0435–0.0535 gross)**.
 - **Ad-hoc ACU** (top-up / AI; plan overage is $0.05) sells at $0.0625 → **~9.6× (~862% profit, ~$0.056 gross)**.
 - **Partner-channel ACU**: KODA nets ~7.7×–8.2× (partner keeps the 15–20% spread out of the $0.0625 retail).
 

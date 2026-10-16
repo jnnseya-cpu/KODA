@@ -477,7 +477,7 @@ module.exports = function registerRoutes(r) {
   // Payment methods to subscribe to a (paid) plan.
   r.get('/app/billing/plan/:plan/methods', auth((req, user, m) => billing.planMethods(req.params.plan)));
   // Start a plan-subscription checkout via a chosen rail (koda | stripe | bitripay |
-  // distributor). Plans list at $0.0625/verif, so the distributor rail (agent sells the
+  // distributor). Plans list at usd/0.8 (≥ $0.0625/verif), so the distributor rail (agent sells the
   // plan through their float, bought at 85%) still nets KODA ≥4× while the agent keeps 15%.
   r.post('/app/billing/subscribe', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
