@@ -9,8 +9,9 @@
   // the unified plan ladder (spec §10) — one ladder, all five doors.
   //
   // PRICING LAW (two-book · hard 4× floor · VOLUME DISCOUNT). The per-verification price
-  // FALLS as the plan grows: Boutique $0.06 → Commerce $0.055 → Plateforme $0.0525 → Scale
-  // $0.05 (the floor / best rate). Each paid plan carries TWO prices:
+  // FALLS as the plan grows: Boutique $0.0588 → Commerce $0.0556 → Plateforme $0.0526 → Scale
+  // $0.05 (the floor / best rate). Monthly prices are round ($5/$20/$100/$400); the discount
+  // comes from the verification quota. Each paid plan carries TWO prices:
   //   · usd  = DIRECT price a merchant pays KODA = verifs × that tier's per-verif rate. Every
   //            tier beats pay-as-you-go ($0.0625), so a plan always saves. Headline price.
   //   · list_usd = the price a PARTNER (reseller/distributor) charges a merchant = usd / 0.80.
@@ -21,10 +22,10 @@
   // rate (so the card reconciles: verifs × rate = usd). CI asserts: each plan rate ≥4× floor
   // AND < the ACU rate (RULE 4); partner resale of list nets ≥4× (RULE 5); top-ups ≥ ACU (RULE 3).
   // Each verif = its tier's rate. Marché is the free acquisition tier (10 on us, Door 1 only).
-  // Prices: Boutique $6/100 ($0.06) · Commerce $22/400 ($0.055) · Plateforme $105/2000 ($0.0525)
+  // Prices: Boutique $5/85 ($0.0588) · Commerce $20/360 ($0.0556) · Plateforme $100/1900 ($0.0526)
   //  · Scale $400/8000 ($0.05). agent list = usd/0.8. Platform capabilities
   // (sub-merchant API, trust-score, re-billing, distributor access) live at SCALE ($400);
-  // Plateforme ($105) is a throughput/scale tier only.
+  // Plateforme ($100) is a throughput/scale tier only.
   //
   // *_legacy entries are NOT shown on the pricing ladder and are never resold (partner
   // resale always mints a CURRENT-ladder plan). They preserve the OLD economics for merchants
@@ -33,10 +34,10 @@
   // the new SCALE tier, so it needs no legacy row.
   const PLANS = {
     marche:     { label: 'Marché',     usd: 0,    list_usd: 0,   verifs: 10,    overage: null,   rps: 2 },
-    boutique:   { label: 'Boutique',   usd: 6,    list_usd: 7.5,    verifs: 100,   overage: 0.06,   rps: 10 },
-    commerce:   { label: 'Commerce',   usd: 22,   list_usd: 27.5,   verifs: 400,   overage: 0.055,  rps: 25 },
-    plateforme: { label: 'Plateforme', usd: 105,  list_usd: 131.25, verifs: 2000,  overage: 0.0525, rps: 100 },
-    scale:      { label: 'Scale',      usd: 400,  list_usd: 500,    verifs: 8000,  overage: 0.05,   rps: 250 },
+    boutique:   { label: 'Boutique',   usd: 5,    list_usd: 6.25,  verifs: 85,    overage: 0.058824, rps: 10 },
+    commerce:   { label: 'Commerce',   usd: 20,   list_usd: 25,    verifs: 360,   overage: 0.055556, rps: 25 },
+    plateforme: { label: 'Plateforme', usd: 100,  list_usd: 125,   verifs: 1900,  overage: 0.052632, rps: 100 },
+    scale:      { label: 'Scale',      usd: 400,  list_usd: 500,   verifs: 8000,  overage: 0.05,     rps: 250 },
     enterprise: { label: 'Enterprise', usd: null, list_usd: null,  verifs: null,  overage: null,   rps: 1000 },
     // grandfathered (hidden, direct-only — never resold): keep original price + bucket
     boutique_legacy: { label: 'Boutique',  usd: 19, list_usd: 19, verifs: 700,  overage: 0.0325, rps: 10, legacy: true },

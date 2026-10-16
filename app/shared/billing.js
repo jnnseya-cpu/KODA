@@ -16,13 +16,14 @@
   //    inventory at 80% of list (= the direct price), resells at list, and keeps 20% (reseller)
   //    / 15% (distributor). KODA still nets far above the 4× floor — it receives ~80% of list.
   //    A merchant who buys through a cash agent pays list: the agent's convenience premium.
-  //  · AD-HOC ACU / top-ups / AI = $0.0625 (a plan's overage is its own tier rate, $0.06→$0.05). Same as partner list.
+  //  · AD-HOC ACU / top-ups / AI = $0.0625 (a plan's overage is its own tier rate, $0.0588→$0.05). Same as partner list.
   // So a direct plan is the cheapest way to verify; pay-as-you-go and the agent channel both
   // sit at $0.0625; and nothing — direct or resold — ever nets KODA below the 4× floor.
   // The rail's collection fee is PASSED THROUGH to the merchant, so KODA's net never dips.
   const UNIT_COST_USD = 0.0065;         // fully-loaded code-path cost (mirrors costs.js COST.code)
-  // VOLUME DISCOUNT: the per-verif plan rate falls with tier size — Boutique $0.06 →
-  // Commerce $0.055 → Plateforme $0.0525 → Scale $0.05 (the floor / best rate). PLAN_PRICE_USD
+  // VOLUME DISCOUNT: the per-verif plan rate falls with tier size — Boutique $0.0588 →
+  // Commerce $0.0556 → Plateforme $0.0526 → Scale $0.05 (the floor / best rate). Monthly prices
+  // stay round ($5/$20/$100/$400); the discount comes from the quota. PLAN_PRICE_USD
   // below is that floor (the Scale rate). PAYG / top-ups / partner LIST sit ABOVE every plan at
   // $0.0625, so any plan beats pay-as-you-go. Real cost is unchanged, so margins run ~7.7×–9.2×
   // (direct) and ~9.6× (ACU) — far above the enforced 4× floor, the absolute resale minimum.

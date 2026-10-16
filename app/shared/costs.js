@@ -48,7 +48,7 @@
   const MARKUP_MIN = 4.0;
 
   // retail price points to police (USD per verification). Plan-included sells at the plan
-  // rate ($0.05–$0.06, volume discount); ad-hoc ACU — top-up, AI, partner wholesale — at $0.0625.
+  // rate ($0.05–$0.0588, volume discount); ad-hoc ACU — top-up, AI, partner wholesale — at $0.0625.
   // Every point clears the 4× floor by a wide margin.
   const PRICE_POINTS = [
     { label: 'Plan included (direct rate)', usd: 0.05, path: 'code' },

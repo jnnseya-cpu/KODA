@@ -335,9 +335,9 @@ Metered in **AI Compute Units**; verification is the billable atom.
 | Plan | Price | Includes | Overage |
 |---|---|---|---|
 | **Marché** (free) | $0 | 10 verifications/mo, 1 Sentinel device, Verify Console (Door 1 only) | — (top up) |
-| **Boutique** | $6/mo | 100 verifications, 2 devices, web widget, webhooks, reconciliation reports | $0.06/verif |
-| **Commerce** | $22/mo | 400 verifications, 5 devices, DisputeAgent, screenshot Vision, priority parsing | $0.055/verif |
-| **Plateforme** | $105/mo | 2,000 verifications, unlimited devices, highest throughput, SLA-backed response times | $0.0525/verif |
+| **Boutique** | $5/mo | 85 verifications, 2 devices, web widget, webhooks, reconciliation reports | $0.0588/verif |
+| **Commerce** | $20/mo | 360 verifications, 5 devices, DisputeAgent, screenshot Vision, priority parsing | $0.0556/verif |
+| **Plateforme** | $100/mo | 1,900 verifications, unlimited devices, highest throughput, SLA-backed response times | $0.0526/verif |
 | **Scale** | $400/mo | 8,000 verifications, marketplace trust-score API, sub-merchant onboarding API, re-billing, distributor access, SLA | $0.05/verif |
 | **Enterprise/Gov** | Custom | Volume, in-country residency, dedicated corridor models, white-label | Custom |
 

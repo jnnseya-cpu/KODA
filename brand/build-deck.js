@@ -234,7 +234,7 @@ async function icon(Comp, colorHex, size = 256) {
   s = p.addSlide(); bg(s, INK2);
   kicker(s, 'THE MODEL', M, 0.7);
   s.addText('Free until your merchant actually gets paid.', { isTextBox: true, x: M, y: 1.05, w: 12, h: 0.7, margin: 0, fontFace: DISP, fontSize: 32, bold: true, color: TEXT });
-  const plans = [['Marché', '$0', '10 / mo · forever'], ['Boutique', '$6', '100 / mo · $0.06'], ['Commerce', '$22', '400 / mo · $0.055'], ['Plateforme', '$105', '2,000 / mo · $0.0525'], ['Scale', '$400', '8,000 / mo · $0.05'], ['Enterprise', 'Custom', 'committed volume']];
+  const plans = [['Marché', '$0', '10 / mo · forever'], ['Boutique', '$5', '85 / mo · $0.0588'], ['Commerce', '$20', '360 / mo · $0.0556'], ['Plateforme', '$100', '1,900 / mo · $0.0526'], ['Scale', '$400', '8,000 / mo · $0.05'], ['Enterprise', 'Custom', 'committed volume']];
   const pw = (W - 2 * M - 5 * 0.24) / 6;
   plans.forEach((pl, i) => {
     const x = M + i * (pw + 0.24), y = 2.35, hot = i === 2; card(s, x, y, pw, 2.35, hot ? CARD2 : CARD);

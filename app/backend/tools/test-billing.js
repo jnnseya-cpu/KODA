@@ -204,21 +204,24 @@ const bal = (mid) => q.get('SELECT acu_balance FROM merchants WHERE id=?', mid).
   const broke = q.get('SELECT * FROM merchants WHERE id=?', brokeMid);
   ok(engine.canSpend(broke, engine.ACU.code) === false, 'credit floor: a deeply-negative merchant cannot spend');
 
-  // 6. VOLUME DISCOUNT: per-verif rate falls with tier size — Boutique $0.06 → Commerce $0.055
-  //    → Plateforme $0.0525 → Scale $0.05 (floor). Each plan reconciles: usd = verifs × rate,
-  //    and overage == that same tier rate (so overage debits rate/ACU_PRICE ACU, e.g. Boutique
-  //    $0.06 = 0.96 ACU). Every tier is BELOW the PAYG rate ($0.0625); Marché/PAYG = a full 1 ACU.
+  // 6. VOLUME DISCOUNT on round monthly prices ($5/$20/$100/$400): the discount comes from the
+  //    quota, so the per-verif rate falls with tier size — Boutique $0.0588 → Commerce $0.0556 →
+  //    Plateforme $0.0526 → Scale $0.05 (floor). Round monthly ÷ reduced quota is a repeating
+  //    decimal, so overage is the rate to 4dp and quota × rate ≈ monthly (within a cent). Every
+  //    tier is BELOW the PAYG rate ($0.0625); Marché / no-subscription PAYG = a full 1 ACU.
   const PL = require('../../shared/plans').PLANS;
   const rate = k => PL[k].usd / PL[k].verifs;
   const TIERS = ['boutique', 'commerce', 'plateforme', 'scale'];
-  ok(TIERS.every(k => Math.abs(rate(k) - PL[k].overage) < 1e-9), 'each plan reconciles: included rate (usd÷verifs) === overage rate (card math adds up)',
-    TIERS.map(k => `${k} $${rate(k).toFixed(4)}`).join(' · '));
+  ok(TIERS.every(k => Math.abs(PL[k].overage - rate(k)) < 0.0001), 'overage is each tier\'s per-verif rate to 4dp (included rate = overage)',
+    TIERS.map(k => `${k} $${PL[k].overage}`).join(' · '));
+  ok(TIERS.every(k => Math.abs(PL[k].overage * PL[k].verifs - PL[k].usd) < 0.05), 'card reconciles: quota × rate ≈ monthly price (within a cent)',
+    TIERS.map(k => `${k} ${PL[k].verifs}×$${PL[k].overage}=$${(PL[k].overage*PL[k].verifs).toFixed(2)}`).join(' · '));
   ok(rate('boutique') > rate('commerce') && rate('commerce') > rate('plateforme') && rate('plateforme') > rate('scale'),
     'volume discount: per-verif rate strictly falls as the plan grows');
   ok(Math.abs(rate('scale') - 0.05) < 1e-9, 'Scale is the $0.05 floor (the best / lowest per-verif rate)', `$${rate('scale')}`);
   ok(TIERS.every(k => rate(k) + 1e-9 < BILL.ACU_PRICE_USD), 'every plan rate is below the $0.0625 PAYG rate (a plan always beats pay-as-you-go)');
   const ovB = engine.overageAcu({ plan: 'boutique', acu_balance: 0 });
-  ok(Math.abs(ovB * BILL.ACU_PRICE_USD - PL.boutique.overage) < 1e-6, 'overage debits the tier rate in ACU (Boutique $0.06 = 0.96 ACU)', `${ovB} ACU = $${(ovB * BILL.ACU_PRICE_USD).toFixed(4)}`);
+  ok(Math.abs(ovB * BILL.ACU_PRICE_USD - PL.boutique.overage) < 0.0002, 'overage debits the tier rate in ACU (Boutique $0.0588 ≈ 0.94 ACU)', `${ovB} ACU = $${(ovB * BILL.ACU_PRICE_USD).toFixed(4)}`);
   ok(engine.overageAcu({ plan: 'marche', acu_balance: 0 }) === engine.ACU.code, 'Marché / PAYG overage is a full 1 ACU ($0.0625)');
   ok(TIERS.every(k => BILL.clearsFloor(rate(k)) && BILL.clearsFloor(PL[k].overage)),
     'every paid plan included + overage rate clears the 4× floor');

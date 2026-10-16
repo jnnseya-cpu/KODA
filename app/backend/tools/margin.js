@@ -1,6 +1,6 @@
 // KODA — margin guard (npm run margin). Enforces the 4× floor: every ACU KODA sells
 // (plan-included, top-up/overage/AI, and partner wholesale) nets ≥4× fully-loaded cost.
-// Two-book + volume discount: DIRECT plan = $0.06→$0.05 per tier (beats PAYG), LIST = direct/0.8; ACU $0.0625;
+// Two-book + volume discount: DIRECT plan = $0.0588→$0.05 per tier (beats PAYG), LIST = direct/0.8; ACU $0.0625;
 // partner wholesale 80%/85% so KODA nets ≥4× on any resold plan. Exits 1 on violation.
 'use strict';
 const C = require('../../shared/costs');
