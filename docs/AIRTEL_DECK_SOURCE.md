@@ -86,10 +86,10 @@ Server-authoritative pricing, idempotent settlement, **double-entry ledger that 
 | Plan | Price | Verifications/mo | Throughput | For |
 |---|---|---|---|---|
 | **Marché** | Free forever | 10 | 2 req/s | Market traders |
-| **Boutique** | $5/mo | 100 (+$0.0625 over) | 10 req/s | Small shops |
-| **Commerce** | $20/mo | 400 (+$0.0625 over) | 25 req/s | Growing businesses |
-| **Plateforme** | $100/mo | 2,000 (+$0.0625 over) | 100 req/s | Scaling merchants |
-| **Scale** | $400/mo | 8,000 (+$0.0625 over) | 250 req/s | Platforms/marketplaces (sub-merchant API, trust-score, re-billing, distributor access) |
+| **Boutique** | $5/mo | 100 (+$0.05 over) | 10 req/s | Small shops |
+| **Commerce** | $20/mo | 400 (+$0.05 over) | 25 req/s | Growing businesses |
+| **Plateforme** | $100/mo | 2,000 (+$0.05 over) | 100 req/s | Scaling merchants |
+| **Scale** | $400/mo | 8,000 (+$0.05 over) | 250 req/s | Platforms/marketplaces (sub-merchant API, trust-score, re-billing, distributor access) |
 | **Enterprise / Gov** | Custom | Committed volume | 1,000 req/s | In-country residency, SLA, white-label |
 Verifications within quota are **free** (no per-use cost). ACU (prepaid credit, $0.0625/unit) is drawn only by AI features and over-quota verifications; a plan paid **direct to KODA** is priced at $0.05/verif — cheaper than pay-as-you-go, so subscribing always saves. Prepaid **ACU vouchers** and a **distributor/agent float** model let field agents resell credit *and whole plans* (at a list price = direct/0.8) and keep a 15–20% margin, while KODA still nets far above its 4× floor on every sale.
 

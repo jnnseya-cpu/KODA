@@ -1163,10 +1163,10 @@ window.revokeDevice = async (id) => { await api(`/app/devices/${id}/revoke`, { b
 
 // what each plan gives you — display copy keyed to the shared plan ladder
 const PLAN_FEATURES = {
-  marche:     ['10 verifications/mo', '1 Sentinel device', 'Verify Console + Live Feed', 'Replay protection', 'Daily digest'],
-  boutique:   ['Manual + Chat + API doors', '2 devices · 3 team seats', 'Customer receipts', 'Web widget + webhooks', 'Reconciliation', 'Overage $0.0625 / extra verification'],
-  commerce:   ['Everything in Boutique', '5 devices · 10 seats', 'Vision + screenshot forensics', 'Dispute assistant', 'Priority parsing · WhatsApp SLA', 'Overage $0.0625 / extra verification'],
-  plateforme: ['Everything in Commerce', 'Unlimited devices', 'Highest throughput (100 req/s)', 'SLA-backed response times', 'Overage $0.0625 / extra verification'],
+  marche:     ['10 verifications/mo', 'Verify Console + Live Feed (Door 1 only)', '1 Sentinel device · replay protection', 'Daily digest', 'Chat, API, USSD & SMS: paid plans'],
+  boutique:   ['Manual + Chat + API doors', '2 devices · 3 team seats', 'Customer receipts', 'Web widget + webhooks', 'Reconciliation', 'Overage $0.05 / extra verification'],
+  commerce:   ['Everything in Boutique', '5 devices · 10 seats', 'Vision + screenshot forensics', 'Dispute assistant', 'Priority parsing · WhatsApp SLA', 'Overage $0.05 / extra verification'],
+  plateforme: ['Everything in Commerce', 'Unlimited devices', 'Highest throughput (100 req/s)', 'SLA-backed response times', 'Overage $0.05 / extra verification'],
   scale:      ['Everything in Plateforme', '8,000 verifications included', 'Sub-merchant API + scoped keys', 'Trust-score API', 'Re-billing endpoints', 'Distributor / reseller access', 'Priority onboarding & migration'],
   enterprise: ['Everything in Scale', 'In-country residency', 'Dedicated corridor models', 'White-label (+20%)', '99.9% SLA, credited if missed', 'Annual contract'],
 };
@@ -1234,7 +1234,7 @@ VIEWS.billing = async () => {
       <a class="btn btn-ghost" href="#reseller">Reseller console →</a></div></div>
   <div class="card" style="margin-top:14px"><h3>${t('change_plan')}</h3>
     <div class="pill-row">${plans.map(p => `<button class="pill ${b.plan.label.toLowerCase() === p ? 'on' : ''}" onclick="setPlan('${p}')">${p}</button>`).join('')}</div>
-    <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $5 · Commerce $20 · Plateforme $100 · Scale $400 · Enterprise custom — one ladder, all five doors.</div>
+    <div class="mono" style="font-size:11.5px;color:var(--dim)">Marché $0 · Boutique $5 · Commerce $20 · Plateforme $100 · Scale $400 · Enterprise custom — one ladder; Marché is Door 1, paid plans add Chat/API/USSD/SMS.</div>
     <p style="margin-top:8px"><a href="#pricing" style="color:var(--gold);font-size:13px">${t('bl_see_all')}</a></p>
     <div id="plan-pay" style="margin-top:12px"></div>
   </div>

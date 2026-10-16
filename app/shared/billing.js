@@ -16,7 +16,7 @@
   //    inventory at 80% of list (= the direct price), resells at list, and keeps 20% (reseller)
   //    / 15% (distributor). KODA still nets far above the 4× floor — it receives ~80% of list.
   //    A merchant who buys through a cash agent pays list: the agent's convenience premium.
-  //  · AD-HOC ACU / top-ups / overage / AI = $0.0625. Same as the partner list rate.
+  //  · AD-HOC ACU / top-ups / AI = $0.0625 (a plan's overage is its own $0.05 rate). Same as partner list.
   // So a direct plan is the cheapest way to verify; pay-as-you-go and the agent channel both
   // sit at $0.0625; and nothing — direct or resold — ever nets KODA below the 4× floor.
   // The rail's collection fee is PASSED THROUGH to the merchant, so KODA's net never dips.

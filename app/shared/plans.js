@@ -16,7 +16,7 @@
   //            list (= the direct price), resells at list, and keeps 20% (reseller) / 15%
   //            (distributor); KODA still nets far above the 4× floor (it always receives ~80%
   //            of list). The merchant who buys through a cash agent pays list — the premium.
-  // Ad-hoc ACU / top-ups / overage sit at $0.0625. CI asserts: direct plan rate ≥4× floor AND
+  // Ad-hoc ACU / top-ups sit at $0.0625; a plan's overage is its own $0.05 rate. CI asserts: direct plan rate ≥4× floor AND
   // < the ACU rate (RULE 4); partner resale of list nets ≥4× (RULE 5); top-ups ≥ ACU (RULE 3).
   // verifs = usd/$0.05 (rounded down). Marché is the free acquisition tier (10 on us).
   // Prices: Boutique $5/100 · Commerce $20/400 · Plateforme $100/2000 · Scale $400/8000
@@ -31,10 +31,10 @@
   // the new SCALE tier, so it needs no legacy row.
   const PLANS = {
     marche:     { label: 'Marché',     usd: 0,    list_usd: 0,   verifs: 10,    overage: null,   rps: 2 },
-    boutique:   { label: 'Boutique',   usd: 5,    list_usd: 6.25,  verifs: 100,   overage: 0.0625, rps: 10 },
-    commerce:   { label: 'Commerce',   usd: 20,   list_usd: 25,    verifs: 400,   overage: 0.0625, rps: 25 },
-    plateforme: { label: 'Plateforme', usd: 100,  list_usd: 125,   verifs: 2000,  overage: 0.0625, rps: 100 },
-    scale:      { label: 'Scale',      usd: 400,  list_usd: 500,   verifs: 8000,  overage: 0.0625, rps: 250 },
+    boutique:   { label: 'Boutique',   usd: 5,    list_usd: 6.25,  verifs: 100,   overage: 0.05,   rps: 10 },
+    commerce:   { label: 'Commerce',   usd: 20,   list_usd: 25,    verifs: 400,   overage: 0.05,   rps: 25 },
+    plateforme: { label: 'Plateforme', usd: 100,  list_usd: 125,   verifs: 2000,  overage: 0.05,   rps: 100 },
+    scale:      { label: 'Scale',      usd: 400,  list_usd: 500,   verifs: 8000,  overage: 0.05,   rps: 250 },
     enterprise: { label: 'Enterprise', usd: null, list_usd: null,  verifs: null,  overage: null,   rps: 1000 },
     // grandfathered (hidden, direct-only — never resold): keep original price + bucket
     boutique_legacy: { label: 'Boutique',  usd: 19, list_usd: 19, verifs: 700,  overage: 0.0325, rps: 10, legacy: true },

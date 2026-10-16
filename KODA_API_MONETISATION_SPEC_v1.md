@@ -186,7 +186,7 @@ Pay-as-you-go ACU is priced at **$0.0625/ACU** — deliberately above the $0.05 
 | $312.50 → 5,000 ACU | $0.0625 |
 | $1,250 → 20,000 ACU | $0.0625 |
 
-**Plans (subscription = the $0.05 rate + features)** — Marché $0 (10/mo) · Boutique $5 (100) · Commerce $20 (400) · Plateforme $100 (2,000) · Scale $400 (8,000) · Enterprise custom. Acquisition-first ladder: a low $5 door, buckets priced at $0.05/verif, growth monetised via $0.0625 overage. Included quota sells at the **plan rate ($0.05/verif)**; overage draws from the prepaid wallet at the ad-hoc rate ($0.0625). Platform capabilities (sub-merchant API, trust-score, re-billing, distributor access) sit at **Scale ($400)**; Plateforme ($100) is a throughput/scale tier.
+**Plans (subscription = the $0.05 rate + features)** — Marché $0 (10/mo) · Boutique $5 (100) · Commerce $20 (400) · Plateforme $100 (2,000) · Scale $400 (8,000) · Enterprise custom. Acquisition-first ladder: a low $5 door, buckets priced at $0.05/verif, growth beyond quota is the same $0.05/verif. Included quota AND overage sell at the **plan rate ($0.05/verif)** — drawn from the prepaid wallet; no-subscription pay-as-you-go ACU is $0.0625. Platform capabilities (sub-merchant API, trust-score, re-billing, distributor access) sit at **Scale ($400)**; Plateforme ($100) is a throughput/scale tier.
 
 **Partner wholesale (buy float/inventory, resell at the 5× retail, keep the spread)**
 
@@ -215,7 +215,7 @@ Per verification, at scale, DRC corridor (**internal only — never shown public
 |---|---|
 | Fully-loaded cost (code path) | 0.0065 |
 | Plan verification (direct rate) | 0.05 → **gross ~0.0435 (~670% profit)** |
-| Ad-hoc ACU: top-up / overage / AI (ACU rate) | 0.0625 → **gross ~0.056 (~862% profit)** |
+| Ad-hoc ACU: top-up / AI (ACU rate; plan overage is $0.05) | 0.0625 → **gross ~0.056 (~862% profit)** |
 | Partner-channel ACU (KODA net) | 0.0500–0.0531 → **~7.7×–8.2×** (partner keeps 15–20%) |
 
 The **4× floor is enforced in code and CI** (`tools/margin.js`): no pack, plan rate, overage, or wholesale rate can ever sell below 4× cost. Vision is metered at 3 ACU so the pricier vision path ($0.0213 cost) clears the floor easily ($0.1875 = 8.8×). Margin expands as code-path share rises (it does, as customers learn the flow).
