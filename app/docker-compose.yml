@@ -36,6 +36,14 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    # Explicit public resolvers. Without this, Docker can hand the container a
+    # loopback-only resolver (the host's systemd-resolved stub, 127.0.0.53) which
+    # is unreachable from inside the container — Caddy then cannot reach Let's
+    # Encrypt and every cert renewal fails, taking the whole site down. These
+    # servers keep ACME working regardless of the host's resolver setup.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     depends_on:
       - koda
     ports:
