@@ -9,6 +9,18 @@ const { SITE, BRAND, PAGES, POSTS } = require('../../shared/seo-content');
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const bySlug = Object.fromEntries(POSTS.map(p => [p.slug, p]));
 
+// EN↔FR language pairing. Each French post links its English source via a
+// "version anglaise … {{post:EN-SLUG}}" marker; we derive a two-way map so posts
+// cross-link (hreflang + a visible toggle) and search engines serve the reader's
+// language automatically. A post with no counterpart simply has no alternates.
+const pairs = {};
+for (const p of POSTS) {
+  if ((p.lang || 'en') !== 'fr') continue;
+  const hay = (p.body || []).join(' ') + ' ' + (p.faqs || []).map(f => f.join(' ')).join(' ');
+  const m = hay.match(/version anglaise[^{]*\{\{post:([a-z0-9-]+)/i);
+  if (m && bySlug[m[1]]) { pairs[p.slug] = m[1]; pairs[m[1]] = p.slug; }
+}
+
 // expand {{page:key}}, {{post:slug}}, {{brand}} into real hyperlinks. An optional
 // custom anchor — {{page:key|Texte du lien}} / {{post:slug|Texte}} — lets a post
 // (e.g. a French one) set its own anchor text instead of the target's English title.
@@ -55,12 +67,13 @@ function breadcrumbJsonLd(post) {
 }
 
 // full <head> SEO block reused by every page
-function seoHead({ title, description, path, image, jsonld = [] }) {
+function seoHead({ title, description, path, image, jsonld = [], alternates = [] }) {
   const url = SITE + path;
   const ld = jsonld.filter(Boolean).map(o => `<script type="application/ld+json">${JSON.stringify(o)}</script>`).join('\n');
+  const alt = alternates.filter(Boolean).map(a => `<link rel="alternate" hreflang="${esc(a.lang)}" href="${esc(a.href)}">`).join('\n');
   return `<meta name="description" content="${esc(description)}">
 <link rel="canonical" href="${esc(url)}">
-<meta property="og:type" content="website">
+${alt ? alt + '\n' : ''}<meta property="og:type" content="website">
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="${esc(url)}">
@@ -84,8 +97,22 @@ function renderPost(post, dateISO) {
     ? `<h2>${L.faq}</h2>` + post.faqs.map(([q, a]) => `<h3>${esc(weaveText(q))}</h3><p>${weave(a)}</p>`).join('\n') : '';
   const relatedHtml = related.length
     ? `<h2>${L.related}</h2><ul>${related.map(r => `<li><a href="/blog/${r.slug}">${esc(r.title)}</a></li>`).join('')}</ul>` : '';
-  return { head: seoHead({ title: post.title + ' | ' + BRAND, description: post.description, path: `/blog/${post.slug}`, jsonld }),
-    bodyHtml, faqHtml, relatedHtml, post };
+  // language alternates (hreflang) + a visible toggle, when an EN↔FR counterpart exists
+  const selfLang = post.lang || 'en';
+  const counterpart = pairs[post.slug] ? bySlug[pairs[post.slug]] : null;
+  let alternates = [], altLink = null;
+  if (counterpart) {
+    const enSlug = selfLang === 'en' ? post.slug : counterpart.slug;
+    const frSlug = selfLang === 'fr' ? post.slug : counterpart.slug;
+    alternates = [
+      { lang: 'en', href: `${SITE}/blog/${enSlug}` },
+      { lang: 'fr', href: `${SITE}/blog/${frSlug}` },
+      { lang: 'x-default', href: `${SITE}/blog/${enSlug}` },
+    ];
+    altLink = { slug: counterpart.slug, lang: counterpart.lang || 'en', title: counterpart.title };
+  }
+  return { head: seoHead({ title: post.title + ' | ' + BRAND, description: post.description, path: `/blog/${post.slug}`, jsonld, alternates }),
+    bodyHtml, faqHtml, relatedHtml, altLink, post };
 }
 
 function allPosts() { return POSTS; }

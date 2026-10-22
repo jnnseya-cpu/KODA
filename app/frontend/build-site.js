@@ -1319,7 +1319,10 @@ for (const p of posts) {
   .catch(function(){});
 }catch(_){}})();
 </script>`;
-  const body = `${viewsBadge}\n${r.bodyHtml}\n${r.faqHtml}\n${r.relatedHtml}\n<p style="margin-top:26px"><a href="/get-started">${T.cta}</a> · <a href="/blog">${T.all}</a></p>${viewsBeacon}`;
+  const altToggle = r.altLink
+    ? `<p style="font-family:var(--mono);font-size:12px;margin:0 0 14px"><a href="/blog/${r.altLink.slug}">${r.altLink.lang === 'fr' ? 'Lire en français →' : 'Read in English →'}</a></p>`
+    : '';
+  const body = `${altToggle}${viewsBadge}\n${r.bodyHtml}\n${r.faqHtml}\n${r.relatedHtml}\n<p style="margin-top:26px"><a href="/get-started">${T.cta}</a> · <a href="/blog">${T.all}</a></p>${viewsBeacon}`;
   const html = blogPage({ title: p.title, headExtra: r.head, kicker: T.kicker, lead: p.description, bodyHtml: body, lang: fr ? 'fr' : 'en' })
     .replace(/<h1>[^<]*<\/h1>/, `<h1>${p.title.replace(/&/g, '&amp;')}</h1>`);
   fs.writeFileSync(path.join(blogDir, `${p.slug}.html`), html);
