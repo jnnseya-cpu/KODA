@@ -16,7 +16,11 @@ export KODA_BUILD_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo dev)"
 export KODA_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 echo "→ building + restarting KODA ($KODA_BUILD_SHA)…"
-docker compose up -d --build
+# --pull refreshes the node:22-alpine base on every build so security patches to
+# the Node runtime (e.g. CVE fixes) are picked up automatically, not frozen at the
+# base image that happened to be cached on this host. Then start the new container.
+docker compose build --pull
+docker compose up -d
 
 echo "→ waiting for health…"
 ok=0
