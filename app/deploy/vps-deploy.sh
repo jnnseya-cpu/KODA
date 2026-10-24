@@ -5,8 +5,9 @@
 # keeps serving until this returns). The IndexNow re-announce happens on the new
 # container's own boot — change-gated, so only URLs a release ADDED go out.
 #
-# Used by the GitHub auto-deploy workflow (.github/workflows/ci.yml → deploy job)
-# and safe to run by hand: cd /root/koda/app && bash deploy/vps-deploy.sh
+# Run by the on-VPS autopull timer (deploy/autopull-check.sh) when the deploy
+# branch moves, and safe to run by hand: cd /root/koda/app && bash deploy/vps-deploy.sh
+# (CI — .github/workflows/ci.yml — is the test gate only; it does not deploy.)
 set -euo pipefail
 
 # Stamp the real commit + build time so /version reports what's actually running
