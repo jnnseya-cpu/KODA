@@ -355,7 +355,9 @@ module.exports = function registerRoutes(r) {
     q.all('SELECT * FROM disputes WHERE merchant_id=? ORDER BY created_at DESC', m.id)));
   r.post('/app/disputes', auth(async (req, user, m) => {
     const ref = String(req.body.reference || '').trim();
-    const reason = req.body.reason || 'verification_failed';
+    // Coerce to a bounded string: a non-string reason (bool/array/object) would otherwise
+    // fail the SQLite bind on INSERT below and surface as an unhandled 500.
+    const reason = String(req.body.reason || 'verification_failed').slice(0, 1000);
     // REAL ledger scan — actually look for the payment instead of a hardcoded verdict.
     const receipt = ref ? q.get('SELECT amount,currency,operator,verified_at,payer_suffix,risk_score FROM receipts WHERE merchant_id=? AND UPPER(reference)=UPPER(?)', m.id, ref) : null;
     const seen = ref ? q.all(`SELECT ref_code, amount, currency, operator, received_at FROM sms_ledger WHERE merchant_id=? AND UPPER(ref_code)=UPPER(?) ORDER BY received_at DESC LIMIT 5`, m.id, ref) : [];
@@ -404,9 +406,9 @@ module.exports = function registerRoutes(r) {
     // ADD-ON B: a dispute on a reference contributes the payer's hashed identity to
     // the network so other merchants inherit the signal (no raw value is stored).
     try {
-      const rc = req.body.reference ? q.get('SELECT payer_suffix FROM receipts WHERE merchant_id=? AND UPPER(reference)=UPPER(?)', m.id, req.body.reference) : null;
+      const rc = ref ? q.get('SELECT payer_suffix FROM receipts WHERE merchant_id=? AND UPPER(reference)=UPPER(?)', m.id, ref) : null;
       if (rc && rc.payer_suffix) trustNet.record({ subject: rc.payer_suffix, kind: 'disputed' });
-      if (req.body.reference) trustNet.flag({ kind: 'reference', value: req.body.reference, reason: 'dispute_opened', merchantId: m.id });
+      if (ref) trustNet.flag({ kind: 'reference', value: ref, reason: 'dispute_opened', merchantId: m.id });
     } catch { /* network optional */ }
     return q.get('SELECT * FROM disputes WHERE id=?', did);
   }));
