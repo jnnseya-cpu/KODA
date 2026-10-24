@@ -811,6 +811,10 @@ module.exports = function registerRoutes(r) {
   }));
   r.post('/app/webhooks/:id/test', auth((req, user, m) => {
     if (!needRole(user, [])) return [403, { error: 'owner_only' }];
+    // Scope the id to the caller's merchant (like every other /webhooks/:id route) so a
+    // test cannot be fired against an endpoint the caller does not own; 404 otherwise.
+    const ep = q.get('SELECT * FROM webhook_endpoints WHERE id=? AND merchant_id=?', req.params.id, m.id);
+    if (!ep) return [404, { error: { code: 'endpoint_not_found' } }];
     require('./lib/webhooks').dispatch(m.id, 'payment.verified',
       { test: true, receipt_id: 'rcp_TEST', amount: 25000, currency: m.currency });
     return { ok: true, note: 'Signed test event dispatched.' };
