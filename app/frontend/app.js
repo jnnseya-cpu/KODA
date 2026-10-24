@@ -239,6 +239,7 @@ const TOKEN = () => localStorage.getItem('koda_token');
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     method: opts.method || (opts.body ? 'POST' : 'GET'),
+    credentials: 'same-origin', // carry the httpOnly session cookie on same-origin app calls
     headers: { 'content-type': 'application/json', ...(TOKEN() ? { authorization: `Bearer ${TOKEN()}` } : {}) },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
@@ -274,7 +275,7 @@ const root = document.getElementById('root');
 
 async function boot() {
   applyDocLang();                                    // pick up the device language before first paint
-  if (TOKEN()) { try { ME = await api('/app/me'); } catch { localStorage.removeItem('koda_token'); } }
+  if (TOKEN() || localStorage.getItem('koda_authed')) { try { ME = await api('/app/me'); } catch { localStorage.removeItem('koda_token'); localStorage.removeItem('koda_authed'); } }
   route();
 }
 window.addEventListener('hashchange', route);
@@ -438,7 +439,7 @@ function shell(active, title, sub, content) {
   </div>`;
 }
 window.setLang = (v) => { LANG = v; if (v) localStorage.setItem('koda_lang', v); else localStorage.removeItem('koda_lang'); applyDocLang(); route(); };
-window.logout = () => { localStorage.removeItem('koda_token'); ME = null; location.hash = '#login'; };
+window.logout = async () => { try { await api('/app/auth/logout', { method: 'POST' }); } catch {} localStorage.removeItem('koda_token'); localStorage.removeItem('koda_authed'); ME = null; location.hash = '#login'; };
 
 /* ---------------- views ---------------- */
 const VIEWS = {};
@@ -592,7 +593,7 @@ window.doLogin = async () => {
   try {
     const h = await humanToken();
     const r = await api('/app/auth/login', { body: { email: v('em'), password: v('pw'), ...h } });
-    localStorage.setItem('koda_token', r.token); ME = await api('/app/me');
+    localStorage.setItem('koda_authed', '1'); ME = await api('/app/me');
     location.hash = returnHash() || '#dashboard';
   } catch (e) { toast('✗ ' + (e.message || 'login failed')); }
 };
@@ -601,7 +602,7 @@ window.doSignup = async (plan) => {
     const h = await humanToken();
     const refEl = document.getElementById('refcode');
     const r = await api('/app/auth/signup', { body: { business: v('biz'), name: v('nm'), email: v('em'), phone: v('ph'), password: v('pw'), ref: refEl ? refEl.value : '', ...h } });
-    localStorage.setItem('koda_token', r.token); ME = await api('/app/me');
+    localStorage.setItem('koda_authed', '1'); ME = await api('/app/me');
     // Paid plan chosen on the pricing page → take them to Billing and open the
     // payment picker (KODA mobile money / card). Free plan → straight to the app.
     if (plan && plan !== 'marche' && plan !== 'enterprise') {

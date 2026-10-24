@@ -43,6 +43,27 @@ function verifyJwt(jwt) {
   } catch { return null; }
 }
 
+// ── session cookie (httpOnly) ────────────────────────────────────────────────
+// The app session JWT is carried in an httpOnly cookie so that a successful XSS
+// cannot read it from JavaScript (the CSP must keep 'unsafe-inline' because the
+// SPA renders inline event handlers, so the token itself is protected instead).
+// Secure is set only in production (so http://localhost tests still receive it);
+// SameSite=Lax blocks the cross-site POSTs that CSRF relies on while still allowing
+// top-level navigations (email verify / reset deep links) to carry the session.
+const SESSION_COOKIE = 'koda_session';
+function sessionCookie(jwt, ttlSec = 60 * 60 * 24 * 7) {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  return `${SESSION_COOKIE}=${jwt}; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=${ttlSec}`;
+}
+function clearSessionCookie() {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  return `${SESSION_COOKIE}=; HttpOnly${secure}; SameSite=Lax; Path=/; Max-Age=0`;
+}
+function readCookie(header, name = SESSION_COOKIE) {
+  const m = String(header || '').match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
+  return m ? m[1] : null;
+}
+
 function sha256(s) { return crypto.createHash('sha256').update(s).digest('hex'); }
 function hmac(secret, s) { return crypto.createHmac('sha256', secret).update(s).digest('hex'); }
 // constant-time string compare (length-safe): false rather than throwing on mismatch.
@@ -52,4 +73,4 @@ function safeEqual(a, b) {
   try { return crypto.timingSafeEqual(a, b); } catch { return false; }
 }
 
-module.exports = { id, token, hashPassword, verifyPassword, signJwt, verifyJwt, sha256, hmac, safeEqual };
+module.exports = { id, token, hashPassword, verifyPassword, signJwt, verifyJwt, sha256, hmac, safeEqual, sessionCookie, clearSessionCookie, readCookie };

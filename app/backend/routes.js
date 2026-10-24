@@ -63,7 +63,8 @@ module.exports = function registerRoutes(r) {
     notify.fire('cs.onboarding_started', { user, merchant });
     audit(mid, uid, 'signup', { business });
     analytics.merchantSignup(mid);   // server-side conversion (env-gated; no PII)
-    return { token: U.signJwt({ uid, mid }), user: safeUser(user), merchant };
+    const jwt = U.signJwt({ uid, mid });
+    return [200, { token: jwt, user: safeUser(user), merchant }, { 'set-cookie': U.sessionCookie(jwt) }];
   });
 
   r.post('/app/auth/login', (req) => {
@@ -80,8 +81,12 @@ module.exports = function registerRoutes(r) {
     // A suspended MERCHANT blocks all its users' access (admins/KODA staff exempt).
     if (merchant && merchant.status !== 'active' && !user.is_admin) return [403, { error: 'account_suspended' }];
     notify.fire('auth.login.success', { user, merchant });
-    return { token: U.signJwt({ uid: user.id, mid: user.merchant_id, adm: !!user.is_admin }), user: safeUser(user), merchant };
+    const jwt = U.signJwt({ uid: user.id, mid: user.merchant_id, adm: !!user.is_admin });
+    return [200, { token: jwt, user: safeUser(user), merchant }, { 'set-cookie': U.sessionCookie(jwt) }];
   });
+
+  // ---- logout: clear the httpOnly session cookie (client also drops any legacy token) ----
+  r.post('/app/auth/logout', () => [200, { ok: true }, { 'set-cookie': U.clearSessionCookie() }]);
 
   // ---- forgot password: email a single-use reset link ----
   r.post('/app/auth/forgot', (req) => {
@@ -2530,7 +2535,7 @@ function createIntent(m, body, idemKey, livemode = 1) {
 const { q: _q } = require('./lib/db');
 function auth(handler) {
   return (req) => {
-    const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.query.token;
+    const tok = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || req.query.token || U.readCookie(req.headers.cookie);
     const payload = U.verifyJwt(tok);
     if (!payload) return [401, { error: 'unauthenticated' }];
     const user = _q.get('SELECT * FROM users WHERE id=?', payload.uid);
