@@ -1,0 +1,11 @@
+{
+  "name": "trend-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Trend Intelligence AI — keyless, industry-neutral growth-intelligence control layer (zero-dependency Node reference, KODA stack).",
+  "type": "commonjs",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "test": "node --no-warnings test/scoring.test.js"
+  }
+}
