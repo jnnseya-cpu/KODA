@@ -6,6 +6,6 @@
   "type": "commonjs",
   "engines": { "node": ">=22.5" },
   "scripts": {
-    "test": "node --no-warnings test/scoring.test.js && node --no-warnings test/persistence.test.js"
+    "test": "node --no-warnings test/scoring.test.js && node --no-warnings test/persistence.test.js && node --no-warnings test/brief.test.js"
   }
 }

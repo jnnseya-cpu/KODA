@@ -40,7 +40,7 @@ profile/adapter data (spec portability rule, §14).
 |---|---|---|
 | **1. Scoring core** | §5/§17 deterministic detection, lift/z, opportunity + confidence, thresholds | ✅ **done** — 37 tests incl. TI-03 (86.25 / 83.5) |
 | **2. Persistence** | `node:sqlite` schema + tenant isolation, idempotent ingest (`observations:batch`) | ✅ **done** — 12 tests incl. TI-01, TI-02 |
-| 3. Contracts | Growth Brief v1 schema validation, effective-brief resolution | next |
+| **3. Contracts** | Growth Brief v1 schema validation, runtime rules, effective-brief resolution | ✅ **done** — 25 tests incl. §6 fixture, TI-05 |
 | 4. Actions | propose → approve (hash-bound) → execute (outbox) → rollback; fake CMS adapter | next |
 | 5. Native surface | owned-page renderer + first-party outcome capture; deterministic drafts | next |
 | 6. Conformance | TI-01…TI-22 harness; G1 clean-install gate (§20) | next |
