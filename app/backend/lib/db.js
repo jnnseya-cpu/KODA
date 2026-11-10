@@ -618,6 +618,69 @@ db.exec(`CREATE TABLE IF NOT EXISTS idempotency_keys (
   PRIMARY KEY (merchant_id, key)
 );`);
 
+// ── Trend Intelligence AI (embedded) ─────────────────────────────────────────
+// Growth-intelligence control layer: demand signals → scored opportunities → a
+// versioned Growth Brief that steers KODA's existing SEO/marketing agents. The
+// spec's "installation/tenant" IS a KODA merchant; every private row is merchant-
+// scoped (SQLite has no RLS, so the trend store binds merchant_id on every query).
+db.exec(`
+CREATE TABLE IF NOT EXISTS trend_sources (
+  merchant_id TEXT NOT NULL REFERENCES merchants(id),
+  source_id TEXT NOT NULL,
+  access_path TEXT NOT NULL,                 -- public_keyless | host_mediated | file_import
+  source_family TEXT NOT NULL,
+  quality REAL NOT NULL DEFAULT 50,
+  stale_after_sec INTEGER,
+  terms_version TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  PRIMARY KEY (merchant_id, source_id)
+);
+CREATE TABLE IF NOT EXISTS trend_observations (
+  merchant_id TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  source_family TEXT NOT NULL,
+  source_record_id TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 1,
+  observed_at TEXT NOT NULL,
+  window_start TEXT, window_end TEXT,
+  ingested_at TEXT NOT NULL DEFAULT (datetime('now')),
+  geography TEXT, locale TEXT, segment TEXT, metric TEXT, value REAL, unit TEXT,
+  scaling_scope TEXT, coverage REAL, evidence_uri TEXT, evidence_hash TEXT NOT NULL, terms_version TEXT,
+  PRIMARY KEY (merchant_id, source_id, source_record_id, revision)
+);
+CREATE INDEX IF NOT EXISTS trend_obs_window ON trend_observations(merchant_id, source_id, window_end);
+CREATE TABLE IF NOT EXISTS trend_profiles (
+  merchant_id TEXT NOT NULL,
+  revision INTEGER NOT NULL,
+  active INTEGER NOT NULL DEFAULT 0,
+  data TEXT NOT NULL,                        -- JSON: offer, topics, claims, ctas, channels, markets, locales, outcomes, assets
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (merchant_id, revision)
+);
+CREATE TABLE IF NOT EXISTS trend_opportunities (
+  merchant_id TEXT NOT NULL,
+  topic_id TEXT NOT NULL,
+  window_end TEXT NOT NULL,
+  scoring_version INTEGER NOT NULL DEFAULT 1,
+  input_digest TEXT NOT NULL,
+  opportunity_score REAL NOT NULL,
+  confidence REAL NOT NULL,
+  status TEXT NOT NULL,                       -- archive | watch | brief | auto_eligible
+  breakdown TEXT,                             -- JSON score/confidence inputs + vetoes
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (merchant_id, topic_id, window_end, scoring_version, input_digest)
+);
+CREATE TABLE IF NOT EXISTS trend_briefs (
+  merchant_id TEXT NOT NULL,
+  brief_id TEXT NOT NULL,
+  brief_version INTEGER NOT NULL,
+  payload TEXT NOT NULL,                      -- JSON Growth Brief v1
+  status TEXT NOT NULL DEFAULT 'draft',       -- draft | active | expired | superseded
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (merchant_id, brief_id, brief_version)
+);
+`);
+
 // tiny helpers ---------------------------------------------------------------
 // Prepared-statement cache: preparing on every call costs ~30–60 µs each; the
 // hot verify path runs ~10 statements, so caching keeps the money path fast.
