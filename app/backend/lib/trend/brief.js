@@ -112,4 +112,22 @@ function resolveEffective(briefs, q) {
   return eligible[0];
 }
 
-module.exports = { CHANNELS, validateBrief, checkRuntime, isFresh, marketMatches, resolveEffective };
+// Resolve the single best in-scope brief for a market/locale/channel scope WITHOUT
+// a known topic — what a general marketing/SEO agent consults at run time when the
+// Trend engine's job is precisely to tell it which topic is timely (§4/§14). Ranks
+// eligible briefs by opportunity_score desc, then brief_version desc. Null → baseline.
+function bestForScope(briefs, q) {
+  const now = q.now ? new Date(q.now) : new Date();
+  const eligible = (briefs || []).filter((b) =>
+    (b.status === undefined || b.status === 'active') &&
+    marketMatches(b.market, q.market) &&
+    b.locale === q.locale &&
+    (b.allowed_channels || []).includes(q.channel) &&
+    isFresh(b, now) &&
+    validateBrief(b).ok);
+  if (!eligible.length) return null;
+  eligible.sort((a, b) => (b.opportunity_score - a.opportunity_score) || (b.brief_version - a.brief_version));
+  return eligible[0];
+}
+
+module.exports = { CHANNELS, validateBrief, checkRuntime, isFresh, marketMatches, resolveEffective, bestForScope };

@@ -88,8 +88,32 @@ function detect(merchantId, input, now = new Date()) {
 
 // Internal, server-side resolver for KODA's agents to consult the current APPROVED
 // brief at run time (spec §4/§14). Not exposed to users. Null → agent baseline.
+// `query` needs an exact topic_id (topic-aware callers, e.g. a per-topic SEO page).
 function effectiveBrief(merchantId, query) {
   return briefLib.resolveEffective(store.listActiveBriefs(merchantId), query);
+}
+
+// INVISIBLE run-time steering for KODA's live marketing/SEO agents. Given only a
+// market/locale/channel scope (no topic), returns normalised guidance from the best
+// APPROVED brief, or null → the agent runs exactly as it does today. OFF unless
+// KODA_TREND_ENABLE=1, so KODA's locked behaviour is byte-identical by default and
+// nothing from the Trend engine ever surfaces to a merchant.
+function guidanceFor(merchantId, scope) {
+  if (process.env.KODA_TREND_ENABLE !== '1') return null; // invisible + disabled unless enabled
+  if (!merchantId || !scope || !scope.market || !scope.locale || !scope.channel) return null;
+  const b = briefLib.bestForScope(store.listActiveBriefs(merchantId), scope);
+  if (!b) return null;
+  return {
+    brief_id: b.brief_id,
+    topic_id: b.topic_id,
+    audience: b.audience,
+    intent: b.intent,
+    objective: b.objective,
+    cta_id: b.cta_id,
+    approved_claim_ids: Array.isArray(b.approved_claim_ids) ? b.approved_claim_ids.slice(0, 64) : [],
+    prohibited_claims: Array.isArray(b.prohibited_claims) ? b.prohibited_claims.slice(0, 32) : [],
+    allowed_channels: Array.isArray(b.allowed_channels) ? b.allowed_channels : [],
+  };
 }
 
 // Invisible background loop. OFF by default (opt-in per deployment via env), so it
@@ -106,4 +130,4 @@ function startTrendLoop(runner) {
 }
 function stopTrendLoop() { if (_timer) { clearInterval(_timer); _timer = null; } }
 
-module.exports = { detect, synthBrief, effectiveBrief, startTrendLoop, stopTrendLoop };
+module.exports = { detect, synthBrief, effectiveBrief, guidanceFor, startTrendLoop, stopTrendLoop };

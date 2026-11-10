@@ -2337,12 +2337,22 @@ module.exports = function registerRoutes(r) {
       const disputes = q.get(`SELECT COUNT(*) c FROM disputes WHERE merchant_id=? AND status='open'`, m.id).c;
       input = { acu: m.acu_balance, unmatched, disputes, monthVerifs: month, planQuota: (PLANS[m.plan] || {}).verifs };
     }
+    // Invisible Trend steering: consult the current APPROVED Growth Brief for this
+    // merchant's market/locale/channel. No-op unless KODA_TREND_ENABLE=1 and a brief is
+    // in scope → otherwise system/input are unchanged and the run is byte-identical to
+    // today. Nothing from the Trend engine is ever returned to the merchant.
+    let system = growth.AI_SYSTEM, briefId = null;
+    try {
+      const g = require('./lib/trend/agent').guidanceFor(m.id, {
+        market: String(m.country || '').toUpperCase(), locale: m.language || 'en', channel: growth.channelFor(toolId) });
+      if (g) { const s = growth.steer(m, input, g); input = s.options; system = s.system; briefId = g.brief_id; }
+    } catch { /* trend layer optional — never affects a merchant's growth run */ }
     const result = tool.run(m, input); // template = structure + honest fallback
     // Real AI generation (live, varies each run) when a provider key is configured.
     let aiUsed = false;
     if (contentTool && ai.available()) {
       try {
-        result.ai_text = await ai.generate({ system: growth.AI_SYSTEM, prompt: promptFn(m, input) });
+        result.ai_text = await ai.generate({ system, prompt: promptFn(m, input) });
         result.ai_provider = ai.provider();
         aiUsed = true;
       } catch (e) { result.ai_text = null; result.ai_error = String(e && e.message || e); }
@@ -2351,7 +2361,7 @@ module.exports = function registerRoutes(r) {
     // Already charged up-front when willCharge was true (see above). This covers both
     // content tools (model ran) and data tools; no post-hoc charge-on-success gap.
     const charge = growthCharged ? tool.acu : 0;
-    audit(m.id, user.id, 'growth_tool', { tool: toolId, acu: charge, ai: aiUsed });
+    audit(m.id, user.id, 'growth_tool', { tool: toolId, acu: charge, ai: aiUsed, brief: briefId || undefined });
     return { tool: toolId, acu_consumed: charge, result };
   }));
 

@@ -91,6 +91,31 @@ ok(gated.status === 'watch' && gated.brief === null, 'detect: failed volume/hist
 ok(agent.effectiveBrief('m_ag', { market: 'CA', locale: 'en-CA', topic_id: 'topic-hi', channel: 'seo', now: isoNow() }) === null, 'effectiveBrief: DRAFT not yet effective (baseline/null)');
 store.activateBrief('m_ag', hi.brief.brief_id, hi.brief.brief_version);
 ok(agent.effectiveBrief('m_ag', { market: 'CA', locale: 'en-CA', topic_id: 'topic-hi', channel: 'seo', now: isoNow() }) !== null, 'effectiveBrief: resolves the APPROVED brief at run time');
+
+// ── scope-level resolver + invisible run-time steering (§4/§14) ────────────────
+const growth = require('../lib/growth');
+const activeBriefs = store.listActiveBriefs('m_ag');
+ok(brief.bestForScope(activeBriefs, { market: 'CA', locale: 'en-CA', channel: 'organic_social', now: isoNow() }) !== null, 'bestForScope: resolves best in-scope brief without a topic');
+ok(brief.bestForScope(activeBriefs, { market: 'FR', locale: 'en-CA', channel: 'organic_social', now: isoNow() }) === null, 'bestForScope: wrong market → null');
+ok(brief.bestForScope(activeBriefs, { market: 'CA', locale: 'en-CA', channel: 'paid', now: isoNow() }) === null, 'bestForScope: channel not allowed → null');
+// consult is OFF/invisible by default
+delete process.env.KODA_TREND_ENABLE;
+ok(agent.guidanceFor('m_ag', { market: 'CA', locale: 'en-CA', channel: 'organic_social' }) === null, 'guidanceFor: null (invisible) unless KODA_TREND_ENABLE=1');
+process.env.KODA_TREND_ENABLE = '1';
+const g = agent.guidanceFor('m_ag', { market: 'CA', locale: 'en-CA', channel: 'organic_social' });
+ok(g && g.brief_id === hi.brief.brief_id, 'guidanceFor: returns guidance from the approved brief when enabled');
+ok(g && Array.isArray(g.prohibited_claims), 'guidanceFor: carries prohibited_claims guardrail');
+delete process.env.KODA_TREND_ENABLE;
+// growth.steer: null guidance → byte-identical; guidance → gap-fill + guard, never override
+const s0 = growth.steer({ country: 'CA', language: 'en' }, { audience: 'my regulars' }, null);
+ok(s0.system === growth.AI_SYSTEM && s0.options.audience === 'my regulars', 'steer: no guidance → unchanged system + options');
+const s1 = growth.steer({ country: 'CA', language: 'en' }, {}, g || { audience: 'Small teams', objective: 'trial starts', intent: 'evaluate onboarding', prohibited_claims: ['guaranteed'] });
+ok(s1.options.audience === 'Small teams' && s1.options.objective === 'trial starts', 'steer: gap-fills audience/objective from brief');
+ok(s1.system.includes('Never make any of these claims') && s1.system.includes('guaranteed'), 'steer: adds prohibited-claims guardrail to the system prompt');
+const s2 = growth.steer({ country: 'CA', language: 'en' }, { audience: 'walk-in customers' }, g || { audience: 'Small teams' });
+ok(s2.options.audience === 'walk-in customers', 'steer: never overrides a merchant-typed audience');
+ok(growth.channelFor('social_post') === 'organic_social' && growth.channelFor('email_campaign') === 'lifecycle', 'channelFor: maps growth tools to spec channels');
+
 // loop stays invisible/off unless explicitly enabled
 delete process.env.KODA_TREND_ENABLE;
 ok(agent.startTrendLoop(() => {}) === null, 'startTrendLoop: no-op (null) unless KODA_TREND_ENABLE=1');

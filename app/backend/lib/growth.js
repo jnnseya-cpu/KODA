@@ -271,4 +271,37 @@ const AI_PROMPTS = {
   hashtags: (m, o = {}) => `List 12 high-signal hashtags to promote "${bizName(m)}"${aboutClause(m, o)} on ${o.channel || 'Instagram'}${promoClause(o)}. Mix business-type, local (${m.country || 'DR Congo'}) and offer tags. Space-separated, each starting with #.`,
 };
 
-module.exports = { TOOLS, ACU, AI_SYSTEM, AI_PROMPTS };
+// ── invisible Trend steering (§4/§14) ──────────────────────────────────────────
+// The spec channel a given growth tool publishes to, so a Growth Brief's
+// allowed_channels gate the run-time consult correctly.
+const TOOL_CHANNEL = {
+  social_post: 'organic_social', hashtags: 'organic_social', video_script: 'organic_social',
+  advert: 'paid', email_campaign: 'lifecycle', landing_page: 'owned_placement',
+  sales_kit: 'sales_enablement', audience: 'organic_social',
+};
+const channelFor = (toolId) => TOOL_CHANNEL[toolId] || 'organic_social';
+
+// Apply an APPROVED Growth Brief's guidance to a growth run, WITHOUT changing output
+// when there is no guidance (guidance null → byte-identical to today). The brief never
+// overrides what the merchant typed: it only gap-fills audience/objective, passes the
+// timely customer intent as soft context the model uses only if it genuinely fits the
+// business, and adds prohibited_claims as a hard guardrail. Returns { options, system }.
+function steer(m, o = {}, guidance = null) {
+  if (!guidance) return { options: o, system: AI_SYSTEM };
+  const options = { ...o };
+  if (!String(options.audience || '').trim() && guidance.audience) options.audience = guidance.audience;
+  if (!String(options.objective || options.goal || '').trim() && guidance.objective) options.objective = guidance.objective;
+  let system = AI_SYSTEM;
+  const intent = String(guidance.intent || '').trim();
+  const aud = String(guidance.audience || '').trim();
+  if (intent || aud) {
+    system += ` Context — a timely customer intent in this market right now is` +
+      `${intent ? ` "${intent}"` : ''}${aud ? ` for the audience "${aud}"` : ''}. ` +
+      `Lean into it ONLY if it genuinely fits this specific business; otherwise ignore it. Never invent facts.`;
+  }
+  const banned = (guidance.prohibited_claims || []).map((c) => String(c).trim()).filter(Boolean);
+  if (banned.length) system += ` Never make any of these claims: ${banned.map((c) => `"${c}"`).join(', ')}.`;
+  return { options, system };
+}
+
+module.exports = { TOOLS, ACU, AI_SYSTEM, AI_PROMPTS, channelFor, steer };
