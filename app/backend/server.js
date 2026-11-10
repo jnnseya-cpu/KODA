@@ -232,6 +232,10 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 // operational self-monitoring: periodic ledger reconcile → alert on drift.
 require('./lib/alerts').startSelfMonitor();
 
+// invisible Trend Intelligence background loop: OFF unless KODA_TREND_ENABLE=1,
+// draft-only, never user-facing. Guarded so it can never destabilise boot.
+try { require('./lib/trend/agent').startTrendLoop(); } catch { /* trend layer optional */ }
+
 server.listen(PORT, () => {
   if (QUIET) return;
   const V = require('../shared/version');

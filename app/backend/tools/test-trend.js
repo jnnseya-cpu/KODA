@@ -8,10 +8,12 @@ const { q } = require('../lib/db');
 const scoring = require('../lib/trend/scoring');
 const brief = require('../lib/trend/brief');
 const store = require('../lib/trend/store');
+const agent = require('../lib/trend/agent');
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ FAIL ' + m); } };
 const approx = (a, b) => Math.abs(a - b) <= 1e-9;
+const isoNow = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 // ── scoring (TI-03 / §5) ─────────────────────────────────────────────────────
 ok(approx(scoring.opportunityScore({ demand: 80, fit: 95, intent: 85, timing: 90, readiness: 80 }), 86.25), 'TI-03 opportunity 86.25');
@@ -57,6 +59,41 @@ store.saveOpportunity('m_tA', { topic_id: 'simpler-team-onboarding', window_end:
 ok(store.listOpportunities('m_tA', { status: 'brief' }).length === 1, 'opportunity persisted and listable');
 store.saveBrief('m_tA', FIX, 'draft'); store.activateBrief('m_tA', 'gb_104', 3);
 ok(store.listActiveBriefs('m_tA').length === 1 && store.listActiveBriefs('m_tB').length === 0, 'brief activates scoped to its merchant');
+
+// ── invisible background agent: detect() + effectiveBrief() + loop (§4/§7) ─────
+q.run("INSERT INTO merchants (id,name) VALUES ('m_ag','Agent Merchant')");
+const agProfile = { platform_id: 'plat_ag', default_market: 'CA', default_locale: 'en-CA',
+  approved_claim_ids: ['claim_x'], allowed_cta_ids: ['cta_ag'], allowed_channels: ['seo', 'organic_social'],
+  prohibited_claims: ['guaranteed'], outcome: { conversion: 'trial starts' }, policy_version: 2 };
+// high-score inputs → reviewable brief + a persisted DRAFT Growth Brief (invisible)
+const hi = agent.detect('m_ag', { topic_id: 'topic-hi', market: 'CA', locale: 'en-CA',
+  demand: 80, profileScores: { fit: 95, intent: 85, timing: 90, readiness: 80 },
+  confidenceInputs: { sourceQuality: 90, coverage: 70, freshness: 90 }, independentFamilies: 2,
+  evidence_ids: ['ev_1', 'ev_2'], audience: 'Small teams', intent: 'evaluate onboarding',
+  trend_class: 'breaking', profile: agProfile });
+ok(hi.status === 'brief', 'detect: high score → reviewable brief');
+ok(hi.brief && brief.validateBrief(hi.brief).ok, 'detect: synthesises schema-valid DRAFT brief');
+ok(store.listOpportunities('m_ag', { status: 'brief' }).length === 1, 'detect: opportunity persisted');
+ok(store.listActiveBriefs('m_ag').length === 0, 'detect: brief is DRAFT only — nothing active/visible');
+// low-score inputs → no brief
+const lo = agent.detect('m_ag', { topic_id: 'topic-lo', market: 'CA', locale: 'en-CA',
+  demand: 5, profileScores: { fit: 10, intent: 10, timing: 10, readiness: 10 },
+  confidenceInputs: { sourceQuality: 20, coverage: 20, freshness: 20 }, independentFamilies: 1,
+  profile: agProfile });
+ok(lo.status !== 'brief' && lo.status !== 'auto_eligible' && lo.brief === null, 'detect: low score → no brief');
+// failed count/history gate downgrades a would-be brief to watch (insufficient evidence)
+const gated = agent.detect('m_ag', { topic_id: 'topic-gate', market: 'CA', locale: 'en-CA',
+  movement: { c: 3, history: [2, 2, 3] }, profileScores: { fit: 95, intent: 85, timing: 90, readiness: 80 },
+  confidenceInputs: { sourceQuality: 90, coverage: 70, freshness: 90 }, independentFamilies: 2,
+  profile: agProfile });
+ok(gated.status === 'watch' && gated.brief === null, 'detect: failed volume/history gate → watch, no brief');
+// effectiveBrief resolver: null for drafts, resolves once activated
+ok(agent.effectiveBrief('m_ag', { market: 'CA', locale: 'en-CA', topic_id: 'topic-hi', channel: 'seo', now: isoNow() }) === null, 'effectiveBrief: DRAFT not yet effective (baseline/null)');
+store.activateBrief('m_ag', hi.brief.brief_id, hi.brief.brief_version);
+ok(agent.effectiveBrief('m_ag', { market: 'CA', locale: 'en-CA', topic_id: 'topic-hi', channel: 'seo', now: isoNow() }) !== null, 'effectiveBrief: resolves the APPROVED brief at run time');
+// loop stays invisible/off unless explicitly enabled
+delete process.env.KODA_TREND_ENABLE;
+ok(agent.startTrendLoop(() => {}) === null, 'startTrendLoop: no-op (null) unless KODA_TREND_ENABLE=1');
 
 try { fs.rmSync(process.env.KODA_DATA_DIR, { recursive: true, force: true }); } catch {}
 console.log(`trend-intel: ${pass} passed, ${fail} failed`);
